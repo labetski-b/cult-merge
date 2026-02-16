@@ -512,20 +512,14 @@ function canChargeGenerator(gen: Generator, grid: Grid): boolean {
 - Формулы прогрессии зафиксированы
 - MVP scope утвержден
 
-### Stage B: Foundation (2-3 дня)
+### Stage B: Foundation ✅ DONE
 - Инициализация проекта
 - Структура слоев
 - JSON schemas + validation
 - Seedable RNG
 - Save/load с версионированием
 
-**Definition of Done**:
-- Приложение запускается
-- Загружаются балансные JSON файлы
-- Некорректные файлы выдают валидационные ошибки
-- Есть пустой GameStore с начальным состоянием
-
-### Stage C: Core Loop Vertical Slice (4-6 дней)
+### Stage C: Core Loop Vertical Slice ✅ DONE
 - Grid + drag-and-drop
 - Merge существ
 - Generator зарядка + спавн
@@ -533,31 +527,18 @@ function canChargeGenerator(gen: Generator, grid: Grid): boolean {
 - Kraken progression
 - Auto-save
 
-**Definition of Done**:
-- Можно пройти 10-15 mandatory tasks без софт-лока
-- После перезагрузки состояние восстанавливается
-- Работает вся цепочка: charge → merge → complete task → level up
+### Stage D: Economy Loop ⏳ IN PROGRESS
+- ✅ Res_Box с вероятностями
+- ✅ Rune merge + redemption
+- ✅ Shop генераторов (buyGeneratorOne)
+- ✅ Grid expansion
+- ⏸️ Merge генераторов
+- ⏸️ Simulation tools
 
-### Stage D: Economy Loop (3-4 дня)
-- Res_Box с вероятностями
-- Rune merge + redemption
-- Shop + merge генераторов
-- Grid expansion
-
-**Definition of Done**:
-- Можно купить второй генератор за руны (без дебаг-кнопок, только через сундуки)
-- Экономика воспроизводима с фиксированным seed
-- Сетка растет при повышении уровня Kraken
-
-### Stage E: QA + Balance Toolkit (2-3 дня)
-- Debug panel
-- Telemetry logging
-- Regression tests
-
-**Definition of Done**:
-- Любое изменение в `src/data/*.json` проверяется за 2-3 минуты
-- Debug panel позволяет тестировать любой сценарий
-- Есть набор smoke-тестов для экономики
+### Stage E: QA + Balance Toolkit ⏳ IN PROGRESS
+- ✅ Debug buttons (addMeat, spawnAll, feedAll, resetGame)
+- ⏸️ Telemetry logging
+- ⏸️ Regression tests
 
 ---
 
@@ -711,6 +692,53 @@ function canChargeGenerator(gen: Generator, grid: Grid): boolean {
 
 ---
 
+---
+
+## Раздел 7: Архитектура и риски (архив из PLAN.md)
+
+### 7.1 Структура слоёв
+
+```text
+src/
+  app/            # bootstrap, providers
+  ui/             # React components only
+  domain/         # pure game logic
+  store/          # Zustand state + actions
+  data/           # JSON balance packs
+  infra/          # save/load, rng, telemetry
+```
+
+### 7.2 Доменные модули
+
+- `domain/merge.ts` — merge rules + validation
+- `domain/generator.ts` — spawn logic + probability selection
+- `domain/tasks.ts` — task selection, validation, completion
+- `domain/rewards.ts` — EXP/Eyes/Rune calculations
+- `domain/kraken.ts` — level/step progression
+- `domain/boxes.ts` — Res_Box opening + rune generation
+- `domain/grid.ts` — grid operations (find cell, place entity)
+- `domain/gridSize.ts` — grid size by kraken level
+- `domain/types.ts` — all domain types and interfaces
+
+### 7.3 Risk register
+
+1. **Неполная или противоречивая балансная таблица**
+   - Митигация: spec freeze + zod schema validation при загрузке JSON
+
+2. **Soft-lock экономики мяса**
+   - Митигация: debug-кнопка "Get Meat" в MVP
+
+3. **Слишком раннее усложнение UI/анимаций**
+   - Митигация: UI минимум до закрытия Stage D
+
+4. **Поломка сейвов при изменении модели**
+   - Митигация: versioned save + migrations (SAVE_VERSION bump)
+
+5. **Нестабильные баги вероятностей**
+   - Митигация: seedable RNG (XORShift32) + детерминистичные ID
+
+---
+
 **Документ утвержден**: 2026-02-13
-**Статус**: SPEC FREEZE - можно начинать разработку
-**Следующий шаг**: Stage B (Foundation)
+**Обновлён**: 2026-02-16
+**Статус**: SPEC FREEZE
