@@ -1,0 +1,136 @@
+import { z } from 'zod';
+
+const outputSchema = z.object({
+  creatureType: z.string().min(1),
+  level: z.number().int().positive(),
+  chance: z.number().min(0).max(1)
+});
+
+const generatorLevelSchema = z.object({
+  level: z.number().int().min(1).max(5),
+  chargeCost: z.number().int().min(0),
+  numCreatures: z.number().int().positive(),
+  outputs: z.array(outputSchema).min(1)
+});
+
+const generatorSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+  purchaseCurrency: z.enum(['rune1', 'rune2']),
+  purchaseCost: z.number().int().min(0),
+  lines: z.array(z.string().min(1)).length(2),
+  levels: z.array(generatorLevelSchema).min(1)
+});
+
+export const generatorsDataSchema = z.object({
+  generators: z.array(generatorSchema).min(1)
+});
+
+const creatureSchema = z
+  .object({
+    type: z.string().min(1),
+    maxLevel: z.number().int().min(1).max(9),
+    baseExp: z.array(z.number().int().positive()).optional(),
+    baseEyes: z.array(z.number().int().positive()).optional(),
+    baseOn: z.string().min(1).optional(),
+    expMultiplier: z.number().positive().default(1),
+    eyesMultiplier: z.number().positive().default(1)
+  })
+  .superRefine((value, ctx) => {
+    if (!value.baseExp && !value.baseOn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Creature must define either baseExp/baseEyes or baseOn'
+      });
+    }
+
+    if (value.baseExp && value.baseExp.length !== value.maxLevel) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'baseExp length must equal maxLevel'
+      });
+    }
+
+    if (value.baseEyes && value.baseEyes.length !== value.maxLevel) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'baseEyes length must equal maxLevel'
+      });
+    }
+  });
+
+export const creaturesDataSchema = z.object({
+  creatures: z.array(creatureSchema).min(1)
+});
+
+const taskRequirementSchema = z.object({
+  type: z.string().min(1),
+  level: z.number().int().min(1).max(9),
+  count: z.number().int().positive()
+});
+
+const taskSchema = z.object({
+  id: z.string().min(1),
+  creatures: z.array(taskRequirementSchema).min(1),
+  expMultiplier: z.number().min(0),
+  resMultiplier: z.number().min(0)
+});
+
+export const tasksDataSchema = z.object({
+  mandatory: z.record(z.array(taskSchema))
+});
+
+const progressionRewardSchema = z
+  .object({
+    type: z.enum(['res_box', 'egg', 'mechanic']),
+    value: z.union([z.string(), z.number()])
+  })
+  .nullable();
+
+const progressionStepSchema = z.object({
+  level: z.number().int().min(1),
+  step: z.number().int().min(0),
+  expRequired: z.number().int().min(0),
+  reward: progressionRewardSchema
+});
+
+export const krakenProgressionDataSchema = z.object({
+  progression: z.array(progressionStepSchema).min(1),
+  defaultStepExp: z.number().int().positive().default(500)
+});
+
+export const resBoxesDataSchema = z.object({
+  boxes: z.array(
+    z.object({
+      id: z.number().int().positive(),
+      items: z.number().int().positive(),
+      contents: z.record(z.number().min(0).max(1))
+    })
+  )
+});
+
+export const gridSizesDataSchema = z.object({
+  sizes: z.array(
+    z.object({
+      minLevel: z.number().int().positive(),
+      rows: z.number().int().positive(),
+      cols: z.number().int().positive()
+    })
+  )
+});
+
+export type GeneratorsData = z.infer<typeof generatorsDataSchema>;
+export type CreaturesData = z.infer<typeof creaturesDataSchema>;
+export type TasksData = z.infer<typeof tasksDataSchema>;
+export type KrakenProgressionData = z.infer<typeof krakenProgressionDataSchema>;
+export type ResBoxesData = z.infer<typeof resBoxesDataSchema>;
+export type GridSizesData = z.infer<typeof gridSizesDataSchema>;
+
+export interface BalanceConfig {
+  generators: GeneratorsData;
+  creatures: CreaturesData;
+  tasks: TasksData;
+  krakenProgression: KrakenProgressionData;
+  resBoxes: ResBoxesData;
+  gridSizes: GridSizesData;
+}

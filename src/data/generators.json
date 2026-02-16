@@ -1,0 +1,64 @@
+{
+  "generators": [
+    {
+      "id": 1,
+      "name": "Generator 1",
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 5,
+      "lines": ["Creature1", "Creature2"],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 1,
+          "numCreatures": 15,
+          "outputs": [
+            { "creatureType": "Creature1", "level": 1, "chance": 1.0 }
+          ]
+        },
+        {
+          "level": 2,
+          "chargeCost": 1,
+          "numCreatures": 20,
+          "outputs": [
+            { "creatureType": "Creature1", "level": 1, "chance": 0.54 },
+            { "creatureType": "Creature1", "level": 2, "chance": 0.36 },
+            { "creatureType": "Creature2", "level": 1, "chance": 0.1 }
+          ]
+        },
+        {
+          "level": 3,
+          "chargeCost": 2,
+          "numCreatures": 25,
+          "outputs": [
+            { "creatureType": "Creature1", "level": 1, "chance": 0.42 },
+            { "creatureType": "Creature1", "level": 2, "chance": 0.28 },
+            { "creatureType": "Creature2", "level": 1, "chance": 0.18 },
+            { "creatureType": "Creature2", "level": 2, "chance": 0.12 }
+          ]
+        },
+        {
+          "level": 4,
+          "chargeCost": 5,
+          "numCreatures": 30,
+          "outputs": [
+            { "creatureType": "Creature1", "level": 1, "chance": 0.2 },
+            { "creatureType": "Creature1", "level": 2, "chance": 0.2 },
+            { "creatureType": "Creature2", "level": 1, "chance": 0.3 },
+            { "creatureType": "Creature2", "level": 2, "chance": 0.3 }
+          ]
+        },
+        {
+          "level": 5,
+          "chargeCost": 10,
+          "numCreatures": 40,
+          "outputs": [
+            { "creatureType": "Creature1", "level": 1, "chance": 0.04 },
+            { "creatureType": "Creature1", "level": 2, "chance": 0.06 },
+            { "creatureType": "Creature2", "level": 1, "chance": 0.36 },
+            { "creatureType": "Creature2", "level": 2, "chance": 0.54 }
+          ]
+        }
+      ]
+    }
+  ]
+}

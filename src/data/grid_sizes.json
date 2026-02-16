@@ -1,0 +1,9 @@
+{
+  "sizes": [
+    { "minLevel": 1, "rows": 2, "cols": 4 },
+    { "minLevel": 5, "rows": 3, "cols": 4 },
+    { "minLevel": 7, "rows": 4, "cols": 4 },
+    { "minLevel": 12, "rows": 5, "cols": 4 },
+    { "minLevel": 20, "rows": 6, "cols": 4 }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "creatures": [
+    {
+      "type": "Creature1",
+      "maxLevel": 9,
+      "baseExp": [1, 2, 4, 8, 16, 32, 64, 128, 256],
+      "baseEyes": [2, 4, 8, 16, 32, 64, 128, 256, 512],
+      "expMultiplier": 1,
+      "eyesMultiplier": 1
+    },
+    {
+      "type": "Creature2",
+      "maxLevel": 9,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 2
+    }
+  ]
+}
