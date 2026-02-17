@@ -37,7 +37,10 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     currentTaskFed: [],
     pendingRewards: initialRewards,
     rngState: rng.getState(),
-    lastMessage: ''
+    lastMessage: null,
+    predatorMergeCounts: {},
+    predatorQueueIndex: 0,
+    managerCards: []
   };
 }
 
@@ -63,7 +66,6 @@ export class SimulationEngine {
   private rng: SeededRng;
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
-  private prevMetrics: any;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -71,7 +73,6 @@ export class SimulationEngine {
     this.rng = new SeededRng(config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
-    this.prevMetrics = null;
   }
 
   run(): SimulationResult {
@@ -117,6 +118,16 @@ export class SimulationEngine {
     // Strategy decides actions
     const actions = this.config.strategy.decide(this.state, this.rng);
 
+    // Debug: log actions for first 3 ticks
+    if (tick < 3) {
+      console.log(`Tick ${tick} actions:`, actions.map(a => a.type));
+      console.log(`Tick ${tick} BEFORE state:`, {
+        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+        meat: this.state.resources.meat
+      });
+    }
+
     // Execute all actions
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i]!;
@@ -128,14 +139,18 @@ export class SimulationEngine {
       }
     }
 
-    // Capture metrics
-    const metrics = captureTickMetrics(this.state, this.cumulative);
-
-    // Update cumulative metrics
-    if (this.prevMetrics) {
-      const updates = updateCumulativeMetrics(this.prevMetrics, metrics);
-      Object.assign(this.cumulative, updates);
+    // Debug: log state AFTER actions
+    if (tick < 3) {
+      console.log(`Tick ${tick} AFTER state:`, {
+        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+        meat: this.state.resources.meat,
+        cumulative: { ...this.cumulative }
+      });
     }
+
+    // Capture metrics (cumulative is already updated in action handlers like feedEntity)
+    const metrics = captureTickMetrics(this.state, this.cumulative);
 
     // Save snapshot
     this.history.push({
@@ -144,8 +159,6 @@ export class SimulationEngine {
       gameState: JSON.parse(JSON.stringify(this.state)),
       metrics: JSON.parse(JSON.stringify(metrics))
     });
-
-    this.prevMetrics = metrics;
   }
 
   private executeAction(action: SimulationAction) {
@@ -302,6 +315,9 @@ export class SimulationEngine {
       const reward = getEntityReward(this.config.balance, creature);
       const expResult = addExp(this.config.balance, this.state.kraken, reward.exp);
 
+      // Track cumulative EXP gain
+      this.cumulative.totalExpGained += reward.exp;
+
       const nextGridSize = getGridSizeForLevel(this.config.balance, expResult.newState.level);
       if (this.state.grid.rows !== nextGridSize.rows || this.state.grid.cols !== nextGridSize.cols) {
         this.state.grid = resizeGrid(this.state.grid, nextGridSize.rows, nextGridSize.cols);
@@ -328,6 +344,10 @@ export class SimulationEngine {
         this.state.resources.eyes += taskEyes;
         this.state.currentTaskFed = [];
         this.state.taskProgress[levelKey] = (this.state.taskProgress[levelKey] ?? 0) + 1;
+
+        // Track cumulative eyes and tasks
+        this.cumulative.totalEyesGained += taskEyes;
+        this.cumulative.totalTasksCompleted += 1;
       } else {
         this.state.currentTaskFed = nextTaskFed;
       }

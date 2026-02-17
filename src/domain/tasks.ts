@@ -6,7 +6,9 @@ export function getCurrentMandatoryTask(
   level: number,
   taskProgress: Record<string, number>
 ): TaskDefinition | null {
-  const tasks = config.tasks.mandatory[level.toString()];
+  // Player at display level N looks up tasks for JSON level N+1
+  const targetLevel = level + 1;
+  const tasks = config.tasks.mandatory[targetLevel.toString()];
 
   if (!tasks || tasks.length === 0) {
     return null;

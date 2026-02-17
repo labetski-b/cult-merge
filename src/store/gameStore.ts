@@ -250,7 +250,7 @@ export const useGameStore = create<GameStore>()(
           if (currentPred && state.kraken.level >= currentPred.krakenRequiredLevel) {
             newMergeCounts[currentPred.id] = (newMergeCounts[currentPred.id] ?? 0) + 1;
 
-            if (newMergeCounts[currentPred.id] >= currentPred.mergeCount) {
+            if (newMergeCounts[currentPred.id]! >= currentPred.mergeCount) {
               const free = getFreeCellIndexes(nextGrid);
               if (free.length > 0) {
                 const predId = rng.nextId();

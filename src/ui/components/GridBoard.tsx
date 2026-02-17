@@ -16,6 +16,9 @@ function entityLabel(entity: Entity): string {
   if (entity.kind === 'box') {
     return `Box#${entity.boxId}`;
   }
+  if (entity.kind === 'predator') {
+    return `P${entity.predatorId}`;
+  }
   return entity.creatureType.replace('Creature', 'C');
 }
 
@@ -28,6 +31,9 @@ function entitySublabel(entity: Entity): string {
   }
   if (entity.kind === 'box') {
     return '';
+  }
+  if (entity.kind === 'predator') {
+    return `${entity.currentExp}/${entity.requiredExp}`;
   }
   return `L${entity.level}`;
 }
