@@ -49,10 +49,11 @@ export class RealisticStrategy implements AIStrategy {
   }
 
   private feedAllTaskCreatures(state: GameSnapshot, task: any): SimulationAction[] {
-    // Try to feed ALL creatures required for task
+    // Only feed if we can COMPLETE the task (have all required creatures)
     const creatures = Object.values(state.entities).filter(e => e.kind === 'creature') as CreatureEntity[];
     const selected = selectCreaturesForTask(task, creatures);
 
+    // If we can't complete the task, don't feed anything (wait for more creatures)
     if (!selected) return [];
 
     // Feed all required creatures to complete the task
