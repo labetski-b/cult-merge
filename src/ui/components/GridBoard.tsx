@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { BoxEntity, CreatureEntity, Entity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { BoxEntity, CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
-import { canMergeCreatures, canMergeGenerators, canMergeRunes } from '@domain/merge';
+import { calcPendingSpawns } from '@domain/flowerpot';
+import { canMergeCreatures, canMergeFlowerPots, canMergeGenerators, canMergeRunes } from '@domain/merge';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
 
 function entityLabel(entity: Entity): string {
@@ -18,6 +19,9 @@ function entityLabel(entity: Entity): string {
   }
   if (entity.kind === 'predator') {
     return `P${entity.predatorId}`;
+  }
+  if (entity.kind === 'flowerpot') {
+    return '🌸';
   }
   return entity.creatureType.replace('Creature', 'C');
 }
@@ -34,6 +38,9 @@ function entitySublabel(entity: Entity): string {
   }
   if (entity.kind === 'predator') {
     return `${entity.currentExp}/${entity.requiredExp}`;
+  }
+  if (entity.kind === 'flowerpot') {
+    return `L${entity.potLevel}`;
   }
   return `L${entity.level}`;
 }
@@ -53,10 +60,18 @@ export function GridBoard() {
   const tapGenerator = useGameStore((state) => state.tapGenerator);
   const tapBox = useGameStore((state) => state.tapBox);
   const feedPredator = useGameStore((state) => state.feedPredator);
+  const speedUpFlowerPot = useGameStore((state) => state.speedUpFlowerPot);
+  const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
 
   const [dragSource, setDragSource] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [chargePopup, setChargePopup] = useState<ChargePopupState | null>(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1_000);
+    return () => clearInterval(id);
+  }, []);
 
   const boardRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +107,9 @@ export function GridBoard() {
       }
       if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator') {
         return true;
+      }
+      if (dragSourceEntity.kind === 'flowerpot' && targetEntity.kind === 'flowerpot') {
+        return canMergeFlowerPots(dragSourceEntity as FlowerPotEntity, targetEntity as FlowerPotEntity);
       }
       return false;
     },
@@ -178,6 +196,16 @@ export function GridBoard() {
     }
   };
 
+  const handleCellDoubleClick = (index: number) => {
+    const entityId = grid.cells[index];
+    if (!entityId) return;
+    const entity = entities[entityId];
+    if (entity?.kind === 'flowerpot') {
+      speedUpFlowerPot(entityId);
+      tickFlowerPots(Date.now());
+    }
+  };
+
   const handleCharge = () => {
     if (!chargePopup) return;
     chargeGenerator(chargePopup.entity.id);
@@ -209,6 +237,8 @@ export function GridBoard() {
         classes.push('cell-box');
       } else if (entity.kind === 'predator') {
         classes.push('cell-predator');
+      } else if (entity.kind === 'flowerpot') {
+        classes.push('cell-flowerpot');
       } else {
         classes.push('cell-creature');
       }
@@ -244,6 +274,7 @@ export function GridBoard() {
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
               onClick={(e) => handleCellClick(e, index)}
+              onDoubleClick={() => handleCellDoubleClick(index)}
             >
               {entity ? (
                 (() => {
@@ -268,6 +299,26 @@ export function GridBoard() {
                           <div className="predator-bar-fill" style={{ width: `${pct * 100}%` }} />
                         </div>
                         <span className="cell-badge">{pred.currentExp}/{pred.requiredExp}</span>
+                      </>
+                    );
+                  } else if (entity.kind === 'flowerpot') {
+                    const pot = entity as FlowerPotEntity;
+                    const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
+                    const pending = calcPendingSpawns(pot, Date.now(), intervalMs);
+                    const elapsed = pot.lastSpawnTimestamp > 0 ? Date.now() - pot.lastSpawnTimestamp : 0;
+                    const msUntilNext = intervalMs - (elapsed % intervalMs);
+                    const totalSec = Math.max(0, Math.ceil(msUntilNext / 1000));
+                    const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+                    const ss = String(totalSec % 60).padStart(2, '0');
+                    return (
+                      <>
+                        <span className="entity-label">🌸</span>
+                        <span className="entity-level">L{pot.potLevel}</span>
+                        {pending > 0 ? (
+                          <span className="cell-badge pot-ready">Ready!</span>
+                        ) : (
+                          <span className="cell-badge">{mm}:{ss}</span>
+                        )}
                       </>
                     );
                   } else if (entity.kind === 'box') {

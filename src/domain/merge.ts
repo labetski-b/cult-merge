@@ -1,4 +1,4 @@
-import type { CreatureEntity, Entity, GeneratorEntity, RuneEntity, RuneItemKey } from '@domain/types';
+import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, RuneEntity, RuneItemKey } from '@domain/types';
 
 export function canMergeCreatures(a: CreatureEntity, b: CreatureEntity): boolean {
   return a.creatureType === b.creatureType && a.level === b.level && a.level < 9;
@@ -48,7 +48,20 @@ export function mergeRunes(a: RuneEntity, newId: string): RuneEntity | null {
   };
 }
 
-export function mergeEntities(source: Entity, target: Entity, newId: string): Entity | null {
+export function canMergeFlowerPots(a: FlowerPotEntity, b: FlowerPotEntity): boolean {
+  return a.potLevel === b.potLevel && a.potLevel < 5;
+}
+
+export function mergeFlowerPots(a: FlowerPotEntity, newId: string, now: number): FlowerPotEntity {
+  return {
+    id: newId,
+    kind: 'flowerpot',
+    potLevel: a.potLevel + 1,
+    lastSpawnTimestamp: now
+  };
+}
+
+export function mergeEntities(source: Entity, target: Entity, newId: string, now = Date.now()): Entity | null {
   if (source.kind === 'creature' && target.kind === 'creature' && canMergeCreatures(source, target)) {
     return mergeCreatures(source, newId);
   }
@@ -59,6 +72,10 @@ export function mergeEntities(source: Entity, target: Entity, newId: string): En
 
   if (source.kind === 'rune' && target.kind === 'rune' && canMergeRunes(source, target)) {
     return mergeRunes(source, newId);
+  }
+
+  if (source.kind === 'flowerpot' && target.kind === 'flowerpot' && canMergeFlowerPots(source, target)) {
+    return mergeFlowerPots(source, newId, now);
   }
 
   return null;

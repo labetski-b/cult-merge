@@ -155,6 +155,25 @@ export const managersDataSchema = z.object({
 export type PredatorsData = z.infer<typeof predatorsDataSchema>;
 export type ManagersData = z.infer<typeof managersDataSchema>;
 
+const flowerpotLevelSchema = z.object({
+  level: z.number().int().min(1).max(5),
+  outputs: z.array(outputSchema).min(1)
+});
+
+const flowerpotConfigSchema = z.object({
+  purchaseCurrency: z.enum(['rune1', 'rune2']),
+  purchaseCost: z.number().int().min(0),
+  spawnIntervalMs: z.number().int().positive(),
+  lines: z.array(z.string().min(1)).length(2),
+  levels: z.array(flowerpotLevelSchema).min(1)
+});
+
+export const flowerpotsDataSchema = z.object({
+  flowerpot: flowerpotConfigSchema
+});
+
+export type FlowerpotsData = z.infer<typeof flowerpotsDataSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -164,4 +183,5 @@ export interface BalanceConfig {
   gridSizes: GridSizesData;
   predators: PredatorsData;
   managers: ManagersData;
+  flowerpots: FlowerpotsData;
 }

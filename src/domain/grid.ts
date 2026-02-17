@@ -31,6 +31,24 @@ export function indexToRowCol(index: number, cols: number): { row: number; col: 
   };
 }
 
+export function getNeighborCellIndexes(grid: GridState, cellIndex: number): number[] {
+  const { row, col } = indexToRowCol(cellIndex, grid.cols);
+  const neighbors: number[] = [];
+
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = row + dr;
+      const nc = col + dc;
+      if (nr >= 0 && nr < grid.rows && nc >= 0 && nc < grid.cols) {
+        neighbors.push(nr * grid.cols + nc);
+      }
+    }
+  }
+
+  return neighbors;
+}
+
 export function resizeGrid(grid: GridState, nextRows: number, nextCols: number): GridState {
   const nextCells = Array.from({ length: nextRows * nextCols }, () => null as string | null);
 
