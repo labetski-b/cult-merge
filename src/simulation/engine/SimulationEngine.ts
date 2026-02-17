@@ -76,7 +76,13 @@ export class SimulationEngine {
 
   run(): SimulationResult {
     for (let tick = 0; tick < this.config.duration; tick++) {
-      this.executeTick(tick);
+      try {
+        this.executeTick(tick);
+      } catch (error) {
+        console.error(`Error at tick ${tick}:`, error);
+        console.error('Game state:', JSON.stringify(this.state, null, 2));
+        throw new Error(`Simulation failed at tick ${tick}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
     const summary = {
@@ -107,8 +113,14 @@ export class SimulationEngine {
     const actions = this.config.strategy.decide(this.state, this.rng);
 
     // Execute all actions
-    for (const action of actions) {
-      this.executeAction(action);
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i]!;
+      try {
+        this.executeAction(action);
+      } catch (error) {
+        console.error(`Error executing action ${i} at tick ${tick}:`, action);
+        throw error;
+      }
     }
 
     // Capture metrics
