@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
-import { createGrid, findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
+import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
+import { createGrid, findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepReward, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
@@ -23,10 +24,17 @@ interface GameActions {
   claimReward: () => void;
   tapBox: (boxId: string) => void;
   buyGeneratorOne: () => void;
+  buyGeneratorTwo: () => void;
+  buyGeneratorFour: () => void;
+  addRune1: (amount: number) => void;
+  addRune2: (amount: number) => void;
   spawnAll: () => void;
   feedAll: () => void;
   feedPredator: (predatorId: string, creatureId: string) => void;
   addKrakenExp: (amount: number) => void;
+  tickFlowerPots: (now: number) => void;
+  buyFlowerPot: () => void;
+  speedUpFlowerPot: (entityId: string) => void;
   resetGame: () => void;
   clearLastMessage: () => void;
 }
@@ -668,6 +676,92 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
+      buyGeneratorTwo: () => {
+        set((state) => {
+          const generator = BALANCE.generators.generators.find((entry) => entry.id === 2);
+          if (!generator) return { lastMessage: 'Generator 2 config is missing.' };
+
+          if (state.resources.rune2 < generator.purchaseCost) {
+            return { lastMessage: `Need ${generator.purchaseCost} Rune2 to buy Generator 2.` };
+          }
+
+          const freeSlots = getFreeCellIndexes(state.grid);
+          const targetCell = freeSlots[0];
+          if (targetCell === undefined) return { lastMessage: 'No free cell to place a new generator.' };
+
+          const rng = new SeededRng(state.rngState);
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          const nextEntities = { ...state.entities };
+          const newGenId = rng.nextId();
+
+          nextEntities[newGenId] = {
+            id: newGenId,
+            kind: 'generator',
+            generatorId: 2,
+            level: 1,
+            charges: []
+          };
+          nextGrid.cells[targetCell] = newGenId;
+
+          return {
+            resources: { ...state.resources, rune2: state.resources.rune2 - generator.purchaseCost },
+            grid: nextGrid,
+            entities: nextEntities,
+            rngState: rng.getState(),
+            lastMessage: 'Generator 2 purchased.'
+          };
+        });
+      },
+
+      buyGeneratorFour: () => {
+        set((state) => {
+          const generator = BALANCE.generators.generators.find((entry) => entry.id === 4);
+          if (!generator) return { lastMessage: 'Generator 4 config is missing.' };
+
+          if (state.resources.rune2 < generator.purchaseCost) {
+            return { lastMessage: `Need ${generator.purchaseCost} Rune2 to buy Generator 4.` };
+          }
+
+          const freeSlots = getFreeCellIndexes(state.grid);
+          const targetCell = freeSlots[0];
+          if (targetCell === undefined) return { lastMessage: 'No free cell to place a new generator.' };
+
+          const rng = new SeededRng(state.rngState);
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          const nextEntities = { ...state.entities };
+          const newGenId = rng.nextId();
+
+          nextEntities[newGenId] = {
+            id: newGenId,
+            kind: 'generator',
+            generatorId: 4,
+            level: 1,
+            charges: []
+          };
+          nextGrid.cells[targetCell] = newGenId;
+
+          return {
+            resources: { ...state.resources, rune2: state.resources.rune2 - generator.purchaseCost },
+            grid: nextGrid,
+            entities: nextEntities,
+            rngState: rng.getState(),
+            lastMessage: 'Generator 4 purchased.'
+          };
+        });
+      },
+
+      addRune1: (amount) => {
+        set((state) => ({
+          resources: { ...state.resources, rune1: state.resources.rune1 + amount }
+        }));
+      },
+
+      addRune2: (amount) => {
+        set((state) => ({
+          resources: { ...state.resources, rune2: state.resources.rune2 + amount }
+        }));
+      },
+
       feedPredator: (predatorId, creatureId) => {
         set((state) => {
           const predator = state.entities[predatorId];
@@ -728,6 +822,118 @@ export const useGameStore = create<GameStore>()(
             grid: resizedGrid,
             pendingRewards: [...state.pendingRewards, ...expResult.rewards],
             lastMessage: `+${amount} EXP added to Kraken.`
+          };
+        });
+      },
+
+      tickFlowerPots: (now) => {
+        set((state) => {
+          const pots = Object.values(state.entities).filter(
+            (e): e is FlowerPotEntity => e.kind === 'flowerpot'
+          );
+          if (pots.length === 0) return {};
+
+          const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
+          const rng = new SeededRng(state.rngState);
+          const nextEntities = { ...state.entities };
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          let totalSpawned = 0;
+
+          for (const pot of pots) {
+            const pending = calcPendingSpawns(pot, now, intervalMs);
+            if (pending === 0) continue;
+
+            const potCell = findEntityCell(nextGrid, pot.id);
+            if (potCell < 0) continue;
+
+            let spawned = 0;
+            for (let i = 0; i < pending; i += 1) {
+              const freeNeighbors = getNeighborCellIndexes(nextGrid, potCell).filter(
+                (idx) => nextGrid.cells[idx] === null
+              );
+              if (freeNeighbors.length === 0) break;
+
+              const targetIdx = freeNeighbors[Math.floor(rng.next() * freeNeighbors.length)]!;
+              const spawn = rollFlowerPotSpawn(rng, BALANCE, pot.potLevel);
+              const creatureId = rng.nextId();
+
+              nextGrid.cells[targetIdx] = creatureId;
+              nextEntities[creatureId] = {
+                id: creatureId,
+                kind: 'creature',
+                creatureType: spawn.creatureType,
+                level: spawn.level
+              };
+              spawned += 1;
+            }
+
+            // Always reset timer to now after a spawn cycle
+            nextEntities[pot.id] = {
+              ...pot,
+              lastSpawnTimestamp: now
+            };
+            totalSpawned += spawned;
+          }
+
+          if (totalSpawned === 0 && pots.every((p) => calcPendingSpawns(p, now, intervalMs) === 0)) {
+            return {};
+          }
+
+          return {
+            entities: nextEntities,
+            grid: nextGrid,
+            rngState: rng.getState(),
+            ...(totalSpawned > 0 && { lastMessage: `FlowerPot spawned ${totalSpawned} creature(s)!` })
+          };
+        });
+      },
+
+      buyFlowerPot: () => {
+        set((state) => {
+          const config = BALANCE.flowerpots.flowerpot;
+          const cost = config.purchaseCost;
+
+          if (state.resources.rune1 < cost) {
+            return { lastMessage: `Need ${cost} Rune1 to buy FlowerPot.` };
+          }
+
+          const freeSlots = getFreeCellIndexes(state.grid);
+          const targetCell = freeSlots[0];
+          if (targetCell === undefined) return { lastMessage: 'No free cell to place FlowerPot.' };
+
+          const rng = new SeededRng(state.rngState);
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          const nextEntities = { ...state.entities };
+          const potId = rng.nextId();
+
+          nextEntities[potId] = {
+            id: potId,
+            kind: 'flowerpot',
+            potLevel: 1,
+            lastSpawnTimestamp: Date.now()
+          };
+          nextGrid.cells[targetCell] = potId;
+
+          return {
+            resources: { ...state.resources, rune1: state.resources.rune1 - cost },
+            grid: nextGrid,
+            entities: nextEntities,
+            rngState: rng.getState(),
+            lastMessage: 'FlowerPot purchased!'
+          };
+        });
+      },
+
+      speedUpFlowerPot: (entityId) => {
+        set((state) => {
+          const entity = state.entities[entityId];
+          if (!entity || entity.kind !== 'flowerpot') return {};
+          const pot = entity as FlowerPotEntity;
+          return {
+            entities: {
+              ...state.entities,
+              [entityId]: { ...pot, lastSpawnTimestamp: Math.max(1, pot.lastSpawnTimestamp - 600_000) }
+            }
           };
         });
       },

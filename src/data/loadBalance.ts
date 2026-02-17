@@ -6,6 +6,7 @@ import resBoxesRaw from '@data/res_boxes.json';
 import gridSizesRaw from '@data/grid_sizes.json';
 import predatorsRaw from '@data/predators.json';
 import managersRaw from '@data/managers.json';
+import flowerpotsRaw from '@data/flowerpots.json';
 import {
   creaturesDataSchema,
   generatorsDataSchema,
@@ -15,6 +16,7 @@ import {
   tasksDataSchema,
   predatorsDataSchema,
   managersDataSchema,
+  flowerpotsDataSchema,
   type BalanceConfig
 } from '@data/schemas';
 
@@ -39,6 +41,13 @@ function validateConfig(config: BalanceConfig): void {
   config.resBoxes.boxes.forEach((box) => {
     validateProbabilitySum(Object.values(box.contents), `Res box ${box.id}`);
   });
+
+  config.flowerpots.flowerpot.levels.forEach((levelConfig) => {
+    validateProbabilitySum(
+      levelConfig.outputs.map((output) => output.chance),
+      `FlowerPot level ${levelConfig.level}`
+    );
+  });
 }
 
 export function loadBalanceConfig(): BalanceConfig {
@@ -50,7 +59,8 @@ export function loadBalanceConfig(): BalanceConfig {
     resBoxes: resBoxesDataSchema.parse(resBoxesRaw),
     gridSizes: gridSizesDataSchema.parse(gridSizesRaw),
     predators: predatorsDataSchema.parse(predatorsRaw),
-    managers: managersDataSchema.parse(managersRaw)
+    managers: managersDataSchema.parse(managersRaw),
+    flowerpots: flowerpotsDataSchema.parse(flowerpotsRaw)
   };
 
   validateConfig(config);

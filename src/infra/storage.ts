@@ -1,2 +1,2 @@
 export const SAVE_KEY = 'cult_merge_save_v1';
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;

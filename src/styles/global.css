@@ -811,3 +811,26 @@ body {
   font-weight: 700;
   color: #7fdd9e;
 }
+
+/* ── FlowerPot cell ── */
+
+.cell-flowerpot {
+  border-color: rgba(180, 220, 100, 0.7);
+  background: rgba(20, 50, 10, 0.85);
+}
+
+.cell-flowerpot:hover {
+  border-color: rgba(200, 240, 120, 0.9);
+  box-shadow: 0 0 10px rgba(160, 220, 60, 0.35);
+}
+
+.pot-ready {
+  background: rgba(160, 220, 60, 0.25);
+  color: #b8f060;
+  animation: pot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

@@ -60,7 +60,14 @@ export interface PredatorEntity {
   preferredCreatureType: string;
 }
 
-export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity;
+export interface FlowerPotEntity {
+  id: string;
+  kind: 'flowerpot';
+  potLevel: number;
+  lastSpawnTimestamp: number;
+}
+
+export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity | FlowerPotEntity;
 
 export interface TaskRequirement {
   type: string;
