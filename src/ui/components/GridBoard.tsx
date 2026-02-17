@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type { BoxEntity, CreatureEntity, Entity, GeneratorEntity, RuneEntity } from '@domain/types';
+import type { BoxEntity, CreatureEntity, Entity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
@@ -46,6 +46,7 @@ export function GridBoard() {
   const chargeGenerator = useGameStore((state) => state.chargeGenerator);
   const tapGenerator = useGameStore((state) => state.tapGenerator);
   const tapBox = useGameStore((state) => state.tapBox);
+  const feedPredator = useGameStore((state) => state.feedPredator);
 
   const [dragSource, setDragSource] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -83,6 +84,9 @@ export function GridBoard() {
       if (dragSourceEntity.kind === 'rune' && targetEntity.kind === 'rune') {
         return canMergeRunes(dragSourceEntity as RuneEntity, targetEntity as RuneEntity);
       }
+      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator') {
+        return true;
+      }
       return false;
     },
     [dragSource, dragSourceEntity, grid.cells, entities]
@@ -117,7 +121,16 @@ export function GridBoard() {
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (dragSource !== null && dragSource !== targetIndex) {
-      interactCells(dragSource, targetIndex);
+      const sourceId = grid.cells[dragSource];
+      const targetId = grid.cells[targetIndex];
+      const sourceKind = sourceId ? entities[sourceId]?.kind : undefined;
+      const targetKind = targetId ? entities[targetId]?.kind : undefined;
+
+      if (sourceKind === 'creature' && targetKind === 'predator') {
+        feedPredator(targetId!, sourceId!);
+      } else {
+        interactCells(dragSource, targetIndex);
+      }
     }
     setDragSource(null);
     setDragOver(null);
@@ -188,6 +201,8 @@ export function GridBoard() {
         classes.push('cell-rune');
       } else if (entity.kind === 'box') {
         classes.push('cell-box');
+      } else if (entity.kind === 'predator') {
+        classes.push('cell-predator');
       } else {
         classes.push('cell-creature');
       }
@@ -216,7 +231,7 @@ export function GridBoard() {
             <div
               key={index}
               className={getCellClassName(index, entity)}
-              draggable={!!entity && entity.kind !== 'box'}
+              draggable={!!entity && entity.kind !== 'box' && entity.kind !== 'predator'}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={handleDragLeave}
@@ -236,6 +251,19 @@ export function GridBoard() {
                     badge = entity.charges.length > 0 ? `L${entity.level} [${entity.charges.length}]` : `L${entity.level}`;
                   } else if (entity.kind === 'rune') {
                     img = getRuneImage(entity.runeType);
+                  } else if (entity.kind === 'predator') {
+                    const pred = entity as PredatorEntity;
+                    const pct = Math.min(1, pred.currentExp / pred.requiredExp);
+                    return (
+                      <>
+                        <span className="entity-label">🐸</span>
+                        <span className="entity-level">{pred.predatorId.replace('Predator_', 'P')}</span>
+                        <div className="predator-bar-track">
+                          <div className="predator-bar-fill" style={{ width: `${pct * 100}%` }} />
+                        </div>
+                        <span className="cell-badge">{pred.currentExp}/{pred.requiredExp}</span>
+                      </>
+                    );
                   } else if (entity.kind === 'box') {
                     badge = `[${entity.contents.length}]`;
                     return (

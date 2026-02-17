@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
 import { createGrid, findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
@@ -24,6 +25,8 @@ interface GameActions {
   buyGeneratorOne: () => void;
   spawnAll: () => void;
   feedAll: () => void;
+  feedPredator: (predatorId: string, creatureId: string) => void;
+  addKrakenExp: (amount: number) => void;
   resetGame: () => void;
   clearLastMessage: () => void;
 }
@@ -57,7 +60,10 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     currentTaskFed: [],
     pendingRewards: initialRewards,
     rngState: rng.getState(),
-    lastMessage: 'Tap the Kraken to claim your reward!'
+    lastMessage: 'Tap the Kraken to claim your reward!',
+    predatorMergeCounts: {},
+    predatorQueueIndex: 0,
+    managerCards: []
   };
 }
 
@@ -235,11 +241,50 @@ export const useGameStore = create<GameStore>()(
           delete nextEntities[targetId];
           nextEntities[merged.id] = merged;
 
+          // Increment merge count for the current queued predator
+          const newMergeCounts = { ...state.predatorMergeCounts };
+          let newQueueIndex = state.predatorQueueIndex;
+          const currentPred = BALANCE.predators.predators[newQueueIndex];
+
+          let spawnMsg = '';
+          if (currentPred && state.kraken.level >= currentPred.krakenRequiredLevel) {
+            newMergeCounts[currentPred.id] = (newMergeCounts[currentPred.id] ?? 0) + 1;
+
+            if (newMergeCounts[currentPred.id] >= currentPred.mergeCount) {
+              const free = getFreeCellIndexes(nextGrid);
+              if (free.length > 0) {
+                const predId = rng.nextId();
+                nextGrid.cells[free[0]!] = predId;
+                nextEntities[predId] = {
+                  id: predId,
+                  kind: 'predator',
+                  predatorId: currentPred.id,
+                  currentExp: 0,
+                  requiredExp: currentPred.requiredExp,
+                  preferredCreatureType: currentPred.preferredCreatureType
+                };
+                newMergeCounts[currentPred.id] = 0;
+                // Pick next predator randomly from all unlocked ones
+                const available = BALANCE.predators.predators
+                  .map((p, idx) => ({ p, idx }))
+                  .filter(({ p }) => state.kraken.level >= p.krakenRequiredLevel);
+                if (available.length > 0) {
+                  const pick = Math.floor(rng.next() * available.length);
+                  newQueueIndex = available[pick]!.idx;
+                }
+                spawnMsg = ' A predator appeared!';
+              }
+            }
+          }
+
+          const spawnMsgFinal = spawnMsg;
           return {
             grid: nextGrid,
             entities: nextEntities,
+            predatorMergeCounts: newMergeCounts,
+            predatorQueueIndex: newQueueIndex,
             rngState: rng.getState(),
-            lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.`
+            lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
         });
       },
@@ -619,6 +664,70 @@ export const useGameStore = create<GameStore>()(
             entities: nextEntities,
             rngState: rng.getState(),
             lastMessage: 'Generator 1 purchased.'
+          };
+        });
+      },
+
+      feedPredator: (predatorId, creatureId) => {
+        set((state) => {
+          const predator = state.entities[predatorId];
+          const creature = state.entities[creatureId];
+          if (!predator || predator.kind !== 'predator') return { lastMessage: 'Predator not found.' };
+          if (!creature || creature.kind !== 'creature') return { lastMessage: 'Only creatures can feed predators.' };
+
+          const rng = new SeededRng(state.rngState);
+          const gained = calcPredatorFeedExp(BALANCE, predator, creature);
+          const newExp = predator.currentExp + gained;
+
+          const nextEntities = { ...state.entities };
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+
+          const creatureCell = findEntityCell(nextGrid, creatureId);
+          if (creatureCell >= 0) nextGrid.cells[creatureCell] = null;
+          delete nextEntities[creatureId];
+
+          if (newExp >= predator.requiredExp) {
+            const predCell = findEntityCell(nextGrid, predatorId);
+            if (predCell >= 0) nextGrid.cells[predCell] = null;
+            delete nextEntities[predatorId];
+
+            const cards = drawManagerCards(BALANCE, rng);
+            const newMergeCounts = { ...state.predatorMergeCounts, [predator.predatorId]: 0 };
+
+            return {
+              entities: nextEntities,
+              grid: nextGrid,
+              managerCards: [...state.managerCards, ...cards],
+              predatorMergeCounts: newMergeCounts,
+              rngState: rng.getState(),
+              lastMessage: `Predator fed! Got ${cards.length} manager cards!`
+            };
+          }
+
+          nextEntities[predatorId] = { ...predator, currentExp: newExp };
+          const preferred = creature.creatureType === predator.preferredCreatureType;
+          return {
+            entities: nextEntities,
+            grid: nextGrid,
+            rngState: rng.getState(),
+            lastMessage: `Fed predator +${gained} EXP${preferred ? ' (×2 preferred!)' : ''}. ${newExp}/${predator.requiredExp}`
+          };
+        });
+      },
+
+      addKrakenExp: (amount) => {
+        set((state) => {
+          const expResult = addExp(BALANCE, state.kraken, amount);
+          const nextGridSize = getGridSizeForLevel(BALANCE, expResult.newState.level);
+          const resizedGrid =
+            state.grid.rows !== nextGridSize.rows || state.grid.cols !== nextGridSize.cols
+              ? resizeGrid(state.grid, nextGridSize.rows, nextGridSize.cols)
+              : state.grid;
+          return {
+            kraken: expResult.newState,
+            grid: resizedGrid,
+            pendingRewards: [...state.pendingRewards, ...expResult.rewards],
+            lastMessage: `+${amount} EXP added to Kraken.`
           };
         });
       },

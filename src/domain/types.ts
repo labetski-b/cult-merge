@@ -51,7 +51,16 @@ export interface BoxEntity {
   contents: RuneItemKey[];
 }
 
-export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity;
+export interface PredatorEntity {
+  id: string;
+  kind: 'predator';
+  predatorId: string;
+  currentExp: number;
+  requiredExp: number;
+  preferredCreatureType: string;
+}
+
+export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity;
 
 export interface TaskRequirement {
   type: string;
@@ -105,4 +114,7 @@ export interface GameSnapshot {
   pendingRewards: ProgressReward[];
   rngState: number;
   lastMessage: string | null;
+  predatorMergeCounts: Record<string, number>;
+  predatorQueueIndex: number;
+  managerCards: string[];
 }

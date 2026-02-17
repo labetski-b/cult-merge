@@ -3,6 +3,8 @@ import { KrakenPanel } from '@ui/components/KrakenPanel';
 import { TaskPanel } from '@ui/components/TaskPanel';
 import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
+import { PredatorProgress } from '@ui/components/PredatorProgress';
+import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { useGameStore } from '@store/gameStore';
 
 function App() {
@@ -17,7 +19,9 @@ function App() {
         <TaskPanel />
       </div>
 
+      <PredatorProgress />
       <GridBoard />
+      <ManagerCollection />
       <ControlsPanel />
 
       <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
