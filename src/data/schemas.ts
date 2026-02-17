@@ -16,6 +16,7 @@ const generatorLevelSchema = z.object({
 const generatorSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().min(1),
+  eggType: z.string().min(1),
   purchaseCurrency: z.enum(['rune1', 'rune2']),
   purchaseCost: z.number().int().min(0),
   lines: z.array(z.string().min(1)).length(2),
