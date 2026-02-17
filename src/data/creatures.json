@@ -14,6 +14,48 @@
       "baseOn": "Creature1",
       "expMultiplier": 2,
       "eyesMultiplier": 2
+    },
+    {
+      "type": "Creature3",
+      "maxLevel": 9,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 4
+    },
+    {
+      "type": "Creature4",
+      "maxLevel": 9,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 8
+    },
+    {
+      "type": "Creature5",
+      "maxLevel": 5,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 32
+    },
+    {
+      "type": "Creature6",
+      "maxLevel": 5,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 64
+    },
+    {
+      "type": "Creature7",
+      "maxLevel": 7,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 16
+    },
+    {
+      "type": "Creature8",
+      "maxLevel": 6,
+      "baseOn": "Creature1",
+      "expMultiplier": 2,
+      "eyesMultiplier": 32
     }
   ]
 }
