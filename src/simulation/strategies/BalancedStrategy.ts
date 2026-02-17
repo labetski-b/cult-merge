@@ -21,11 +21,7 @@ export class BalancedStrategy implements AIStrategy {
       actions.push({ type: 'claim_reward' });
     }
 
-    // Merge everything
-    const greedy = new GreedyStrategy();
-    actions.push(...(greedy as any).findOptimalMerges(state));
-
-    // Split feeding between task and exp optimization
+    // Split feeding between task and exp optimization FIRST (before merging)
     const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
 
     if (task) {
@@ -43,6 +39,10 @@ export class BalancedStrategy implements AIStrategy {
       const feedActions = this.feedHighestExp(state, 10);
       actions.push(...feedActions);
     }
+
+    // Merge everything (after task feeding)
+    const greedy = new GreedyStrategy();
+    actions.push(...(greedy as any).findOptimalMerges(state));
 
     // Manage generators
     actions.push(...this.manageGenerators(state));

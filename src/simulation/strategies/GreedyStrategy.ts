@@ -26,26 +26,30 @@ export class GreedyStrategy implements AIStrategy {
       }
     }
 
-    // Priority 3: Merge all possible creatures (greedy by level)
-    const mergeActions = this.findOptimalMerges(state);
-    actions.push(...mergeActions);
-
-    // Priority 4: Feed creatures to complete tasks OR feed highest value
+    // Priority 3: Feed creatures to complete tasks FIRST (before merging)
     const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
     if (task) {
       const feedActions = this.feedForTask(state, task);
-      actions.push(...feedActions);
-    } else {
-      // Feed highest value creatures
+      if (feedActions.length > 0) {
+        actions.push(...feedActions);
+      }
+    }
+
+    // Priority 4: Merge all possible creatures (after task feeding)
+    const mergeActions = this.findOptimalMerges(state);
+    actions.push(...mergeActions);
+
+    // Priority 5: If no task or task incomplete, feed highest value creatures
+    if (!task) {
       const feedActions = this.feedHighestValue(state, 5);
       actions.push(...feedActions);
     }
 
-    // Priority 5: Spawn from generators if we have space
+    // Priority 6: Spawn from generators if we have space
     const spawnActions = this.spawnFromGenerators(state);
     actions.push(...spawnActions);
 
-    // Priority 6: Charge generators if we have meat
+    // Priority 7: Charge generators if we have meat
     const chargeActions = this.chargeGenerators(state);
     actions.push(...chargeActions);
 

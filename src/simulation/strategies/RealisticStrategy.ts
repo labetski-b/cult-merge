@@ -22,19 +22,21 @@ export class RealisticStrategy implements AIStrategy {
       actions.push({ type: 'claim_reward' });
     }
 
-    // Sometimes miss optimal merges
+    // Usually work on tasks FIRST (before merging)
+    const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
+    if (task && rng.next() < this.feedTaskChance) {
+      const feedActions = this.feedSomeTaskCreatures(state, task, rng);
+      actions.push(...feedActions);
+    }
+
+    // Sometimes miss optimal merges (after task feeding)
     if (rng.next() < this.mergeChance) {
       const merges = this.findSomeMerges(state, rng);
       actions.push(...merges);
     }
 
-    // Usually work on tasks, but sometimes just feed random creatures
-    const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
-    if (task && rng.next() < this.feedTaskChance) {
-      const feedActions = this.feedSomeTaskCreatures(state, task, rng);
-      actions.push(...feedActions);
-    } else {
-      // Random feeding
+    // Random feeding if no task
+    if (!task || rng.next() > this.feedTaskChance) {
       const feedActions = this.feedRandomCreatures(state, rng, 2);
       actions.push(...feedActions);
     }
