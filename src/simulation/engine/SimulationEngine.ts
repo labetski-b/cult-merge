@@ -66,7 +66,6 @@ export class SimulationEngine {
   private rng: SeededRng;
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
-  private prevMetrics: any;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -74,7 +73,6 @@ export class SimulationEngine {
     this.rng = new SeededRng(config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
-    this.prevMetrics = null;
   }
 
   run(): SimulationResult {
@@ -131,14 +129,8 @@ export class SimulationEngine {
       }
     }
 
-    // Capture metrics
+    // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative);
-
-    // Update cumulative metrics
-    if (this.prevMetrics) {
-      const updates = updateCumulativeMetrics(this.prevMetrics, metrics);
-      Object.assign(this.cumulative, updates);
-    }
 
     // Save snapshot
     this.history.push({
@@ -147,8 +139,6 @@ export class SimulationEngine {
       gameState: JSON.parse(JSON.stringify(this.state)),
       metrics: JSON.parse(JSON.stringify(metrics))
     });
-
-    this.prevMetrics = metrics;
   }
 
   private executeAction(action: SimulationAction) {
