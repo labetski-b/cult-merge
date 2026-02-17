@@ -64,26 +64,41 @@ async function handleRunSimulation(e: Event) {
 
   // Run simulations
   currentResults = [];
-  for (let i = 0; i < selectedStrategies.length; i++) {
-    const strategyKey = selectedStrategies[i]!;
-    const strategy = STRATEGIES[strategyKey as keyof typeof STRATEGIES];
+  try {
+    for (let i = 0; i < selectedStrategies.length; i++) {
+      const strategyKey = selectedStrategies[i]!;
+      const strategy = STRATEGIES[strategyKey as keyof typeof STRATEGIES];
 
-    progressText.textContent = `Running ${strategy.name}... (${i + 1}/${selectedStrategies.length})`;
-    progressBar.value = (i / selectedStrategies.length) * 100;
+      progressText.textContent = `Running ${strategy.name}... (${i + 1}/${selectedStrategies.length})`;
+      progressBar.value = (i / selectedStrategies.length) * 100;
 
-    // Small delay for UI update
-    await new Promise(resolve => setTimeout(resolve, 10));
+      console.log(`Starting simulation ${i + 1}: ${strategy.name}`);
 
-    const engine = new SimulationEngine({
-      seed,
-      duration,
-      tickInterval,
-      strategy,
-      balance: BALANCE
-    });
+      // Small delay for UI update
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-    const result = engine.run();
-    currentResults.push(result);
+      console.log('Creating engine...');
+      const engine = new SimulationEngine({
+        seed,
+        duration,
+        tickInterval,
+        strategy,
+        balance: BALANCE
+      });
+
+      console.log('Running simulation...');
+      const result = engine.run();
+      console.log('Simulation complete, results:', result.summary);
+
+      currentResults.push(result);
+    }
+  } catch (error) {
+    console.error('Simulation error:', error);
+    alert(`Simulation failed: ${error instanceof Error ? error.message : String(error)}`);
+    runBtn.disabled = false;
+    exportBtn.disabled = false;
+    progressContainer.style.display = 'none';
+    return;
   }
 
   progressBar.value = 100;

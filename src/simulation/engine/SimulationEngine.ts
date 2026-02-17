@@ -11,9 +11,9 @@ import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
 
-function createInitialSnapshot(seed: number): GameSnapshot {
+function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
   const rng = new SeededRng(seed);
-  const { rows, cols } = getGridSizeForLevel(undefined as any, 1); // BALANCE not needed for level 1
+  const { rows, cols } = getGridSizeForLevel(balance, 1);
   const grid = createGrid(rows, cols);
 
   const initialRewards = [{ type: 'egg' as const, value: 'gen_1_1' }];
@@ -67,7 +67,7 @@ export class SimulationEngine {
 
   constructor(config: SimulationConfig) {
     this.config = config;
-    this.state = createInitialSnapshot(config.seed);
+    this.state = createInitialSnapshot(config.seed, config.balance);
     this.rng = new SeededRng(config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
