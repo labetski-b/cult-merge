@@ -71,6 +71,7 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     lastMessage: 'Tap the Kraken to claim your reward!',
     predatorMergeCounts: {},
     predatorQueueIndex: 0,
+    predatorsSpawnedOnce: [],
     managerCards: []
   };
 }
@@ -252,6 +253,7 @@ export const useGameStore = create<GameStore>()(
           // Increment merge count for the current queued predator
           const newMergeCounts = { ...state.predatorMergeCounts };
           let newQueueIndex = state.predatorQueueIndex;
+          let newSpawnedOnce = state.predatorsSpawnedOnce;
           const currentPred = BALANCE.predators.predators[newQueueIndex];
 
           let spawnMsg = '';
@@ -272,10 +274,18 @@ export const useGameStore = create<GameStore>()(
                   preferredCreatureType: currentPred.preferredCreatureType
                 };
                 newMergeCounts[currentPred.id] = 0;
-                // Pick next predator randomly from all unlocked ones
+                if (!newSpawnedOnce.includes(currentPred.id)) {
+                  newSpawnedOnce = [...newSpawnedOnce, currentPred.id];
+                }
+                // Pick next predator randomly from unlocked ones.
+                // Predator_1 (index 0) is one-time only — exclude it after first spawn.
+                const firstPredId = BALANCE.predators.predators[0]?.id;
                 const available = BALANCE.predators.predators
                   .map((p, idx) => ({ p, idx }))
-                  .filter(({ p }) => state.kraken.level >= p.krakenRequiredLevel);
+                  .filter(({ p }) =>
+                    state.kraken.level >= p.krakenRequiredLevel &&
+                    !(p.id === firstPredId && newSpawnedOnce.includes(p.id))
+                  );
                 if (available.length > 0) {
                   const pick = Math.floor(rng.next() * available.length);
                   newQueueIndex = available[pick]!.idx;
@@ -291,6 +301,7 @@ export const useGameStore = create<GameStore>()(
             entities: nextEntities,
             predatorMergeCounts: newMergeCounts,
             predatorQueueIndex: newQueueIndex,
+            predatorsSpawnedOnce: newSpawnedOnce,
             rngState: rng.getState(),
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };

@@ -123,5 +123,6 @@ export interface GameSnapshot {
   lastMessage: string | null;
   predatorMergeCounts: Record<string, number>;
   predatorQueueIndex: number;
+  predatorsSpawnedOnce: string[];
   managerCards: string[];
 }

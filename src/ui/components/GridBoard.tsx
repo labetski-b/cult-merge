@@ -291,10 +291,11 @@ export function GridBoard() {
                   } else if (entity.kind === 'predator') {
                     const pred = entity as PredatorEntity;
                     const pct = Math.min(1, pred.currentExp / pred.requiredExp);
+                    const preferredLine = pred.preferredCreatureType.replace('Creature', 'Cr');
                     return (
                       <>
                         <span className="entity-label">🐸</span>
-                        <span className="entity-level">{pred.predatorId.replace('Predator_', 'P')}</span>
+                        <span className="entity-level">{pred.predatorId.replace('Predator_', 'P')} [{preferredLine}]</span>
                         <div className="predator-bar-track">
                           <div className="predator-bar-fill" style={{ width: `${pct * 100}%` }} />
                         </div>
