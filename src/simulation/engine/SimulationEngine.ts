@@ -37,7 +37,10 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     currentTaskFed: [],
     pendingRewards: initialRewards,
     rngState: rng.getState(),
-    lastMessage: ''
+    lastMessage: null,
+    predatorMergeCounts: {},
+    predatorQueueIndex: 0,
+    managerCards: []
   };
 }
 
@@ -302,6 +305,9 @@ export class SimulationEngine {
       const reward = getEntityReward(this.config.balance, creature);
       const expResult = addExp(this.config.balance, this.state.kraken, reward.exp);
 
+      // Track cumulative EXP gain
+      this.cumulative.totalExpGained += reward.exp;
+
       const nextGridSize = getGridSizeForLevel(this.config.balance, expResult.newState.level);
       if (this.state.grid.rows !== nextGridSize.rows || this.state.grid.cols !== nextGridSize.cols) {
         this.state.grid = resizeGrid(this.state.grid, nextGridSize.rows, nextGridSize.cols);
@@ -328,6 +334,10 @@ export class SimulationEngine {
         this.state.resources.eyes += taskEyes;
         this.state.currentTaskFed = [];
         this.state.taskProgress[levelKey] = (this.state.taskProgress[levelKey] ?? 0) + 1;
+
+        // Track cumulative eyes and tasks
+        this.cumulative.totalEyesGained += taskEyes;
+        this.cumulative.totalTasksCompleted += 1;
       } else {
         this.state.currentTaskFed = nextTaskFed;
       }

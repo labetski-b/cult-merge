@@ -84,25 +84,11 @@ export function updateCumulativeMetrics(
   prev: TickMetrics,
   current: TickMetrics
 ): Partial<CumulativeMetrics> {
+  // IMPORTANT: We don't track exp/eyes/tasks here anymore!
+  // These are tracked directly in SimulationEngine when actions happen
+  // This function is kept for future metrics that need tick-to-tick comparison
+
   const updates: Partial<CumulativeMetrics> = {};
-
-  // Track cumulative exp gain
-  if (current.krakenExp > prev.krakenExp || current.krakenLevel > prev.krakenLevel) {
-    const expDelta = current.krakenExp - prev.krakenExp;
-    updates.totalExpGained = prev.totalExpGained + Math.max(0, expDelta);
-  }
-
-  // Track cumulative eyes gain
-  if (current.eyes > prev.eyes) {
-    const eyesDelta = current.eyes - prev.eyes;
-    updates.totalEyesGained = prev.totalEyesGained + eyesDelta;
-  }
-
-  // Track cumulative tasks completed
-  if (current.tasksCompleted > prev.tasksCompleted) {
-    const tasksDelta = current.tasksCompleted - prev.tasksCompleted;
-    updates.totalTasksCompleted = prev.totalTasksCompleted + tasksDelta;
-  }
 
   // Track cumulative meat spent
   if (current.meat < prev.meat) {
@@ -110,7 +96,7 @@ export function updateCumulativeMetrics(
     updates.totalMeatSpent = prev.totalMeatSpent + meatDelta;
   }
 
-  // Track cumulative creatures fed
+  // Track cumulative creatures fed (when count decreases)
   if (current.creaturesCount < prev.creaturesCount) {
     const creaturesDelta = prev.creaturesCount - current.creaturesCount;
     updates.totalCreaturesFed = prev.totalCreaturesFed + creaturesDelta;
