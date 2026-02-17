@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CULT.MERGE Backlog</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+      color: #e8f1f5;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: #4de2c2;
+    }
+    .subtitle {
+      font-size: 14px;
+      opacity: 0.7;
+      margin-bottom: 24px;
+    }
+    .section {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #ffd966;
+    }
+    .task {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .task:last-child {
+      border-bottom: none;
+    }
+    .task input[type="checkbox"] {
+      margin-top: 3px;
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .task-label {
+      flex: 1;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1.5;
+    }
+    .task-done .task-label {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    .empty {
+      opacity: 0.5;
+      font-style: italic;
+      font-size: 14px;
+    }
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 13px;
+      opacity: 0.6;
+    }
+    .btn-reset {
+      background: rgba(170, 55, 55, 0.8);
+      border: 1px solid rgba(255, 80, 80, 0.5);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .btn-reset:hover {
+      background: rgba(200, 60, 60, 0.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CULT.MERGE Backlog</h1>
+    <p class="subtitle">Track pending features and fixes</p>
+    <div id="backlog"></div>
+    <div class="footer">
+      <button class="btn-reset" onclick="resetAll()">Reset All Checkboxes</button>
+      <p>State saved in browser localStorage</p>
+    </div>
+  </div>
+
+  <script>
+    const BACKLOG_URL = 'https://raw.githubusercontent.com/labetski-b/cult-merge/main/BACKLOG.md';
+    const STORAGE_KEY = 'cult_merge_backlog_state';
+
+    function parseBacklog(markdown) {
+      const lines = markdown.split('\n');
+      const sections = [];
+      let currentSection = null;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        // Section header (any line that's not a task and not empty)
+        if (trimmed && !trimmed.startsWith('- [')) {
+          if (currentSection) sections.push(currentSection);
+          currentSection = { title: trimmed, tasks: [] };
+        }
+        // Task line
+        else if (trimmed.startsWith('- [')) {
+          const match = trimmed.match(/^- \[([ x])\]\s*(.*)$/);
+          if (match && currentSection) {
+            const [, checked, text] = match;
+            if (text.trim()) { // Only add non-empty tasks
+              currentSection.tasks.push({
+                text: text.trim(),
+                defaultChecked: checked === 'x'
+              });
+            }
+          }
+        }
+      }
+
+      if (currentSection) sections.push(currentSection);
+      return sections;
+    }
+
+    function getState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function setState(state) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save state:', e);
+      }
+    }
+
+    function getTaskKey(sectionTitle, taskText) {
+      return `${sectionTitle}::${taskText}`;
+    }
+
+    function toggleTask(sectionTitle, taskText, checked) {
+      const state = getState();
+      const key = getTaskKey(sectionTitle, taskText);
+      if (checked) {
+        state[key] = true;
+      } else {
+        delete state[key];
+      }
+      setState(state);
+    }
+
+    function isTaskChecked(sectionTitle, taskText, defaultChecked) {
+      const state = getState();
+      const key = getTaskKey(sectionTitle, taskText);
+      return state[key] !== undefined ? state[key] : defaultChecked;
+    }
+
+    function renderBacklog(sections) {
+      const container = document.getElementById('backlog');
+      container.innerHTML = '';
+
+      if (sections.length === 0) {
+        container.innerHTML = '<div class="section"><p class="empty">No tasks found in BACKLOG.md</p></div>';
+        return;
+      }
+
+      for (const section of sections) {
+        const sectionDiv = document.createElement('div');
+        sectionDiv.className = 'section';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'section-title';
+        titleDiv.textContent = section.title;
+        sectionDiv.appendChild(titleDiv);
+
+        if (section.tasks.length === 0) {
+          const emptyDiv = document.createElement('p');
+          emptyDiv.className = 'empty';
+          emptyDiv.textContent = 'No tasks';
+          sectionDiv.appendChild(emptyDiv);
+        } else {
+          for (const task of section.tasks) {
+            const taskDiv = document.createElement('div');
+            const checked = isTaskChecked(section.title, task.text, task.defaultChecked);
+            taskDiv.className = checked ? 'task task-done' : 'task';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = checked;
+            checkbox.addEventListener('change', (e) => {
+              toggleTask(section.title, task.text, e.target.checked);
+              taskDiv.className = e.target.checked ? 'task task-done' : 'task';
+            });
+
+            const label = document.createElement('label');
+            label.className = 'task-label';
+            label.textContent = task.text;
+            label.addEventListener('click', () => {
+              checkbox.checked = !checkbox.checked;
+              checkbox.dispatchEvent(new Event('change'));
+            });
+
+            taskDiv.appendChild(checkbox);
+            taskDiv.appendChild(label);
+            sectionDiv.appendChild(taskDiv);
+          }
+        }
+
+        container.appendChild(sectionDiv);
+      }
+    }
+
+    function resetAll() {
+      if (confirm('Reset all checkboxes to default state?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        loadBacklog();
+      }
+    }
+
+    async function loadBacklog() {
+      try {
+        const response = await fetch(BACKLOG_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const markdown = await response.text();
+        const sections = parseBacklog(markdown);
+        renderBacklog(sections);
+      } catch (error) {
+        document.getElementById('backlog').innerHTML = `
+          <div class="section">
+            <p class="empty">Failed to load BACKLOG.md: ${error.message}</p>
+            <p class="empty">Make sure the repository is public or check the URL.</p>
+          </div>
+        `;
+      }
+    }
+
+    loadBacklog();
+  </script>
+</body>
+</html>
