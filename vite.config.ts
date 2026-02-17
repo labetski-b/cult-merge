@@ -18,7 +18,16 @@ export default defineConfig({
       '@data': path.resolve(__dirname, './src/data'),
       '@infra': path.resolve(__dirname, './src/infra'),
       '@styles': path.resolve(__dirname, './src/styles'),
-      '@assets': path.resolve(__dirname, './src/assets')
+      '@assets': path.resolve(__dirname, './src/assets'),
+      '@simulation': path.resolve(__dirname, './src/simulation')
+    }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        simulation: path.resolve(__dirname, 'simulation.html')
+      }
     }
   }
 });

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CULT.MERGE - AI Simulation Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+      color: #e8f1f5;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .simulation-app {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    header h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: #4de2c2;
+      text-align: center;
+    }
+    .controls {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .controls h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #ffd966;
+    }
+    #sim-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 14px;
+    }
+    input[type="number"] {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(143, 193, 255, 0.5);
+      background: rgba(20, 35, 55, 0.8);
+      color: #e8f1f5;
+      font-size: 14px;
+    }
+    fieldset {
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    fieldset legend {
+      padding: 0 8px;
+      color: #4de2c2;
+    }
+    fieldset label {
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    fieldset input[type="checkbox"] {
+      margin-right: 8px;
+      width: 18px;
+      height: 18px;
+    }
+    button {
+      background: linear-gradient(135deg, #4de2c2 0%, #3bb89d 100%);
+      border: none;
+      color: #0d1b2a;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #export-btn {
+      background: linear-gradient(135deg, #a47cff 0%, #8c5ee8 100%);
+    }
+    .progress-container {
+      margin-top: 16px;
+      display: none;
+    }
+    progress {
+      width: 100%;
+      height: 24px;
+      border-radius: 6px;
+    }
+    #progress-text {
+      display: block;
+      margin-top: 8px;
+      text-align: center;
+      font-size: 14px;
+      color: #4de2c2;
+    }
+    .summary {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .summary h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #ffd966;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(143, 193, 255, 0.2);
+    }
+    th {
+      color: #4de2c2;
+      font-weight: 600;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+    }
+    .chart-container {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .chart-container h3 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #ffd966;
+      text-align: center;
+    }
+    canvas {
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div class="simulation-app">
+    <header>
+      <h1>CULT.MERGE - AI Simulation Dashboard</h1>
+    </header>
+
+    <section class="controls">
+      <h2>Simulation Controls</h2>
+      <form id="sim-form">
+        <label>
+          Seed:
+          <input type="number" id="seed" value="12345">
+        </label>
+
+        <label>
+          Duration (ticks):
+          <input type="number" id="duration" value="1000" min="100" max="10000">
+        </label>
+
+        <label>
+          Tick Interval (ms):
+          <input type="number" id="tick-interval" value="100" step="10">
+        </label>
+
+        <fieldset>
+          <legend>Strategies to Compare</legend>
+          <label><input type="checkbox" name="strategy" value="greedy" checked> Greedy Optimizer</label>
+          <label><input type="checkbox" name="strategy" value="realistic" checked> Realistic Player</label>
+          <label><input type="checkbox" name="strategy" value="balanced" checked> Balanced</label>
+        </fieldset>
+
+        <div>
+          <button type="submit" id="run-btn">Run Simulation</button>
+          <button type="button" id="export-btn" disabled>Export Data (JSON)</button>
+        </div>
+      </form>
+
+      <div id="progress-container" class="progress-container">
+        <progress id="progress" max="100" value="0"></progress>
+        <span id="progress-text">0%</span>
+      </div>
+    </section>
+
+    <section class="summary">
+      <h2>Simulation Summary</h2>
+      <table id="summary-table">
+        <thead>
+          <tr>
+            <th>Strategy</th>
+            <th>Final Level</th>
+            <th>Total EXP</th>
+            <th>Total Eyes</th>
+            <th>Tasks Completed</th>
+            <th>Avg EXP/Tick</th>
+            <th>Efficiency</th>
+          </tr>
+        </thead>
+        <tbody id="summary-body">
+          <tr>
+            <td colspan="7" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="charts">
+      <div class="chart-container">
+        <h3>Kraken Level Progression</h3>
+        <canvas id="chart-level"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Eyes Accumulated</h3>
+        <canvas id="chart-eyes"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>EXP Gained (Cumulative)</h3>
+        <canvas id="chart-exp"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Resources (Meat, Rune1, Rune2)</h3>
+        <canvas id="chart-resources"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Entity Counts</h3>
+        <canvas id="chart-entities"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Tasks Completed</h3>
+        <canvas id="chart-tasks"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./src/simulation/main.ts"></script>
+</body>
+</html>

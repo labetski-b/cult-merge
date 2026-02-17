@@ -26,6 +26,9 @@ function entitySublabel(entity: Entity): string {
   if (entity.kind === 'rune') {
     return '';
   }
+  if (entity.kind === 'box') {
+    return '';
+  }
   return `L${entity.level}`;
 }
 
@@ -237,7 +240,7 @@ export function GridBoard() {
                     badge = `[${entity.contents.length}]`;
                     return (
                       <>
-                        <svg viewBox="0 0 48 48" className="creature-image box-icon" draggable={false}>
+                        <svg viewBox="0 0 48 48" className="creature-image box-icon">
                           <rect x="6" y="16" width="36" height="26" rx="4" fill="#a47cff" />
                           <rect x="6" y="16" width="36" height="8" rx="2" fill="#c9a0ff" />
                           <rect x="20" y="12" width="8" height="16" rx="2" fill="#ffd966" />
