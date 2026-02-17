@@ -27,11 +27,11 @@
 
     { "level": 3, "step": 0, "expRequired": 40, "reward": { "type": "res_box", "value": 1 } },
 
-    { "level": 4, "step": 0, "expRequired": 85, "reward": null },
-    { "level": 4, "step": 1, "expRequired": 85, "reward": { "type": "res_box", "value": 2 } },
+    { "level": 4, "step": 0, "expRequired": 85, "reward": { "type": "res_box", "value": 2 } },
+    { "level": 4, "step": 1, "expRequired": 85, "reward": null},
 
-    { "level": 5, "step": 0, "expRequired": 170, "reward": null },
-    { "level": 5, "step": 1, "expRequired": 170, "reward": { "type": "res_box", "value": 2 } },
+    { "level": 5, "step": 0, "expRequired": 170, "reward": { "type": "res_box", "value": 2 }  },
+    { "level": 5, "step": 1, "expRequired": 170, "reward": null },
 
     { "level": 6, "step": 0, "expRequired": 400, "reward": { "type": "res_box", "value": 1 } },
     { "level": 6, "step": 1, "expRequired": 400, "reward": { "type": "res_box", "value": 2 } },
