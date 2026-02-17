@@ -118,6 +118,16 @@ export class SimulationEngine {
     // Strategy decides actions
     const actions = this.config.strategy.decide(this.state, this.rng);
 
+    // Debug: log actions for first 3 ticks
+    if (tick < 3) {
+      console.log(`Tick ${tick} actions:`, actions.map(a => a.type));
+      console.log(`Tick ${tick} BEFORE state:`, {
+        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+        meat: this.state.resources.meat
+      });
+    }
+
     // Execute all actions
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i]!;
@@ -127,6 +137,16 @@ export class SimulationEngine {
         console.error(`Error executing action ${i} at tick ${tick}:`, action);
         throw error;
       }
+    }
+
+    // Debug: log state AFTER actions
+    if (tick < 3) {
+      console.log(`Tick ${tick} AFTER state:`, {
+        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+        meat: this.state.resources.meat,
+        cumulative: { ...this.cumulative }
+      });
     }
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
