@@ -89,6 +89,14 @@ async function handleRunSimulation(e: Event) {
       console.log('Running simulation...');
       const result = engine.run();
       console.log('Simulation complete, results:', result.summary);
+      console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
+        tick: h.tick,
+        krakenLevel: h.metrics.krakenLevel,
+        eyes: h.metrics.eyes,
+        totalExpGained: h.metrics.totalExpGained,
+        totalEyesGained: h.metrics.totalEyesGained,
+        totalTasksCompleted: h.metrics.totalTasksCompleted
+      })));
 
       currentResults.push(result);
     }

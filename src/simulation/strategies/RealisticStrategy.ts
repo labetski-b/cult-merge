@@ -15,28 +15,26 @@ export class RealisticStrategy implements AIStrategy {
   decide(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
     const actions: SimulationAction[] = [];
 
-    // Always claim rewards
+    // Priority 1: Always claim rewards FIRST
     if (state.pendingRewards.length > 0) {
       actions.push({ type: 'claim_reward' });
     }
 
-    // Check for current task
-    const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
+    // Priority 2: Spawn and charge generators (to get creatures)
+    actions.push(...this.chargeAndSpawn(state));
 
+    // Priority 3: Feed for tasks BEFORE merging (preserve low-level creatures!)
+    const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
     if (task) {
-      // ONLY work on tasks - feed required creatures
       const feedActions = this.feedAllTaskCreatures(state, task);
       actions.push(...feedActions);
     }
 
-    // Merge creatures (sometimes miss merges like human)
+    // Priority 4: Merge creatures AFTER feeding (sometimes miss merges like human)
     if (rng.next() < this.mergeChance) {
       const merges = this.findSomeMerges(state, rng);
       actions.push(...merges);
     }
-
-    // Always spawn and charge (simple pattern)
-    actions.push(...this.chargeAndSpawn(state));
 
     return actions;
   }
