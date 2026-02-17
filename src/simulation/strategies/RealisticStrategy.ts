@@ -8,80 +8,72 @@ import { GreedyStrategy } from './GreedyStrategy';
 
 export class RealisticStrategy implements AIStrategy {
   name = 'Realistic Player';
-  description = 'Simulates human player behavior with some mistakes and delays';
+  description = 'Task-focused player: only completes orders, no EXP optimization';
 
-  private mergeChance = 0.8; // 80% chance to make optimal merge
-  private feedTaskChance = 0.9; // 90% chance to work on task
-  private actionRate = 0.7; // 70% to spawn/charge each tick
+  private mergeChance = 0.7; // 70% chance to merge
 
   decide(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
     const actions: SimulationAction[] = [];
 
-    // Humans claim rewards
+    // Always claim rewards
     if (state.pendingRewards.length > 0) {
       actions.push({ type: 'claim_reward' });
     }
 
-    // Usually work on tasks FIRST (before merging)
+    // Check for current task
     const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
-    if (task && rng.next() < this.feedTaskChance) {
-      const feedActions = this.feedSomeTaskCreatures(state, task, rng);
+
+    if (task) {
+      // ONLY work on tasks - feed required creatures
+      const feedActions = this.feedAllTaskCreatures(state, task);
       actions.push(...feedActions);
     }
 
-    // Sometimes miss optimal merges (after task feeding)
+    // Merge creatures (sometimes miss merges like human)
     if (rng.next() < this.mergeChance) {
       const merges = this.findSomeMerges(state, rng);
       actions.push(...merges);
     }
 
-    // Random feeding if no task
-    if (!task || rng.next() > this.feedTaskChance) {
-      const feedActions = this.feedRandomCreatures(state, rng, 2);
-      actions.push(...feedActions);
-    }
-
-    // Spawn/charge with some randomness
-    if (rng.next() < this.actionRate) {
-      actions.push(...this.chargeAndSpawn(state, rng));
-    }
+    // Always spawn and charge (simple pattern)
+    actions.push(...this.chargeAndSpawn(state));
 
     return actions;
   }
 
   private findSomeMerges(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
-    // Find merges but only execute ~70% of them
+    // Find merges but only execute ~70% of them (human makes mistakes)
     const greedy = new GreedyStrategy();
     const allMerges = (greedy as any).findOptimalMerges(state);
     return allMerges.filter(() => rng.next() < 0.7);
   }
 
-  private feedSomeTaskCreatures(state: GameSnapshot, task: any, rng: SeededRng): SimulationAction[] {
+  private feedAllTaskCreatures(state: GameSnapshot, task: any): SimulationAction[] {
+    // Try to feed ALL creatures required for task
     const creatures = Object.values(state.entities).filter(e => e.kind === 'creature') as CreatureEntity[];
     const selected = selectCreaturesForTask(task, creatures);
 
     if (!selected) return [];
 
-    // Only feed some of the required creatures
-    const count = Math.max(1, Math.floor(selected.length * (0.5 + rng.next() * 0.5)));
-    return selected.slice(0, count).map(id => ({ type: 'feed' as const, entityId: id }));
+    // Feed all required creatures to complete the task
+    return selected.map(id => ({ type: 'feed' as const, entityId: id }));
   }
 
-  private feedRandomCreatures(state: GameSnapshot, rng: SeededRng, count: number): SimulationAction[] {
-    const creatures = Object.values(state.entities).filter(e => e.kind === 'creature') as CreatureEntity[];
-    const shuffled = creatures.sort(() => rng.next() - 0.5);
-    return shuffled.slice(0, count).map(c => ({ type: 'feed' as const, entityId: c.id }));
-  }
-
-  private chargeAndSpawn(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
+  private chargeAndSpawn(state: GameSnapshot): SimulationAction[] {
     const actions: SimulationAction[] = [];
     const generators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
     const freeSlots = getFreeCellIndexes(state.grid);
 
     for (const gen of generators) {
-      if (gen.charges.length > 0 && freeSlots.length > actions.length && rng.next() < 0.8) {
+      // Spawn all charged generators
+      if (gen.charges.length > 0 && freeSlots.length > actions.length) {
         actions.push({ type: 'spawn_generator', generatorId: gen.id });
-      } else if (gen.charges.length === 0 && rng.next() < 0.6) {
+      }
+    }
+
+    for (const gen of generators) {
+      // Charge all empty generators
+      if (gen.charges.length === 0) {
         actions.push({ type: 'charge_generator', generatorId: gen.id });
       }
     }
