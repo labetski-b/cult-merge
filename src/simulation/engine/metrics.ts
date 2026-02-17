@@ -1,4 +1,6 @@
 import type { GameSnapshot } from '@domain/types';
+import type { BalanceConfig } from '@data/schemas';
+import { getCurrentMandatoryTask } from '@domain/tasks';
 import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 
 export function initCumulativeMetrics(): CumulativeMetrics {
@@ -13,7 +15,8 @@ export function initCumulativeMetrics(): CumulativeMetrics {
 
 export function captureTickMetrics(
   state: GameSnapshot,
-  cumulative: CumulativeMetrics
+  cumulative: CumulativeMetrics,
+  balance: BalanceConfig
 ): TickMetrics {
   // Count entities by kind
   const entities = Object.values(state.entities);
@@ -44,11 +47,23 @@ export function captureTickMetrics(
     }
   }
 
+  // Grid size (total cells)
+  const gridSize = state.grid.rows * state.grid.cols;
+
   // Tasks completed for current level
   const tasksCompleted = state.taskProgress[state.kraken.level.toString()] ?? 0;
 
   // Current task progress (number of creatures fed toward task)
   const currentTaskProgress = state.currentTaskFed.length;
+
+  // Current task creature requirements
+  const currentTaskRequirements: Record<string, number> = {};
+  const task = getCurrentMandatoryTask(balance, state.kraken.level, state.taskProgress);
+  if (task) {
+    for (const req of task.creatures) {
+      currentTaskRequirements[req.type] = req.level;
+    }
+  }
 
   return {
     // Resources
@@ -71,9 +86,13 @@ export function captureTickMetrics(
     creaturesByType,
     generatorsByType,
 
+    // Grid
+    gridSize,
+
     // Tasks
     tasksCompleted,
     currentTaskProgress,
+    currentTaskRequirements,
 
     // Cumulative
     ...cumulative

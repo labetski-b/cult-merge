@@ -150,7 +150,7 @@ export class SimulationEngine {
     }
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
-    const metrics = captureTickMetrics(this.state, this.cumulative);
+    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance);
 
     // Save snapshot
     this.history.push({
@@ -182,7 +182,7 @@ export class SimulationEngine {
         this.tapGenerator(action.generatorId);
         break;
       case 'buy_generator_1':
-        // Not implemented yet
+        this.buyGenerator(1);
         break;
     }
   }
@@ -397,5 +397,28 @@ export class SimulationEngine {
       level: spawn.level
     };
     this.state.entities[generatorId] = { ...gen, charges: remainingCharges };
+  }
+
+  private buyGenerator(generatorId: number) {
+    const generator = this.config.balance.generators.generators.find(g => g.id === generatorId);
+    if (!generator) return;
+
+    if (this.state.resources.rune1 < generator.purchaseCost) return;
+
+    const freeSlots = getFreeCellIndexes(this.state.grid);
+    if (freeSlots.length === 0) return;
+
+    const targetCell = freeSlots[0]!;
+    const newGenId = this.rng.nextId();
+
+    this.state.entities[newGenId] = {
+      id: newGenId,
+      kind: 'generator',
+      generatorId,
+      level: 1,
+      charges: []
+    };
+    this.state.grid.cells[targetCell] = newGenId;
+    this.state.resources.rune1 -= generator.purchaseCost;
   }
 }

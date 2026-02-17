@@ -48,9 +48,13 @@ export interface TickMetrics {
   creaturesByType: Record<string, Record<number, number>>;
   generatorsByType: Record<number, Record<number, number>>;
 
+  // Grid
+  gridSize: number;
+
   // Tasks
   tasksCompleted: number;
   currentTaskProgress: number;
+  currentTaskRequirements: Record<string, number>; // creatureType -> required level (0 if not needed)
 
   // Cumulative metrics
   totalExpGained: number;

@@ -1,8 +1,6 @@
 import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
-import { GreedyStrategy } from './strategies/GreedyStrategy';
 import { RealisticStrategy } from './strategies/RealisticStrategy';
-import { BalancedStrategy } from './strategies/BalancedStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult } from './engine/types';
 
@@ -15,15 +13,11 @@ let charts: Record<string, Chart> = {};
 
 // Strategy instances
 const STRATEGIES = {
-  greedy: new GreedyStrategy(),
-  realistic: new RealisticStrategy(),
-  balanced: new BalancedStrategy()
+  realistic: new RealisticStrategy()
 };
 
 const COLORS = {
-  greedy: '#4de2c2',
-  realistic: '#ffd966',
-  balanced: '#a47cff'
+  realistic: '#4de2c2'
 };
 
 // UI Elements
@@ -326,23 +320,21 @@ function renderCharts(results: SimulationResult[]) {
     }
   );
 
-  // Entity Counts Chart
-  charts.entities = new Chart(
-    document.getElementById('chart-entities') as HTMLCanvasElement,
+  // Grid Size Chart
+  charts.gridsize = new Chart(
+    document.getElementById('chart-gridsize') as HTMLCanvasElement,
     {
       type: 'line',
       data: {
         labels: ticks,
-        datasets: results.flatMap((result, idx) => [
-          {
-            label: `${result.config.strategy.name} - Creatures`,
-            data: result.history.map(s => s.metrics.creaturesCount),
-            borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-            backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-            fill: false,
-            tension: 0.1
-          }
-        ])
+        datasets: results.map((result, idx) => ({
+          label: result.config.strategy.name,
+          data: result.history.map(s => s.metrics.gridSize),
+          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
+          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
+          fill: false,
+          tension: 0.1
+        }))
       },
       options: {
         responsive: true,
@@ -350,8 +342,59 @@ function renderCharts(results: SimulationResult[]) {
         scales: {
           y: {
             beginAtZero: true,
-            title: { display: true, text: 'Count', color: '#e8f1f5' },
+            title: { display: true, text: 'Cells', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5', stepSize: 1 },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          },
+          x: {
+            title: { display: true, text: 'Tick', color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#e8f1f5' } }
+        }
+      }
+    }
+  );
+
+  // Current Task Creature Chart — one line per creature type, Y = required level
+  const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
+  const allCreatureTypes = new Set<string>();
+  for (const result of results) {
+    for (const snapshot of result.history) {
+      for (const type of Object.keys(snapshot.metrics.currentTaskRequirements)) {
+        allCreatureTypes.add(type);
+      }
+    }
+  }
+  const sortedCreatureTypes = [...allCreatureTypes].sort();
+
+  charts.taskCreature = new Chart(
+    document.getElementById('chart-task-creature') as HTMLCanvasElement,
+    {
+      type: 'line',
+      data: {
+        labels: ticks,
+        datasets: sortedCreatureTypes.map((type, i) => ({
+          label: type,
+          data: results[0]!.history.map(s => s.metrics.currentTaskRequirements[type] ?? 0),
+          borderColor: taskCreatureColors[i % taskCreatureColors.length]!,
+          backgroundColor: taskCreatureColors[i % taskCreatureColors.length]!,
+          fill: false,
+          stepped: true,
+          tension: 0
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Required Level', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5', stepSize: 1 },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
@@ -391,6 +434,114 @@ function renderCharts(results: SimulationResult[]) {
             beginAtZero: true,
             title: { display: true, text: 'Tasks', color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          },
+          x: {
+            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5' },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#e8f1f5' } }
+        }
+      }
+    }
+  );
+
+  // Runes Chart
+  charts.runes = new Chart(
+    document.getElementById('chart-runes') as HTMLCanvasElement,
+    {
+      type: 'line',
+      data: {
+        labels: ticks,
+        datasets: results.flatMap((result) => [
+          {
+            label: 'Rune1',
+            data: result.history.map(s => s.metrics.rune1),
+            borderColor: '#4de2c2',
+            backgroundColor: '#4de2c2',
+            fill: false,
+            tension: 0.1
+          },
+          {
+            label: 'Rune2',
+            data: result.history.map(s => s.metrics.rune2),
+            borderColor: '#ffd966',
+            backgroundColor: '#ffd966',
+            fill: false,
+            tension: 0.1
+          }
+        ])
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Amount', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5' },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          },
+          x: {
+            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5' },
+            grid: { color: 'rgba(143, 193, 255, 0.1)' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#e8f1f5' } }
+        }
+      }
+    }
+  );
+
+  // Generators Chart — one line per generator level
+  const genLevelColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2'];
+  // Collect all generator levels that appear in the simulation
+  const allGenLevels = new Set<number>();
+  for (const result of results) {
+    for (const snapshot of result.history) {
+      for (const [, levels] of Object.entries(snapshot.metrics.generatorsByType)) {
+        for (const lvl of Object.keys(levels)) {
+          allGenLevels.add(Number(lvl));
+        }
+      }
+    }
+  }
+  const sortedGenLevels = [...allGenLevels].sort((a, b) => a - b);
+
+  charts.generators = new Chart(
+    document.getElementById('chart-generators') as HTMLCanvasElement,
+    {
+      type: 'line',
+      data: {
+        labels: ticks,
+        datasets: sortedGenLevels.map((lvl, i) => ({
+          label: `Gen Lvl ${lvl}`,
+          data: results[0]!.history.map(s => {
+            let count = 0;
+            for (const levels of Object.values(s.metrics.generatorsByType)) {
+              count += levels[lvl] ?? 0;
+            }
+            return count;
+          }),
+          borderColor: genLevelColors[i % genLevelColors.length]!,
+          backgroundColor: genLevelColors[i % genLevelColors.length]!,
+          fill: false,
+          tension: 0.1
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Count', color: '#e8f1f5' },
+            ticks: { color: '#e8f1f5', stepSize: 1 },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
