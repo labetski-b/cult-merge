@@ -126,6 +126,34 @@ export type KrakenProgressionData = z.infer<typeof krakenProgressionDataSchema>;
 export type ResBoxesData = z.infer<typeof resBoxesDataSchema>;
 export type GridSizesData = z.infer<typeof gridSizesDataSchema>;
 
+const predatorBalanceSchema = z.object({
+  id: z.string().min(1),
+  requiredExp: z.number().int().positive(),
+  preferredCreatureType: z.string().min(1),
+  krakenRequiredLevel: z.number().int().positive(),
+  mergeCount: z.number().int().positive()
+});
+
+export const predatorsDataSchema = z.object({
+  predators: z.array(predatorBalanceSchema).min(1)
+});
+
+const managerSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1)
+});
+
+export const managersDataSchema = z.object({
+  managers: z.array(managerSchema).min(1),
+  chestBalance: z.object({
+    cardsPerChest: z.number().int().positive(),
+    totalManagers: z.number().int().positive()
+  })
+});
+
+export type PredatorsData = z.infer<typeof predatorsDataSchema>;
+export type ManagersData = z.infer<typeof managersDataSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -133,4 +161,6 @@ export interface BalanceConfig {
   krakenProgression: KrakenProgressionData;
   resBoxes: ResBoxesData;
   gridSizes: GridSizesData;
+  predators: PredatorsData;
+  managers: ManagersData;
 }

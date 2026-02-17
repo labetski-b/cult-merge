@@ -4,6 +4,8 @@ import tasksRaw from '@data/tasks.json';
 import krakenProgressionRaw from '@data/kraken_progression.json';
 import resBoxesRaw from '@data/res_boxes.json';
 import gridSizesRaw from '@data/grid_sizes.json';
+import predatorsRaw from '@data/predators.json';
+import managersRaw from '@data/managers.json';
 import {
   creaturesDataSchema,
   generatorsDataSchema,
@@ -11,6 +13,8 @@ import {
   krakenProgressionDataSchema,
   resBoxesDataSchema,
   tasksDataSchema,
+  predatorsDataSchema,
+  managersDataSchema,
   type BalanceConfig
 } from '@data/schemas';
 
@@ -44,7 +48,9 @@ export function loadBalanceConfig(): BalanceConfig {
     tasks: tasksDataSchema.parse(tasksRaw),
     krakenProgression: krakenProgressionDataSchema.parse(krakenProgressionRaw),
     resBoxes: resBoxesDataSchema.parse(resBoxesRaw),
-    gridSizes: gridSizesDataSchema.parse(gridSizesRaw)
+    gridSizes: gridSizesDataSchema.parse(gridSizesRaw),
+    predators: predatorsDataSchema.parse(predatorsRaw),
+    managers: managersDataSchema.parse(managersRaw)
   };
 
   validateConfig(config);

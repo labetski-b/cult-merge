@@ -683,3 +683,131 @@ body {
     grid-template-columns: 1fr;
   }
 }
+/* ── Predator cell ── */
+
+.cell-predator {
+  border-color: rgba(255, 140, 50, 0.7);
+  background: rgba(60, 25, 10, 0.85);
+  cursor: default;
+}
+
+.cell-predator:hover {
+  border-color: rgba(255, 170, 80, 0.9);
+  box-shadow: 0 0 10px rgba(255, 140, 50, 0.35);
+}
+
+.predator-bar-track {
+  width: 80%;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 2px auto 0;
+}
+
+.predator-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff8c32, #ffba60);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Predator Progress panel ── */
+
+.predator-progress-panel { padding: 10px 14px; }
+
+.predator-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.predator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.predator-row-name {
+  width: 44px;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #ffc07a;
+}
+
+.predator-row-status { font-size: 0.75rem; }
+.predator-row-active { color: #ff8c32; font-weight: 600; }
+.predator-row-locked { color: rgba(255,255,255,0.4); }
+
+.predator-merge-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.predator-merge-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.predator-merge-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff8c32, #ffba60);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.predator-merge-label {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+}
+
+/* ── Manager Collection panel ── */
+
+.manager-collection-panel { padding: 10px 14px; }
+
+.manager-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.manager-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.65rem;
+  text-align: center;
+  position: relative;
+}
+
+.manager-card-owned {
+  border-color: rgba(100, 200, 140, 0.5);
+  background: rgba(20, 50, 30, 0.7);
+}
+
+.manager-card-empty { opacity: 0.4; }
+.manager-card-icon { font-size: 1.2rem; }
+.manager-card-name { color: rgba(255,255,255,0.7); line-height: 1.2; }
+
+.manager-card-count {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #7fdd9e;
+}
