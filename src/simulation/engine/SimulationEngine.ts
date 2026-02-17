@@ -109,6 +109,11 @@ export class SimulationEngine {
   }
 
   private executeTick(tick: number) {
+    // Auto-add meat if we're out (simulate "+10 Meat" button)
+    if (this.state.resources.meat < 5) {
+      this.state.resources.meat += 10;
+    }
+
     // Strategy decides actions
     const actions = this.config.strategy.decide(this.state, this.rng);
 
