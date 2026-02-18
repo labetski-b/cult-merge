@@ -81,7 +81,8 @@ export function rollGeneratorSpawn(
   return spawns;
 }
 
-/** Create a generator entity that is already charged (pre-rolled spawns). */
+/** Create a generator entity that is already charged (pre-rolled spawns).
+ *  First creature is guaranteed from the second line L1 (if available at this level). */
 export function createChargedGenerator(
   rng: SeededRng,
   id: string,
@@ -91,5 +92,13 @@ export function createChargedGenerator(
 ): GeneratorEntity {
   const entity: GeneratorEntity = { id, kind: 'generator', generatorId, level, charges: [] };
   const spawns = rollGeneratorSpawn(rng, entity, config);
+
+  // Guarantee first creature from second line L1 (once per generator lifetime)
+  const { generator, levelConfig } = getGeneratorConfig(config, generatorId, level);
+  const secondLine = generator.lines[1];
+  if (secondLine && levelConfig.outputs.some((o) => o.creatureType === secondLine)) {
+    spawns[0] = { creatureType: secondLine, level: 1 };
+  }
+
   return { ...entity, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
 }

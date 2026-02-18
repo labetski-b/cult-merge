@@ -96,6 +96,31 @@ function countAvailableRunes(state: GameSnapshot): { rune1: number; rune2: numbe
   return { rune1, rune2 };
 }
 
+/** Simulate merging generator levels: while 2+ at same level exist, merge into level+1 (max 5). */
+function simulateGeneratorMerge(levels: number[]): number[] {
+  const counts = new Map<number, number>();
+  for (const lvl of levels) counts.set(lvl, (counts.get(lvl) ?? 0) + 1);
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [lvl, cnt] of counts) {
+      if (cnt >= 2 && lvl < 5) {
+        const pairs = Math.floor(cnt / 2);
+        counts.set(lvl, cnt - pairs * 2);
+        counts.set(lvl + 1, (counts.get(lvl + 1) ?? 0) + pairs);
+        changed = true;
+      }
+    }
+  }
+
+  const result: number[] = [];
+  for (const [lvl, cnt] of counts) {
+    for (let i = 0; i < cnt; i++) result.push(lvl);
+  }
+  return result;
+}
+
 function buildCreaturePotential(
   config: BalanceConfig,
   state: GameSnapshot,
@@ -109,35 +134,38 @@ function buildCreaturePotential(
     potential[creatureType]![level] = (potential[creatureType]![level] ?? 0) + count;
   }
 
-  const generatorIdsOnField = new Set<number>();
-
-  // All generators on field (charged or not)
+  // Step 1: Collect generator levels by generatorId (from field)
+  const genLevelsById = new Map<number, number[]>();
   for (const entity of Object.values(state.entities)) {
     if (entity.kind !== 'generator') continue;
-    generatorIdsOnField.add(entity.generatorId);
-
-    const genConfig = config.generators.generators.find((g) => g.id === entity.generatorId);
-    const levelConfig = genConfig?.levels.find((l) => l.level === entity.level);
-    if (!levelConfig) continue;
-
-    for (const output of levelConfig.outputs) {
-      addOutput(output.creatureType, output.level, levelConfig.numCreatures * output.chance);
-    }
+    if (!genLevelsById.has(entity.generatorId)) genLevelsById.set(entity.generatorId, []);
+    genLevelsById.get(entity.generatorId)!.push(entity.level);
   }
 
-  // Purchasable generators (not on field, affordable) — counted at level 1
+  // Step 2: Add purchasable generators (L1) if affordable
   for (const gen of config.generators.generators) {
-    if (generatorIdsOnField.has(gen.id)) continue;
     const affordable =
       (gen.purchaseCurrency === 'rune1' && availRune1 >= gen.purchaseCost) ||
       (gen.purchaseCurrency === 'rune2' && availRune2 >= gen.purchaseCost);
     if (!affordable) continue;
 
-    const levelConfig = gen.levels.find((l) => l.level === 1);
-    if (!levelConfig) continue;
+    if (!genLevelsById.has(gen.id)) genLevelsById.set(gen.id, []);
+    genLevelsById.get(gen.id)!.push(1);
+  }
 
-    for (const output of levelConfig.outputs) {
-      addOutput(output.creatureType, output.level, levelConfig.numCreatures * output.chance);
+  // Step 3: Simulate merges and count outputs from resulting generators
+  for (const [genId, rawLevels] of genLevelsById) {
+    const mergedLevels = simulateGeneratorMerge(rawLevels);
+    const genConfig = config.generators.generators.find((g) => g.id === genId);
+    if (!genConfig) continue;
+
+    for (const lvl of mergedLevels) {
+      const levelConfig = genConfig.levels.find((l) => l.level === lvl);
+      if (!levelConfig) continue;
+
+      for (const output of levelConfig.outputs) {
+        addOutput(output.creatureType, output.level, levelConfig.numCreatures * output.chance);
+      }
     }
   }
 

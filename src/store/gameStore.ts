@@ -279,12 +279,11 @@ export const useGameStore = create<GameStore>()(
             return { lastMessage: 'These entities cannot merge.' };
           }
 
-          // If merged result is a generator, create it pre-charged
+          // If merged result is a generator, create it pre-charged (with second-line guarantee)
           let finalMerged = merged;
           if (merged.kind === 'generator') {
             const gen = merged as GeneratorEntity;
-            const spawns = rollGeneratorSpawn(rng, gen, BALANCE);
-            finalMerged = { ...gen, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
+            finalMerged = createChargedGenerator(rng, gen.id, gen.generatorId, gen.level, BALANCE);
           }
 
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };

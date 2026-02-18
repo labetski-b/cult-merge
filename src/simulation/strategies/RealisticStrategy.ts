@@ -1,7 +1,7 @@
 import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition } from '@domain/types';
 import { getFreeCellIndexes } from '@domain/grid';
 import { canMergeGenerators } from '@domain/merge';
-import { getCurrentMandatoryTask } from '@domain/tasks';
+import { getCurrentMandatoryTask, generateAutoTask } from '@domain/tasks';
 import { SeededRng } from '@infra/rng';
 import { BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction } from './base';
@@ -37,17 +37,11 @@ export class RealisticStrategy implements AIStrategy {
     actions.push(...this.openBoxes(state));
     actions.push(...this.feedRunes(state, usedIds));
 
-    const task = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
-    const allGenerators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
-
+    let task: TaskDefinition | null = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress)
+      ?? state.currentAutoTask;
     if (!task) {
-      // No task at this level — farm EXP to level up and unlock tasks
-      actions.push(...this.mergeAll(state, rng, usedIds));
-      actions.push(...this.feedAllForExp(state, usedIds));
-      actions.push(...this.spawnAndCharge(allGenerators));
-      return actions;
+      task = generateAutoTask(BALANCE, state, rng);
     }
-
     // === Phase 2: Task work ===
     const neededTypes = new Set(task.creatures.map(r => r.type));
     const exactGenerators = this.findGeneratorsByOutputs(state, neededTypes);
