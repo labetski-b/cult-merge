@@ -41,7 +41,9 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     predatorMergeCounts: {},
     predatorQueueIndex: 0,
     predatorsSpawnedOnce: [],
-    managerCards: []
+    managerCards: [],
+    currentAutoTask: null,
+    lastAutoTaskLine: null
   };
 }
 
