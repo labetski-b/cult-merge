@@ -4,14 +4,14 @@ import { BALANCE } from '@data/loadBalance';
 import type { BoxEntity, CreatureEntity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
-import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
+import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
 import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { createGrid, findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepReward, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
-import { getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { SeededRng, randomSeed } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
 
@@ -35,6 +35,7 @@ interface GameActions {
   tickFlowerPots: (now: number) => void;
   buyFlowerPot: () => void;
   speedUpFlowerPot: (entityId: string) => void;
+  ensureAutoTask: () => void;
   resetGame: () => void;
   clearLastMessage: () => void;
 }
@@ -72,7 +73,9 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     predatorMergeCounts: {},
     predatorQueueIndex: 0,
     predatorsSpawnedOnce: [],
-    managerCards: []
+    managerCards: [],
+    currentAutoTask: null,
+    lastAutoTaskLine: null
   };
 }
 
@@ -104,6 +107,11 @@ function feedRuneToResources(
   }
 
   return { nextResources: resources, message: `Unknown rune type ${runeType}.` };
+}
+
+function resolveCurrentTask(state: GameSnapshot) {
+  return getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress)
+    ?? state.currentAutoTask;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -168,7 +176,9 @@ export const useGameStore = create<GameStore>()(
               ? `Fed ${entity.creatureType} L${entity.level} (+${reward.exp} EXP). Reward ready!`
               : `Fed ${entity.creatureType} L${entity.level} (+${reward.exp} EXP).`;
 
-            const task = getCurrentMandatoryTask(BALANCE, expResult.newState.level, state.taskProgress);
+            const mandatoryTask = getCurrentMandatoryTask(BALANCE, expResult.newState.level, state.taskProgress);
+            const isMandatory = mandatoryTask !== null;
+            const task = mandatoryTask ?? state.currentAutoTask;
             if (task && isTaskComplete(task, nextTaskFed)) {
               let taskEyes = 0;
               for (const req of task.creatures) {
@@ -177,22 +187,50 @@ export const useGameStore = create<GameStore>()(
               }
               taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
 
-              const levelKey = expResult.newState.level.toString();
-
-              return {
-                entities: nextEntities,
-                grid: resizedGrid,
-                pendingRewards: nextPendingRewards,
-                kraken: expResult.newState,
-                rngState: rng.getState(),
-                resources: { ...nextResources, eyes: nextResources.eyes + taskEyes },
-                currentTaskFed: [],
-                taskProgress: {
+              if (isMandatory) {
+                const levelKey = expResult.newState.level.toString();
+                const newTaskProgress = {
                   ...state.taskProgress,
                   [levelKey]: (state.taskProgress[levelKey] ?? 0) + 1
-                },
-                lastMessage: `Task complete! +${taskEyes} Eyes`
-              };
+                };
+                // If this was the last mandatory task, generate first auto task
+                const nextMandatory = getCurrentMandatoryTask(BALANCE, expResult.newState.level, newTaskProgress);
+                const newAutoTask = nextMandatory === null
+                  ? generateAutoTask(BALANCE, state, rng)
+                  : null;
+                return {
+                  entities: nextEntities,
+                  grid: resizedGrid,
+                  pendingRewards: nextPendingRewards,
+                  kraken: expResult.newState,
+                  rngState: rng.getState(),
+                  resources: { ...nextResources, eyes: nextResources.eyes + taskEyes },
+                  currentTaskFed: [],
+                  taskProgress: newTaskProgress,
+                  currentAutoTask: newAutoTask,
+                  lastMessage: `Task complete! +${taskEyes} Eyes`
+                };
+              } else {
+                // Auto task completion → generate next auto task
+                const completedLine = task.creatures[0]?.type ?? null;
+                const nextAutoTask = generateAutoTask(
+                  BALANCE,
+                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task },
+                  rng
+                );
+                return {
+                  entities: nextEntities,
+                  grid: resizedGrid,
+                  pendingRewards: nextPendingRewards,
+                  kraken: expResult.newState,
+                  rngState: rng.getState(),
+                  resources: { ...nextResources, eyes: nextResources.eyes + taskEyes },
+                  currentTaskFed: [],
+                  currentAutoTask: nextAutoTask,
+                  lastAutoTaskLine: completedLine,
+                  lastMessage: `Task complete! +${taskEyes} Eyes`
+                };
+              }
             }
 
             return {
@@ -241,14 +279,22 @@ export const useGameStore = create<GameStore>()(
             return { lastMessage: 'These entities cannot merge.' };
           }
 
+          // If merged result is a generator, create it pre-charged
+          let finalMerged = merged;
+          if (merged.kind === 'generator') {
+            const gen = merged as GeneratorEntity;
+            const spawns = rollGeneratorSpawn(rng, gen, BALANCE);
+            finalMerged = { ...gen, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
+          }
+
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
           nextGrid.cells[sourceIndex] = null;
-          nextGrid.cells[targetIndex] = merged.id;
+          nextGrid.cells[targetIndex] = finalMerged.id;
 
           const nextEntities = { ...state.entities };
           delete nextEntities[sourceId];
           delete nextEntities[targetId];
-          nextEntities[merged.id] = merged;
+          nextEntities[finalMerged.id] = finalMerged;
 
           // Increment merge count for the current queued predator
           const newMergeCounts = { ...state.predatorMergeCounts };
@@ -393,13 +439,7 @@ export const useGameStore = create<GameStore>()(
               const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
               const nextEntities = { ...state.entities };
 
-              nextEntities[newGenId] = {
-                id: newGenId,
-                kind: 'generator',
-                generatorId: genId,
-                level: genLevel,
-                charges: []
-              };
+              nextEntities[newGenId] = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
               nextGrid.cells[targetCell] = newGenId;
 
               result = {
@@ -592,6 +632,8 @@ export const useGameStore = create<GameStore>()(
           let nextPendingRewards = [...state.pendingRewards];
           let nextTaskFed = [...state.currentTaskFed];
           let nextTaskProgress = { ...state.taskProgress };
+          let nextAutoTask = state.currentAutoTask;
+          let nextAutoTaskLine = state.lastAutoTaskLine;
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -624,8 +666,10 @@ export const useGameStore = create<GameStore>()(
 
               nextTaskFed = [...nextTaskFed, { type: entity.creatureType, level: entity.level }];
 
-              // Check task completion
-              const task = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
+              // Check task completion (mandatory or auto)
+              const mandatoryTask = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
+              const isMandatoryTask = mandatoryTask !== null;
+              const task = mandatoryTask ?? nextAutoTask;
               if (task && isTaskComplete(task, nextTaskFed)) {
                 let taskEyes = 0;
                 for (const req of task.creatures) {
@@ -634,9 +678,24 @@ export const useGameStore = create<GameStore>()(
                 }
                 taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
                 totalEyes += taskEyes;
-                const levelKey = krakenState.level.toString();
-                nextTaskProgress = { ...nextTaskProgress, [levelKey]: (nextTaskProgress[levelKey] ?? 0) + 1 };
                 nextTaskFed = [];
+
+                if (isMandatoryTask) {
+                  const levelKey = krakenState.level.toString();
+                  nextTaskProgress = { ...nextTaskProgress, [levelKey]: (nextTaskProgress[levelKey] ?? 0) + 1 };
+                  // If this was the last mandatory task, generate first auto task
+                  const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
+                  if (nextMandatory === null) {
+                    const snapForGen = { ...state, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities };
+                    nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                  }
+                } else {
+                  // Auto task → generate next
+                  const completedLine = task.creatures[0]?.type ?? null;
+                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities };
+                  nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                  nextAutoTaskLine = completedLine;
+                }
               }
             }
             fed += 1;
@@ -658,6 +717,8 @@ export const useGameStore = create<GameStore>()(
             pendingRewards: nextPendingRewards,
             currentTaskFed: nextTaskFed,
             taskProgress: nextTaskProgress,
+            currentAutoTask: nextAutoTask,
+            lastAutoTaskLine: nextAutoTaskLine,
             rngState: rng.getState(),
             lastMessage: `Fed ${fed} entities (+${totalExp} EXP${totalEyes > 0 ? `, +${totalEyes} Eyes` : ''}).`
           };
@@ -682,13 +743,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = {
-            id: newGenId,
-            kind: 'generator',
-            generatorId: 1,
-            level: 1,
-            charges: []
-          };
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 1, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -696,7 +751,7 @@ export const useGameStore = create<GameStore>()(
             grid: nextGrid,
             entities: nextEntities,
             rngState: rng.getState(),
-            lastMessage: 'Generator 1 purchased.'
+            lastMessage: 'Generator 1 purchased (charged).'
           };
         });
       },
@@ -719,13 +774,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = {
-            id: newGenId,
-            kind: 'generator',
-            generatorId: 2,
-            level: 1,
-            charges: []
-          };
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 2, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -733,7 +782,7 @@ export const useGameStore = create<GameStore>()(
             grid: nextGrid,
             entities: nextEntities,
             rngState: rng.getState(),
-            lastMessage: 'Generator 2 purchased.'
+            lastMessage: 'Generator 2 purchased (charged).'
           };
         });
       },
@@ -756,13 +805,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = {
-            id: newGenId,
-            kind: 'generator',
-            generatorId: 4,
-            level: 1,
-            charges: []
-          };
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 4, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -770,7 +813,7 @@ export const useGameStore = create<GameStore>()(
             grid: nextGrid,
             entities: nextEntities,
             rngState: rng.getState(),
-            lastMessage: 'Generator 4 purchased.'
+            lastMessage: 'Generator 4 purchased (charged).'
           };
         });
       },
@@ -963,6 +1006,21 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
+      ensureAutoTask: () => {
+        set((state) => {
+          const mandatory = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
+          if (mandatory) return {};
+          if (state.currentAutoTask) return {};
+
+          const rng = new SeededRng(state.rngState);
+          const autoTask = generateAutoTask(BALANCE, state, rng);
+          return {
+            currentAutoTask: autoTask,
+            rngState: rng.getState()
+          };
+        });
+      },
+
       resetGame: () => {
         set(createInitialSnapshot());
       },
@@ -985,7 +1043,9 @@ export const useGameStore = create<GameStore>()(
 );
 
 export function useCurrentTask() {
-  return useGameStore((state) => getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress));
+  return useGameStore((state) =>
+    getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress) ?? state.currentAutoTask
+  );
 }
 
 export function useCurrentTaskFed() {

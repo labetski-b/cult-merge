@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getTaskFedProgress } from '@domain/tasks';
@@ -8,6 +9,14 @@ export function TaskPanel() {
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const task = useCurrentTask();
   const fed = useCurrentTaskFed();
+  const ensureAutoTask = useGameStore((s) => s.ensureAutoTask);
+
+  // Generate auto-task if none exists and level allows
+  useEffect(() => {
+    if (krakenLevel >= 2 && !task) {
+      ensureAutoTask();
+    }
+  }, [krakenLevel, task, ensureAutoTask]);
 
   // Tasks unlock at level 2
   if (krakenLevel < 2) {
@@ -59,7 +68,7 @@ export function TaskPanel() {
           <div className="task-reward">+{totalEyes} Eyes</div>
         </>
       ) : (
-        <p className="task-empty">No task</p>
+        <p className="task-empty">No task available (no generators on field)</p>
       )}
     </section>
   );

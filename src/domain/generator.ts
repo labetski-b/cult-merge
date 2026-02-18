@@ -80,3 +80,16 @@ export function rollGeneratorSpawn(
 
   return spawns;
 }
+
+/** Create a generator entity that is already charged (pre-rolled spawns). */
+export function createChargedGenerator(
+  rng: SeededRng,
+  id: string,
+  generatorId: number,
+  level: number,
+  config: BalanceConfig
+): GeneratorEntity {
+  const entity: GeneratorEntity = { id, kind: 'generator', generatorId, level, charges: [] };
+  const spawns = rollGeneratorSpawn(rng, entity, config);
+  return { ...entity, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
+}

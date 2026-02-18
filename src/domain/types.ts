@@ -125,4 +125,6 @@ export interface GameSnapshot {
   predatorQueueIndex: number;
   predatorsSpawnedOnce: string[];
   managerCards: string[];
+  currentAutoTask: TaskDefinition | null;
+  lastAutoTaskLine: string | null;
 }
