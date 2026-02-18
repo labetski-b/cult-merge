@@ -267,6 +267,7 @@ export function GridBoard() {
             <div
               key={index}
               className={getCellClassName(index, entity)}
+              style={entity?.kind === 'generator' ? { backgroundColor: '#d0d0d0' } : undefined}
               draggable={!!entity && entity.kind !== 'box' && entity.kind !== 'predator'}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
@@ -285,7 +286,37 @@ export function GridBoard() {
                     badge = `L${entity.level}`;
                   } else if (entity.kind === 'generator') {
                     img = getGeneratorImage(entity.generatorId, entity.level);
-                    badge = entity.charges.length > 0 ? `L${entity.level} [${entity.charges.length}]` : `L${entity.level}`;
+                    badge = `L${entity.level}`;
+                    const chargeCount = entity.charges.length;
+                    return (
+                      <>
+                        <img src={img} alt={entityLabel(entity)} className="creature-image" draggable={false} />
+                        <span className="cell-badge">{badge}</span>
+                        {chargeCount > 0 && (
+                          <span
+                            className="generator-charge-badge"
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: '#4CAF50',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}
+                          >
+                            {chargeCount}
+                          </span>
+                        )}
+                      </>
+                    );
                   } else if (entity.kind === 'rune') {
                     img = getRuneImage(entity.runeType);
                   } else if (entity.kind === 'predator') {
