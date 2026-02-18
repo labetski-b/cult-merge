@@ -35,20 +35,18 @@ function getMaxStep(config: BalanceConfig, level: number): number {
 
 
 export function getRequiredExp(config: BalanceConfig, state: KrakenState): number {
-  return getStepConfig(config, state.level + 1, state.step).expRequired;
+  return getStepConfig(config, state.level, state.step).expRequired;
 }
 
-/** Total EXP needed to reach the next level (sum of all steps for target level) */
+/** Total EXP needed to complete current level (sum of all steps for current level) */
 export function getTotalLevelExp(config: BalanceConfig, state: KrakenState): number {
-  const targetLevel = state.level + 1;
-  const steps = getLevelStepConfigs(config, targetLevel);
+  const steps = getLevelStepConfigs(config, state.level);
   return steps.reduce((sum, s) => sum + s.expRequired, 0);
 }
 
-/** EXP already earned toward next level (completed steps + current partial) */
+/** EXP already earned toward completing current level (completed steps + current partial) */
 export function getEarnedLevelExp(config: BalanceConfig, state: KrakenState): number {
-  const targetLevel = state.level + 1;
-  const steps = getLevelStepConfigs(config, targetLevel);
+  const steps = getLevelStepConfigs(config, state.level);
   let earned = 0;
   for (const s of steps) {
     if (s.step < state.step) {
@@ -62,7 +60,7 @@ export function getEarnedLevelExp(config: BalanceConfig, state: KrakenState): nu
 }
 
 export function getCurrentStepReward(config: BalanceConfig, state: KrakenState): ProgressReward | null {
-  return getStepConfig(config, state.level + 1, state.step).reward;
+  return getStepConfig(config, state.level, state.step).reward;
 }
 
 export interface LevelStepInfo {
@@ -75,8 +73,7 @@ export interface LevelStepInfo {
 }
 
 export function getLevelSteps(config: BalanceConfig, state: KrakenState): LevelStepInfo[] {
-  const targetLevel = state.level + 1;
-  const steps = getLevelStepConfigs(config, targetLevel);
+  const steps = getLevelStepConfigs(config, state.level);
   return steps.map((cfg) => {
     const completed = cfg.step < state.step;
     const current = cfg.step === state.step;
@@ -105,12 +102,9 @@ export function addExp(
   let step = state.step;
   const rewards: ProgressReward[] = [];
 
-  // Target level in JSON = level + 1 (e.g. player at level 1 works on JSON level 2 entries)
-  const targetLevel = () => level + 1;
-
-  // Skip steps with 0 exp (like level 0 step 0) — their rewards are pre-seeded
-  while (getStepConfig(config, targetLevel(), step).expRequired === 0) {
-    const maxStep = getMaxStep(config, targetLevel());
+  // Skip steps with 0 exp (like level 1 step 0) — their rewards are pre-seeded
+  while (getStepConfig(config, level, step).expRequired === 0) {
+    const maxStep = getMaxStep(config, level);
     if (step >= maxStep) {
       level += 1;
       step = 0;
@@ -122,7 +116,7 @@ export function addExp(
   let guard = 0;
   while (guard < 512) {
     guard += 1;
-    const currentConfig = getStepConfig(config, targetLevel(), step);
+    const currentConfig = getStepConfig(config, level, step);
 
     if (remaining < currentConfig.expRequired) {
       break;
@@ -135,10 +129,10 @@ export function addExp(
       rewards.push(currentConfig.reward);
     }
 
-    // Advance: check if this was the last step for this target level
-    const maxStep = getMaxStep(config, targetLevel());
+    // Advance: check if this was the last step for this level
+    const maxStep = getMaxStep(config, level);
     if (step >= maxStep) {
-      // Completed all steps → player reaches target level
+      // Completed all steps → player advances to next level
       level += 1;
       step = 0;
     } else {

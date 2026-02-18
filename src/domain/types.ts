@@ -82,7 +82,7 @@ export interface TaskDefinition {
   resMultiplier: number;
 }
 
-export type RewardType = 'res_box' | 'egg' | 'mechanic';
+export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
 
 export interface ProgressReward {
   type: RewardType;

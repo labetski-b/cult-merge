@@ -443,6 +443,20 @@ export const useGameStore = create<GameStore>()(
               rngState: rng.getState(),
               lastMessage: `Box #${reward.value} placed! Tap to open.`
             };
+          } else if (reward.type === 'grid') {
+            // Grid expansion reward - field will expand automatically based on level
+            const nextGridSize = getGridSizeForLevel(BALANCE, state.kraken.level);
+            const currentGrid = (result.grid ?? state.grid);
+            const resizedGrid =
+              currentGrid.rows !== nextGridSize.rows || currentGrid.cols !== nextGridSize.cols
+                ? resizeGrid(currentGrid, nextGridSize.rows, nextGridSize.cols)
+                : currentGrid;
+
+            result = {
+              ...result,
+              grid: resizedGrid,
+              lastMessage: `Field expanded to ${nextGridSize.rows}×${nextGridSize.cols}!`
+            };
           }
 
           // After claiming last reward, advance kraken past any 0-exp steps

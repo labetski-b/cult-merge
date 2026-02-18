@@ -61,6 +61,17 @@ function RewardDot({ reward, completed }: { reward: ProgressReward; completed: b
     );
   }
 
+  if (reward.type === 'grid') {
+    return (
+      <div className={cls}>
+        <svg viewBox="0 0 24 24" fill="none" className="step-dot-svg">
+          <circle cx="12" cy="12" r="10" fill="#66cc99" />
+          <text x="12" y="16" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#1a1a2e">F</text>
+        </svg>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -72,6 +83,9 @@ function RewardLabel({ reward }: { reward: ProgressReward }) {
   }
   if (reward.type === 'res_box') {
     return <>Box #{reward.value}</>;
+  }
+  if (reward.type === 'grid') {
+    return <>Field Expansion</>;
   }
   return <>Reward</>;
 }
