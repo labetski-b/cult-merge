@@ -114,13 +114,48 @@ import creature14_5 from '@assets/creatures/creature14_lvl5.png';
 import creature14_6 from '@assets/creatures/creature14_lvl6.png';
 import creature14_7 from '@assets/creatures/creature14_lvl7.png';
 
-// Generators (keeping old naming for now)
-import genFlesh1 from '@assets/generators/gen_flesh_lvl1.png';
-import genFlesh2 from '@assets/generators/gen_flesh_lvl2.png';
-import genFlesh3 from '@assets/generators/gen_flesh_lvl3.png';
-import genSlime1 from '@assets/generators/gen_slime_lvl1.png';
-import genSlime2 from '@assets/generators/gen_slime_lvl2.png';
-import genSlime3 from '@assets/generators/gen_slime_lvl3.png';
+// Generators/Spawners
+import spawner1_1 from '@assets/generators/gen_spawner1_lvl1.png';
+import spawner1_2 from '@assets/generators/gen_spawner1_lvl2.png';
+import spawner1_3 from '@assets/generators/gen_spawner1_lvl3.png';
+import spawner1_4 from '@assets/generators/gen_spawner1_lvl4.png';
+import spawner1_5 from '@assets/generators/gen_spawner1_lvl5.png';
+
+import spawner2_1 from '@assets/generators/gen_spawner2_lvl1.png';
+import spawner2_2 from '@assets/generators/gen_spawner2_lvl2.png';
+import spawner2_3 from '@assets/generators/gen_spawner2_lvl3.png';
+import spawner2_4 from '@assets/generators/gen_spawner2_lvl4.png';
+import spawner2_5 from '@assets/generators/gen_spawner2_lvl5.png';
+
+import spawner3_1 from '@assets/generators/gen_spawner3_lvl1.png';
+import spawner3_2 from '@assets/generators/gen_spawner3_lvl2.png';
+import spawner3_3 from '@assets/generators/gen_spawner3_lvl3.png';
+import spawner3_4 from '@assets/generators/gen_spawner3_lvl4.png';
+import spawner3_5 from '@assets/generators/gen_spawner3_lvl5.png';
+
+import spawner4_1 from '@assets/generators/gen_spawner4_lvl1.png';
+import spawner4_2 from '@assets/generators/gen_spawner4_lvl2.png';
+import spawner4_3 from '@assets/generators/gen_spawner4_lvl3.png';
+import spawner4_4 from '@assets/generators/gen_spawner4_lvl4.png';
+import spawner4_5 from '@assets/generators/gen_spawner4_lvl5.png';
+
+import spawner5_1 from '@assets/generators/gen_spawner5_lvl1.png';
+import spawner5_2 from '@assets/generators/gen_spawner5_lvl2.png';
+import spawner5_3 from '@assets/generators/gen_spawner5_lvl3.png';
+import spawner5_4 from '@assets/generators/gen_spawner5_lvl4.png';
+import spawner5_5 from '@assets/generators/gen_spawner5_lvl5.png';
+
+import spawner6_1 from '@assets/generators/gen_spawner6_lvl1.png';
+import spawner6_2 from '@assets/generators/gen_spawner6_lvl2.png';
+import spawner6_3 from '@assets/generators/gen_spawner6_lvl3.png';
+import spawner6_4 from '@assets/generators/gen_spawner6_lvl4.png';
+import spawner6_5 from '@assets/generators/gen_spawner6_lvl5.png';
+
+import spawner7_1 from '@assets/generators/gen_spawner7_lvl1.png';
+import spawner7_2 from '@assets/generators/gen_spawner7_lvl2.png';
+import spawner7_3 from '@assets/generators/gen_spawner7_lvl3.png';
+import spawner7_4 from '@assets/generators/gen_spawner7_lvl4.png';
+import spawner7_5 from '@assets/generators/gen_spawner7_lvl5.png';
 
 // Runes
 import runeBlueS from '@assets/runes/rune_blue_small.png';
@@ -158,18 +193,25 @@ export function getCreatureImage(type: string, level: number): string {
   return typeImages[actualLevel] || '';
 }
 
+// Generator/Spawner image maps
+const generatorImages: Record<number, Record<number, string>> = {
+  1: { 1: spawner1_1, 2: spawner1_2, 3: spawner1_3, 4: spawner1_4, 5: spawner1_5 },
+  2: { 1: spawner2_1, 2: spawner2_2, 3: spawner2_3, 4: spawner2_4, 5: spawner2_5 },
+  3: { 1: spawner3_1, 2: spawner3_2, 3: spawner3_3, 4: spawner3_4, 5: spawner3_5 },
+  4: { 1: spawner4_1, 2: spawner4_2, 3: spawner4_3, 4: spawner4_4, 5: spawner4_5 },
+  5: { 1: spawner5_1, 2: spawner5_2, 3: spawner5_3, 4: spawner5_4, 5: spawner5_5 },
+  6: { 1: spawner6_1, 2: spawner6_2, 3: spawner6_3, 4: spawner6_4, 5: spawner6_5 },
+  7: { 1: spawner7_1, 2: spawner7_2, 3: spawner7_3, 4: spawner7_4, 5: spawner7_5 },
+};
+
 export function getGeneratorImage(type: number, level: number): string {
-  if (type === 1) { // Flesh/Spider generator
-    if (level === 1) return genFlesh1;
-    if (level === 2) return genFlesh2;
-    if (level >= 3) return genFlesh3;
-  }
-  if (type === 2) { // Slime generator
-    if (level === 1) return genSlime1;
-    if (level === 2) return genSlime2;
-    if (level >= 3) return genSlime3;
-  }
-  return '';
+  const typeImages = generatorImages[type];
+  if (!typeImages) return '';
+
+  // Get the image for the level, or fallback to the highest available level
+  const maxLevel = Math.max(...Object.keys(typeImages).map(Number));
+  const actualLevel = Math.min(level, maxLevel);
+  return typeImages[actualLevel] || '';
 }
 
 export function getRuneImage(type: string): string {
