@@ -229,6 +229,20 @@ export function generateAutoTask(
   state: GameSnapshot,
   rng: SeededRng
 ): TaskDefinition {
+  // Step 0: 10% chance to target a high-level creature already on field
+  const highLevelCreatures = Object.values(state.entities).filter(
+    (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 5
+  );
+  if (highLevelCreatures.length > 0 && rng.next() < 0.1) {
+    const pick = highLevelCreatures[Math.floor(rng.next() * highLevelCreatures.length)]!;
+    return {
+      id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
+      creatures: [{ type: pick.creatureType, level: pick.level, count: 1 }],
+      expMultiplier: 0,
+      resMultiplier: 1
+    };
+  }
+
   // Step 1: available rune currencies (resources + runes on field + box contents)
   const { rune1: availRune1, rune2: availRune2 } = countAvailableRunes(state);
 
