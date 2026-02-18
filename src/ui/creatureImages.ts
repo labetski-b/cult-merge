@@ -1,31 +1,120 @@
+// Creature images - unified naming: creature{N}_lvl{L}.png
+import creature1_1 from '@assets/creatures/creature1_lvl1.png';
+import creature1_2 from '@assets/creatures/creature1_lvl2.png';
+import creature1_3 from '@assets/creatures/creature1_lvl3.png';
+import creature1_4 from '@assets/creatures/creature1_lvl4.png';
+import creature1_5 from '@assets/creatures/creature1_lvl5.png';
+import creature1_6 from '@assets/creatures/creature1_lvl6.png';
+import creature1_7 from '@assets/creatures/creature1_lvl7.png';
+import creature1_8 from '@assets/creatures/creature1_lvl8.png';
+import creature1_9 from '@assets/creatures/creature1_lvl9.png';
 
-import spiderLvl1 from '@assets/creatures/spider_lvl1.png';
-import spiderLvl2 from '@assets/creatures/spider_lvl2.png';
-import spiderLvl3 from '@assets/creatures/spider_lvl3.png';
-import spiderLvl4 from '@assets/creatures/spider_lvl4.png';
-import spiderLvl5 from '@assets/creatures/spider_lvl5.png';
-import spiderLvl6 from '@assets/creatures/spider_lvl6.png';
-import spiderLvl7 from '@assets/creatures/spider_lvl7.png';
-import spiderLvl8 from '@assets/creatures/spider_lvl8.png';
-import spiderLvl9 from '@assets/creatures/spider_lvl9.png';
-import slimeLvl1 from '@assets/creatures/slime_lvl1.png';
-import slimeLvl2 from '@assets/creatures/slime_lvl2.png';
-import slimeLvl3 from '@assets/creatures/slime_lvl3.png';
-import slimeLvl4 from '@assets/creatures/slime_lvl4.png';
-import slimeLvl5 from '@assets/creatures/slime_lvl5.png';
-import slimeLvl6 from '@assets/creatures/slime_lvl6.png';
-import slimeLvl7 from '@assets/creatures/slime_lvl7.png';
-import slimeLvl8 from '@assets/creatures/slime_lvl8.png';
-import slimeLvl9 from '@assets/creatures/slime_lvl9.png';
-import snakeLvl1 from '@assets/creatures/snake_lvl1.png';
-import snakeLvl2 from '@assets/creatures/snake_lvl2.png';
-import snakeLvl3 from '@assets/creatures/snake_lvl3.png';
-import snakeLvl4 from '@assets/creatures/snake_lvl4.png';
-import snakeLvl5 from '@assets/creatures/snake_lvl5.png';
-import snakeLvl6 from '@assets/creatures/snake_lvl6.png';
-import snakeLvl7 from '@assets/creatures/snake_lvl7.png';
+import creature2_1 from '@assets/creatures/creature2_lvl1.png';
+import creature2_2 from '@assets/creatures/creature2_lvl2.png';
+import creature2_3 from '@assets/creatures/creature2_lvl3.png';
+import creature2_4 from '@assets/creatures/creature2_lvl4.png';
+import creature2_5 from '@assets/creatures/creature2_lvl5.png';
+import creature2_6 from '@assets/creatures/creature2_lvl6.png';
+import creature2_7 from '@assets/creatures/creature2_lvl7.png';
+import creature2_8 from '@assets/creatures/creature2_lvl8.png';
+import creature2_9 from '@assets/creatures/creature2_lvl9.png';
 
-// Generators
+import creature3_1 from '@assets/creatures/creature3_lvl1.png';
+import creature3_2 from '@assets/creatures/creature3_lvl2.png';
+import creature3_3 from '@assets/creatures/creature3_lvl3.png';
+import creature3_4 from '@assets/creatures/creature3_lvl4.png';
+import creature3_5 from '@assets/creatures/creature3_lvl5.png';
+import creature3_6 from '@assets/creatures/creature3_lvl6.png';
+import creature3_7 from '@assets/creatures/creature3_lvl7.png';
+import creature3_8 from '@assets/creatures/creature3_lvl8.png';
+import creature3_9 from '@assets/creatures/creature3_lvl9.png';
+
+import creature4_1 from '@assets/creatures/creature4_lvl1.png';
+import creature4_2 from '@assets/creatures/creature4_lvl2.png';
+import creature4_3 from '@assets/creatures/creature4_lvl3.png';
+import creature4_4 from '@assets/creatures/creature4_lvl4.png';
+import creature4_5 from '@assets/creatures/creature4_lvl5.png';
+import creature4_6 from '@assets/creatures/creature4_lvl6.png';
+import creature4_7 from '@assets/creatures/creature4_lvl7.png';
+import creature4_8 from '@assets/creatures/creature4_lvl8.png';
+import creature4_9 from '@assets/creatures/creature4_lvl9.png';
+
+import creature5_1 from '@assets/creatures/creature5_lvl1.png';
+import creature5_2 from '@assets/creatures/creature5_lvl2.png';
+import creature5_3 from '@assets/creatures/creature5_lvl3.png';
+import creature5_4 from '@assets/creatures/creature5_lvl4.png';
+import creature5_5 from '@assets/creatures/creature5_lvl5.png';
+
+import creature6_1 from '@assets/creatures/creature6_lvl1.png';
+import creature6_2 from '@assets/creatures/creature6_lvl2.png';
+import creature6_3 from '@assets/creatures/creature6_lvl3.png';
+import creature6_4 from '@assets/creatures/creature6_lvl4.png';
+import creature6_5 from '@assets/creatures/creature6_lvl5.png';
+
+import creature7_1 from '@assets/creatures/creature7_lvl1.png';
+import creature7_2 from '@assets/creatures/creature7_lvl2.png';
+import creature7_3 from '@assets/creatures/creature7_lvl3.png';
+import creature7_4 from '@assets/creatures/creature7_lvl4.png';
+import creature7_5 from '@assets/creatures/creature7_lvl5.png';
+import creature7_6 from '@assets/creatures/creature7_lvl6.png';
+import creature7_7 from '@assets/creatures/creature7_lvl7.png';
+
+import creature8_1 from '@assets/creatures/creature8_lvl1.png';
+import creature8_2 from '@assets/creatures/creature8_lvl2.png';
+import creature8_3 from '@assets/creatures/creature8_lvl3.png';
+import creature8_4 from '@assets/creatures/creature8_lvl4.png';
+import creature8_5 from '@assets/creatures/creature8_lvl5.png';
+import creature8_6 from '@assets/creatures/creature8_lvl6.png';
+
+import creature9_1 from '@assets/creatures/creature9_lvl1.png';
+import creature9_2 from '@assets/creatures/creature9_lvl2.png';
+import creature9_3 from '@assets/creatures/creature9_lvl3.png';
+import creature9_4 from '@assets/creatures/creature9_lvl4.png';
+import creature9_5 from '@assets/creatures/creature9_lvl5.png';
+import creature9_6 from '@assets/creatures/creature9_lvl6.png';
+import creature9_7 from '@assets/creatures/creature9_lvl7.png';
+
+import creature10_1 from '@assets/creatures/creature10_lvl1.png';
+import creature10_2 from '@assets/creatures/creature10_lvl2.png';
+import creature10_3 from '@assets/creatures/creature10_lvl3.png';
+import creature10_4 from '@assets/creatures/creature10_lvl4.png';
+import creature10_5 from '@assets/creatures/creature10_lvl5.png';
+import creature10_6 from '@assets/creatures/creature10_lvl6.png';
+import creature10_7 from '@assets/creatures/creature10_lvl7.png';
+
+import creature11_1 from '@assets/creatures/creature11_lvl1.png';
+import creature11_2 from '@assets/creatures/creature11_lvl2.png';
+import creature11_3 from '@assets/creatures/creature11_lvl3.png';
+import creature11_4 from '@assets/creatures/creature11_lvl4.png';
+import creature11_5 from '@assets/creatures/creature11_lvl5.png';
+import creature11_6 from '@assets/creatures/creature11_lvl6.png';
+import creature11_7 from '@assets/creatures/creature11_lvl7.png';
+
+import creature12_1 from '@assets/creatures/creature12_lvl1.png';
+import creature12_2 from '@assets/creatures/creature12_lvl2.png';
+import creature12_3 from '@assets/creatures/creature12_lvl3.png';
+import creature12_4 from '@assets/creatures/creature12_lvl4.png';
+import creature12_5 from '@assets/creatures/creature12_lvl5.png';
+import creature12_6 from '@assets/creatures/creature12_lvl6.png';
+import creature12_7 from '@assets/creatures/creature12_lvl7.png';
+
+import creature13_1 from '@assets/creatures/creature13_lvl1.png';
+import creature13_2 from '@assets/creatures/creature13_lvl2.png';
+import creature13_3 from '@assets/creatures/creature13_lvl3.png';
+import creature13_4 from '@assets/creatures/creature13_lvl4.png';
+import creature13_5 from '@assets/creatures/creature13_lvl5.png';
+import creature13_6 from '@assets/creatures/creature13_lvl6.png';
+import creature13_7 from '@assets/creatures/creature13_lvl7.png';
+
+import creature14_1 from '@assets/creatures/creature14_lvl1.png';
+import creature14_2 from '@assets/creatures/creature14_lvl2.png';
+import creature14_3 from '@assets/creatures/creature14_lvl3.png';
+import creature14_4 from '@assets/creatures/creature14_lvl4.png';
+import creature14_5 from '@assets/creatures/creature14_lvl5.png';
+import creature14_6 from '@assets/creatures/creature14_lvl6.png';
+import creature14_7 from '@assets/creatures/creature14_lvl7.png';
+
+// Generators (keeping old naming for now)
 import genFlesh1 from '@assets/generators/gen_flesh_lvl1.png';
 import genFlesh2 from '@assets/generators/gen_flesh_lvl2.png';
 import genFlesh3 from '@assets/generators/gen_flesh_lvl3.png';
@@ -41,59 +130,49 @@ import runeRedL from '@assets/runes/rune_red_large.png';
 import runeHardS from '@assets/runes/rune_hard_small.png';
 import runeHardL from '@assets/runes/rune_hard_large.png';
 
+// Creature image maps
+const creatureImages: Record<string, Record<number, string>> = {
+  'Creature1': { 1: creature1_1, 2: creature1_2, 3: creature1_3, 4: creature1_4, 5: creature1_5, 6: creature1_6, 7: creature1_7, 8: creature1_8, 9: creature1_9 },
+  'Creature2': { 1: creature2_1, 2: creature2_2, 3: creature2_3, 4: creature2_4, 5: creature2_5, 6: creature2_6, 7: creature2_7, 8: creature2_8, 9: creature2_9 },
+  'Creature3': { 1: creature3_1, 2: creature3_2, 3: creature3_3, 4: creature3_4, 5: creature3_5, 6: creature3_6, 7: creature3_7, 8: creature3_8, 9: creature3_9 },
+  'Creature4': { 1: creature4_1, 2: creature4_2, 3: creature4_3, 4: creature4_4, 5: creature4_5, 6: creature4_6, 7: creature4_7, 8: creature4_8, 9: creature4_9 },
+  'Creature5': { 1: creature5_1, 2: creature5_2, 3: creature5_3, 4: creature5_4, 5: creature5_5 },
+  'Creature6': { 1: creature6_1, 2: creature6_2, 3: creature6_3, 4: creature6_4, 5: creature6_5 },
+  'Creature7': { 1: creature7_1, 2: creature7_2, 3: creature7_3, 4: creature7_4, 5: creature7_5, 6: creature7_6, 7: creature7_7 },
+  'Creature8': { 1: creature8_1, 2: creature8_2, 3: creature8_3, 4: creature8_4, 5: creature8_5, 6: creature8_6 },
+  'Creature9': { 1: creature9_1, 2: creature9_2, 3: creature9_3, 4: creature9_4, 5: creature9_5, 6: creature9_6, 7: creature9_7 },
+  'Creature10': { 1: creature10_1, 2: creature10_2, 3: creature10_3, 4: creature10_4, 5: creature10_5, 6: creature10_6, 7: creature10_7 },
+  'Creature11': { 1: creature11_1, 2: creature11_2, 3: creature11_3, 4: creature11_4, 5: creature11_5, 6: creature11_6, 7: creature11_7 },
+  'Creature12': { 1: creature12_1, 2: creature12_2, 3: creature12_3, 4: creature12_4, 5: creature12_5, 6: creature12_6, 7: creature12_7 },
+  'Creature13': { 1: creature13_1, 2: creature13_2, 3: creature13_3, 4: creature13_4, 5: creature13_5, 6: creature13_6, 7: creature13_7 },
+  'Creature14': { 1: creature14_1, 2: creature14_2, 3: creature14_3, 4: creature14_4, 5: creature14_5, 6: creature14_6, 7: creature14_7 },
+};
 
 export function getCreatureImage(type: string, level: number): string {
-  if (type === 'Creature1') {
-    if (level === 1) return spiderLvl1;
-    if (level === 2) return spiderLvl2;
-    if (level === 3) return spiderLvl3;
-    if (level === 4) return spiderLvl4;
-    if (level === 5) return spiderLvl5;
-    if (level === 6) return spiderLvl6;
-    if (level === 7) return spiderLvl7;
-    if (level === 8) return spiderLvl8;
-    if (level >= 9) return spiderLvl9;
-  }
-  if (type === 'Creature2') {
-    if (level === 1) return slimeLvl1;
-    if (level === 2) return slimeLvl2;
-    if (level === 3) return slimeLvl3;
-    if (level === 4) return slimeLvl4;
-    if (level === 5) return slimeLvl5;
-    if (level === 6) return slimeLvl6;
-    if (level === 7) return slimeLvl7;
-    if (level === 8) return slimeLvl8;
-    if (level >= 9) return slimeLvl9;
-  }
-  if (type === 'Creature3') {
-    if (level === 1) return snakeLvl1;
-    if (level === 2) return snakeLvl2;
-    if (level === 3) return snakeLvl3;
-    if (level === 4) return snakeLvl4;
-    if (level === 5) return snakeLvl5;
-    if (level === 6) return snakeLvl6;
-    if (level >= 7) return snakeLvl7;
-  }
-  return '';
+  const typeImages = creatureImages[type];
+  if (!typeImages) return '';
+
+  // Get the image for the level, or fallback to the highest available level
+  const maxLevel = Math.max(...Object.keys(typeImages).map(Number));
+  const actualLevel = Math.min(level, maxLevel);
+  return typeImages[actualLevel] || '';
 }
 
 export function getGeneratorImage(type: number, level: number): string {
   if (type === 1) { // Flesh/Spider generator
     if (level === 1) return genFlesh1;
     if (level === 2) return genFlesh2;
-    if (level >= 3) return genFlesh3; // Fallback for 4-5
+    if (level >= 3) return genFlesh3;
   }
   if (type === 2) { // Slime generator
     if (level === 1) return genSlime1;
     if (level === 2) return genSlime2;
-    if (level >= 3) return genSlime3; // Fallback for 4-5
+    if (level >= 3) return genSlime3;
   }
   return '';
 }
 
 export function getRuneImage(type: string): string {
-  // Map internal rune names to images
-  // Known types: Rune1_1, Rune1_2, Rune2_1, Rune2_2, Hard_1, Hard_2
   switch (type) {
     case 'Rune1_1': return runeBlueS;
     case 'Rune1_2': return runeBlueL;
