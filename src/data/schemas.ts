@@ -83,7 +83,7 @@ export const tasksDataSchema = z.object({
 
 const progressionRewardSchema = z
   .object({
-    type: z.enum(['res_box', 'egg', 'mechanic']),
+    type: z.enum(['res_box', 'egg', 'mechanic', 'grid']),
     value: z.union([z.string(), z.number()])
   })
   .nullable();
