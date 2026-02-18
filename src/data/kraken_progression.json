@@ -29,13 +29,13 @@
 
     { "level": 2, "step": 0, "expRequired": 40, "reward": { "type": "res_box", "value": 1 } },
 
-    { "level": 3, "step": 0, "expRequired": 120, "reward": { "type": "grid", "value": 12 } },
+    { "level": 3, "step": 0, "expRequired": 120, "reward": { "type": "res_box", "value": 2 } },
 
-    { "level": 4, "step": 0, "expRequired": 85, "reward": { "type": "res_box", "value": 2 }  },
+    { "level": 4, "step": 0, "expRequired": 85, "reward": { "type": "grid", "value": 12 }  },
     { "level": 4, "step": 1, "expRequired": 85, "reward": null },
 
     { "level": 5, "step": 0, "expRequired": 250, "reward": { "type": "res_box", "value": 1 } },
-    { "level": 5, "step": 1, "expRequired": 250, "reward": { "type": "res_box", "value": 2 } },
+    { "level": 5, "step": 1, "expRequired": 250, "reward": { "type": "mechanic", "value": "predators" } },
 
     { "level": 6, "step": 0, "expRequired": 400, "reward": null },
     { "level": 6, "step": 1, "expRequired": 400, "reward": { "type": "res_box", "value": 1 } },
