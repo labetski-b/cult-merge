@@ -115,6 +115,36 @@
       font-size: 14px;
       color: #4de2c2;
     }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      color: #e8f1f5;
+      padding: 10px 24px;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .tab-btn:hover {
+      background: rgba(30, 58, 95, 0.8);
+      transform: none;
+    }
+    .tab-btn.active {
+      background: rgba(77, 226, 194, 0.15);
+      border-bottom-color: transparent;
+      color: #4de2c2;
+    }
+    .tab-panel { display: block; }
+    .tab-panel.hidden { display: none; }
+
     .summary {
       background: rgba(14, 25, 42, 0.7);
       border: 1px solid rgba(143, 193, 255, 0.3);
@@ -160,6 +190,73 @@
     canvas {
       max-height: 300px;
     }
+
+    /* Action Log */
+    .action-log-panel {
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .action-log-panel h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #ffd966;
+    }
+    .log-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .log-controls label {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .log-controls input, .log-controls select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(143, 193, 255, 0.5);
+      background: rgba(20, 35, 55, 0.8);
+      color: #e8f1f5;
+      font-size: 14px;
+    }
+    .log-controls .nav-btn {
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+    .log-table-wrap {
+      max-height: 600px;
+      overflow-y: auto;
+      border: 1px solid rgba(143, 193, 255, 0.2);
+      border-radius: 6px;
+    }
+    #action-log-table {
+      font-size: 13px;
+    }
+    #action-log-table td {
+      padding: 6px 8px;
+      white-space: nowrap;
+    }
+    #action-log-table th {
+      padding: 8px;
+      position: sticky;
+      top: 0;
+      background: rgba(14, 25, 42, 0.95);
+      z-index: 1;
+    }
+    #action-log-table .note-cell {
+      white-space: normal;
+      max-width: 300px;
+    }
+    .tick-separator td {
+      background: rgba(77, 226, 194, 0.08);
+      font-weight: 600;
+      color: #4de2c2;
+    }
   </style>
 </head>
 <body>
@@ -204,74 +301,136 @@
       </div>
     </section>
 
-    <section class="summary">
-      <h2>Simulation Summary</h2>
-      <table id="summary-table">
-        <thead>
-          <tr>
-            <th>Strategy</th>
-            <th>Final Level</th>
-            <th>Total EXP</th>
-            <th>Total Eyes</th>
-            <th>Tasks Completed</th>
-            <th>Avg EXP/Tick</th>
-            <th>Efficiency</th>
-          </tr>
-        </thead>
-        <tbody id="summary-body">
-          <tr>
-            <td colspan="7" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-summary">Summary</button>
+      <button class="tab-btn" data-tab="tab-charts">Charts</button>
+      <button class="tab-btn" data-tab="tab-action-log">Action Log</button>
+    </div>
 
-    <section class="charts">
-      <div class="chart-container">
-        <h3>Kraken Level Progression</h3>
-        <canvas id="chart-level"></canvas>
-      </div>
+    <div class="tab-panel" id="tab-summary">
+      <section class="summary">
+        <h2>Simulation Summary</h2>
+        <table id="summary-table">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Final Level</th>
+              <th>Total EXP</th>
+              <th>Total Eyes</th>
+              <th>Tasks Completed</th>
+              <th>Avg EXP/Tick</th>
+              <th>Efficiency</th>
+            </tr>
+          </thead>
+          <tbody id="summary-body">
+            <tr>
+              <td colspan="7" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
 
-      <div class="chart-container">
-        <h3>Eyes Accumulated</h3>
-        <canvas id="chart-eyes"></canvas>
-      </div>
+    <div class="tab-panel hidden" id="tab-charts">
+      <section class="charts">
+        <div class="chart-container">
+          <h3>Kraken Level Progression</h3>
+          <canvas id="chart-level"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>EXP Gained (Cumulative)</h3>
-        <canvas id="chart-exp"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>Eyes Accumulated</h3>
+          <canvas id="chart-eyes"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Resources (Meat, Rune1, Rune2)</h3>
-        <canvas id="chart-resources"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>EXP Gained (Cumulative)</h3>
+          <canvas id="chart-exp"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Grid Size</h3>
-        <canvas id="chart-gridsize"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>Resources (Meat, Rune1, Rune2)</h3>
+          <canvas id="chart-resources"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Current Task (creature level needed)</h3>
-        <canvas id="chart-task-creature"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>Grid Size</h3>
+          <canvas id="chart-gridsize"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Tasks Completed</h3>
-        <canvas id="chart-tasks"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>Current Task (creature level needed)</h3>
+          <canvas id="chart-task-creature"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Runes</h3>
-        <canvas id="chart-runes"></canvas>
-      </div>
+        <div class="chart-container">
+          <h3>Tasks Completed</h3>
+          <canvas id="chart-tasks"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Generators (by level)</h3>
-        <canvas id="chart-generators"></canvas>
-      </div>
-    </section>
+        <div class="chart-container">
+          <h3>Runes</h3>
+          <canvas id="chart-runes"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Generators (by level)</h3>
+          <canvas id="chart-generators"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <div class="tab-panel hidden" id="tab-action-log">
+      <section class="action-log-panel">
+        <h2>Action Log</h2>
+        <div class="log-controls">
+          <label>Tick: <input type="number" id="log-tick" value="0" min="0" style="width:80px"></label>
+          <button class="nav-btn" id="log-prev-tick" type="button">&larr; Prev</button>
+          <button class="nav-btn" id="log-next-tick" type="button">Next &rarr;</button>
+          <label>Filter:
+            <select id="log-filter-type">
+              <option value="">All actions</option>
+              <option value="claim_reward">claim_reward</option>
+              <option value="open_box">open_box</option>
+              <option value="feed">feed</option>
+              <option value="merge">merge</option>
+              <option value="charge_generator">charge_generator</option>
+              <option value="spawn_generator">spawn_generator</option>
+              <option value="buy_generator_1">buy_generator_1</option>
+            </select>
+          </label>
+          <span id="log-tick-info" style="opacity:0.6; font-size:13px;"></span>
+        </div>
+        <div class="log-table-wrap">
+          <table id="action-log-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Action</th>
+                <th>Detail</th>
+                <th>Lvl</th>
+                <th>Step</th>
+                <th>EXP</th>
+                <th>Meat</th>
+                <th>Eyes</th>
+                <th>R1</th>
+                <th>R2</th>
+                <th>Cr</th>
+                <th>Gen</th>
+                <th>Field</th>
+                <th>Free</th>
+                <th>Rew</th>
+                <th>Fed</th>
+                <th>Task</th>
+              </tr>
+            </thead>
+            <tbody id="action-log-body">
+              <tr><td colspan="17" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
 
   <script type="module" src="./src/simulation/main.ts"></script>

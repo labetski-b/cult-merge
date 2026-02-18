@@ -2,7 +2,7 @@ import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
 import { RealisticStrategy } from './strategies/RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
-import type { SimulationResult } from './engine/types';
+import type { SimulationResult, ActionLogEntry } from './engine/types';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -29,9 +29,40 @@ const progressBar = document.getElementById('progress') as HTMLProgressElement;
 const progressText = document.getElementById('progress-text') as HTMLSpanElement;
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
 
+// Action Log UI Elements
+const logTickInput = document.getElementById('log-tick') as HTMLInputElement;
+const logPrevBtn = document.getElementById('log-prev-tick') as HTMLButtonElement;
+const logNextBtn = document.getElementById('log-next-tick') as HTMLButtonElement;
+const logFilterType = document.getElementById('log-filter-type') as HTMLSelectElement;
+const logTickInfo = document.getElementById('log-tick-info') as HTMLSpanElement;
+const logBody = document.getElementById('action-log-body') as HTMLTableSectionElement;
+
 // Event Listeners
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    btn.classList.add('active');
+    const tabId = (btn as HTMLElement).dataset.tab!;
+    document.getElementById(tabId)!.classList.remove('hidden');
+  });
+});
+
+// Action Log navigation
+logTickInput.addEventListener('change', () => renderActionLog(currentResults));
+logFilterType.addEventListener('change', () => renderActionLog(currentResults));
+logPrevBtn.addEventListener('click', () => {
+  logTickInput.value = String(Math.max(0, parseInt(logTickInput.value) - 1));
+  renderActionLog(currentResults);
+});
+logNextBtn.addEventListener('click', () => {
+  logTickInput.value = String(parseInt(logTickInput.value) + 1);
+  renderActionLog(currentResults);
+});
 
 async function handleRunSimulation(e: Event) {
   e.preventDefault();
@@ -109,6 +140,7 @@ async function handleRunSimulation(e: Event) {
   // Render results
   renderSummaryTable(currentResults);
   renderCharts(currentResults);
+  renderActionLog(currentResults);
 
   // Re-enable controls
   runBtn.disabled = false;
@@ -149,6 +181,59 @@ function renderSummaryTable(results: SimulationResult[]) {
       <td>${result.summary.efficiencyScore.toFixed(2)}</td>
     `;
     summaryBody.appendChild(row);
+  }
+}
+
+function renderActionLog(results: SimulationResult[]) {
+  logBody.innerHTML = '';
+  if (results.length === 0) return;
+
+  const log = results[0]!.actionLog;
+  const tick = parseInt(logTickInput.value) || 0;
+  const filterType = logFilterType.value;
+
+  // Find max tick for info display
+  const maxTick = log.length > 0 ? log[log.length - 1]!.tick : 0;
+  logTickInput.max = String(maxTick);
+
+  // Filter entries for this tick
+  let entries = log.filter(e => e.tick === tick);
+  if (filterType) {
+    entries = entries.filter(e => e.action.type === filterType);
+  }
+
+  // Show tick info
+  const totalActionsThisTick = log.filter(e => e.tick === tick).length;
+  logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
+
+  if (entries.length === 0) {
+    logBody.innerHTML = `<tr><td colspan="17" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
+    return;
+  }
+
+  for (const entry of entries) {
+    const row = document.createElement('tr');
+    const s = entry.state;
+    row.innerHTML = `
+      <td>${entry.actionIndex}</td>
+      <td>${entry.action.type}</td>
+      <td class="note-cell">${entry.note}</td>
+      <td>${s.krakenLevel}</td>
+      <td>${s.krakenStep}</td>
+      <td>${s.krakenExp}</td>
+      <td>${s.meat}</td>
+      <td>${s.eyes}</td>
+      <td>${s.rune1}</td>
+      <td>${s.rune2}</td>
+      <td>${s.creatures}</td>
+      <td>${s.generators}</td>
+      <td>${s.gridCells}</td>
+      <td>${s.freeCells}</td>
+      <td>${s.pendingRewards}</td>
+      <td>${s.taskFed}</td>
+      <td class="note-cell">${s.currentTask}</td>
+    `;
+    logBody.appendChild(row);
   }
 }
 

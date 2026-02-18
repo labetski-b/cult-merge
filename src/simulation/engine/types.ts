@@ -84,9 +84,35 @@ export interface SimulationSummary {
   efficiencyScore: number; // exp per meat spent
 }
 
+export interface ActionLogEntry {
+  tick: number;
+  actionIndex: number;
+  action: SimulationAction;
+  state: {
+    krakenLevel: number;
+    krakenStep: number;
+    krakenExp: number;
+    meat: number;
+    eyes: number;
+    rune1: number;
+    rune2: number;
+    creatures: number;
+    generators: number;
+    runes: number;
+    boxes: number;
+    gridCells: number;
+    freeCells: number;
+    pendingRewards: number;
+    taskFed: number;
+    currentTask: string; // e.g. "Creature1 Lv2 x1, Creature2 Lv1 x2"
+  };
+  note: string;
+}
+
 export interface SimulationResult {
   config: SimulationConfig;
   history: SimulationSnapshot[];
+  actionLog: ActionLogEntry[];
   finalState: GameSnapshot;
   summary: SimulationSummary;
 }

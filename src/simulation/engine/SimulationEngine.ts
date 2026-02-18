@@ -8,7 +8,7 @@ import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
 import { SeededRng } from '@infra/rng';
-import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics } from './types';
+import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
 
 function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
@@ -40,6 +40,7 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     lastMessage: null,
     predatorMergeCounts: {},
     predatorQueueIndex: 0,
+    predatorsSpawnedOnce: [],
     managerCards: []
   };
 }
@@ -66,6 +67,7 @@ export class SimulationEngine {
   private rng: SeededRng;
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
+  private actionLog: ActionLogEntry[];
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -73,6 +75,7 @@ export class SimulationEngine {
     this.rng = new SeededRng(config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
+    this.actionLog = [];
   }
 
   run(): SimulationResult {
@@ -104,6 +107,7 @@ export class SimulationEngine {
     return {
       config: this.config,
       history: this.history,
+      actionLog: this.actionLog,
       finalState: this.state,
       summary
     };
@@ -128,14 +132,27 @@ export class SimulationEngine {
       });
     }
 
-    // Execute all actions
+    // Execute all actions and log each one (skip no-ops)
+    let logIndex = 0;
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i]!;
+      const note = this.buildActionNote(action);
+      const stateBefore = JSON.stringify(this.state);
       try {
         this.executeAction(action);
       } catch (error) {
         console.error(`Error executing action ${i} at tick ${tick}:`, action);
         throw error;
+      }
+      // Only log if the action actually changed state
+      if (JSON.stringify(this.state) !== stateBefore) {
+        this.actionLog.push({
+          tick,
+          actionIndex: logIndex++,
+          action,
+          state: this.captureCompactState(),
+          note
+        });
       }
     }
 
@@ -397,6 +414,78 @@ export class SimulationEngine {
       level: spawn.level
     };
     this.state.entities[generatorId] = { ...gen, charges: remainingCharges };
+  }
+
+  private captureCompactState(): ActionLogEntry['state'] {
+    const entities = Object.values(this.state.entities);
+    const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
+    const currentTask = task
+      ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ')
+      : 'none';
+    return {
+      krakenLevel: this.state.kraken.level,
+      krakenStep: this.state.kraken.step,
+      krakenExp: this.state.kraken.currentExp,
+      meat: this.state.resources.meat,
+      eyes: this.state.resources.eyes,
+      rune1: this.state.resources.rune1,
+      rune2: this.state.resources.rune2,
+      creatures: entities.filter(e => e.kind === 'creature').length,
+      generators: entities.filter(e => e.kind === 'generator').length,
+      runes: entities.filter(e => e.kind === 'rune').length,
+      boxes: entities.filter(e => e.kind === 'box').length,
+      gridCells: this.state.grid.rows * this.state.grid.cols,
+      freeCells: getFreeCellIndexes(this.state.grid).length,
+      pendingRewards: this.state.pendingRewards.length,
+      taskFed: this.state.currentTaskFed.length,
+      currentTask
+    };
+  }
+
+  private buildActionNote(action: SimulationAction): string {
+    switch (action.type) {
+      case 'claim_reward': {
+        const r = this.state.pendingRewards[0];
+        if (!r) return '';
+        return r.type === 'egg' ? `egg: ${r.value}` : `box #${r.value}`;
+      }
+      case 'open_box': {
+        const box = this.state.entities[action.boxId];
+        if (!box || box.kind !== 'box') return '';
+        const b = box as BoxEntity;
+        return b.contents.length > 0 ? `${b.contents[0]} (${b.contents.length} left)` : 'empty';
+      }
+      case 'feed': {
+        const e = this.state.entities[action.entityId];
+        if (!e) return '';
+        if (e.kind === 'creature') return `${(e as CreatureEntity).creatureType} Lv${(e as CreatureEntity).level}`;
+        if (e.kind === 'rune') return `${(e as RuneEntity).runeType}`;
+        return e.kind;
+      }
+      case 'merge': {
+        const s = this.state.entities[action.sourceId];
+        const t = this.state.entities[action.targetId];
+        if (!s || !t) return '';
+        if (s.kind === 'creature') return `${(s as CreatureEntity).creatureType} Lv${(s as CreatureEntity).level} x2 → Lv${(s as CreatureEntity).level + 1}`;
+        if (s.kind === 'generator') return `Gen${(s as GeneratorEntity).generatorId} Lv${(s as GeneratorEntity).level} x2 → Lv${(s as GeneratorEntity).level + 1}`;
+        return `${s.kind} merge`;
+      }
+      case 'charge_generator': {
+        const e = this.state.entities[action.generatorId];
+        if (!e || e.kind !== 'generator') return '';
+        const g = e as GeneratorEntity;
+        return `Gen${g.generatorId} Lv${g.level}`;
+      }
+      case 'spawn_generator': {
+        const e = this.state.entities[action.generatorId];
+        if (!e || e.kind !== 'generator') return '';
+        const g = e as GeneratorEntity;
+        const charge = g.charges[0];
+        return charge ? `${charge.creatureType} Lv${charge.level} from Gen${g.generatorId}` : '';
+      }
+      case 'buy_generator_1':
+        return `cost: ${this.state.resources.rune1} rune1`;
+    }
   }
 
   private buyGenerator(generatorId: number) {
