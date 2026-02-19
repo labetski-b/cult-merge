@@ -142,12 +142,25 @@ function buildCreaturePotential(
     genLevelsById.get(entity.generatorId)!.push(entity.level);
   }
 
-  // Step 2: Add purchasable generators (L1) if affordable
-  for (const gen of config.generators.generators) {
-    const affordable =
-      (gen.purchaseCurrency === 'rune1' && availRune1 >= gen.purchaseCost) ||
-      (gen.purchaseCurrency === 'rune2' && availRune2 >= gen.purchaseCost);
-    if (!affordable) continue;
+  // Step 2: Add purchasable generators (L1) if affordable — most expensive first, with budget deduction
+  const sortedGens = [...config.generators.generators].sort(
+    (a, b) => b.purchaseCost - a.purchaseCost
+  );
+  let budgetRune1 = availRune1;
+  let budgetRune2 = availRune2;
+
+  for (const gen of sortedGens) {
+    if (state.kraken.level < gen.krakenRequired) continue;
+
+    let canAfford = false;
+    if (gen.purchaseCurrency === 'rune1' && budgetRune1 >= gen.purchaseCost) {
+      budgetRune1 -= gen.purchaseCost;
+      canAfford = true;
+    } else if (gen.purchaseCurrency === 'rune2' && budgetRune2 >= gen.purchaseCost) {
+      budgetRune2 -= gen.purchaseCost;
+      canAfford = true;
+    }
+    if (!canAfford) continue;
 
     if (!genLevelsById.has(gen.id)) genLevelsById.set(gen.id, []);
     genLevelsById.get(gen.id)!.push(1);
@@ -229,11 +242,11 @@ export function generateAutoTask(
   state: GameSnapshot,
   rng: SeededRng
 ): TaskDefinition {
-  // Step 0: 10% chance to target a high-level creature already on field
+  // Step 0: 50% chance to target a high-level creature already on field
   const highLevelCreatures = Object.values(state.entities).filter(
     (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 5
   );
-  if (highLevelCreatures.length > 0 && rng.next() < 0.1) {
+  if (highLevelCreatures.length > 0 && rng.next() < 0.5) {
     const pick = highLevelCreatures[Math.floor(rng.next() * highLevelCreatures.length)]!;
     return {
       id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
@@ -256,9 +269,9 @@ export function generateAutoTask(
 
   // Steps 4-8 in a retry loop to avoid identical consecutive tasks
   for (let attempt = 0; attempt < 10; attempt++) {
-    // Step 4: 75% chance to exclude previous task's line
+    // Step 4: 90% chance to exclude previous task's line
     let pool = allLines;
-    if (pool.length > 1 && state.lastAutoTaskLine && rng.next() < 0.75) {
+    if (pool.length > 1 && state.lastAutoTaskLine && rng.next() < 0.9) {
       const filtered = pool.filter((l) => l !== state.lastAutoTaskLine);
       if (filtered.length > 0) pool = filtered;
     }
@@ -276,9 +289,12 @@ export function generateAutoTask(
     // Step 7: max_lvl from L1-equivalents
     const maxLvl = calcMaxLevel(config, state, creatureType, potential);
 
-    // Step 8: required_level = rand(max_lvl - 3, max_lvl + 1), adjusted by count, clamped
+    // Step 8: required_level with dynamic upper bound based on line completions
+    const lineCompletions = state.autoTaskLineCompletions[creatureType] ?? 0;
+    const upper = Math.min(maxLvl - 1 + Math.floor(lineCompletions / 3), maxLvl + 4);
     const minRoll = maxLvl - 3;
-    let level = minRoll + Math.floor(rng.next() * 5); // range: [max_lvl-3 .. max_lvl+1]
+    const rangeSize = upper - minRoll + 1;
+    let level = minRoll + Math.floor(rng.next() * rangeSize);
     if (count === 2) level -= 1;
     else if (count >= 3) level -= 2;
     level = Math.max(1, Math.min(maxLevel, level));
@@ -287,8 +303,7 @@ export function generateAutoTask(
     const isDuplicate =
       prev?.creatures.length === 1 &&
       prev.creatures[0]!.type === creatureType &&
-      prev.creatures[0]!.level === level &&
-      prev.creatures[0]!.count === count;
+      prev.creatures[0]!.level === level;
 
     if (!isDuplicate || attempt === 9) {
       return {

@@ -19,6 +19,7 @@ const generatorSchema = z.object({
   eggType: z.string().min(1),
   purchaseCurrency: z.enum(['rune1', 'rune2']),
   purchaseCost: z.number().int().min(0),
+  krakenRequired: z.number().int().min(1),
   lines: z.array(z.string().min(1)).length(2),
   levels: z.array(generatorLevelSchema).min(1)
 });

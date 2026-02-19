@@ -127,4 +127,5 @@ export interface GameSnapshot {
   managerCards: string[];
   currentAutoTask: TaskDefinition | null;
   lastAutoTaskLine: string | null;
+  autoTaskLineCompletions: Record<string, number>;
 }

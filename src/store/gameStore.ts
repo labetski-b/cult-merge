@@ -75,7 +75,8 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     predatorsSpawnedOnce: [],
     managerCards: [],
     currentAutoTask: null,
-    lastAutoTaskLine: null
+    lastAutoTaskLine: null,
+    autoTaskLineCompletions: {}
   };
 }
 
@@ -213,9 +214,13 @@ export const useGameStore = create<GameStore>()(
               } else {
                 // Auto task completion → generate next auto task
                 const completedLine = task.creatures[0]?.type ?? null;
+                const nextCompletions = { ...state.autoTaskLineCompletions };
+                if (completedLine) {
+                  nextCompletions[completedLine] = (nextCompletions[completedLine] ?? 0) + 1;
+                }
                 const nextAutoTask = generateAutoTask(
                   BALANCE,
-                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task },
+                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, autoTaskLineCompletions: nextCompletions },
                   rng
                 );
                 return {
@@ -228,6 +233,7 @@ export const useGameStore = create<GameStore>()(
                   currentTaskFed: [],
                   currentAutoTask: nextAutoTask,
                   lastAutoTaskLine: completedLine,
+                  autoTaskLineCompletions: nextCompletions,
                   lastMessage: `Task complete! +${taskEyes} Eyes`
                 };
               }
@@ -633,6 +639,7 @@ export const useGameStore = create<GameStore>()(
           let nextTaskProgress = { ...state.taskProgress };
           let nextAutoTask = state.currentAutoTask;
           let nextAutoTaskLine = state.lastAutoTaskLine;
+          let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -691,7 +698,10 @@ export const useGameStore = create<GameStore>()(
                 } else {
                   // Auto task → generate next
                   const completedLine = task.creatures[0]?.type ?? null;
-                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities };
+                  if (completedLine) {
+                    nextAutoTaskLineCompletions[completedLine] = (nextAutoTaskLineCompletions[completedLine] ?? 0) + 1;
+                  }
+                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions };
                   nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
                   nextAutoTaskLine = completedLine;
                 }
@@ -718,6 +728,7 @@ export const useGameStore = create<GameStore>()(
             taskProgress: nextTaskProgress,
             currentAutoTask: nextAutoTask,
             lastAutoTaskLine: nextAutoTaskLine,
+            autoTaskLineCompletions: nextAutoTaskLineCompletions,
             rngState: rng.getState(),
             lastMessage: `Fed ${fed} entities (+${totalExp} EXP${totalEyes > 0 ? `, +${totalEyes} Eyes` : ''}).`
           };
