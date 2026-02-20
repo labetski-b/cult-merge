@@ -1,7 +1,8 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, RuneEntity, TaskDefinition, TaskRequirement } from '@domain/types';
+import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RuneEntity, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
 import { runeRedemptionValue } from '@domain/rewards';
+import { getGridSizeForLevel } from '@domain/gridSize';
 
 export function getCurrentMandatoryTask(
   config: BalanceConfig,
@@ -242,6 +243,14 @@ export function generateAutoTask(
   state: GameSnapshot,
   rng: SeededRng
 ): TaskDefinition {
+  // Field capacity cap: level ≤ available_cells
+  // All generators of one line (same generatorId) merge into 1 — so footprint = unique generatorId count
+  const { rows, cols } = getGridSizeForLevel(config, state.kraken.level);
+  const gridCells = rows * cols;
+  const generators = Object.values(state.entities).filter((e): e is GeneratorEntity => e.kind === 'generator');
+  const generatorFootprint = new Set(generators.map(g => g.generatorId)).size;
+  const fieldLevelCap = Math.max(1, gridCells - generatorFootprint);
+
   // Step 0: 50% chance to target a high-level creature already on field
   const highLevelCreatures = Object.values(state.entities).filter(
     (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 5
@@ -250,7 +259,7 @@ export function generateAutoTask(
     const pick = highLevelCreatures[Math.floor(rng.next() * highLevelCreatures.length)]!;
     return {
       id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
-      creatures: [{ type: pick.creatureType, level: pick.level, count: 1 }],
+      creatures: [{ type: pick.creatureType, level: Math.min(pick.level, fieldLevelCap), count: 1 }],
       expMultiplier: 0,
       resMultiplier: 1
     };
@@ -297,7 +306,7 @@ export function generateAutoTask(
     let level = minRoll + Math.floor(rng.next() * rangeSize);
     if (count === 2) level -= 1;
     else if (count >= 3) level -= 2;
-    level = Math.max(1, Math.min(maxLevel, level));
+    level = Math.max(1, Math.min(maxLevel, fieldLevelCap, level));
 
     // Anti-duplicate: if identical to previous task, retry (up to 10 attempts)
     const isDuplicate =

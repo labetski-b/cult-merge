@@ -3,6 +3,7 @@ import { SimulationEngine } from './engine/SimulationEngine';
 import { RealisticStrategy } from './strategies/RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult, ActionLogEntry } from './engine/types';
+import type { CreatureEntity, GeneratorEntity } from '@domain/types';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -10,6 +11,7 @@ Chart.register(...registerables);
 // Global state
 let currentResults: SimulationResult[] = [];
 let charts: Record<string, Chart> = {};
+let xAxisData: { ticks: number[]; presses: number[]; sessions: number[] } | null = null;
 
 // Strategy instances
 const STRATEGIES = {
@@ -37,6 +39,12 @@ const logFilterType = document.getElementById('log-filter-type') as HTMLSelectEl
 const logTickInfo = document.getElementById('log-tick-info') as HTMLSpanElement;
 const logBody = document.getElementById('action-log-body') as HTMLTableSectionElement;
 
+// Field Popup Elements
+const fieldPopupOverlay = document.getElementById('field-popup-overlay')!;
+const fieldPopupTitle = document.getElementById('field-popup-title')!;
+const fieldPopupContent = document.getElementById('field-popup-content')!;
+const fieldPopupClose = document.getElementById('field-popup-close')!;
+
 // Event Listeners
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
@@ -51,6 +59,18 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById(tabId)!.classList.remove('hidden');
   });
 });
+
+// Field popup close handlers
+fieldPopupClose.addEventListener('click', () => fieldPopupOverlay.classList.remove('open'));
+fieldPopupOverlay.addEventListener('click', (e) => {
+  if (e.target === fieldPopupOverlay) fieldPopupOverlay.classList.remove('open');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') fieldPopupOverlay.classList.remove('open');
+});
+
+// X-axis mode selector
+document.getElementById('x-axis-mode')?.addEventListener('change', updateChartsXAxis);
 
 // Action Log navigation
 logTickInput.addEventListener('change', () => renderActionLog(currentResults));
@@ -207,7 +227,7 @@ function renderActionLog(results: SimulationResult[]) {
   logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
 
   if (entries.length === 0) {
-    logBody.innerHTML = `<tr><td colspan="17" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
+    logBody.innerHTML = `<tr><td colspan="19" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
     return;
   }
 
@@ -231,9 +251,75 @@ function renderActionLog(results: SimulationResult[]) {
       <td>${s.freeCells}</td>
       <td>${s.pendingRewards}</td>
       <td>${s.taskFed}</td>
+      <td>${s.session}</td>
+      <td>${s.meatButtonPresses}</td>
       <td class="note-cell">${s.currentTask}</td>
     `;
+    row.addEventListener('click', () => showFieldPopup(entry.tick));
     logBody.appendChild(row);
+  }
+}
+
+function showFieldPopup(tick: number) {
+  if (currentResults.length === 0) return;
+  const snap = currentResults[0]!.history.find(h => h.tick === tick);
+  if (!snap) return;
+
+  const entities = Object.values(snap.gameState.entities);
+  const creatures = entities.filter(e => e.kind === 'creature') as CreatureEntity[];
+  const generators = entities.filter(e => e.kind === 'generator') as GeneratorEntity[];
+  const runes = entities.filter(e => e.kind === 'rune');
+  const boxes = entities.filter(e => e.kind === 'box');
+
+  const crMap: Record<string, number> = {};
+  for (const c of creatures) {
+    const key = `${c.creatureType} Lv${c.level}`;
+    crMap[key] = (crMap[key] ?? 0) + 1;
+  }
+
+  let html = '';
+  if (creatures.length > 0) {
+    html += '<b>Creatures</b><table><tr><th>Type</th><th>Lv</th><th>Count</th></tr>';
+    for (const [key, cnt] of Object.entries(crMap).sort()) {
+      const parts = key.split(' ');
+      html += `<tr><td>${parts[0]}</td><td>${parts[1]}</td><td>${cnt}</td></tr>`;
+    }
+    html += '</table>';
+  }
+  if (generators.length > 0) {
+    html += '<b>Generators</b><table><tr><th>GenId</th><th>Lv</th><th>Charges</th></tr>';
+    for (const g of generators) {
+      html += `<tr><td>Gen${g.generatorId}</td><td>${g.level}</td><td>${g.charges.length}</td></tr>`;
+    }
+    html += '</table>';
+  }
+  if (runes.length > 0) html += `<b>Runes: ${runes.length}</b>`;
+  if (boxes.length > 0) html += `<b>Boxes: ${boxes.length}</b>`;
+  if (!html) html = '<i>Field is empty</i>';
+
+  fieldPopupTitle.textContent = `Field at Tick ${tick}`;
+  fieldPopupContent.innerHTML = html;
+  fieldPopupOverlay.classList.add('open');
+}
+
+function getXAxisConfig(): { labels: number[]; title: string } {
+  const mode = (document.getElementById('x-axis-mode') as HTMLSelectElement | null)?.value ?? 'sessions';
+  if (!xAxisData) return { labels: [], title: 'Session' };
+  const map: Record<string, { labels: number[]; title: string }> = {
+    ticks:    { labels: xAxisData.ticks,    title: 'Tick' },
+    presses:  { labels: xAxisData.presses,  title: 'Sacrifices' },
+    sessions: { labels: xAxisData.sessions, title: 'Session' },
+  };
+  return map[mode] ?? map['sessions']!;
+}
+
+function updateChartsXAxis() {
+  const { labels, title } = getXAxisConfig();
+  for (const chart of Object.values(charts)) {
+    chart.data.labels = labels;
+    const xScale = chart.options.scales?.['x'] as { title?: { text?: string } } | undefined;
+    if (xScale?.title) xScale.title.text = title;
+    chart.update('none');
   }
 }
 
@@ -246,13 +332,36 @@ function renderCharts(results: SimulationResult[]) {
 
   const ticks = results[0]!.history.map(s => s.tick);
 
+  // Build all three X-axis label arrays from action log (carry-forward)
+  const sessionLabels: number[] = [];
+  const pressLabels: number[] = [];
+  {
+    const sessionMap = new Map<number, number>();
+    const pressMap = new Map<number, number>();
+    for (const entry of results[0]!.actionLog) {
+      sessionMap.set(entry.tick, entry.state.session);
+      pressMap.set(entry.tick, entry.state.meatButtonPresses);
+    }
+    let carrySession = 1, carryPresses = 0;
+    for (const tick of ticks) {
+      const s = sessionMap.get(tick);
+      if (s !== undefined) carrySession = s;
+      sessionLabels.push(carrySession);
+      const p = pressMap.get(tick);
+      if (p !== undefined) carryPresses = p;
+      pressLabels.push(carryPresses);
+    }
+  }
+  xAxisData = { ticks, presses: pressLabels, sessions: sessionLabels };
+  const { labels: xLabels, title: xTitle } = getXAxisConfig();
+
   // Kraken Level Chart
   charts.level = new Chart(
     document.getElementById('chart-level') as HTMLCanvasElement,
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.map((result, idx) => ({
           label: result.config.strategy.name,
           data: result.history.map(s => s.metrics.krakenLevel),
@@ -273,7 +382,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -291,7 +400,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.map((result, idx) => ({
           label: result.config.strategy.name,
           data: result.history.map(s => s.metrics.eyes),
@@ -312,7 +421,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -330,7 +439,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.map((result, idx) => ({
           label: result.config.strategy.name,
           data: result.history.map(s => s.metrics.totalExpGained),
@@ -351,7 +460,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -369,7 +478,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.flatMap((result, idx) => [
           {
             label: `${result.config.strategy.name} - Meat`,
@@ -393,7 +502,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -411,7 +520,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.map((result, idx) => ({
           label: result.config.strategy.name,
           data: result.history.map(s => s.metrics.gridSize),
@@ -432,7 +541,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -461,7 +570,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: sortedCreatureTypes.map((type, i) => ({
           label: type,
           data: results[0]!.history.map(s => s.metrics.currentTaskRequirements[type] ?? 0),
@@ -483,7 +592,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -501,7 +610,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.map((result, idx) => ({
           label: result.config.strategy.name,
           data: result.history.map(s => s.metrics.totalTasksCompleted),
@@ -522,7 +631,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -540,7 +649,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: results.flatMap((result) => [
           {
             label: 'Rune1',
@@ -571,7 +680,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }
@@ -582,6 +691,72 @@ function renderCharts(results: SimulationResult[]) {
       }
     }
   );
+
+  // Session Chart — session number and total meat button presses per tick
+  {
+
+    charts.session = new Chart(
+      document.getElementById('chart-session') as HTMLCanvasElement,
+      {
+        type: 'line',
+        data: {
+          labels: xLabels,
+          datasets: [
+            {
+              label: 'Session',
+              data: sessionLabels,
+              borderColor: '#4de2c2',
+              backgroundColor: '#4de2c2',
+              fill: false,
+              stepped: true,
+              tension: 0,
+              yAxisID: 'ySession'
+            },
+            {
+              label: 'Total Presses',
+              data: pressLabels,
+              borderColor: '#ffd966',
+              backgroundColor: '#ffd966',
+              fill: false,
+              stepped: true,
+              tension: 0,
+              yAxisID: 'yPresses'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            ySession: {
+              type: 'linear',
+              position: 'left',
+              beginAtZero: true,
+              title: { display: true, text: 'Session #', color: '#4de2c2' },
+              ticks: { color: '#4de2c2', stepSize: 1 },
+              grid: { color: 'rgba(143, 193, 255, 0.1)' }
+            },
+            yPresses: {
+              type: 'linear',
+              position: 'right',
+              beginAtZero: true,
+              title: { display: true, text: 'Presses (total)', color: '#ffd966' },
+              ticks: { color: '#ffd966' },
+              grid: { drawOnChartArea: false }
+            },
+            x: {
+              title: { display: true, text: xTitle, color: '#e8f1f5' },
+              ticks: { color: '#e8f1f5' },
+              grid: { color: 'rgba(143, 193, 255, 0.1)' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#e8f1f5' } }
+          }
+        }
+      }
+    );
+  }
 
   // Generators Chart — one line per generator level
   const genLevelColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2'];
@@ -603,7 +778,7 @@ function renderCharts(results: SimulationResult[]) {
     {
       type: 'line',
       data: {
-        labels: ticks,
+        labels: xLabels,
         datasets: sortedGenLevels.map((lvl, i) => ({
           label: `Gen Lvl ${lvl}`,
           data: results[0]!.history.map(s => {
@@ -630,7 +805,7 @@ function renderCharts(results: SimulationResult[]) {
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           },
           x: {
-            title: { display: true, text: 'Tick', color: '#e8f1f5' },
+            title: { display: true, text: xTitle, color: '#e8f1f5' },
             ticks: { color: '#e8f1f5' },
             grid: { color: 'rgba(143, 193, 255, 0.1)' }
           }

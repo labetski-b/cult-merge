@@ -257,6 +257,46 @@
       font-weight: 600;
       color: #4de2c2;
     }
+    #action-log-body tr { cursor: pointer; }
+    #action-log-body tr:hover { background: rgba(77, 226, 194, 0.07); }
+    #field-popup-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    #field-popup-overlay.open { display: flex; }
+    #field-popup {
+      background: #1a2d45; border: 1px solid rgba(143,193,255,0.3);
+      border-radius: 8px; padding: 16px;
+      max-width: 480px; width: 90%; max-height: 70vh;
+      overflow-y: auto; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+      color: #e8f1f5;
+    }
+    #field-popup h3 { margin: 0 0 12px; font-size: 14px; color: #4de2c2; }
+    #field-popup table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #field-popup th, #field-popup td { border: 1px solid rgba(143,193,255,0.2); padding: 3px 8px; text-align: left; }
+    #field-popup th { background: rgba(14,25,42,0.7); color: #ffd966; }
+    #field-popup b { color: #ffd966; display: block; margin: 8px 0 4px; }
+    #field-popup-close { float: right; cursor: pointer; font-size: 18px; line-height: 1; color: #aaa; }
+    #field-popup-close:hover { color: #fff; }
+    .chart-x-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .chart-x-controls select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(143, 193, 255, 0.5);
+      background: rgba(20, 35, 55, 0.8);
+      color: #e8f1f5;
+      font-size: 14px;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>
@@ -286,7 +326,7 @@
         <fieldset>
           <legend>Strategy</legend>
           <label><input type="checkbox" name="strategy" value="realistic" checked disabled> Realistic Player (Task-focused only)</label>
-          <p style="font-size: 12px; opacity: 0.7; margin: 8px 0 0 0;">Auto-adds +10 Meat when low</p>
+          <p style="font-size: 12px; opacity: 0.7; margin: 8px 0 0 0;">Жмёт кнопку мяса когда не хватает на заряд</p>
         </fieldset>
 
         <div>
@@ -332,6 +372,15 @@
     </div>
 
     <div class="tab-panel hidden" id="tab-charts">
+      <div class="chart-x-controls">
+        <label>X Axis:
+          <select id="x-axis-mode">
+            <option value="sessions">Sessions</option>
+            <option value="ticks">Ticks</option>
+            <option value="presses">Sacrifices</option>
+          </select>
+        </label>
+      </div>
       <section class="charts">
         <div class="chart-container">
           <h3>Kraken Level Progression</h3>
@@ -377,6 +426,11 @@
           <h3>Generators (by level)</h3>
           <canvas id="chart-generators"></canvas>
         </div>
+
+        <div class="chart-container">
+          <h3>Session &amp; Sacrifices</h3>
+          <canvas id="chart-session"></canvas>
+        </div>
       </section>
     </div>
 
@@ -390,13 +444,14 @@
           <label>Filter:
             <select id="log-filter-type">
               <option value="">All actions</option>
+              <option value="gather_meat">gather_meat</option>
               <option value="claim_reward">claim_reward</option>
               <option value="open_box">open_box</option>
               <option value="feed">feed</option>
               <option value="merge">merge</option>
               <option value="charge_generator">charge_generator</option>
               <option value="spawn_generator">spawn_generator</option>
-              <option value="buy_generator_1">buy_generator_1</option>
+              <option value="buy_generator">buy_generator</option>
               <option value="new_quest">new_quest</option>
             </select>
           </label>
@@ -422,15 +477,25 @@
                 <th>Free</th>
                 <th>Rew</th>
                 <th>Fed</th>
+                <th>Ses</th>
+                <th>Presses</th>
                 <th>Task</th>
               </tr>
             </thead>
             <tbody id="action-log-body">
-              <tr><td colspan="17" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+              <tr><td colspan="19" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
             </tbody>
           </table>
         </div>
       </section>
+    </div>
+  </div>
+
+  <div id="field-popup-overlay">
+    <div id="field-popup">
+      <span id="field-popup-close">✕</span>
+      <h3 id="field-popup-title">Field at Tick 0</h3>
+      <div id="field-popup-content"></div>
     </div>
   </div>
 

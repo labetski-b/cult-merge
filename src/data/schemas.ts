@@ -186,6 +186,13 @@ export const chaptersDataSchema = z.array(chapterDataEntrySchema).min(1);
 
 export type ChaptersData = z.infer<typeof chaptersDataSchema>;
 
+export const runesDataSchema = z.object({
+  rune1RedemptionByLevel: z.array(z.number().positive()),
+  rune2RedemptionByLevel: z.array(z.number().positive())
+});
+
+export type RunesData = z.infer<typeof runesDataSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -197,4 +204,5 @@ export interface BalanceConfig {
   managers: ManagersData;
   flowerpots: FlowerpotsData;
   chapters: ChaptersData;
+  runes: RunesData;
 }

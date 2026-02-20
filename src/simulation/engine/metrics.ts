@@ -56,9 +56,10 @@ export function captureTickMetrics(
   // Current task progress (number of creatures fed toward task)
   const currentTaskProgress = state.currentTaskFed.length;
 
-  // Current task creature requirements
+  // Current task creature requirements (mirrors strategy: mandatory → autoTask fallback)
   const currentTaskRequirements: Record<string, number> = {};
-  const task = getCurrentMandatoryTask(balance, state.kraken.level, state.taskProgress);
+  const task = getCurrentMandatoryTask(balance, state.kraken.level, state.taskProgress)
+    ?? state.currentAutoTask;
   if (task) {
     for (const req of task.creatures) {
       currentTaskRequirements[req.type] = req.level;

@@ -7,6 +7,7 @@ import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
+import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
@@ -132,10 +133,8 @@ export class SimulationEngine {
   private executeTick(tick: number) {
     this.currentTick = tick;
 
-    // Auto-add meat if we're out (simulate "+10 Meat" button)
-    if (this.state.resources.meat < 5) {
-      this.state.resources.meat += 10;
-    }
+    // Press gather-meat button if needed (simulate player tapping button)
+    this.gatherMeatIfNeeded();
 
     // Ensure auto task is present in state (so feedEntity can check it)
     this.ensureAutoTask();
@@ -231,12 +230,94 @@ export class SimulationEngine {
       case 'spawn_generator':
         this.tapGenerator(action.generatorId);
         break;
-      case 'buy_generator_1':
-        this.buyGenerator(1);
+      case 'buy_generator':
+        this.buyGenerator(action.generatorId);
         break;
       case 'new_quest':
         break; // synthetic log-only event, no state mutation
+      case 'gather_meat':
+        break; // handled before strategy in gatherMeatIfNeeded(), no-op here
     }
+  }
+
+  /**
+   * Press the gather-meat button enough times to afford charging the generator
+   * that the strategy needs for the current task. Falls back to any generator
+   * if no task-relevant generator exists on field.
+   * Each press gives calculateMeatDrop(config, totalEyes) meat (starts at 1).
+   * Logs a single event with total presses and meat gained.
+   */
+  private gatherMeatIfNeeded() {
+    const generators = Object.values(this.state.entities)
+      .filter(e => e.kind === 'generator') as GeneratorEntity[];
+
+    let targetMeat: number;
+    if (generators.length === 0) {
+      if (this.state.resources.meat > 0) return;
+      targetMeat = 1;
+    } else {
+      // Try to find generators relevant to the current task
+      const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress)
+        ?? this.state.currentAutoTask;
+
+      let relevantCost: number | null = null;
+
+      if (task) {
+        const neededTypes = new Set(task.creatures.map(r => r.type));
+        const workGens = generators.filter(gen => {
+          const genConfig = this.config.balance.generators.generators.find((g: { id: number }) => g.id === gen.generatorId);
+          if (!genConfig) return false;
+          const levelConfig = (genConfig as { levels: Array<{ level: number; outputs: Array<{ creatureType: string }> }> })
+            .levels.find(l => l.level === gen.level);
+          if (!levelConfig) return false;
+          return levelConfig.outputs.some(o => neededTypes.has(o.creatureType));
+        });
+        if (workGens.length > 0) {
+          relevantCost = Math.min(...workGens.map(gen => {
+            const { levelConfig } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
+            return levelConfig.chargeCost;
+          }));
+        }
+      }
+
+      // Fall back to cheapest generator if no task match
+      const minAnyCost = Math.min(
+        ...generators.map(gen => {
+          try {
+            const { levelConfig } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
+            return levelConfig.chargeCost;
+          } catch {
+            return Infinity;
+          }
+        })
+      );
+      targetMeat = relevantCost ?? minAnyCost;
+
+      if (this.state.resources.meat >= targetMeat) return;
+    }
+
+    let pressCount = 0;
+    let meatGained = 0;
+    while (this.state.resources.meat < targetMeat) {
+      const drop = calculateMeatDrop(this.config.balance, this.cumulative.totalEyesGained);
+      this.state.resources.meat += drop;
+      this.state.meatButtonPresses += 1;
+      this.state.session = calculateSession(this.state.meatButtonPresses);
+      pressCount++;
+      meatGained += drop;
+    }
+
+    if (pressCount === 0) return;
+
+    const logState = this.captureCompactState();
+    const action: SimulationAction = { type: 'gather_meat', count: pressCount, meatGained };
+    this.actionLog.push({
+      tick: this.currentTick,
+      actionIndex: this.actionLog.length,
+      action,
+      state: logState,
+      note: `×${pressCount} → +${meatGained} meat (now ${this.state.resources.meat}) session=${this.state.session}`
+    });
   }
 
   private claimReward() {
@@ -318,7 +399,13 @@ export class SimulationEngine {
       this.state.grid.cells[freeSlots[0]!] = runeId;
     }
 
-    this.state.entities[boxId] = { ...box, contents: restContents };
+    if (restContents.length === 0) {
+      delete this.state.entities[boxId];
+      const cellIndex = findEntityCell(this.state.grid, boxId);
+      if (cellIndex >= 0) this.state.grid.cells[cellIndex] = null;
+    } else {
+      this.state.entities[boxId] = { ...box, contents: restContents };
+    }
   }
 
   private mergeEntities(sourceId: string, targetId: string) {
@@ -350,14 +437,18 @@ export class SimulationEngine {
 
     if (entity.kind === 'rune') {
       const rune = entity as RuneEntity;
-      const value = runeRedemptionValue(rune.runeType);
-
       if (rune.runeType.startsWith('Rune1_')) {
-        this.state.resources.rune1 += value;
+        const match = rune.runeType.match(/Rune1_(\d+)/);
+        const level = match ? Number(match[1]) : 1;
+        const values = this.config.balance.runes.rune1RedemptionByLevel;
+        this.state.resources.rune1 += values[level - 1] ?? level;
       } else if (rune.runeType.startsWith('Rune2_')) {
-        this.state.resources.rune2 += value;
+        const match = rune.runeType.match(/Rune2_(\d+)/);
+        const level = match ? Number(match[1]) : 1;
+        const values = this.config.balance.runes.rune2RedemptionByLevel;
+        this.state.resources.rune2 += values[level - 1] ?? level;
       } else if (rune.runeType.startsWith('Hard_')) {
-        this.state.resources.gems += value;
+        this.state.resources.gems += runeRedemptionValue(rune.runeType);
       }
       return;
     }
@@ -546,7 +637,9 @@ export class SimulationEngine {
       freeCells: getFreeCellIndexes(this.state.grid).length,
       pendingRewards: this.state.pendingRewards.length,
       taskFed: this.state.currentTaskFed.length,
-      currentTask
+      currentTask,
+      session: this.state.session,
+      meatButtonPresses: this.state.meatButtonPresses
     };
   }
 
@@ -591,10 +684,16 @@ export class SimulationEngine {
         const charge = g.charges[0];
         return charge ? `${charge.creatureType} Lv${charge.level} from Gen${g.generatorId}` : '';
       }
-      case 'buy_generator_1':
-        return `cost: ${this.state.resources.rune1} rune1`;
+      case 'buy_generator': {
+        const genCfg = this.config.balance.generators.generators.find(g => g.id === action.generatorId);
+        if (!genCfg) return '';
+        const curr = genCfg.purchaseCurrency as keyof typeof this.state.resources;
+        return `Gen${action.generatorId} lv1, cost ${genCfg.purchaseCost} ${genCfg.purchaseCurrency} (have: ${this.state.resources[curr]})`;
+      }
       case 'new_quest':
         return action.taskLabel;
+      case 'gather_meat':
+        return `×${action.count} → +${action.meatGained} meat`;
     }
   }
 
@@ -602,7 +701,8 @@ export class SimulationEngine {
     const generator = this.config.balance.generators.generators.find(g => g.id === generatorId);
     if (!generator) return;
 
-    if (this.state.resources.rune1 < generator.purchaseCost) return;
+    const currency = generator.purchaseCurrency as keyof typeof this.state.resources;
+    if ((this.state.resources[currency] as number) < generator.purchaseCost) return;
 
     const freeSlots = getFreeCellIndexes(this.state.grid);
     if (freeSlots.length === 0) return;
@@ -618,6 +718,6 @@ export class SimulationEngine {
       charges: []
     };
     this.state.grid.cells[targetCell] = newGenId;
-    this.state.resources.rune1 -= generator.purchaseCost;
+    (this.state.resources[currency] as number) -= generator.purchaseCost;
   }
 }

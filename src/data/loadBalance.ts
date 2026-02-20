@@ -8,6 +8,7 @@ import predatorsRaw from '@data/predators.json';
 import managersRaw from '@data/managers.json';
 import flowerpotsRaw from '@data/flowerpots.json';
 import chaptersRaw from '@data/chapters_data_analytics.json';
+import runesRaw from '@data/runes.json';
 import {
   creaturesDataSchema,
   generatorsDataSchema,
@@ -19,6 +20,7 @@ import {
   managersDataSchema,
   flowerpotsDataSchema,
   chaptersDataSchema,
+  runesDataSchema,
   type BalanceConfig
 } from '@data/schemas';
 
@@ -63,7 +65,8 @@ export function loadBalanceConfig(): BalanceConfig {
     predators: predatorsDataSchema.parse(predatorsRaw),
     managers: managersDataSchema.parse(managersRaw),
     flowerpots: flowerpotsDataSchema.parse(flowerpotsRaw),
-    chapters: chaptersDataSchema.parse(chaptersRaw)
+    chapters: chaptersDataSchema.parse(chaptersRaw),
+    runes: runesDataSchema.parse(runesRaw)
   };
 
   validateConfig(config);

@@ -9,8 +9,9 @@ export type SimulationAction =
   | { type: 'feed'; entityId: string }
   | { type: 'charge_generator'; generatorId: string }
   | { type: 'spawn_generator'; generatorId: string }
-  | { type: 'buy_generator_1' }
-  | { type: 'new_quest'; taskLabel: string };
+  | { type: 'buy_generator'; generatorId: number }
+  | { type: 'new_quest'; taskLabel: string }
+  | { type: 'gather_meat'; count: number; meatGained: number };
 
 export interface AIStrategy {
   name: string;
@@ -106,6 +107,8 @@ export interface ActionLogEntry {
     pendingRewards: number;
     taskFed: number;
     currentTask: string; // e.g. "Creature1 Lv2 x1, Creature2 Lv1 x2"
+    session: number;
+    meatButtonPresses: number;
   };
   note: string;
 }

@@ -7,6 +7,30 @@ import { BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction } from './base';
 
 /**
+ * Calculates how many gen-level-1 units need to be purchased to upgrade
+ * a generator from its current state to `targetLevel`.
+ * `avail[i]` = count of generators currently at level (i+1).
+ * Mutates `avail` as it "consumes" available generators.
+ */
+function calcGensNeeded(targetLevel: number, avail: number[]): number {
+  function need(lv: number): number {
+    if (lv === 1) return 1; // one purchase of gen level 1
+    const idx = lv - 2; // avail index for level (lv-1)
+    const have = avail[idx] ?? 0;
+    if (have >= 2) {
+      avail[idx] -= 2;
+      return 0; // can merge existing pair, no purchase needed
+    }
+    const missing = 2 - have;
+    avail[idx] = 0;
+    let total = 0;
+    for (let i = 0; i < missing; i++) total += need(lv - 1);
+    return total;
+  }
+  return need(targetLevel);
+}
+
+/**
  * Realistic Player — task-focused strategy.
  *
  * STEP 1: REWARDS
@@ -62,10 +86,12 @@ export class RealisticStrategy implements AIStrategy {
     if (!task) return actions;
 
     const neededTypes = new Set(task.creatures.map(r => r.type));
-    const exactGenerators = this.findGeneratorsByOutputs(state, neededTypes);
-    const canProduce = exactGenerators.length > 0;
-    const lineGenerators = this.findGeneratorsByLine(state, neededTypes);
-    const workGenerators = canProduce ? exactGenerators : lineGenerators;
+
+    // Proactive upgrade: always try to level up the highest generator
+    actions.push(...this.proactiveUpgrade(state, neededTypes, task, usedIds));
+
+    const workGenerators = this.findGeneratorsByOutputs(state, neededTypes, usedIds);
+    const canProduce = workGenerators.length > 0;
 
     if (canProduce) {
       // Check if needed creatures (exact type + level) are already on the field
@@ -86,29 +112,28 @@ export class RealisticStrategy implements AIStrategy {
         }
       }
 
-      // Merge toward target level, then feed any matching creatures at end of tick
+      // Merge toward target level, feed matching creatures, then clear off-task creatures.
+      // Do NOT feed low-level creatures of needed type — they're building blocks for merging.
       actions.push(...this.mergeForTask(state, task, usedIds));
       actions.push(...this.feedPartialTask(state, task, usedIds));
+      actions.push(...this.feedExcess(state, neededTypes, usedIds));
       actions.push(...this.chargeOnly(workGenerators));
 
     } else {
-      // Generator needs upgrading
-      if (this.canAffordGeneratorUpgrade(state, neededTypes)) {
-        actions.push(...this.upgradeGenerators(state, neededTypes, usedIds));
-      } else {
-        // No runes — spawn creatures from line generators and feed for EXP
-        // (EXP → kraken level up → rune rewards)
-        actions.push(...this.spawnAndCharge(workGenerators));
-        actions.push(...this.feedAllForExp(state, usedIds));
-      }
+      // No matching generator — spawn from line generators for EXP
+      // (EXP → kraken level up → rune rewards → upgrade next tick)
+      const lineGenerators = this.findGeneratorsByLine(state, neededTypes, usedIds);
+      actions.push(...this.spawnAndCharge(lineGenerators));
+      actions.push(...this.feedAllForExp(state, usedIds));
     }
 
     return actions;
   }
 
-  /** Generators whose current-level outputs include a needed creature type. */
-  private findGeneratorsByOutputs(state: GameSnapshot, neededTypes: Set<string>): GeneratorEntity[] {
-    const generators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
+  /** Generators whose current-level outputs include a needed creature type. Excludes usedIds (e.g. scheduled for merge). */
+  private findGeneratorsByOutputs(state: GameSnapshot, neededTypes: Set<string>, usedIds?: Set<string>): GeneratorEntity[] {
+    const generators = Object.values(state.entities)
+      .filter(e => e.kind === 'generator' && !usedIds?.has(e.id)) as GeneratorEntity[];
     return generators.filter(gen => {
       const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
       if (!genConfig) return false;
@@ -118,9 +143,10 @@ export class RealisticStrategy implements AIStrategy {
     });
   }
 
-  /** Generators whose LINE (creature family) includes a needed creature type. */
-  private findGeneratorsByLine(state: GameSnapshot, neededTypes: Set<string>): GeneratorEntity[] {
-    const generators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
+  /** Generators whose LINE (creature family) includes a needed creature type. Excludes usedIds. */
+  private findGeneratorsByLine(state: GameSnapshot, neededTypes: Set<string>, usedIds?: Set<string>): GeneratorEntity[] {
+    const generators = Object.values(state.entities)
+      .filter(e => e.kind === 'generator' && !usedIds?.has(e.id)) as GeneratorEntity[];
     return generators.filter(gen => {
       const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
       if (!genConfig) return false;
@@ -291,6 +317,17 @@ export class RealisticStrategy implements AIStrategy {
 
   // ---------- EXP farming ----------
 
+  /** Feed creatures whose type is NOT needed by the current task. */
+  private feedExcess(state: GameSnapshot, neededTypes: Set<string>, usedIds: Set<string>): SimulationAction[] {
+    const creatures = Object.values(state.entities)
+      .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
+    const excess = creatures.filter(c => !neededTypes.has(c.creatureType));
+    return excess.map(c => {
+      usedIds.add(c.id);
+      return { type: 'feed' as const, entityId: c.id };
+    });
+  }
+
   private feedAllForExp(state: GameSnapshot, usedIds: Set<string>): SimulationAction[] {
     const creatures = Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
@@ -349,79 +386,123 @@ export class RealisticStrategy implements AIStrategy {
 
   // ---------- Generator upgrade ----------
 
-  private upgradeGenerators(state: GameSnapshot, neededTypes: Set<string>, usedIds: Set<string>): SimulationAction[] {
+  /**
+   * Proactively upgrades the highest-level generator toward max level.
+   * Each tick: merges existing pairs, then buys one gen 1-1 if the full
+   * upgrade cost is affordable (totalCost = gensToBuy × purchaseCost).
+   * When already at max level: buys gen 1-1 if task needs a Creature1 creature.
+   */
+  private proactiveUpgrade(
+    state: GameSnapshot,
+    neededTypes: Set<string>,
+    task: TaskDefinition,
+    usedIds: Set<string>
+  ): SimulationAction[] {
     const actions: SimulationAction[] = [];
-    const generators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
+    const allGens = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
 
     for (const genConfig of BALANCE.generators.generators) {
       if (!genConfig.lines.some(line => neededTypes.has(line))) continue;
 
-      const familyGens = generators.filter(g => g.generatorId === genConfig.id);
+      const currency = genConfig.purchaseCurrency as keyof typeof state.resources;
+      const budget = state.resources[currency] as number;
 
-      // Merge pairs of same-level generators
+      const maxLevel = genConfig.levels.length;
+      const familyGens = allGens.filter(g => g.generatorId === genConfig.id);
+
+      // --- Merge existing pairs ---
       const grouped = new Map<number, GeneratorEntity[]>();
       for (const g of familyGens) {
         if (usedIds.has(g.id)) continue;
-        if (!grouped.has(g.level)) grouped.set(g.level, []);
-        grouped.get(g.level)!.push(g);
+        const arr = grouped.get(g.level) ?? [];
+        arr.push(g);
+        grouped.set(g.level, arr);
       }
 
-      for (const [, group] of grouped) {
+      const mergedPairsPerLevel = new Map<number, number>();
+      for (const [lv, group] of grouped) {
+        let pairs = 0;
         for (let i = 0; i + 1 < group.length; i += 2) {
-          const a = group[i]!;
-          const b = group[i + 1]!;
+          const a = group[i]!, b = group[i + 1]!;
           if (!canMergeGenerators(a, b)) continue;
           actions.push({ type: 'merge', sourceId: a.id, targetId: b.id });
           usedIds.add(a.id);
           usedIds.add(b.id);
+          pairs++;
         }
+        if (pairs > 0) mergedPairsPerLevel.set(lv, pairs);
       }
 
-      // Buy generator to create a merge pair if we have an odd one out
-      const unmatchedCount = familyGens.filter(g => !usedIds.has(g.id)).length;
-      if (unmatchedCount > 0 && unmatchedCount % 2 !== 0) {
-        if (state.resources.rune1 >= genConfig.purchaseCost) {
-          const freeSlots = getFreeCellIndexes(state.grid);
-          if (freeSlots.length > 0) {
-            actions.push({ type: 'buy_generator_1' });
-          }
+      const currentMaxLevel = familyGens.length > 0
+        ? Math.max(...familyGens.map(g => g.level))
+        : 0;
+
+      // At max level: buy gen lv-1 if task needs the first-line creature
+      if (currentMaxLevel >= maxLevel) {
+        const lv1config = genConfig.levels.find(l => l.level === 1);
+        const needsLine1Creature = task.creatures.some(r =>
+          lv1config?.outputs.some(o => o.creatureType === r.type)
+        );
+        const hasGen1 = familyGens.some(g => g.level === 1);
+        if (needsLine1Creature && !hasGen1
+            && budget >= genConfig.purchaseCost
+            && getFreeCellIndexes(state.grid).length > 0) {
+          actions.push({ type: 'buy_generator', generatorId: genConfig.id });
         }
+        continue;
       }
 
-      if (familyGens.length === 0) {
-        if (state.resources.rune1 >= genConfig.purchaseCost) {
-          const freeSlots = getFreeCellIndexes(state.grid);
-          if (freeSlots.length > 0) {
-            actions.push({ type: 'buy_generator_1' });
-          }
-        }
+      const targetLevel = currentMaxLevel + 1;
+
+      // Compute effective avail after planned merges this tick
+      const avail = Array.from({ length: maxLevel }, (_, i) =>
+        familyGens.filter(g => !usedIds.has(g.id) && g.level === i + 1).length
+      );
+      for (const [lv, pairs] of mergedPairsPerLevel) {
+        if (lv < maxLevel) avail[lv] += pairs; // merge results appear at next level
+      }
+
+      const gensToBuy = calcGensNeeded(targetLevel, [...avail]); // pass copy (calcGensNeeded mutates)
+      if (gensToBuy === 0) continue; // enough to merge without buying
+
+      const totalCost = gensToBuy * genConfig.purchaseCost;
+      if (budget >= totalCost && getFreeCellIndexes(state.grid).length > 0) {
+        actions.push({ type: 'buy_generator', generatorId: genConfig.id });
       }
     }
 
     return actions;
   }
 
-  private canAffordGeneratorUpgrade(state: GameSnapshot, neededTypes: Set<string>): boolean {
-    const generators = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
+  /**
+   * For each needed creature type, picks the generator with the highest
+   * output chance for that type. Returns the best generators for the task.
+   * Gen 1-1 (100% Creature1) beats gen 1-5 (4% Creature1) for CR1 tasks.
+   */
+  private selectOptimalGeneratorsForTask(
+    state: GameSnapshot,
+    neededTypes: Set<string>
+  ): GeneratorEntity[] {
+    const generators = Object.values(state.entities)
+      .filter(e => e.kind === 'generator') as GeneratorEntity[];
 
-    for (const genConfig of BALANCE.generators.generators) {
-      if (!genConfig.lines.some(line => neededTypes.has(line))) continue;
-
-      const familyGens = generators.filter(g => g.generatorId === genConfig.id);
-
-      const grouped = new Map<number, number>();
-      for (const g of familyGens) {
-        grouped.set(g.level, (grouped.get(g.level) ?? 0) + 1);
+    const result: GeneratorEntity[] = [];
+    for (const type of neededTypes) {
+      let bestGen: GeneratorEntity | null = null;
+      let bestChance = 0;
+      for (const gen of generators) {
+        const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+        const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
+        if (!levelConfig) continue;
+        const output = levelConfig.outputs.find(o => o.creatureType === type);
+        if (output && output.chance > bestChance) {
+          bestChance = output.chance;
+          bestGen = gen;
+        }
       }
-      for (const [, count] of grouped) {
-        if (count >= 2) return true;
-      }
-
-      if (familyGens.length > 0 && state.resources.rune1 >= genConfig.purchaseCost) return true;
-      if (familyGens.length === 0 && state.resources.rune1 >= genConfig.purchaseCost * 2) return true;
+      if (bestGen && !result.includes(bestGen)) result.push(bestGen);
     }
-
-    return false;
+    return result;
   }
 
   // ---------- Generators: spawn / charge ----------
