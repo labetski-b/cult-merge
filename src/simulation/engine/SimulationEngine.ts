@@ -6,7 +6,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
-import { getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
@@ -73,6 +73,7 @@ export class SimulationEngine {
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
+  private currentTick = 0;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -118,11 +119,26 @@ export class SimulationEngine {
     };
   }
 
+  /** Ensure currentAutoTask is set when there's no mandatory task — mirrors game store's ensureAutoTask. */
+  private ensureAutoTask() {
+    if (this.state.kraken.level < 2) return; // Tasks start at level 2
+    const mandatory = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
+    if (mandatory) return;
+    if (this.state.currentAutoTask) return;
+    this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
+    this.logNewQuest();
+  }
+
   private executeTick(tick: number) {
+    this.currentTick = tick;
+
     // Auto-add meat if we're out (simulate "+10 Meat" button)
     if (this.state.resources.meat < 5) {
       this.state.resources.meat += 10;
     }
+
+    // Ensure auto task is present in state (so feedEntity can check it)
+    this.ensureAutoTask();
 
     // Strategy decides actions
     const actions = this.config.strategy.decide(this.state, this.rng);
@@ -142,7 +158,9 @@ export class SimulationEngine {
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i]!;
       const note = this.buildActionNote(action);
+      const taskBefore = this.captureTaskLabel();
       const stateBefore = JSON.stringify(this.state);
+      const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
       try {
         this.executeAction(action);
       } catch (error) {
@@ -151,15 +169,25 @@ export class SimulationEngine {
       }
       // Only log if the action actually changed state
       if (JSON.stringify(this.state) !== stateBefore) {
+        const logState = this.captureCompactState();
+        logState.currentTask = taskBefore; // show task active at the time of action, not after
         this.actionLog.push({
           tick,
           actionIndex: logIndex++,
           action,
-          state: this.captureCompactState(),
+          state: logState,
           note
         });
       }
+      // Quest completed — stop executing remaining actions so next tick starts fresh
+      if (action.type === 'feed' && this.cumulative.totalTasksCompleted > tasksCompletedBefore) {
+        break;
+      }
     }
+
+    // Post-tick sweep: feed task-matching creatures that appeared from merges this tick.
+    // Strategy uses a snapshot so it can't see entities created mid-tick by merge actions.
+    logIndex = this.executeTaskFeedSweep(tick, logIndex);
 
     // Debug: log state AFTER actions
     if (tick < 3) {
@@ -206,6 +234,8 @@ export class SimulationEngine {
       case 'buy_generator_1':
         this.buyGenerator(1);
         break;
+      case 'new_quest':
+        break; // synthetic log-only event, no state mutation
     }
   }
 
@@ -353,7 +383,10 @@ export class SimulationEngine {
         { type: creature.creatureType, level: creature.level }
       ];
 
-      const task = getCurrentMandatoryTask(this.config.balance, expResult.newState.level, this.state.taskProgress);
+      const mandatoryTask = getCurrentMandatoryTask(this.config.balance, expResult.newState.level, this.state.taskProgress);
+      const isMandatory = mandatoryTask !== null;
+      const task = mandatoryTask ?? this.state.currentAutoTask;
+
       if (task && isTaskComplete(task, nextTaskFed)) {
         let taskEyes = 0;
         for (const req of task.creatures) {
@@ -362,14 +395,32 @@ export class SimulationEngine {
         }
         taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
 
-        const levelKey = expResult.newState.level.toString();
         this.state.resources.eyes += taskEyes;
         this.state.currentTaskFed = [];
-        this.state.taskProgress[levelKey] = (this.state.taskProgress[levelKey] ?? 0) + 1;
+
+        if (isMandatory) {
+          const levelKey = expResult.newState.level.toString();
+          this.state.taskProgress[levelKey] = (this.state.taskProgress[levelKey] ?? 0) + 1;
+          // If no next mandatory task — generate first auto task
+          const nextMandatory = getCurrentMandatoryTask(this.config.balance, expResult.newState.level, this.state.taskProgress);
+          if (nextMandatory === null) {
+            this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
+          }
+        } else {
+          // Auto task: track completion stats, generate next
+          const completedLine = task.creatures[0]?.type ?? null;
+          if (completedLine) {
+            this.state.autoTaskLineCompletions[completedLine] = (this.state.autoTaskLineCompletions[completedLine] ?? 0) + 1;
+          }
+          const snapForGen = { ...this.state, lastAutoTaskLine: completedLine, currentAutoTask: task };
+          this.state.currentAutoTask = generateAutoTask(this.config.balance, snapForGen, this.rng);
+          this.state.lastAutoTaskLine = completedLine;
+        }
 
         // Track cumulative eyes and tasks
         this.cumulative.totalEyesGained += taskEyes;
         this.cumulative.totalTasksCompleted += 1;
+        this.logNewQuest();
       } else {
         this.state.currentTaskFed = nextTaskFed;
       }
@@ -421,9 +472,61 @@ export class SimulationEngine {
     this.state.entities[generatorId] = { ...gen, charges: remainingCharges };
   }
 
+  /**
+   * After all strategy actions, scan live state for task-matching creatures and feed them.
+   * Handles creatures produced by merges this tick (they have new IDs unknown to strategy snapshot).
+   */
+  private executeTaskFeedSweep(tick: number, logIndex: number): number {
+    const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress)
+      ?? this.state.currentAutoTask;
+    if (!task) return logIndex;
+
+    const matching = (Object.values(this.state.entities).filter(e => e.kind === 'creature') as CreatureEntity[])
+      .filter(c => task.creatures.some(req => c.creatureType === req.type && c.level === req.level));
+
+    for (const creature of matching) {
+      const action: SimulationAction = { type: 'feed', entityId: creature.id };
+      const note = this.buildActionNote(action);
+      const taskBefore = this.captureTaskLabel();
+      const stateBefore = JSON.stringify(this.state);
+      const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
+
+      this.executeAction(action);
+
+      if (JSON.stringify(this.state) !== stateBefore) {
+        const logState = this.captureCompactState();
+        logState.currentTask = taskBefore;
+        this.actionLog.push({ tick, actionIndex: logIndex++, action, state: logState, note });
+      }
+      if (this.cumulative.totalTasksCompleted > tasksCompletedBefore) break;
+    }
+
+    return logIndex;
+  }
+
+  private captureTaskLabel(): string {
+    const mandatory = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
+    const task = mandatory ?? this.state.currentAutoTask;
+    return task ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ') : 'none';
+  }
+
+  /** Push a synthetic log entry recording that a new quest has been assigned. */
+  private logNewQuest() {
+    const taskLabel = this.captureTaskLabel();
+    const logState = this.captureCompactState();
+    this.actionLog.push({
+      tick: this.currentTick,
+      actionIndex: this.actionLog.length,
+      action: { type: 'new_quest', taskLabel },
+      state: logState,
+      note: taskLabel
+    });
+  }
+
   private captureCompactState(): ActionLogEntry['state'] {
     const entities = Object.values(this.state.entities);
-    const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
+    const mandatoryTask = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
+    const task = mandatoryTask ?? this.state.currentAutoTask;
     const currentTask = task
       ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ')
       : 'none';
@@ -490,6 +593,8 @@ export class SimulationEngine {
       }
       case 'buy_generator_1':
         return `cost: ${this.state.resources.rune1} rune1`;
+      case 'new_quest':
+        return action.taskLabel;
     }
   }
 

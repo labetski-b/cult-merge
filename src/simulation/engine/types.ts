@@ -9,7 +9,8 @@ export type SimulationAction =
   | { type: 'feed'; entityId: string }
   | { type: 'charge_generator'; generatorId: string }
   | { type: 'spawn_generator'; generatorId: string }
-  | { type: 'buy_generator_1' };
+  | { type: 'buy_generator_1' }
+  | { type: 'new_quest'; taskLabel: string };
 
 export interface AIStrategy {
   name: string;
