@@ -40,3 +40,4 @@
 ### Spawners
 - Format: `{spawner_name}_lvl{level}.png`
 - Example: `nest_lvl1.png`, `book_lvl2.png`
+и

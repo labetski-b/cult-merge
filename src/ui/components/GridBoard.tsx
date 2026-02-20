@@ -267,7 +267,7 @@ export function GridBoard() {
             <div
               key={index}
               className={getCellClassName(index, entity)}
-              style={entity?.kind === 'generator' ? { backgroundColor: '#d0d0d0' } : undefined}
+              style={entity?.kind === 'generator' ? { backgroundColor: '#a0a0a0' } : undefined}
               draggable={!!entity && entity.kind !== 'box' && entity.kind !== 'predator'}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
