@@ -18,7 +18,7 @@ function calcGensNeeded(targetLevel: number, avail: number[]): number {
     const idx = lv - 2; // avail index for level (lv-1)
     const have = avail[idx] ?? 0;
     if (have >= 2) {
-      avail[idx] -= 2;
+      avail[idx] = (avail[idx] ?? 0) - 2;
       return 0; // can merge existing pair, no purchase needed
     }
     const missing = 2 - have;
@@ -459,7 +459,7 @@ export class RealisticStrategy implements AIStrategy {
         familyGens.filter(g => !usedIds.has(g.id) && g.level === i + 1).length
       );
       for (const [lv, pairs] of mergedPairsPerLevel) {
-        if (lv < maxLevel) avail[lv] += pairs; // merge results appear at next level
+        if (lv < maxLevel) avail[lv] = (avail[lv] ?? 0) + pairs; // merge results appear at next level
       }
 
       const gensToBuy = calcGensNeeded(targetLevel, [...avail]); // pass copy (calcGensNeeded mutates)
