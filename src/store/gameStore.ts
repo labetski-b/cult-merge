@@ -9,6 +9,7 @@ import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { createGrid, findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepReward, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
+import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
@@ -36,6 +37,7 @@ interface GameActions {
   buyFlowerPot: () => void;
   speedUpFlowerPot: (entityId: string) => void;
   ensureAutoTask: () => void;
+  getMeat: () => void;
   resetGame: () => void;
   clearLastMessage: () => void;
 }
@@ -76,7 +78,9 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     managerCards: [],
     currentAutoTask: null,
     lastAutoTaskLine: null,
-    autoTaskLineCompletions: {}
+    autoTaskLineCompletions: {},
+    session: 1,
+    meatButtonPresses: 0
   };
 }
 
@@ -1031,6 +1035,30 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
+      getMeat: () => {
+        set((state) => {
+          const newPressCount = state.meatButtonPresses + 1;
+          const newSession = calculateSession(newPressCount);
+          const meatAmount = calculateMeatDrop(BALANCE, state.resources.eyes);
+          const chapter = getCurrentChapter(BALANCE, state.resources.eyes);
+
+          if (meatAmount <= 0) {
+            return {
+              meatButtonPresses: newPressCount,
+              session: newSession,
+              lastMessage: `Chapter ${chapter.chapter} — no meat available yet.`
+            };
+          }
+
+          return {
+            meatButtonPresses: newPressCount,
+            session: newSession,
+            resources: { ...state.resources, meat: state.resources.meat + meatAmount },
+            lastMessage: `+${meatAmount} Meat (Chapter ${chapter.chapter}, Session ${newSession})`
+          };
+        });
+      },
+
       resetGame: () => {
         set(createInitialSnapshot());
       },
@@ -1080,4 +1108,8 @@ export function useTotalLevelExp() {
 
 export function useEarnedLevelExp() {
   return useGameStore((state) => getEarnedLevelExp(BALANCE, state.kraken));
+}
+
+export function useCurrentChapter() {
+  return useGameStore((state) => getCurrentChapter(BALANCE, state.resources.eyes));
 }

@@ -44,7 +44,9 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     managerCards: [],
     currentAutoTask: null,
     lastAutoTaskLine: null,
-    autoTaskLineCompletions: {}
+    autoTaskLineCompletions: {},
+    session: 1,
+    meatButtonPresses: 0
   };
 }
 

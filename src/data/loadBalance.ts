@@ -7,6 +7,7 @@ import gridSizesRaw from '@data/grid_sizes.json';
 import predatorsRaw from '@data/predators.json';
 import managersRaw from '@data/managers.json';
 import flowerpotsRaw from '@data/flowerpots.json';
+import chaptersRaw from '@data/chapters_data_analytics.json';
 import {
   creaturesDataSchema,
   generatorsDataSchema,
@@ -17,6 +18,7 @@ import {
   predatorsDataSchema,
   managersDataSchema,
   flowerpotsDataSchema,
+  chaptersDataSchema,
   type BalanceConfig
 } from '@data/schemas';
 
@@ -60,7 +62,8 @@ export function loadBalanceConfig(): BalanceConfig {
     gridSizes: gridSizesDataSchema.parse(gridSizesRaw),
     predators: predatorsDataSchema.parse(predatorsRaw),
     managers: managersDataSchema.parse(managersRaw),
-    flowerpots: flowerpotsDataSchema.parse(flowerpotsRaw)
+    flowerpots: flowerpotsDataSchema.parse(flowerpotsRaw),
+    chapters: chaptersDataSchema.parse(chaptersRaw)
   };
 
   validateConfig(config);

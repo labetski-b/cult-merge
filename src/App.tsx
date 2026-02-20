@@ -6,6 +6,7 @@ import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
+import { MeatButton } from '@ui/components/MeatButton';
 import { useGameStore } from '@store/gameStore';
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
 
       <PredatorProgress />
       <GridBoard />
+      <MeatButton />
       <ManagerCollection />
       <ControlsPanel />
 

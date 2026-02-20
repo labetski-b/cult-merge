@@ -175,6 +175,17 @@ export const flowerpotsDataSchema = z.object({
 
 export type FlowerpotsData = z.infer<typeof flowerpotsDataSchema>;
 
+const chapterDataEntrySchema = z.object({
+  chapter: z.number().int().min(2),
+  merge_resource: z.number().int().min(0),
+  meat_min: z.number().int().min(0),
+  meat_max: z.number().int().min(0)
+});
+
+export const chaptersDataSchema = z.array(chapterDataEntrySchema).min(1);
+
+export type ChaptersData = z.infer<typeof chaptersDataSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -185,4 +196,5 @@ export interface BalanceConfig {
   predators: PredatorsData;
   managers: ManagersData;
   flowerpots: FlowerpotsData;
+  chapters: ChaptersData;
 }
