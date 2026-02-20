@@ -68,7 +68,7 @@
       "eggType": "Egg_Creature2",
       "purchaseCurrency": "rune2",
       "purchaseCost": 5,
-      "krakenRequired": 4,
+      "krakenRequired": 7,
       "lines": ["Creature3", "Creature4"],
       "levels": [
         {
@@ -130,7 +130,7 @@
       "eggType": "Egg_Creature3",
       "purchaseCurrency": "rune2",
       "purchaseCost": 20,
-      "krakenRequired": 10,
+      "krakenRequired": 13,
       "lines": ["Creature7", "Creature8"],
       "levels": [
         {
