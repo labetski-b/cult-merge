@@ -153,18 +153,20 @@ function buildCreaturePotential(
   for (const gen of sortedGens) {
     if (state.kraken.level < gen.krakenRequired) continue;
 
-    let canAfford = false;
-    if (gen.purchaseCurrency === 'rune1' && budgetRune1 >= gen.purchaseCost) {
-      budgetRune1 -= gen.purchaseCost;
-      canAfford = true;
-    } else if (gen.purchaseCurrency === 'rune2' && budgetRune2 >= gen.purchaseCost) {
-      budgetRune2 -= gen.purchaseCost;
-      canAfford = true;
-    }
-    if (!canAfford) continue;
+    for (let i = 0; i < 10; i++) {
+      let canAfford = false;
+      if (gen.purchaseCurrency === 'rune1' && budgetRune1 >= gen.purchaseCost) {
+        budgetRune1 -= gen.purchaseCost;
+        canAfford = true;
+      } else if (gen.purchaseCurrency === 'rune2' && budgetRune2 >= gen.purchaseCost) {
+        budgetRune2 -= gen.purchaseCost;
+        canAfford = true;
+      }
+      if (!canAfford) break;
 
-    if (!genLevelsById.has(gen.id)) genLevelsById.set(gen.id, []);
-    genLevelsById.get(gen.id)!.push(1);
+      if (!genLevelsById.has(gen.id)) genLevelsById.set(gen.id, []);
+      genLevelsById.get(gen.id)!.push(1);
+    }
   }
 
   // Step 3: Simulate merges and count outputs from resulting generators
@@ -199,7 +201,7 @@ function sortLinesBySeniority(config: BalanceConfig, lines: string[]): string[] 
 }
 
 function pickLineByWeight(sortedLines: string[], rng: SeededRng): string {
-  const weights = [70, 20, 7, 3].slice(0, sortedLines.length);
+  const weights = [30, 15, 7, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].slice(0, sortedLines.length);
   const total = weights.reduce((a, b) => a + b, 0);
   const roll = rng.next() * total;
   let cum = 0;
@@ -251,12 +253,20 @@ export function generateAutoTask(
   const generatorFootprint = new Set(generators.map(g => g.generatorId)).size;
   const fieldLevelCap = Math.max(1, gridCells - generatorFootprint);
 
-  // Step 0: 50% chance to target a high-level creature already on field
+  // Step 0: 50% chance to target a high-level creature already on field (level 6+)
   const highLevelCreatures = Object.values(state.entities).filter(
-    (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 5
+    (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 6
   );
-  if (highLevelCreatures.length > 0 && rng.next() < 0.5) {
-    const pick = highLevelCreatures[Math.floor(rng.next() * highLevelCreatures.length)]!;
+  // Exclude creatures matching the previous auto-task to avoid duplicates
+  const prev0 = state.currentAutoTask;
+  const prevType0 = prev0?.creatures[0]?.type;
+  const prevLevel0 = prev0?.creatures[0]?.level;
+  const filteredHigh = prevType0
+    ? highLevelCreatures.filter((e) => e.creatureType !== prevType0 || e.level !== prevLevel0)
+    : highLevelCreatures;
+  const step0Pool = filteredHigh.length > 0 ? filteredHigh : highLevelCreatures;
+  if (step0Pool.length > 0 && rng.next() < 0.5) {
+    const pick = step0Pool[Math.floor(rng.next() * step0Pool.length)]!;
     return {
       id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
       creatures: [{ type: pick.creatureType, level: Math.min(pick.level, fieldLevelCap), count: 1 }],
