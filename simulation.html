@@ -180,12 +180,25 @@
       border: 1px solid rgba(143, 193, 255, 0.3);
       border-radius: 10px;
       padding: 20px;
+      position: relative;
     }
     .chart-container h3 {
       font-size: 18px;
       margin-bottom: 16px;
       color: #ffd966;
       text-align: center;
+    }
+    .agg-badge {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 11px;
+      color: rgba(232, 241, 245, 0.5);
+      background: rgba(14, 25, 42, 0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(143, 193, 255, 0.2);
+      pointer-events: none;
     }
     canvas {
       max-height: 300px;
@@ -378,58 +391,111 @@
             <option value="sessions">Sessions</option>
             <option value="ticks">Ticks</option>
             <option value="presses">Sacrifices</option>
+            <option value="tasks">Per Task</option>
           </select>
         </label>
       </div>
       <section class="charts">
         <div class="chart-container">
           <h3>Kraken Level Progression</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-level"></canvas>
         </div>
 
         <div class="chart-container">
-          <h3>Eyes Accumulated</h3>
-          <canvas id="chart-eyes"></canvas>
+          <h3>Tasks Completed</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-tasks"></canvas>
         </div>
 
         <div class="chart-container">
-          <h3>EXP Gained (Cumulative)</h3>
+          <h3>New Creatures Discovered</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-unique-creatures"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Spawns &amp; Merges</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-activity"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>EXP Gained (Cumulative + Rate)</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-exp"></canvas>
         </div>
 
         <div class="chart-container">
-          <h3>Resources (Meat, Rune1, Rune2)</h3>
+          <h3>EXP per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-exp-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Session &amp; Sacrifices</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-session"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Meat Spent &amp; Drop per Press</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-resources"></canvas>
         </div>
 
         <div class="chart-container">
+          <h3>Meat per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-meat-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Runes (balance)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-runes"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Runes Flow (emission / sink)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-runes-flow"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Eyes (balance)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-eyes"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Eyes Flow (emission)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-eyes-flow"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Gems (balance + emission)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-gems"></canvas>
+        </div>
+
+        <div class="chart-container">
           <h3>Grid Size</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-gridsize"></canvas>
         </div>
 
         <div class="chart-container">
           <h3>Current Task (creature level needed)</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-task-creature"></canvas>
         </div>
 
         <div class="chart-container">
-          <h3>Tasks Completed</h3>
-          <canvas id="chart-tasks"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3>Runes</h3>
-          <canvas id="chart-runes"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3>Generators (by level)</h3>
+          <h3>Generators (by type &amp; level)</h3>
+          <span class="agg-badge"></span>
           <canvas id="chart-generators"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3>Session &amp; Sacrifices</h3>
-          <canvas id="chart-session"></canvas>
         </div>
       </section>
     </div>

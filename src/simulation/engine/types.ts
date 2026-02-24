@@ -11,7 +11,8 @@ export type SimulationAction =
   | { type: 'spawn_generator'; generatorId: string }
   | { type: 'buy_generator'; generatorId: number }
   | { type: 'new_quest'; taskLabel: string }
-  | { type: 'gather_meat'; count: number; meatGained: number };
+  | { type: 'gather_meat'; count: number; meatGained: number }
+  | { type: 'expand_board'; newRows: number; newCols: number };
 
 export interface AIStrategy {
   name: string;
@@ -58,12 +59,28 @@ export interface TickMetrics {
   currentTaskProgress: number;
   currentTaskRequirements: Record<string, number>; // creatureType -> required level (0 if not needed)
 
+  // Meat mechanics
+  meatPerPress: number; // calculateMeatDrop at this tick (meat gained per button press)
+
   // Cumulative metrics
   totalExpGained: number;
   totalEyesGained: number;
   totalTasksCompleted: number;
   totalMeatSpent: number;
   totalCreaturesFed: number;
+  totalUniqueCreatures: number;
+  totalSpawns: number;
+  totalMerges: number;
+
+  // Resource flow — emission
+  totalMeatGained: number;
+  totalRune1Gained: number;
+  totalRune2Gained: number;
+  totalGemsGained: number;
+
+  // Resource flow — sink
+  totalRune1Spent: number;
+  totalRune2Spent: number;
 }
 
 export interface SimulationSnapshot {
@@ -127,4 +144,13 @@ export interface CumulativeMetrics {
   totalTasksCompleted: number;
   totalMeatSpent: number;
   totalCreaturesFed: number;
+  totalUniqueCreatures: number;
+  totalSpawns: number;
+  totalMerges: number;
+  totalMeatGained: number;
+  totalRune1Gained: number;
+  totalRune2Gained: number;
+  totalGemsGained: number;
+  totalRune1Spent: number;
+  totalRune2Spent: number;
 }

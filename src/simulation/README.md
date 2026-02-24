@@ -117,6 +117,72 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
        пост-тик sweep'ом (стратегия видит только снапшот, не видит новые ID от мерджа)
 
 
+## Графики и агрегация по оси X
+
+Ось X переключается между четырьмя режимами: **Tick**, **Session**, **Sacrifices (Presses)**, **Per Task**.
+
+### Таблица видимости графиков (`CHART_VISIBILITY` в `main.ts`)
+
+| График | Агрегация | Ticks | Sessions | Sacrifices | Per Task |
+|--------|-----------|:-----:|:--------:|:----------:|:--------:|
+| Kraken Level | ↓ last | ✅ | ✅ | ✅ | ✅ |
+| Eyes | ∅ avg | ✅ | ✅ | ✅ | — |
+| EXP (cumulative) | ↓ last + Δ rate | ✅ | ✅ | ✅ | — |
+| EXP per Quest | Δ delta | — | — | — | ✅ |
+| Meat (gained + spent/period + drop/press) | Δ flow + ↓ drop | ✅ | ✅ | ✅ | ✅ |
+| Runes (balance) | ∅ avg | ✅ | ✅ | ✅ | ✅ |
+| Runes Flow (emission / sink) | Δ delta | ✅ | ✅ | ✅ | — |
+| Eyes (balance) | ∅ avg | ✅ | ✅ | ✅ | — |
+| Eyes Flow (emission) | Δ delta | ✅ | ✅ | ✅ | — |
+| Gems (balance + emission) | ∅ avg + Δ | ✅ | ✅ | ✅ | — |
+| Meat per Quest | Δ delta | — | — | — | ✅ |
+| Grid Size | ↓ last | ✅ | ✅ | — | — |
+| Current Task reqs | ↓ last | ✅ | — | — | ✅ |
+| Tasks (cumul. + Δ rate) | ↓ last + Δ | ✅ | ✅ | ✅ | — |
+| New Creatures Discovered | Δ delta | — | ✅ | — | — |
+| Spawns & Merges | Δ delta | ✅ | ✅ | ✅ | — |
+| Runes | ∅ avg | ✅ | ✅ | ✅ | ✅ |
+| Session & Presses | ↓ last | ✅ | — | ✅ | — |
+| Generators | ↓ last | ✅ | ✅ | ✅ | ✅ |
+
+**Per Task** группирует тики по `s.metrics.totalTasksCompleted`. Новая точка появляется при завершении каждого квеста.
+
+### Новые cumulative-счётчики (`totalUniqueCreatures`, `totalSpawns`, `totalMerges`)
+
+Все три хранятся в `CumulativeMetrics` и инкрементируются в `SimulationEngine`:
+- **`totalUniqueCreatures`** — число уникальных пар `creatureType:level`, встреченных впервые (через spawn или merge)
+- **`totalSpawns`** — количество выполненных `spawn_generator` действий
+- **`totalMerges`** — количество выполненных `merge` действий
+
+График **New Creatures Discovered** (Sessions only) показывает Δ delta/session + cumul на правой оси.
+
+При режиме Tick — каждый тик = одна точка. При Session и Sacrifices — тики группируются по значению ключа, и каждая группа сворачивается в одну точку на графике.
+
+### Таблица агрегации (`METRIC_AGGREGATION` в `chartAggregation.ts`)
+
+Каждая метрика имеет явный режим агрегации:
+
+| Режим | Смысл | Метрики |
+|-------|-------|---------|
+| `last` | Последнее значение в группе (прогрессивные или state-метрики) | `krakenLevel`, `gridSize`, `totalExpGained`, `totalMeatSpent`, `totalTasksCompleted`, `totalEyesGained`, `totalCreaturesFed` |
+| `avg` | Среднее по всем тикам группы (балансовые/инвентарные метрики) | `meat`, `rune1`, `rune2`, `gems`, `eyes`, `creaturesCount`, `generatorsCount`, `runesCount`, `boxesCount` |
+| `delta` | Разность: последнее − первое в группе (метрики активности за сессию) | *(не используются как прямые метрики сейчас, резерв для будущего)* |
+
+### Функция `aggregateHistory`
+
+```ts
+aggregateHistory(history, getKey, getValue, mode)
+  → { labels: number[], data: number[] }
+```
+
+- `getKey` — как группировать: `s => s.gameState.session` или `s => s.gameState.meatButtonPresses`
+- Работает одинаково для режимов Session и Sacrifices
+- При режиме Tick агрегация не вызывается: данные берутся напрямую per-tick
+
+### `updateChartsXAxis`
+
+При переключении режима X-оси вызывается `renderCharts(currentResults)` целиком — это пересчитывает и данные, и лейблы. Это необходимо, потому что при агрегации меняется **длина** массивов данных (N тиков → M сессий), а не только лейблы.
+
 ## Данные
 
 - **Генераторы** (`generators.json`): один генератор, 5 уровней. Level 1 = только Creature1. Level 2+ = Creature2 начинает появляться

@@ -1,6 +1,7 @@
 import type { GameSnapshot } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
 import { getCurrentMandatoryTask } from '@domain/tasks';
+import { calculateMeatDrop } from '@domain/chapters';
 import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 
 export function initCumulativeMetrics(): CumulativeMetrics {
@@ -9,7 +10,16 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalEyesGained: 0,
     totalTasksCompleted: 0,
     totalMeatSpent: 0,
-    totalCreaturesFed: 0
+    totalCreaturesFed: 0,
+    totalUniqueCreatures: 0,
+    totalSpawns: 0,
+    totalMerges: 0,
+    totalMeatGained: 0,
+    totalRune1Gained: 0,
+    totalRune2Gained: 0,
+    totalGemsGained: 0,
+    totalRune1Spent: 0,
+    totalRune2Spent: 0,
   };
 }
 
@@ -67,6 +77,9 @@ export function captureTickMetrics(
   }
 
   return {
+    // Meat mechanics
+    meatPerPress: calculateMeatDrop(balance, cumulative.totalEyesGained),
+
     // Resources
     meat: state.resources.meat,
     eyes: state.resources.eyes,

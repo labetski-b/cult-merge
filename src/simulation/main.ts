@@ -2,8 +2,9 @@ import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
 import { RealisticStrategy } from './strategies/RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
-import type { SimulationResult, ActionLogEntry } from './engine/types';
+import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
+import { METRIC_AGGREGATION, aggregateHistory, getKeyFn, type AggMode, type XAxisMode } from './engine/chartAggregation';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -11,7 +12,6 @@ Chart.register(...registerables);
 // Global state
 let currentResults: SimulationResult[] = [];
 let charts: Record<string, Chart> = {};
-let xAxisData: { ticks: number[]; presses: number[]; sessions: number[] } | null = null;
 
 // Strategy instances
 const STRATEGIES = {
@@ -302,25 +302,80 @@ function showFieldPopup(tick: number) {
   fieldPopupOverlay.classList.add('open');
 }
 
-function getXAxisConfig(): { labels: number[]; title: string } {
-  const mode = (document.getElementById('x-axis-mode') as HTMLSelectElement | null)?.value ?? 'sessions';
-  if (!xAxisData) return { labels: [], title: 'Session' };
-  const map: Record<string, { labels: number[]; title: string }> = {
-    ticks:    { labels: xAxisData.ticks,    title: 'Tick' },
-    presses:  { labels: xAxisData.presses,  title: 'Sacrifices' },
-    sessions: { labels: xAxisData.sessions, title: 'Session' },
-  };
-  return map[mode] ?? map['sessions']!;
+function getCurrentXAxisMode(): XAxisMode {
+  return ((document.getElementById('x-axis-mode') as HTMLSelectElement | null)?.value ?? 'sessions') as XAxisMode;
+}
+
+const X_AXIS_TITLES: Record<XAxisMode, string> = {
+  ticks:    'Tick',
+  sessions: 'Session',
+  presses:  'Sacrifices',
+  tasks:    'Task',
+};
+
+// Which X-axis modes each chart is visible in.
+// Keys match canvas IDs via: document.getElementById(`chart-${key}`)
+const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
+  level:              ['ticks', 'sessions', 'presses', 'tasks'],
+  eyes:               ['ticks', 'sessions', 'presses'],
+  exp:                ['ticks', 'sessions', 'presses'],
+  'exp-per-task':     ['tasks'],
+  resources:          ['ticks', 'sessions', 'presses', 'tasks'],
+  'meat-per-task':    ['tasks'],
+  gridsize:           ['ticks', 'sessions'],
+  'task-creature':    ['ticks', 'tasks'],
+  tasks:              ['ticks', 'sessions', 'presses'],
+  runes:              ['ticks', 'sessions', 'presses', 'tasks'],
+  session:            ['ticks', 'presses'],
+  generators:         ['ticks', 'sessions', 'presses', 'tasks'],
+  'unique-creatures': ['sessions'],
+  activity:           ['ticks', 'sessions', 'presses'],
+  'runes-flow':       ['ticks', 'sessions', 'presses'],
+  'eyes-flow':        ['ticks', 'sessions', 'presses'],
+  gems:               ['ticks', 'sessions', 'presses'],
+};
+
+
+/**
+ * Build X-axis labels for a given history.
+ * - ticks: one label per tick
+ * - sessions/presses: unique values in order of first appearance
+ */
+function getXAxisLabels(history: SimulationSnapshot[]): { labels: number[]; title: string } {
+  const xMode = getCurrentXAxisMode();
+  if (xMode === 'ticks') {
+    return { labels: history.map(s => s.tick), title: X_AXIS_TITLES.ticks };
+  }
+  const keyFn = getKeyFn(xMode);
+  const seen = new Set<number>();
+  const labels: number[] = [];
+  for (const snap of history) {
+    const k = keyFn(snap);
+    if (!seen.has(k)) { seen.add(k); labels.push(k); }
+  }
+  return { labels, title: X_AXIS_TITLES[xMode] };
+}
+
+/**
+ * Build dataset values for a chart series.
+ * - ticks: one value per tick
+ * - sessions/presses: aggregated using the given mode
+ */
+function series(
+  history: SimulationSnapshot[],
+  getValue: (snap: SimulationSnapshot) => number,
+  mode: AggMode
+): number[] {
+  const xMode = getCurrentXAxisMode();
+  if (xMode === 'ticks') {
+    return history.map(s => getValue(s));
+  }
+  return aggregateHistory(history, getKeyFn(xMode), getValue, mode).data;
 }
 
 function updateChartsXAxis() {
-  const { labels, title } = getXAxisConfig();
-  for (const chart of Object.values(charts)) {
-    chart.data.labels = labels;
-    const xScale = chart.options.scales?.['x'] as { title?: { text?: string } } | undefined;
-    if (xScale?.title) xScale.title.text = title;
-    chart.update('none');
-  }
+  // Aggregated modes change both labels AND data lengths — must fully rebuild charts
+  renderCharts(currentResults);
 }
 
 function renderCharts(results: SimulationResult[]) {
@@ -330,490 +385,476 @@ function renderCharts(results: SimulationResult[]) {
 
   if (results.length === 0) return;
 
-  const ticks = results[0]!.history.map(s => s.tick);
-
-  // Build all three X-axis label arrays from action log (carry-forward)
-  const sessionLabels: number[] = [];
-  const pressLabels: number[] = [];
-  {
-    const sessionMap = new Map<number, number>();
-    const pressMap = new Map<number, number>();
-    for (const entry of results[0]!.actionLog) {
-      sessionMap.set(entry.tick, entry.state.session);
-      pressMap.set(entry.tick, entry.state.meatButtonPresses);
-    }
-    let carrySession = 1, carryPresses = 0;
-    for (const tick of ticks) {
-      const s = sessionMap.get(tick);
-      if (s !== undefined) carrySession = s;
-      sessionLabels.push(carrySession);
-      const p = pressMap.get(tick);
-      if (p !== undefined) carryPresses = p;
-      pressLabels.push(carryPresses);
-    }
+  // Apply visibility: show/hide containers based on current X-axis mode
+  const currentMode = getCurrentXAxisMode();
+  for (const [chartKey, allowedModes] of Object.entries(CHART_VISIBILITY)) {
+    const container = document.getElementById(`chart-${chartKey}`)
+      ?.closest('.chart-container') as HTMLElement | null;
+    if (container) container.style.display = allowedModes.includes(currentMode) ? '' : 'none';
   }
-  xAxisData = { ticks, presses: pressLabels, sessions: sessionLabels };
-  const { labels: xLabels, title: xTitle } = getXAxisConfig();
 
-  // Kraken Level Chart
-  charts.level = new Chart(
-    document.getElementById('chart-level') as HTMLCanvasElement,
-    {
+  // Check if a chart should be created (based on CHART_VISIBILITY)
+  const visible = (chartKey: string) => CHART_VISIBILITY[chartKey]?.includes(currentMode) ?? true;
+
+  // Set the aggregation badge text on a chart container
+  const setAggBadge = (chartKey: string, label: string) => {
+    const badge = document.getElementById(`chart-${chartKey}`)
+      ?.closest('.chart-container')?.querySelector('.agg-badge') as HTMLElement | null;
+    if (badge) badge.textContent = label;
+  };
+
+  const h0 = results[0]!.history;
+  const { labels: xLabels, title: xTitle } = getXAxisLabels(h0);
+
+  const color = (idx: number) => COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2';
+
+  // Common tooltip: format numbers nicely
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tooltipLabel = (ctx: any) =>
+    `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+
+  // Base dataset: no visible points (appear on hover only)
+  const ds = (label: string, data: number[], clr: string, extras: Record<string, unknown> = {}) => ({
+    label, data,
+    borderColor: clr, backgroundColor: clr,
+    fill: false, tension: 0.1,
+    pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 20,
+    ...extras,
+  });
+
+  // Fill variant for cumulative charts (subtle area under line)
+  const fillDs = (label: string, data: number[], clr: string, extras: Record<string, unknown> = {}) =>
+    ds(label, data, clr, { fill: 'origin', backgroundColor: clr + '28', ...extras });
+
+  // Common axis + tooltip options
+  const xAxis = { title: { display: true, text: xTitle, color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } };
+  const yAxis = (text: string, extra: Record<string, unknown> = {}) => ({
+    beginAtZero: true,
+    title: { display: true, text, color: '#e8f1f5' },
+    ticks: { color: '#e8f1f5' },
+    grid: { color: 'rgba(143, 193, 255, 0.1)' },
+    ...extra,
+  });
+  const commonPlugins = { legend: { labels: { color: '#e8f1f5' } }, tooltip: { callbacks: { label: tooltipLabel } } };
+  const commonInteraction = { mode: 'index' as const, intersect: false };
+  const xOpts = (yTitle: string, yExtra: Record<string, unknown> = {}) => ({
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: { y: yAxis(yTitle, yExtra), x: xAxis },
+    plugins: commonPlugins,
+    interaction: commonInteraction,
+  });
+
+  // ── Kraken Level — stepped (discrete integer) ──────────────────────────────
+  if (visible('level')) {
+    setAggBadge('level', '↓ last');
+    charts.level = new Chart(document.getElementById('chart-level') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) => ({
-          label: result.config.strategy.name,
-          data: result.history.map(s => s.metrics.krakenLevel),
-          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          fill: false,
-          tension: 0.1
-        }))
+        datasets: results.map((result, idx) => ds(
+          result.config.strategy.name,
+          series(result.history, s => s.metrics.krakenLevel, METRIC_AGGREGATION.krakenLevel!),
+          color(idx),
+          { stepped: true, tension: 0 }
+        ))
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Level', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // Eyes Chart
-  charts.eyes = new Chart(
-    document.getElementById('chart-eyes') as HTMLCanvasElement,
-    {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: results.map((result, idx) => ({
-          label: result.config.strategy.name,
-          data: result.history.map(s => s.metrics.eyes),
-          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          fill: false,
-          tension: 0.1
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Eyes', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // EXP Chart
-  charts.exp = new Chart(
-    document.getElementById('chart-exp') as HTMLCanvasElement,
-    {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: results.map((result, idx) => ({
-          label: result.config.strategy.name,
-          data: result.history.map(s => s.metrics.totalExpGained),
-          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          fill: false,
-          tension: 0.1
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'EXP', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // Resources Chart
-  charts.resources = new Chart(
-    document.getElementById('chart-resources') as HTMLCanvasElement,
-    {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: results.flatMap((result, idx) => [
-          {
-            label: `${result.config.strategy.name} - Meat`,
-            data: result.history.map(s => s.metrics.meat),
-            borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-            backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-            fill: false,
-            borderDash: [5, 5],
-            tension: 0.1
-          }
-        ])
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Amount', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // Grid Size Chart
-  charts.gridsize = new Chart(
-    document.getElementById('chart-gridsize') as HTMLCanvasElement,
-    {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: results.map((result, idx) => ({
-          label: result.config.strategy.name,
-          data: result.history.map(s => s.metrics.gridSize),
-          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          fill: false,
-          tension: 0.1
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Cells', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5', stepSize: 1 },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // Current Task Creature Chart — one line per creature type, Y = required level
-  const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
-  const allCreatureTypes = new Set<string>();
-  for (const result of results) {
-    for (const snapshot of result.history) {
-      for (const type of Object.keys(snapshot.metrics.currentTaskRequirements)) {
-        allCreatureTypes.add(type);
-      }
-    }
+      options: xOpts('Level', { ticks: { color: '#e8f1f5', stepSize: 1 } })
+    });
   }
-  const sortedCreatureTypes = [...allCreatureTypes].sort();
 
-  charts.taskCreature = new Chart(
-    document.getElementById('chart-task-creature') as HTMLCanvasElement,
-    {
+  // ── Tasks Completed — cumulative + rate per period ────────────────────────
+  if (visible('tasks')) {
+    setAggBadge('tasks', '↓ last + Δ rate');
+    const taskDatasets = results.flatMap((result, idx) => {
+      const clr = color(idx);
+      const cumData = series(result.history, s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
+      const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
+      return [
+        fillDs(result.config.strategy.name, cumData, clr, { yAxisID: 'yTasks' }),
+        ds(`${result.config.strategy.name} per period`, rateData, '#ff9966', { yAxisID: 'yRate', borderDash: [4, 4] }),
+      ];
+    });
+    charts.tasks = new Chart(document.getElementById('chart-tasks') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: xLabels, datasets: taskDatasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          yTasks: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Tasks (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yRate:  { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Tasks/period',   color: '#ff9966' }, ticks: { color: '#ff9966' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── EXP — cumulative + rate-of-change on right axis ──────────────────────
+  if (visible('exp')) {
+    setAggBadge('exp', '↓ last');
+    const expDatasets = results.flatMap((result, idx) => {
+      const clr = color(idx);
+      const cumData = series(result.history, s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
+      const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
+      return [
+        fillDs(`${result.config.strategy.name}`, cumData, clr, { yAxisID: 'yExp' }),
+        ds(`${result.config.strategy.name} rate`, rateData, '#a47cff', { yAxisID: 'yRate', borderDash: [4, 4] }),
+      ];
+    });
+    charts.exp = new Chart(document.getElementById('chart-exp') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: xLabels, datasets: expDatasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          yExp:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'EXP (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5'  }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yRate: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'EXP/period',   color: '#a47cff' }, ticks: { color: '#a47cff' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── EXP per Quest — delta per task group ─────────────────────────────────
+  if (visible('exp-per-task')) {
+    setAggBadge('exp-per-task', 'Δ delta');
+    charts['exp-per-task'] = new Chart(document.getElementById('chart-exp-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: sortedCreatureTypes.map((type, i) => ({
-          label: type,
-          data: results[0]!.history.map(s => s.metrics.currentTaskRequirements[type] ?? 0),
-          borderColor: taskCreatureColors[i % taskCreatureColors.length]!,
-          backgroundColor: taskCreatureColors[i % taskCreatureColors.length]!,
-          fill: false,
-          stepped: true,
-          tension: 0
-        }))
+        datasets: results.map((result, idx) => ds(
+          result.config.strategy.name,
+          series(result.history, s => s.metrics.totalExpGained, 'delta'),
+          color(idx)
+        ))
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Required Level', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5', stepSize: 1 },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
+      options: xOpts('EXP gained')
+    });
+  }
 
-  // Tasks Chart
-  charts.tasks = new Chart(
-    document.getElementById('chart-tasks') as HTMLCanvasElement,
-    {
+  // ── Session & Sacrifices ──────────────────────────────────────────────────
+  if (visible('session')) {
+    setAggBadge('session', '↓ last');
+    charts.session = new Chart(document.getElementById('chart-session') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) => ({
-          label: result.config.strategy.name,
-          data: result.history.map(s => s.metrics.totalTasksCompleted),
-          borderColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          backgroundColor: COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2',
-          fill: false,
-          tension: 0.1
-        }))
+        datasets: [
+          ds('Session',      series(h0, s => s.gameState.session,           'last'), '#4de2c2', { stepped: true, tension: 0, yAxisID: 'ySession' }),
+          ds('Total Presses', series(h0, s => s.gameState.meatButtonPresses, 'last'), '#ffd966', { stepped: true, tension: 0, yAxisID: 'yPresses' }),
+        ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: true,
+        responsive: true, maintainAspectRatio: true,
         scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Tasks', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
+          ySession: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session #',      color: '#4de2c2' }, ticks: { color: '#4de2c2', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yPresses: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Presses (total)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
         },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
+        plugins: commonPlugins,
+        interaction: commonInteraction,
       }
-    }
-  );
+    });
+  }
 
-  // Runes Chart
-  charts.runes = new Chart(
-    document.getElementById('chart-runes') as HTMLCanvasElement,
-    {
+  // ── Meat: gained per period + drop per sacrifice ─────────────────────────
+  if (visible('resources')) {
+    setAggBadge('resources', 'Δ gained + ↓ drop');
+    const meatDatasets = results.flatMap((result, idx) => {
+      const clr = color(idx);
+      const cumGained  = series(result.history, s => s.metrics.totalMeatGained, 'last');
+      const gainedRate = cumGained.map((v, i) => i === 0 ? 0 : v - cumGained[i - 1]!);
+      const dropData   = series(result.history, s => s.metrics.meatPerPress, METRIC_AGGREGATION.meatPerPress!);
+      return [
+        ds(`${result.config.strategy.name} gained/period`, gainedRate, clr,      { yAxisID: 'yFlow' }),
+        ds('per sacrifice',                                 dropData,   '#ff9966', { yAxisID: 'yDrop', borderDash: [4, 4], stepped: true, tension: 0 }),
+      ];
+    });
+    charts.resources = new Chart(document.getElementById('chart-resources') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: xLabels, datasets: meatDatasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          yFlow: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Meat gained/period', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yDrop: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'per sacrifice',      color: '#ff9966' }, ticks: { color: '#ff9966' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Meat per Quest — delta per task group ────────────────────────────────
+  if (visible('meat-per-task')) {
+    setAggBadge('meat-per-task', 'Δ delta');
+    charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) => ds(
+          result.config.strategy.name,
+          series(result.history, s => s.metrics.meat, 'delta'),
+          color(idx)
+        ))
+      },
+      options: xOpts('Meat Δ')
+    });
+  }
+
+  // ── Runes ─────────────────────────────────────────────────────────────────
+  if (visible('runes')) {
+    setAggBadge('runes', '∅ avg');
+    charts.runes = new Chart(document.getElementById('chart-runes') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
         datasets: results.flatMap((result) => [
-          {
-            label: 'Rune1',
-            data: result.history.map(s => s.metrics.rune1),
-            borderColor: '#4de2c2',
-            backgroundColor: '#4de2c2',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Rune2',
-            data: result.history.map(s => s.metrics.rune2),
-            borderColor: '#ffd966',
-            backgroundColor: '#ffd966',
-            fill: false,
-            tension: 0.1
-          }
+          ds('Rune1', series(result.history, s => s.metrics.rune1, METRIC_AGGREGATION.rune1!), '#4de2c2'),
+          ds('Rune2', series(result.history, s => s.metrics.rune2, METRIC_AGGREGATION.rune2!), '#ffd966'),
         ])
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Amount', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
-        }
-      }
-    }
-  );
-
-  // Session Chart — session number and total meat button presses per tick
-  {
-
-    charts.session = new Chart(
-      document.getElementById('chart-session') as HTMLCanvasElement,
-      {
-        type: 'line',
-        data: {
-          labels: xLabels,
-          datasets: [
-            {
-              label: 'Session',
-              data: sessionLabels,
-              borderColor: '#4de2c2',
-              backgroundColor: '#4de2c2',
-              fill: false,
-              stepped: true,
-              tension: 0,
-              yAxisID: 'ySession'
-            },
-            {
-              label: 'Total Presses',
-              data: pressLabels,
-              borderColor: '#ffd966',
-              backgroundColor: '#ffd966',
-              fill: false,
-              stepped: true,
-              tension: 0,
-              yAxisID: 'yPresses'
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          scales: {
-            ySession: {
-              type: 'linear',
-              position: 'left',
-              beginAtZero: true,
-              title: { display: true, text: 'Session #', color: '#4de2c2' },
-              ticks: { color: '#4de2c2', stepSize: 1 },
-              grid: { color: 'rgba(143, 193, 255, 0.1)' }
-            },
-            yPresses: {
-              type: 'linear',
-              position: 'right',
-              beginAtZero: true,
-              title: { display: true, text: 'Presses (total)', color: '#ffd966' },
-              ticks: { color: '#ffd966' },
-              grid: { drawOnChartArea: false }
-            },
-            x: {
-              title: { display: true, text: xTitle, color: '#e8f1f5' },
-              ticks: { color: '#e8f1f5' },
-              grid: { color: 'rgba(143, 193, 255, 0.1)' }
-            }
-          },
-          plugins: {
-            legend: { labels: { color: '#e8f1f5' } }
-          }
-        }
-      }
-    );
+      options: xOpts('Amount')
+    });
   }
 
-  // Generators Chart — one line per generator level
-  const genLevelColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2'];
-  // Collect all generator levels that appear in the simulation
-  const allGenLevels = new Set<number>();
-  for (const result of results) {
-    for (const snapshot of result.history) {
-      for (const [, levels] of Object.entries(snapshot.metrics.generatorsByType)) {
-        for (const lvl of Object.keys(levels)) {
-          allGenLevels.add(Number(lvl));
-        }
-      }
-    }
-  }
-  const sortedGenLevels = [...allGenLevels].sort((a, b) => a - b);
-
-  charts.generators = new Chart(
-    document.getElementById('chart-generators') as HTMLCanvasElement,
-    {
+  // ── Eyes — cumulative, fill ───────────────────────────────────────────────
+  if (visible('eyes')) {
+    setAggBadge('eyes', '∅ avg');
+    charts.eyes = new Chart(document.getElementById('chart-eyes') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: sortedGenLevels.map((lvl, i) => ({
-          label: `Gen Lvl ${lvl}`,
-          data: results[0]!.history.map(s => {
-            let count = 0;
-            for (const levels of Object.values(s.metrics.generatorsByType)) {
-              count += levels[lvl] ?? 0;
-            }
-            return count;
-          }),
-          borderColor: genLevelColors[i % genLevelColors.length]!,
-          backgroundColor: genLevelColors[i % genLevelColors.length]!,
-          fill: false,
-          tension: 0.1
-        }))
+        datasets: results.map((result, idx) => fillDs(
+          result.config.strategy.name,
+          series(result.history, s => s.metrics.eyes, METRIC_AGGREGATION.eyes!),
+          color(idx)
+        ))
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Count', color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5', stepSize: 1 },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          },
-          x: {
-            title: { display: true, text: xTitle, color: '#e8f1f5' },
-            ticks: { color: '#e8f1f5' },
-            grid: { color: 'rgba(143, 193, 255, 0.1)' }
-          }
-        },
-        plugins: {
-          legend: { labels: { color: '#e8f1f5' } }
+      options: xOpts('Eyes')
+    });
+  }
+
+  // ── Grid Size — stepped (discrete) ───────────────────────────────────────
+  if (visible('gridsize')) {
+    setAggBadge('gridsize', '↓ last');
+    charts.gridsize = new Chart(document.getElementById('chart-gridsize') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) => ds(
+          result.config.strategy.name,
+          series(result.history, s => s.metrics.gridSize, METRIC_AGGREGATION.gridSize!),
+          color(idx),
+          { stepped: true, tension: 0 }
+        ))
+      },
+      options: xOpts('Cells', { ticks: { color: '#e8f1f5', stepSize: 1 } })
+    });
+  }
+
+  // ── Current Task Creature Requirements ───────────────────────────────────
+  if (visible('task-creature')) {
+    setAggBadge('task-creature', '↓ last');
+    const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
+    const allCreatureTypes = new Set<string>();
+    for (const result of results) {
+      for (const snapshot of result.history) {
+        for (const type of Object.keys(snapshot.metrics.currentTaskRequirements)) {
+          allCreatureTypes.add(type);
         }
       }
     }
-  );
+    const sortedCreatureTypes = [...allCreatureTypes].sort();
+
+    charts.taskCreature = new Chart(document.getElementById('chart-task-creature') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: sortedCreatureTypes.map((type, i) => ds(
+          type,
+          series(h0, s => s.metrics.currentTaskRequirements[type] ?? 0, 'last'),
+          taskCreatureColors[i % taskCreatureColors.length]!,
+          { stepped: true, tension: 0 }
+        ))
+      },
+      options: xOpts('Required Level', { ticks: { color: '#e8f1f5', stepSize: 1 } })
+    });
+  }
+
+  // ── Generators — max level per type ─────────────────────────────────────
+  if (visible('generators')) {
+    setAggBadge('generators', '↓ last');
+    const genColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2', '#ff9966', '#66b3ff'];
+
+    // Collect all generator type IDs that appear across all results
+    const allGenTypes = new Set<number>();
+    for (const result of results) {
+      for (const snapshot of result.history) {
+        for (const genType of Object.keys(snapshot.metrics.generatorsByType)) {
+          allGenTypes.add(Number(genType));
+        }
+      }
+    }
+    const sortedGenTypes = [...allGenTypes].sort((a, b) => a - b);
+
+    // For each snapshot: max level = highest level key where count > 0
+    const maxLevelForType = (s: SimulationSnapshot, genType: number): number => {
+      const levels = s.metrics.generatorsByType[genType];
+      if (!levels) return 0;
+      let max = 0;
+      for (const [lvl, count] of Object.entries(levels)) {
+        if (count > 0) max = Math.max(max, Number(lvl));
+      }
+      return max;
+    };
+
+    charts.generators = new Chart(document.getElementById('chart-generators') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: sortedGenTypes.map((genType, i) => ds(
+          `Gen${genType}`,
+          series(h0, s => maxLevelForType(s, genType), 'last'),
+          genColors[i % genColors.length]!,
+          { stepped: true, tension: 0 }
+        ))
+      },
+      options: xOpts('Max Level', { ticks: { color: '#e8f1f5', stepSize: 1 } })
+    });
+  }
+
+  // ── Runes Flow — diverging bar: gained above axis, spent below ───────────
+  if (visible('runes-flow')) {
+    setAggBadge('runes-flow', 'Δ ±');
+    const r1cum = series(h0, s => s.metrics.totalRune1Gained, 'last');
+    const r1sp  = series(h0, s => s.metrics.totalRune1Spent,  'last');
+    const r2cum = series(h0, s => s.metrics.totalRune2Gained, 'last');
+    const r2sp  = series(h0, s => s.metrics.totalRune2Spent,  'last');
+    const r1gain  = r1cum.map((v, i) => i === 0 ? 0 : v - r1cum[i - 1]!);
+    const r1spent = r1sp.map( (v, i) => i === 0 ? 0 : v - r1sp[i - 1]!);
+    const r2gain  = r2cum.map((v, i) => i === 0 ? 0 : v - r2cum[i - 1]!);
+    const r2spent = r2sp.map( (v, i) => i === 0 ? 0 : v - r2sp[i - 1]!);
+    const bar = (label: string, data: number[], clr: string) => ({
+      label, data, backgroundColor: clr, borderColor: clr, borderWidth: 1,
+    });
+    charts['runes-flow'] = new Chart(document.getElementById('chart-runes-flow') as HTMLCanvasElement, {
+      type: 'bar',
+      data: {
+        labels: xLabels,
+        datasets: [
+          bar('Rune1 gained', r1gain,             '#4de2c2bb'),
+          bar('Rune1 spent',  r1spent.map(v => -v), '#4de2c244'),
+          bar('Rune2 gained', r2gain,             '#ffd966bb'),
+          bar('Rune2 spent',  r2spent.map(v => -v), '#ffd96644'),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          y: { ...yAxis('gained ↑  |  spent ↓') },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Eyes Flow — emission per period ──────────────────────────────────────
+  if (visible('eyes-flow')) {
+    setAggBadge('eyes-flow', 'Δ delta');
+    const eyesCum  = series(h0, s => s.metrics.totalEyesGained, 'last');
+    const eyesRate = eyesCum.map((v, i) => i === 0 ? 0 : v - eyesCum[i - 1]!);
+    charts['eyes-flow'] = new Chart(document.getElementById('chart-eyes-flow') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('Eyes gained/period', eyesRate, '#a47cff'),
+        ]
+      },
+      options: xOpts('Eyes/period')
+    });
+  }
+
+  // ── Gems — balance + emission per period ──────────────────────────────────
+  if (visible('gems')) {
+    setAggBadge('gems', '∅ avg + Δ');
+    const gemsBal  = series(h0, s => s.metrics.gems,           METRIC_AGGREGATION.gems ?? 'avg');
+    const gemsCum  = series(h0, s => s.metrics.totalGemsGained, 'last');
+    const gemsRate = gemsCum.map((v, i) => i === 0 ? 0 : v - gemsCum[i - 1]!);
+    charts.gems = new Chart(document.getElementById('chart-gems') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('Gems balance',       gemsBal,  '#7cffb2', { yAxisID: 'yBal' }),
+          ds('Gems gained/period', gemsRate, '#ff6b8a', { yAxisID: 'yRate', borderDash: [4, 4] }),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          yBal:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Balance',     color: '#7cffb2' }, ticks: { color: '#7cffb2' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yRate: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Gained/period', color: '#ff6b8a' }, ticks: { color: '#ff6b8a' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── New Creatures Discovered — delta per session ──────────────────────────
+  if (visible('unique-creatures')) {
+    setAggBadge('unique-creatures', 'Δ delta');
+    const cumData = series(h0, s => s.metrics.totalUniqueCreatures, 'last');
+    const rateData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+    charts['unique-creatures'] = new Chart(document.getElementById('chart-unique-creatures') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('New combos/session', rateData, '#7cffb2'),
+          ds('Total unique (cumul.)', cumData, '#4de2c2', { borderDash: [4, 4], yAxisID: 'yCumul' }),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          y:      { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'New per session', color: '#7cffb2' }, ticks: { color: '#7cffb2', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total unique',    color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Spawns & Merges — delta per period ───────────────────────────────────
+  if (visible('activity')) {
+    setAggBadge('activity', 'Δ delta');
+    const spawnCum  = series(h0, s => s.metrics.totalSpawns, 'last');
+    const mergeCum  = series(h0, s => s.metrics.totalMerges, 'last');
+    const spawnRate = spawnCum.map((v, i) => i === 0 ? 0 : v - spawnCum[i - 1]!);
+    const mergeRate = mergeCum.map((v, i) => i === 0 ? 0 : v - mergeCum[i - 1]!);
+    charts.activity = new Chart(document.getElementById('chart-activity') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('Spawns/period', spawnRate, '#ffd966'),
+          ds('Merges/period', mergeRate, '#a47cff'),
+        ]
+      },
+      options: xOpts('Count')
+    });
+  }
 }

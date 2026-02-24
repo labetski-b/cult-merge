@@ -75,6 +75,7 @@ export class SimulationEngine {
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
   private currentTick = 0;
+  private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -235,6 +236,8 @@ export class SimulationEngine {
         break;
       case 'new_quest':
         break; // synthetic log-only event, no state mutation
+      case 'expand_board':
+        break; // synthetic log-only event, no state mutation
       case 'gather_meat':
         break; // handled before strategy in gatherMeatIfNeeded(), no-op here
     }
@@ -307,6 +310,7 @@ export class SimulationEngine {
       meatGained += drop;
     }
 
+    this.cumulative.totalMeatGained += meatGained;
     if (pressCount === 0) return;
 
     const logState = this.captureCompactState();
@@ -425,6 +429,16 @@ export class SimulationEngine {
     delete this.state.entities[sourceId];
     delete this.state.entities[targetId];
     this.state.entities[merged.id] = merged;
+
+    this.cumulative.totalMerges++;
+    if (merged.kind === 'creature') {
+      const c = merged as CreatureEntity;
+      const key = `${c.creatureType}:${c.level}`;
+      if (!this.discoveredCreatures.has(key)) {
+        this.discoveredCreatures.add(key);
+        this.cumulative.totalUniqueCreatures++;
+      }
+    }
   }
 
   private feedEntity(entityId: string) {
@@ -441,14 +455,20 @@ export class SimulationEngine {
         const match = rune.runeType.match(/Rune1_(\d+)/);
         const level = match ? Number(match[1]) : 1;
         const values = this.config.balance.runes.rune1RedemptionByLevel;
-        this.state.resources.rune1 += values[level - 1] ?? level;
+        const gained = values[level - 1] ?? level;
+        this.state.resources.rune1 += gained;
+        this.cumulative.totalRune1Gained += gained;
       } else if (rune.runeType.startsWith('Rune2_')) {
         const match = rune.runeType.match(/Rune2_(\d+)/);
         const level = match ? Number(match[1]) : 1;
         const values = this.config.balance.runes.rune2RedemptionByLevel;
-        this.state.resources.rune2 += values[level - 1] ?? level;
+        const gained = values[level - 1] ?? level;
+        this.state.resources.rune2 += gained;
+        this.cumulative.totalRune2Gained += gained;
       } else if (rune.runeType.startsWith('Hard_')) {
-        this.state.resources.gems += runeRedemptionValue(rune.runeType);
+        const gained = runeRedemptionValue(rune.runeType);
+        this.state.resources.gems += gained;
+        this.cumulative.totalGemsGained += gained;
       }
       return;
     }
@@ -464,6 +484,14 @@ export class SimulationEngine {
       const nextGridSize = getGridSizeForLevel(this.config.balance, expResult.newState.level);
       if (this.state.grid.rows !== nextGridSize.rows || this.state.grid.cols !== nextGridSize.cols) {
         this.state.grid = resizeGrid(this.state.grid, nextGridSize.rows, nextGridSize.cols);
+        const expandState = this.captureCompactState();
+        this.actionLog.push({
+          tick: this.currentTick,
+          actionIndex: this.actionLog.length,
+          action: { type: 'expand_board', newRows: nextGridSize.rows, newCols: nextGridSize.cols },
+          state: expandState,
+          note: `${nextGridSize.rows}×${nextGridSize.cols} = ${nextGridSize.rows * nextGridSize.cols} cells`
+        });
       }
 
       this.state.pendingRewards.push(...expResult.rewards);
@@ -535,6 +563,7 @@ export class SimulationEngine {
       charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
     };
     this.state.resources.meat -= levelConfig.chargeCost;
+    this.cumulative.totalMeatSpent += levelConfig.chargeCost;
   }
 
   private tapGenerator(generatorId: string) {
@@ -561,6 +590,13 @@ export class SimulationEngine {
       level: spawn.level
     };
     this.state.entities[generatorId] = { ...gen, charges: remainingCharges };
+
+    this.cumulative.totalSpawns++;
+    const key = `${spawn.creatureType}:${spawn.level}`;
+    if (!this.discoveredCreatures.has(key)) {
+      this.discoveredCreatures.add(key);
+      this.cumulative.totalUniqueCreatures++;
+    }
   }
 
   /**
@@ -694,6 +730,8 @@ export class SimulationEngine {
         return action.taskLabel;
       case 'gather_meat':
         return `×${action.count} → +${action.meatGained} meat`;
+      case 'expand_board':
+        return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
     }
   }
 
@@ -719,5 +757,7 @@ export class SimulationEngine {
     };
     this.state.grid.cells[targetCell] = newGenId;
     (this.state.resources[currency] as number) -= generator.purchaseCost;
+    if (currency === 'rune1') this.cumulative.totalRune1Spent += generator.purchaseCost;
+    else if (currency === 'rune2') this.cumulative.totalRune2Spent += generator.purchaseCost;
   }
 }

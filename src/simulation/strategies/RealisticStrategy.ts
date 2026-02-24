@@ -48,7 +48,7 @@ function calcGensNeeded(targetLevel: number, avail: number[]): number {
  *     always: feedExcess
  */
 export class RealisticStrategy implements AIStrategy {
-  name = 'Realistic Player';
+  name = 'RP';
   description = 'Task-focused only';
 
   decide(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
