@@ -143,16 +143,35 @@ function buildCreaturePotential(
     genLevelsById.get(entity.generatorId)!.push(entity.level);
   }
 
-  // Step 2: Add purchasable generators (L1) if affordable — most expensive first, with budget deduction
-  const sortedGens = [...config.generators.generators].sort(
-    (a, b) => b.purchaseCost - a.purchaseCost
+  // Step 2: Add purchasable generators (L1) to potential pool.
+  //
+  // Pass A — guarantee: every generator unlocked by krakenRequired but not yet on field
+  // gets exactly 1 L1 instance added to the pool, regardless of current rune balance.
+  // This ensures their creature types always appear as quest candidates as soon as the
+  // generator tier unlocks — even if the player momentarily has low runes.
+  //
+  // Pass B — budget: distribute remaining rune balance (most expensive first) for
+  // additional copies, which raises the max creature level that can be requested.
+  const unlockedGens = config.generators.generators.filter(
+    g => state.kraken.level >= g.krakenRequired
   );
+
+  // Pass A
+  for (const gen of unlockedGens) {
+    if (!genLevelsById.has(gen.id)) {
+      const availForGen = gen.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
+      if (availForGen >= gen.purchaseCost) {
+        genLevelsById.set(gen.id, [1]); // guaranteed seed instance
+      }
+    }
+  }
+
+  // Pass B
+  const sortedGens = [...unlockedGens].sort((a, b) => b.purchaseCost - a.purchaseCost);
   let budgetRune1 = availRune1;
   let budgetRune2 = availRune2;
 
   for (const gen of sortedGens) {
-    if (state.kraken.level < gen.krakenRequired) continue;
-
     for (let i = 0; i < 10; i++) {
       let canAfford = false;
       if (gen.purchaseCurrency === 'rune1' && budgetRune1 >= gen.purchaseCost) {
@@ -163,8 +182,6 @@ function buildCreaturePotential(
         canAfford = true;
       }
       if (!canAfford) break;
-
-      if (!genLevelsById.has(gen.id)) genLevelsById.set(gen.id, []);
       genLevelsById.get(gen.id)!.push(1);
     }
   }
