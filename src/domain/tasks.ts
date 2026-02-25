@@ -292,7 +292,7 @@ export function generateAutoTask(
       id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
       creatures: [{ type: pick.creatureType, level: Math.min(pick.level, fieldLevelCap), count: 1 }],
       expMultiplier: 0,
-      resMultiplier: 1
+      resMultiplier: 2
     };
   }
 
@@ -350,7 +350,7 @@ export function generateAutoTask(
         id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
         creatures: [{ type: creatureType, level, count }],
         expMultiplier: 0,
-        resMultiplier: 1
+        resMultiplier: 2
       };
     }
   }
@@ -360,6 +360,6 @@ export function generateAutoTask(
     id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
     creatures: [{ type: 'Creature1', level: 1, count: 1 }],
     expMultiplier: 0,
-    resMultiplier: 1
+    resMultiplier: 2
   };
 }
