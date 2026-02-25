@@ -19,7 +19,8 @@ const strategy = new RealisticStrategy();
 
 const engine = new SimulationEngine({
   seed: 42,
-  duration: ticks,
+  stopCondition: { type: 'ticks', value: ticks },
+  maxTicks: ticks,
   tickInterval: 1000,
   strategy,
   balance: BALANCE,

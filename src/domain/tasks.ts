@@ -157,19 +157,23 @@ function buildCreaturePotential(
   );
 
   // Pass A
+  let passADeductRune1 = 0;
+  let passADeductRune2 = 0;
   for (const gen of unlockedGens) {
     if (!genLevelsById.has(gen.id)) {
       const availForGen = gen.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
       if (availForGen >= gen.purchaseCost) {
         genLevelsById.set(gen.id, [1]); // guaranteed seed instance
+        if (gen.purchaseCurrency === 'rune1') passADeductRune1 += gen.purchaseCost;
+        else passADeductRune2 += gen.purchaseCost;
       }
     }
   }
 
-  // Pass B
+  // Pass B — start budget after accounting for Pass A's virtual purchases
   const sortedGens = [...unlockedGens].sort((a, b) => b.purchaseCost - a.purchaseCost);
-  let budgetRune1 = availRune1;
-  let budgetRune2 = availRune2;
+  let budgetRune1 = availRune1 - passADeductRune1;
+  let budgetRune2 = availRune2 - passADeductRune2;
 
   for (const gen of sortedGens) {
     for (let i = 0; i < 10; i++) {

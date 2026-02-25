@@ -17,6 +17,7 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
   krakenLevel:          'last',
   krakenStep:           'last',
   krakenExp:            'last',
+  chapter:              'last',
   gridSize:             'last',
 
   // Cumulative counters — take the final value of the group
@@ -34,6 +35,7 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
   totalUniqueCreatures: 'last',
   totalSpawns:          'last',
   totalMerges:          'last',
+  totalCharges:         'last',
 
   // Resource flow — cumulative counters
   totalMeatGained:  'last',

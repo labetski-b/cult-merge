@@ -1,7 +1,7 @@
 import type { GameSnapshot } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
 import { getCurrentMandatoryTask } from '@domain/tasks';
-import { calculateMeatDrop } from '@domain/chapters';
+import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 
 export function initCumulativeMetrics(): CumulativeMetrics {
@@ -14,6 +14,8 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalUniqueCreatures: 0,
     totalSpawns: 0,
     totalMerges: 0,
+    totalCharges: 0,
+    maxCreatureLevelByType: {},
     totalMeatGained: 0,
     totalRune1Gained: 0,
     totalRune2Gained: 0,
@@ -91,6 +93,7 @@ export function captureTickMetrics(
     krakenLevel: state.kraken.level,
     krakenStep: state.kraken.step,
     krakenExp: state.kraken.currentExp,
+    chapter: getCurrentChapter(balance, cumulative.totalEyesGained).chapter,
 
     // Entities
     creaturesCount,
@@ -108,8 +111,9 @@ export function captureTickMetrics(
     currentTaskProgress,
     currentTaskRequirements,
 
-    // Cumulative
-    ...cumulative
+    // Cumulative (snapshot scalar fields; object fields need explicit shallow copy)
+    ...cumulative,
+    maxCreatureLevelByType: { ...cumulative.maxCreatureLevelByType },
   };
 }
 

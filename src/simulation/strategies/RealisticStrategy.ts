@@ -402,6 +402,7 @@ export class RealisticStrategy implements AIStrategy {
     const allGens = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
 
     for (const genConfig of BALANCE.generators.generators) {
+      if (state.kraken.level < genConfig.krakenRequired) continue;
       if (!genConfig.lines.some(line => neededTypes.has(line))) continue;
 
       const currency = genConfig.purchaseCurrency as keyof typeof state.resources;

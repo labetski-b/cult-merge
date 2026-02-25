@@ -323,17 +323,21 @@
       <form id="sim-form">
         <label>
           Seed:
-          <input type="number" id="seed" value="12345">
+          <input type="number" id="seed" placeholder="random">
         </label>
 
         <label>
-          Duration (ticks):
-          <input type="number" id="duration" value="1000" min="100" max="10000">
+          Stop when:
+          <select id="stop-type">
+            <option value="krakenLevel">Kraken Level ≥</option>
+            <option value="tasks">Tasks completed ≥</option>
+            <option value="ticks">Ticks (raw) ≥</option>
+          </select>
         </label>
 
         <label>
-          Tick Interval (ms):
-          <input type="number" id="tick-interval" value="100" step="10">
+          Value:
+          <input type="number" id="stop-value" value="10" min="1">
         </label>
 
         <fieldset>
@@ -421,6 +425,12 @@
         </div>
 
         <div class="chart-container">
+          <h3>Generator Charges</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-charges"></canvas>
+        </div>
+
+        <div class="chart-container">
           <h3>EXP Gained (Cumulative + Rate)</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-exp"></canvas>
@@ -496,6 +506,12 @@
           <h3>Generators (by type &amp; level)</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-generators"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Creature Progress (max level per line)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-creature-progress"></canvas>
         </div>
       </section>
     </div>

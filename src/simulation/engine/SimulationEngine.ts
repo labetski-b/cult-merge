@@ -86,8 +86,17 @@ export class SimulationEngine {
     this.actionLog = [];
   }
 
+  private shouldStop(tick: number): boolean {
+    const { type, value } = this.config.stopCondition;
+    switch (type) {
+      case 'ticks':       return tick + 1 >= value;
+      case 'krakenLevel': return this.state.kraken.level >= value;
+      case 'tasks':       return this.cumulative.totalTasksCompleted >= value;
+    }
+  }
+
   run(): SimulationResult {
-    for (let tick = 0; tick < this.config.duration; tick++) {
+    for (let tick = 0; tick < this.config.maxTicks; tick++) {
       try {
         this.executeTick(tick);
       } catch (error) {
@@ -95,18 +104,20 @@ export class SimulationEngine {
         console.error('Game state:', JSON.stringify(this.state, null, 2));
         throw new Error(`Simulation failed at tick ${tick}: ${error instanceof Error ? error.message : String(error)}`);
       }
+      if (this.shouldStop(tick)) break;
     }
 
+    const ticksRun = this.history.length;
     const summary = {
-      duration: this.config.duration,
+      duration: ticksRun,
       finalLevel: this.state.kraken.level,
       totalExpGained: this.cumulative.totalExpGained,
       totalEyesGained: this.cumulative.totalEyesGained,
       totalTasksCompleted: this.cumulative.totalTasksCompleted,
       totalMeatSpent: this.cumulative.totalMeatSpent,
       totalCreaturesFed: this.cumulative.totalCreaturesFed,
-      avgExpPerTick: this.cumulative.totalExpGained / this.config.duration,
-      avgEyesPerTick: this.cumulative.totalEyesGained / this.config.duration,
+      avgExpPerTick: ticksRun > 0 ? this.cumulative.totalExpGained / ticksRun : 0,
+      avgEyesPerTick: ticksRun > 0 ? this.cumulative.totalEyesGained / ticksRun : 0,
       efficiencyScore: this.cumulative.totalMeatSpent > 0
         ? this.cumulative.totalExpGained / this.cumulative.totalMeatSpent
         : 0
@@ -438,6 +449,8 @@ export class SimulationEngine {
         this.discoveredCreatures.add(key);
         this.cumulative.totalUniqueCreatures++;
       }
+      const prev = this.cumulative.maxCreatureLevelByType[c.creatureType] ?? 0;
+      if (c.level > prev) this.cumulative.maxCreatureLevelByType[c.creatureType] = c.level;
     }
   }
 
@@ -564,6 +577,7 @@ export class SimulationEngine {
     };
     this.state.resources.meat -= levelConfig.chargeCost;
     this.cumulative.totalMeatSpent += levelConfig.chargeCost;
+    this.cumulative.totalCharges++;
   }
 
   private tapGenerator(generatorId: string) {
@@ -597,6 +611,8 @@ export class SimulationEngine {
       this.discoveredCreatures.add(key);
       this.cumulative.totalUniqueCreatures++;
     }
+    const prev = this.cumulative.maxCreatureLevelByType[spawn.creatureType] ?? 0;
+    if (spawn.level > prev) this.cumulative.maxCreatureLevelByType[spawn.creatureType] = spawn.level;
   }
 
   /**

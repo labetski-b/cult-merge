@@ -34,14 +34,14 @@
       "maxLevel": 5,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 32
+      "eyesMultiplier": 8
     },
     {
       "type": "Creature6",
       "maxLevel": 5,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 64
+      "eyesMultiplier": 8
     },
     {
       "type": "Creature7",
@@ -55,35 +55,35 @@
       "maxLevel": 6,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 32
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature9",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 1,
-      "eyesMultiplier": 1
+      "expMultiplier": 2,
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature10",
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 2
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature11",
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 4
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature12",
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 8
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature13",
@@ -97,21 +97,21 @@
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 32
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature15",
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 64
+      "eyesMultiplier": 16
     },
     {
       "type": "Creature16",
       "maxLevel": 7,
       "baseOn": "Creature1",
       "expMultiplier": 2,
-      "eyesMultiplier": 128
+      "eyesMultiplier": 16
     }
   ]
 }

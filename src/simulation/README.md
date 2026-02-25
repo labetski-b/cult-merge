@@ -141,6 +141,7 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 | Tasks (cumul. + Δ rate) | ↓ last + Δ | ✅ | ✅ | ✅ | — |
 | New Creatures Discovered | Δ delta | — | ✅ | — | — |
 | Spawns & Merges | Δ delta | ✅ | ✅ | ✅ | — |
+| Generator Charges | Δ delta | ✅ | ✅ | ✅ | — |
 | Runes | ∅ avg | ✅ | ✅ | ✅ | ✅ |
 | Session & Presses | ↓ last | ✅ | — | ✅ | — |
 | Generators | ↓ last | ✅ | ✅ | ✅ | ✅ |
@@ -153,6 +154,7 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 - **`totalUniqueCreatures`** — число уникальных пар `creatureType:level`, встреченных впервые (через spawn или merge)
 - **`totalSpawns`** — количество выполненных `spawn_generator` действий
 - **`totalMerges`** — количество выполненных `merge` действий
+- **`totalCharges`** — количество выполненных `charge_generator` действий (зарядов генераторов за мясо)
 
 График **New Creatures Discovered** (Sessions only) показывает Δ delta/session + cumul на правой оси.
 
@@ -185,7 +187,7 @@ aggregateHistory(history, getKey, getValue, mode)
 
 ## Данные
 
-- **Генераторы** (`generators.json`): один генератор, 5 уровней. Level 1 = только Creature1. Level 2+ = Creature2 начинает появляться
+- **Генераторы** (`generators.json`): несколько типов, каждый 5 уровней. Каждый тип разблокируется при определённом уровне кракена (`krakenRequired`). Стратегия не может купить генератор, пока `kraken.level < krakenRequired`.
 - **Задания** (`tasks.json`): по уровням кракена. Level 2 = Creature1. Level 3+ = появляется Creature2
 - **Связка**: генератор → `lines: ["Creature1", "Creature2"]` → может когда-нибудь выдать оба типа. `outputs` текущего уровня определяет что выдаёт прямо сейчас
 - **Прокачка генераторов**: gen level N → N+1 требует 2^(N-1) покупок gen 1-1.
@@ -193,3 +195,21 @@ aggregateHistory(history, getKey, getValue, mode)
   (gen 1-1→1-2: 2 покупки; gen 1-2→1-3: ещё 2; итого до gen 1-5: 16 покупок)
 - **Мясо**: `calculateMeatDrop(totalEyes)` — количество мяса за нажатие кнопки, линейно растёт внутри главы
 - **Сессия**: `calculateSession(pressCount)` — нажатия 1-5 = сессия 1, 6-10 = сессия 2 и т.д.
+
+## Генерация auto-квестов (`generateAutoTask` в `src/domain/tasks.ts`)
+
+### `buildCreaturePotential` — формирование пула существ для квеста
+
+Определяет, какие типы существ могут войти в следующий auto-квест. Работает в два прохода:
+
+**Шаг 1 — поле:** собирает все генераторы, уже стоящие на поле (`state.entities`), с их текущими уровнями.
+
+**Шаг 2A — гарантия:** для каждого генератора, разблокированного по `krakenRequired` (`kraken.level >= gen.krakenRequired`), но ещё не стоящего на поле, добавляет ровно **1 экземпляр L1** в пул независимо от текущего баланса рун. Это гарантирует, что creature types нового тира всегда попадают в пул квестов сразу при разблокировке генератора — даже если у игрока временно не хватает рун.
+
+**Шаг 2B — бюджет:** распределяет оставшиеся руны (самые дорогие генераторы первыми) на дополнительные копии, до 10 штук. Больше копий → выше `calcMaxLevel` → квест может потребовать существо более высокого уровня.
+
+**Шаг 3 — симуляция мержей:** `simulateGeneratorMerge` коллапсирует пары одного уровня → более высокие уровни генераторов → более высокий `numCreatures` → выше максимальный уровень существа в квесте.
+
+### Веса выбора линейки (`pickLineByWeight`)
+
+Линейки сортируются по `seniority = gen.id × 10000 + creatureNum` (по убыванию). Веса: `[30, 15, 7, 3, 2, 1, ...]`. Самая senior (последний разблокированный генератор) получает наибольший вес — квесты естественно тянутся к новым типам существ по мере прогресса.

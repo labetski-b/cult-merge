@@ -190,9 +190,9 @@
       "id": 5,
       "name": "Generator 5",
       "eggType": "Egg_Creature4",
-      "purchaseCurrency": "rune2",
-      "purchaseCost": 20,
-      "krakenRequired": 1,
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 40,
+      "krakenRequired": 18,
       "lines": ["Creature9", "Creature10"],
       "levels": [
         {
@@ -253,8 +253,8 @@
       "name": "Generator 6",
       "eggType": "Egg_Creature5",
       "purchaseCurrency": "rune2",
-      "purchaseCost": 20,
-      "krakenRequired": 1,
+      "purchaseCost": 40,
+      "krakenRequired": 23,
       "lines": ["Creature11", "Creature12"],
       "levels": [
         {
@@ -314,9 +314,9 @@
       "id": 7,
       "name": "Generator 7",
       "eggType": "Egg_Creature6",
-      "purchaseCurrency": "rune2",
-      "purchaseCost": 20,
-      "krakenRequired": 1,
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 60,
+      "krakenRequired": 28,
       "lines": ["Creature13", "Creature14"],
       "levels": [
         {
@@ -377,8 +377,8 @@
       "name": "Generator 8",
       "eggType": "Egg_Creature7",
       "purchaseCurrency": "rune2",
-      "purchaseCost": 20,
-      "krakenRequired": 1,
+      "purchaseCost": 60,
+      "krakenRequired": 33,
       "lines": ["Creature15", "Creature16"],
       "levels": [
         {

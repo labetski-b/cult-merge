@@ -20,10 +20,17 @@ export interface AIStrategy {
   decide(state: GameSnapshot, rng: SeededRng): SimulationAction[];
 }
 
+export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks';
+export interface StopCondition {
+  type: StopConditionType;
+  value: number;
+}
+
 export interface SimulationConfig {
   seed: number;
-  duration: number; // ticks to simulate
-  tickInterval: number; // ms between ticks (for time tracking)
+  stopCondition: StopCondition;
+  maxTicks: number; // safety limit
+  tickInterval: number; // ms between ticks (for timestamp only)
   strategy: AIStrategy;
   balance: BalanceConfig;
 }
@@ -40,6 +47,7 @@ export interface TickMetrics {
   krakenLevel: number;
   krakenStep: number;
   krakenExp: number;
+  chapter: number;   // tycoon chapter derived from totalEyesGained
 
   // Entities
   creaturesCount: number;
@@ -71,6 +79,8 @@ export interface TickMetrics {
   totalUniqueCreatures: number;
   totalSpawns: number;
   totalMerges: number;
+  totalCharges: number;
+  maxCreatureLevelByType: Record<string, number>;
 
   // Resource flow — emission
   totalMeatGained: number;
@@ -147,6 +157,8 @@ export interface CumulativeMetrics {
   totalUniqueCreatures: number;
   totalSpawns: number;
   totalMerges: number;
+  totalCharges: number;
+  maxCreatureLevelByType: Record<string, number>;
   totalMeatGained: number;
   totalRune1Gained: number;
   totalRune2Gained: number;
