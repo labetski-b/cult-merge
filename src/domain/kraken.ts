@@ -9,8 +9,12 @@ function getLevelStepConfigs(config: BalanceConfig, level: number) {
 
   if (steps.length > 0) return steps;
 
-  // Fallback: single step with default exp
-  return [{ level, step: 0, expRequired: config.krakenProgression.defaultStepExp, reward: null }];
+  // Fallback: defaultSteps steps with defaultStepExp each (no rewards)
+  const fallback = [];
+  for (let s = 0; s < config.krakenProgression.defaultSteps; s++) {
+    fallback.push({ level, step: s, expRequired: config.krakenProgression.defaultStepExp, reward: null });
+  }
+  return fallback;
 }
 
 function getStepConfig(config: BalanceConfig, level: number, step: number) {

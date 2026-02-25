@@ -213,5 +213,6 @@
     { "level": 49, "step": 1, "expRequired": 1760, "reward": { "type": "res_box", "value": 7 } },
     { "level": 49, "step": 2, "expRequired": 1760, "reward": { "type": "res_box", "value": 7 } }
   ],
-  "defaultStepExp": 500
+  "defaultStepExp": 1760,
+  "defaultSteps": 3
 }

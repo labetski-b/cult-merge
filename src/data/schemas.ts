@@ -98,7 +98,8 @@ const progressionStepSchema = z.object({
 
 export const krakenProgressionDataSchema = z.object({
   progression: z.array(progressionStepSchema).min(1),
-  defaultStepExp: z.number().int().positive().default(500)
+  defaultStepExp: z.number().int().positive().default(500),
+  defaultSteps: z.number().int().positive().default(1)
 });
 
 export const resBoxesDataSchema = z.object({
