@@ -343,6 +343,7 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   charges:            ['ticks', 'sessions', 'presses'],
   'runes-flow':       ['ticks', 'sessions', 'presses'],
   'eyes-flow':        ['ticks', 'sessions', 'presses'],
+  'eyes-vs-meat':     ['sessions', 'presses'],
   gems:               ['ticks', 'sessions', 'presses'],
 };
 
@@ -851,6 +852,35 @@ function renderCharts(results: SimulationResult[]) {
         ]
       },
       options: xOpts('Eyes/period')
+    });
+  }
+
+  // ── Eyes vs Meat per period — dual axis (sessions & presses modes) ───────
+  if (visible('eyes-vs-meat')) {
+    setAggBadge('eyes-vs-meat', 'Δ delta');
+    const eyesCum     = series(h0, s => s.metrics.totalEyesGained, 'last');
+    const meatSpentCum = series(h0, s => s.metrics.totalMeatSpent,  'last');
+    const eyesRate     = eyesCum.map((v, i)      => i === 0 ? 0 : v - eyesCum[i - 1]!);
+    const meatRate     = meatSpentCum.map((v, i) => i === 0 ? 0 : v - meatSpentCum[i - 1]!);
+    charts['eyes-vs-meat'] = new Chart(document.getElementById('chart-eyes-vs-meat') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('Eyes gained', eyesRate,  '#a47cff', { yAxisID: 'yEyes' }),
+          ds('Meat spent',  meatRate,  '#ff9966', { yAxisID: 'yMeat', borderDash: [4, 4] }),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          yEyes: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Eyes gained', color: '#a47cff' }, ticks: { color: '#a47cff' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yMeat: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Meat spent',  color: '#ff9966' }, ticks: { color: '#ff9966' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
     });
   }
 
