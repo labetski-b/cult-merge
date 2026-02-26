@@ -377,11 +377,12 @@
               <th>Tasks Completed</th>
               <th>Avg EXP/Tick</th>
               <th>Efficiency</th>
+              <th>Est. Time</th>
             </tr>
           </thead>
           <tbody id="summary-body">
             <tr>
-              <td colspan="7" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
+              <td colspan="8" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
             </tr>
           </tbody>
         </table>
@@ -396,6 +397,7 @@
             <option value="ticks">Ticks</option>
             <option value="presses">Sacrifices</option>
             <option value="tasks">Per Task</option>
+            <option value="time">Time (minutes)</option>
           </select>
         </label>
       </div>
@@ -446,6 +448,12 @@
           <h3>Session &amp; Sacrifices</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-session"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Time per Session</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-session-time"></canvas>
         </div>
 
         <div class="chart-container">
@@ -567,11 +575,12 @@
                 <th>Fed</th>
                 <th>Ses</th>
                 <th>Presses</th>
+                <th>Time</th>
                 <th>Task</th>
               </tr>
             </thead>
             <tbody id="action-log-body">
-              <tr><td colspan="19" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+              <tr><td colspan="20" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
             </tbody>
           </table>
         </div>

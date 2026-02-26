@@ -11,6 +11,7 @@ import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
+import { getActionTimeSec } from './actionTime';
 
 function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
   const rng = new SeededRng(seed);
@@ -67,6 +68,12 @@ function runeRedemptionValue(runeType: string): number {
   return 1;
 }
 
+function formatTime(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = Math.round(totalSec % 60);
+  return `${m}m ${s}s`;
+}
+
 export class SimulationEngine {
   private config: SimulationConfig;
   private state: GameSnapshot;
@@ -76,6 +83,8 @@ export class SimulationEngine {
   private actionLog: ActionLogEntry[];
   private currentTick = 0;
   private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
+  private sessionTimeSec = 0;
+  private lastSession = 1;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -120,7 +129,9 @@ export class SimulationEngine {
       avgEyesPerTick: ticksRun > 0 ? this.cumulative.totalEyesGained / ticksRun : 0,
       efficiencyScore: this.cumulative.totalMeatSpent > 0
         ? this.cumulative.totalExpGained / this.cumulative.totalMeatSpent
-        : 0
+        : 0,
+      totalTimeSec: this.cumulative.totalTimeSec,
+      totalTimeFormatted: formatTime(this.cumulative.totalTimeSec),
     };
 
     return {
@@ -180,7 +191,8 @@ export class SimulationEngine {
       }
       // Only log if the action actually changed state
       if (JSON.stringify(this.state) !== stateBefore) {
-        const logState = this.captureCompactState();
+        const dt = this.addActionTime(action);
+        const logState = this.captureCompactState(dt);
         logState.currentTask = taskBefore; // show task active at the time of action, not after
         this.actionLog.push({
           tick,
@@ -211,7 +223,7 @@ export class SimulationEngine {
     }
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
-    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance);
+    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
 
     // Save snapshot
     this.history.push({
@@ -324,8 +336,9 @@ export class SimulationEngine {
     this.cumulative.totalMeatGained += meatGained;
     if (pressCount === 0) return;
 
-    const logState = this.captureCompactState();
     const action: SimulationAction = { type: 'gather_meat', count: pressCount, meatGained };
+    const dt = this.addActionTime(action);
+    const logState = this.captureCompactState(dt);
     this.actionLog.push({
       tick: this.currentTick,
       actionIndex: this.actionLog.length,
@@ -497,11 +510,13 @@ export class SimulationEngine {
       const nextGridSize = getGridSizeForLevel(this.config.balance, expResult.newState.level);
       if (this.state.grid.rows !== nextGridSize.rows || this.state.grid.cols !== nextGridSize.cols) {
         this.state.grid = resizeGrid(this.state.grid, nextGridSize.rows, nextGridSize.cols);
-        const expandState = this.captureCompactState();
+        const expandAction: SimulationAction = { type: 'expand_board', newRows: nextGridSize.rows, newCols: nextGridSize.cols };
+        const expandDt = this.addActionTime(expandAction);
+        const expandState = this.captureCompactState(expandDt);
         this.actionLog.push({
           tick: this.currentTick,
           actionIndex: this.actionLog.length,
-          action: { type: 'expand_board', newRows: nextGridSize.rows, newCols: nextGridSize.cols },
+          action: expandAction,
           state: expandState,
           note: `${nextGridSize.rows}×${nextGridSize.cols} = ${nextGridSize.rows * nextGridSize.cols} cells`
         });
@@ -637,7 +652,8 @@ export class SimulationEngine {
       this.executeAction(action);
 
       if (JSON.stringify(this.state) !== stateBefore) {
-        const logState = this.captureCompactState();
+        const dt = this.addActionTime(action);
+        const logState = this.captureCompactState(dt);
         logState.currentTask = taskBefore;
         this.actionLog.push({ tick, actionIndex: logIndex++, action, state: logState, note });
       }
@@ -656,17 +672,32 @@ export class SimulationEngine {
   /** Push a synthetic log entry recording that a new quest has been assigned. */
   private logNewQuest() {
     const taskLabel = this.captureTaskLabel();
-    const logState = this.captureCompactState();
+    const questAction: SimulationAction = { type: 'new_quest', taskLabel };
+    const dt = this.addActionTime(questAction);
+    const logState = this.captureCompactState(dt);
     this.actionLog.push({
       tick: this.currentTick,
       actionIndex: this.actionLog.length,
-      action: { type: 'new_quest', taskLabel },
+      action: questAction,
       state: logState,
       note: taskLabel
     });
   }
 
-  private captureCompactState(): ActionLogEntry['state'] {
+  /** Add estimated play time for an action. Resets session timer on session change. */
+  private addActionTime(action: SimulationAction): number {
+    const currentSession = this.state.session;
+    if (currentSession !== this.lastSession) {
+      this.sessionTimeSec = 0;
+      this.lastSession = currentSession;
+    }
+    const dt = getActionTimeSec(action);
+    this.cumulative.totalTimeSec += dt;
+    this.sessionTimeSec += dt;
+    return dt;
+  }
+
+  private captureCompactState(actionTimeSec = 0): ActionLogEntry['state'] {
     const entities = Object.values(this.state.entities);
     const mandatoryTask = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
     const task = mandatoryTask ?? this.state.currentAutoTask;
@@ -691,7 +722,10 @@ export class SimulationEngine {
       taskFed: this.state.currentTaskFed.length,
       currentTask,
       session: this.state.session,
-      meatButtonPresses: this.state.meatButtonPresses
+      meatButtonPresses: this.state.meatButtonPresses,
+      actionTimeSec: actionTimeSec,
+      sessionTimeSec: this.sessionTimeSec,
+      totalTimeSec: this.cumulative.totalTimeSec,
     };
   }
 

@@ -1,7 +1,7 @@
 import type { SimulationSnapshot, TickMetrics } from './types';
 
 export type AggMode = 'last' | 'avg' | 'delta';
-export type XAxisMode = 'ticks' | 'sessions' | 'presses' | 'tasks';
+export type XAxisMode = 'ticks' | 'sessions' | 'presses' | 'tasks' | 'time';
 
 /**
  * Aggregation mode for each metric when X-axis collapses ticks into groups (session or presses).
@@ -47,6 +47,10 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
 
   // Meat mechanics
   meatPerPress:         'last',
+
+  // Time tracking
+  totalTimeSec:         'last',
+  sessionTimeSec:       'last',
 
   // Balance / inventory — average over the group
   meat:                 'avg',
@@ -103,5 +107,6 @@ export function getKeyFn(xMode: Exclude<XAxisMode, 'ticks'>): (snap: SimulationS
     case 'sessions': return (s) => s.gameState.session;
     case 'presses':  return (s) => s.gameState.meatButtonPresses;
     case 'tasks':    return (s) => s.metrics.totalTasksCompleted;
+    case 'time':     return (s) => Math.floor(s.metrics.totalTimeSec / 60);
   }
 }

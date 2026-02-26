@@ -34,6 +34,7 @@ console.log(`Final level: ${result.summary.finalLevel}`);
 console.log(`Total EXP: ${result.summary.totalExpGained}`);
 console.log(`Total tasks: ${result.summary.totalTasksCompleted}`);
 console.log(`Total meat spent: ${result.summary.totalMeatSpent}`);
+console.log(`Est. play time: ${result.summary.totalTimeFormatted}`);
 console.log('');
 console.log('=== ACTION LOG ===');
 
@@ -47,7 +48,7 @@ const entries = filter
 
 for (const entry of entries) {
   const { tick, action, state, note } = entry;
-  const stateStr = `[Lv${state.krakenLevel}.${state.krakenStep} exp=${state.krakenExp} meat=${state.meat} r1=${state.rune1} r2=${state.rune2} gens=${state.generators} crea=${state.creatures} free=${state.freeCells} ses=${state.session} presses=${state.meatButtonPresses}]`;
+  const stateStr = `[Lv${state.krakenLevel}.${state.krakenStep} exp=${state.krakenExp} meat=${state.meat} r1=${state.rune1} r2=${state.rune2} gens=${state.generators} crea=${state.creatures} free=${state.freeCells} ses=${state.session} presses=${state.meatButtonPresses} t=${Math.round(state.totalTimeSec)}s]`;
   console.log(`T${String(tick).padStart(4,' ')} ${action.type.padEnd(20,' ')} ${note.padEnd(40,' ')} ${stateStr}  task:${state.currentTask}`);
 }
 

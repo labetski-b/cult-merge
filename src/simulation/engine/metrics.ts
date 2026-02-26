@@ -22,13 +22,15 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalGemsGained: 0,
     totalRune1Spent: 0,
     totalRune2Spent: 0,
+    totalTimeSec: 0,
   };
 }
 
 export function captureTickMetrics(
   state: GameSnapshot,
   cumulative: CumulativeMetrics,
-  balance: BalanceConfig
+  balance: BalanceConfig,
+  sessionTimeSec = 0
 ): TickMetrics {
   // Count entities by kind
   const entities = Object.values(state.entities);
@@ -114,6 +116,9 @@ export function captureTickMetrics(
     // Cumulative (snapshot scalar fields; object fields need explicit shallow copy)
     ...cumulative,
     maxCreatureLevelByType: { ...cumulative.maxCreatureLevelByType },
+
+    // Time tracking
+    sessionTimeSec,
   };
 }
 

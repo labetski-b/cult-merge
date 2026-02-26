@@ -9,6 +9,12 @@ import { METRIC_AGGREGATION, aggregateHistory, getKeyFn, type AggMode, type XAxi
 // Register Chart.js components
 Chart.register(...registerables);
 
+function formatTimeSec(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 // Global state
 let currentResults: SimulationResult[] = [];
 let charts: Record<string, Chart> = {};
@@ -194,7 +200,7 @@ function renderSummaryTable(results: SimulationResult[]) {
 
   if (results.length > 0) {
     const seedRow = document.createElement('tr');
-    seedRow.innerHTML = `<td colspan="7" style="text-align:center; font-style:italic; opacity:0.7;">Seed: ${results[0]!.config.seed}</td>`;
+    seedRow.innerHTML = `<td colspan="8" style="text-align:center; font-style:italic; opacity:0.7;">Seed: ${results[0]!.config.seed}</td>`;
     summaryBody.appendChild(seedRow);
   }
 
@@ -208,6 +214,7 @@ function renderSummaryTable(results: SimulationResult[]) {
       <td>${result.summary.totalTasksCompleted}</td>
       <td>${result.summary.avgExpPerTick.toFixed(2)}</td>
       <td>${result.summary.efficiencyScore.toFixed(2)}</td>
+      <td>${result.summary.totalTimeFormatted}</td>
     `;
     summaryBody.appendChild(row);
   }
@@ -236,7 +243,7 @@ function renderActionLog(results: SimulationResult[]) {
   logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
 
   if (entries.length === 0) {
-    logBody.innerHTML = `<tr><td colspan="19" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
+    logBody.innerHTML = `<tr><td colspan="20" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
     return;
   }
 
@@ -262,6 +269,7 @@ function renderActionLog(results: SimulationResult[]) {
       <td>${s.taskFed}</td>
       <td>${s.session}</td>
       <td>${s.meatButtonPresses}</td>
+      <td>${formatTimeSec(s.totalTimeSec)}</td>
       <td class="note-cell">${s.currentTask}</td>
     `;
     row.addEventListener('click', () => showFieldPopup(entry.tick));
@@ -320,31 +328,33 @@ const X_AXIS_TITLES: Record<XAxisMode, string> = {
   sessions: 'Session',
   presses:  'Sacrifices',
   tasks:    'Task',
+  time:     'Minutes',
 };
 
 // Which X-axis modes each chart is visible in.
 // Keys match canvas IDs via: document.getElementById(`chart-${key}`)
 const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
-  level:              ['ticks', 'sessions', 'presses', 'tasks'],
-  eyes:               ['ticks', 'sessions', 'presses'],
-  exp:                ['ticks', 'sessions', 'presses'],
+  level:              ['ticks', 'sessions', 'presses', 'tasks', 'time'],
+  eyes:               ['ticks', 'sessions', 'presses', 'time'],
+  exp:                ['ticks', 'sessions', 'presses', 'time'],
   'exp-per-task':     ['tasks'],
-  resources:          ['ticks', 'sessions', 'presses', 'tasks'],
+  resources:          ['ticks', 'sessions', 'presses', 'tasks', 'time'],
   'meat-per-task':    ['tasks'],
-  gridsize:           ['ticks', 'sessions'],
+  gridsize:           ['ticks', 'sessions', 'time'],
   'task-creature':    ['ticks', 'tasks'],
-  tasks:              ['ticks', 'sessions', 'presses'],
-  runes:              ['ticks', 'sessions', 'presses', 'tasks'],
+  tasks:              ['ticks', 'sessions', 'presses', 'time'],
+  runes:              ['ticks', 'sessions', 'presses', 'tasks', 'time'],
   session:            ['ticks', 'presses'],
-  generators:         ['ticks', 'sessions', 'presses', 'tasks'],
-  'creature-progress': ['ticks', 'sessions', 'presses', 'tasks'],
-  'unique-creatures': ['sessions'],
-  activity:           ['ticks', 'sessions', 'presses'],
-  charges:            ['ticks', 'sessions', 'presses'],
-  'runes-flow':       ['ticks', 'sessions', 'presses'],
-  'eyes-flow':        ['ticks', 'sessions', 'presses'],
-  'eyes-vs-meat':     ['sessions', 'presses'],
-  gems:               ['ticks', 'sessions', 'presses'],
+  'session-time':     ['sessions'],
+  generators:         ['ticks', 'sessions', 'presses', 'tasks', 'time'],
+  'creature-progress': ['ticks', 'sessions', 'presses', 'tasks', 'time'],
+  'unique-creatures': ['sessions', 'time'],
+  activity:           ['ticks', 'sessions', 'presses', 'time'],
+  charges:            ['ticks', 'sessions', 'presses', 'time'],
+  'runes-flow':       ['ticks', 'sessions', 'presses', 'time'],
+  'eyes-flow':        ['ticks', 'sessions', 'presses', 'time'],
+  'eyes-vs-meat':     ['sessions', 'presses', 'time'],
+  gems:               ['ticks', 'sessions', 'presses', 'time'],
 };
 
 
@@ -574,6 +584,33 @@ function renderCharts(results: SimulationResult[]) {
         scales: {
           ySession: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session #',      color: '#4de2c2' }, ticks: { color: '#4de2c2', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
           yPresses: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Presses (total)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Time per Session — session time + cumulative ───────────────────────
+  if (visible('session-time')) {
+    setAggBadge('session-time', '↓ last');
+    const sesTime = series(h0, s => s.metrics.sessionTimeSec / 60, 'last');
+    const cumTime = series(h0, s => s.metrics.totalTimeSec / 60, 'last');
+    charts['session-time'] = new Chart(document.getElementById('chart-session-time') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          ds('Session time (min)', sesTime, '#ffd966', { yAxisID: 'ySes' }),
+          ds('Total time (min)',   cumTime, '#4de2c2', { yAxisID: 'yCumul', borderDash: [4, 4] }),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          ySes:   { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session (min)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total (min)',   color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
         plugins: commonPlugins,

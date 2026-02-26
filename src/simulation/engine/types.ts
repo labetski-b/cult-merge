@@ -91,6 +91,10 @@ export interface TickMetrics {
   // Resource flow — sink
   totalRune1Spent: number;
   totalRune2Spent: number;
+
+  // Time tracking
+  totalTimeSec: number;
+  sessionTimeSec: number;
 }
 
 export interface SimulationSnapshot {
@@ -111,6 +115,8 @@ export interface SimulationSummary {
   avgExpPerTick: number;
   avgEyesPerTick: number;
   efficiencyScore: number; // exp per meat spent
+  totalTimeSec: number;
+  totalTimeFormatted: string; // e.g. "12m 34s"
 }
 
 export interface ActionLogEntry {
@@ -136,6 +142,9 @@ export interface ActionLogEntry {
     currentTask: string; // e.g. "Creature1 Lv2 x1, Creature2 Lv1 x2"
     session: number;
     meatButtonPresses: number;
+    actionTimeSec: number;
+    sessionTimeSec: number;
+    totalTimeSec: number;
   };
   note: string;
 }
@@ -165,4 +174,5 @@ export interface CumulativeMetrics {
   totalGemsGained: number;
   totalRune1Spent: number;
   totalRune2Spent: number;
+  totalTimeSec: number;
 }

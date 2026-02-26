@@ -53,6 +53,25 @@ strategies/               — стратегия AI-игрока
 - `merge` работает и для существ (level < 9), и для генераторов (level < 5)
 - Сетка начинается как 2x4 = 8 ячеек. Растёт при левел-апе
 
+### Оценка времени игрока (`actionTime.ts`)
+
+Каждое действие симуляции имеет оценку реального времени игрока в секундах. Конфигурация в `engine/actionTime.ts`:
+
+| Action | Seconds |
+|--------|---------|
+| `gather_meat` | `count × 0.4` (per press) |
+| `claim_reward` | 0.5 |
+| `open_box` | 0.8 |
+| `merge` | 1.2 |
+| `feed` | 0.8 |
+| `charge_generator` | 1.0 |
+| `spawn_generator` | 0.5 |
+| `buy_generator` | 1.5 |
+| `new_quest` | 0 (synthetic) |
+| `expand_board` | 0 (synthetic) |
+
+Время аккумулируется в `CumulativeMetrics.totalTimeSec` и отслеживается per-session в `sessionTimeSec`. При смене сессии (`state.session` изменился) `sessionTimeSec` сбрасывается. В лог каждого действия записывается `actionTimeSec`, `sessionTimeSec`, `totalTimeSec`. В summary: `totalTimeSec` и `totalTimeFormatted` ("12m 34s").
+
 ### Лог событий (`ActionLogEntry`)
 
 Каждая запись лога содержит снапшот состояния на момент действия, включая:
@@ -119,7 +138,7 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 
 ## Графики и агрегация по оси X
 
-Ось X переключается между четырьмя режимами: **Tick**, **Session**, **Sacrifices (Presses)**, **Per Task**.
+Ось X переключается между пятью режимами: **Tick**, **Session**, **Sacrifices (Presses)**, **Per Task**, **Time (Minutes)**.
 
 ### Таблица видимости графиков (`CHART_VISIBILITY` в `main.ts`)
 
