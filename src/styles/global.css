@@ -45,8 +45,9 @@ body {
 
 .top-panels {
   display: grid;
-  grid-template-columns: 1fr 240px;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
+  align-items: stretch;
 }
 
 .panel {

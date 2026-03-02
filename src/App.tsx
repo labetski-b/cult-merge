@@ -38,11 +38,11 @@ function App() {
         <HeaderBar />
 
         <div className="top-panels">
-          <KrakenPanel />
+          <PredatorProgress />
           <TaskPanel />
         </div>
 
-        <PredatorProgress />
+        <KrakenPanel />
         <GridBoard />
         <MeatButton />
         <ManagerCollection />
