@@ -27,10 +27,10 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
       currentExp: 0
     },
     resources: {
-      meat: 5,
+      meat: 2,
       eyes: 0,
       rune1: 0,
-      rune2: 0,
+      rune2: 5,
       gems: 0
     },
     grid,
