@@ -8,6 +8,7 @@ import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { MeatButton } from '@ui/components/MeatButton';
 import { useGameStore } from '@store/gameStore';
+import { DragProvider } from '@ui/DragContext';
 
 function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
@@ -32,22 +33,24 @@ function App() {
   }, [tickFlowerPots]);
 
   return (
-    <div className="app-root">
-      <HeaderBar />
+    <DragProvider>
+      <div className="app-root">
+        <HeaderBar />
 
-      <div className="top-panels">
-        <KrakenPanel />
-        <TaskPanel />
+        <div className="top-panels">
+          <KrakenPanel />
+          <TaskPanel />
+        </div>
+
+        <PredatorProgress />
+        <GridBoard />
+        <MeatButton />
+        <ManagerCollection />
+        <ControlsPanel />
+
+        <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
       </div>
-
-      <PredatorProgress />
-      <GridBoard />
-      <MeatButton />
-      <ManagerCollection />
-      <ControlsPanel />
-
-      <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
-    </div>
+    </DragProvider>
   );
 }
 

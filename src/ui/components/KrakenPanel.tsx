@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore, useLevelSteps, useTotalLevelExp, useEarnedLevelExp } from '@store/gameStore';
 import { getGeneratorImage } from '@ui/creatureImages';
 import { BALANCE } from '@data/loadBalance';
 import { getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import krakenBoss from '@assets/kraken/kraken_boss.png';
 import type { CreatureEntity, ProgressReward, RuneEntity } from '@domain/types';
+import { useDragContext } from '@ui/DragContext';
 
 interface FloatingText {
   id: number;
@@ -101,6 +102,9 @@ export function KrakenPanel() {
   const totalExp = useTotalLevelExp();
   const earnedExp = useEarnedLevelExp();
 
+  const dragCtx = useDragContext();
+  const panelRef = useRef<HTMLElement>(null);
+
   const [dragOver, setDragOver] = useState(false);
   const [floats, setFloats] = useState<FloatingText[]>([]);
   const floatIdRef = useRef(0);
@@ -113,39 +117,46 @@ export function KrakenPanel() {
     setTimeout(() => setFloats((prev) => prev.filter((f) => f.id !== id)), 900);
   }, []);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('text/plain')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOver(true);
-  };
+  // We need stable refs for the drop handler so it can access latest state
+  const gridRef = useRef(grid);
+  const entitiesRef = useRef(entities);
+  gridRef.current = grid;
+  entitiesRef.current = entities;
 
-  const handleDragLeave = () => {
-    setDragOver(false);
-  };
+  const feedEntityRef = useRef(feedEntity);
+  feedEntityRef.current = feedEntity;
+  const addFloatRef = useRef(addFloat);
+  addFloatRef.current = addFloat;
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const cellIndex = Number(e.dataTransfer.getData('text/plain'));
-    const entityId = grid.cells[cellIndex];
-    if (!entityId) return;
-    const entity = entities[entityId];
-    if (!entity || entity.kind === 'generator' || entity.kind === 'box') return;
+  // Register as a drop zone in the shared drag context
+  useEffect(() => {
+    const unregister = dragCtx.registerDropZone({
+      id: 'kraken-panel',
+      getRect: () => panelRef.current?.getBoundingClientRect() ?? null,
+      onDragEnter: () => setDragOver(true),
+      onDragLeave: () => setDragOver(false),
+      onDrop: (cellIndex: number, entityId: string) => {
+        setDragOver(false);
+        const entity = entitiesRef.current[entityId];
+        if (!entity || entity.kind === 'generator' || entity.kind === 'box') return;
 
-    // Show floating text before feed
-    if (entity.kind === 'creature') {
-      const reward = getEntityReward(BALANCE, entity as CreatureEntity);
-      addFloat(`+${reward.exp} EXP`, '#4de2c2');
-    } else if (entity.kind === 'rune') {
-      const rune = entity as RuneEntity;
-      const val = runeRedemptionValue(rune.runeType);
-      const label = rune.runeType.startsWith('Hard_') ? 'Gems' : rune.runeType.startsWith('Rune1_') ? 'Rune1' : 'Rune2';
-      addFloat(`+${val} ${label}`, '#c9a0ff');
-    }
+        // Show floating text before feed
+        if (entity.kind === 'creature') {
+          const reward = getEntityReward(BALANCE, entity as CreatureEntity);
+          addFloatRef.current(`+${reward.exp} EXP`, '#4de2c2');
+        } else if (entity.kind === 'rune') {
+          const rune = entity as RuneEntity;
+          const val = runeRedemptionValue(rune.runeType);
+          const label = rune.runeType.startsWith('Hard_') ? 'Gems' : rune.runeType.startsWith('Rune1_') ? 'Rune1' : 'Rune2';
+          addFloatRef.current(`+${val} ${label}`, '#c9a0ff');
+        }
 
-    feedEntity(entityId);
-  };
+        feedEntityRef.current(entityId);
+      },
+    });
+
+    return unregister;
+  }, [dragCtx]);
 
   const handleKrakenClick = () => {
     if (hasReward) {
@@ -156,7 +167,7 @@ export function KrakenPanel() {
   // Single progress bar with reward dots at proportional positions
   const overallProgress = totalExp > 0 ? Math.min(1, earnedExp / totalExp) : 0;
 
-  // Step markers on progress bar — every step boundary shown.
+  // Step markers on progress bar -- every step boundary shown.
   // Steps with rewards get a RewardDot icon; steps without get a simple tick mark.
   let cumulativeExp = 0;
   const stepMarkers: { position: number; reward: ProgressReward | null; completed: boolean }[] = [];
@@ -173,10 +184,8 @@ export function KrakenPanel() {
 
   return (
     <section
+      ref={panelRef}
       className={`panel kraken-panel${dragOver ? ' kraken-drop-active' : ''}${hasReward ? ' kraken-has-reward' : ''}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <div className="kraken-header" onClick={handleKrakenClick} style={{ cursor: hasReward ? 'pointer' : 'default' }}>
         <div className={`kraken-avatar-wrap${hasReward ? ' kraken-avatar-glow' : ''}`}>

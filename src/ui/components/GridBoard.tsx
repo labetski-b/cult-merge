@@ -1,28 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BoxEntity, CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import { createPortal } from 'react-dom';
+import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
 import { calcPendingSpawns } from '@domain/flowerpot';
 import { canMergeCreatures, canMergeFlowerPots, canMergeGenerators, canMergeRunes } from '@domain/merge';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
+import { useDragContext } from '@ui/DragContext';
 
 function entityLabel(entity: Entity): string {
-  if (entity.kind === 'generator') {
-    return `G${entity.generatorId}`;
-  }
-  if (entity.kind === 'rune') {
-    return entity.runeType;
-  }
-  if (entity.kind === 'box') {
-    return `Box#${entity.boxId}`;
-  }
-  if (entity.kind === 'predator') {
-    return `P${entity.predatorId}`;
-  }
-  if (entity.kind === 'flowerpot') {
-    return '🌸';
-  }
+  if (entity.kind === 'generator') return `G${entity.generatorId}`;
+  if (entity.kind === 'rune') return entity.runeType;
+  if (entity.kind === 'box') return `Box#${entity.boxId}`;
+  if (entity.kind === 'predator') return `P${entity.predatorId}`;
+  if (entity.kind === 'flowerpot') return '🌸';
   return entity.creatureType.replace('Creature', 'C');
 }
 
@@ -30,18 +22,10 @@ function entitySublabel(entity: Entity): string {
   if (entity.kind === 'generator') {
     return entity.charges.length > 0 ? `L${entity.level} [${entity.charges.length}]` : `L${entity.level}`;
   }
-  if (entity.kind === 'rune') {
-    return '';
-  }
-  if (entity.kind === 'box') {
-    return '';
-  }
-  if (entity.kind === 'predator') {
-    return `${entity.currentExp}/${entity.requiredExp}`;
-  }
-  if (entity.kind === 'flowerpot') {
-    return `L${entity.potLevel}`;
-  }
+  if (entity.kind === 'rune') return '';
+  if (entity.kind === 'box') return '';
+  if (entity.kind === 'predator') return `${entity.currentExp}/${entity.requiredExp}`;
+  if (entity.kind === 'flowerpot') return `L${entity.potLevel}`;
   return `L${entity.level}`;
 }
 
@@ -49,6 +33,23 @@ interface ChargePopupState {
   entity: GeneratorEntity;
   x: number;
   y: number;
+}
+
+const DRAG_THRESHOLD = 5;
+
+function isDraggableEntity(entity: Entity | undefined): boolean {
+  if (!entity) return false;
+  return entity.kind !== 'box' && entity.kind !== 'predator';
+}
+
+/** Find cell index under the pointer at (x, y) via elementFromPoint */
+function getCellIndexAtPoint(x: number, y: number): number | null {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  const cellEl = el.closest('[data-cell-index]') as HTMLElement | null;
+  if (!cellEl) return null;
+  const idx = cellEl.dataset.cellIndex;
+  return idx != null ? Number(idx) : null;
 }
 
 export function GridBoard() {
@@ -63,10 +64,16 @@ export function GridBoard() {
   const speedUpFlowerPot = useGameStore((state) => state.speedUpFlowerPot);
   const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
 
+  const dragCtx = useDragContext();
+
+  // Visual state (triggers re-renders for CSS classes and clone rendering)
   const [dragSource, setDragSource] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [chargePopup, setChargePopup] = useState<ChargePopupState | null>(null);
   const [, setTick] = useState(0);
+  const [clonePos, setClonePos] = useState<{ x: number; y: number } | null>(null);
+  const [cloneHtml, setCloneHtml] = useState<string>('');
+  const [cloneSize, setCloneSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1_000);
@@ -74,6 +81,28 @@ export function GridBoard() {
   }, []);
 
   const boardRef = useRef<HTMLDivElement>(null);
+  const cellRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Track "just dragged" to suppress click after pointerup
+  const justDraggedRef = useRef(false);
+
+  // Mutable drag tracking (no re-renders during pointermove)
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    cellIndex: number;
+    entityId: string;
+    phase: 'pending' | 'dragging';
+    hoveredZoneId: string | null;
+  } | null>(null);
+
+  // Keep latest store values in refs so document-level listeners access current data
+  const storeRef = useRef({ grid, entities, interactCells, feedPredator });
+  storeRef.current = { grid, entities, interactCells, feedPredator };
+
+  const dragCtxRef = useRef(dragCtx);
+  dragCtxRef.current = dragCtx;
 
   const rows = useMemo(() => {
     const rowData: number[][] = [];
@@ -96,76 +125,189 @@ export function GridBoard() {
       if (!dragSourceEntity) return false;
       const targetEntity = entities[targetId];
       if (!targetEntity) return false;
-      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'creature') {
+      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'creature')
         return canMergeCreatures(dragSourceEntity, targetEntity as CreatureEntity);
-      }
-      if (dragSourceEntity.kind === 'generator' && targetEntity.kind === 'generator') {
+      if (dragSourceEntity.kind === 'generator' && targetEntity.kind === 'generator')
         return canMergeGenerators(dragSourceEntity as GeneratorEntity, targetEntity as GeneratorEntity);
-      }
-      if (dragSourceEntity.kind === 'rune' && targetEntity.kind === 'rune') {
+      if (dragSourceEntity.kind === 'rune' && targetEntity.kind === 'rune')
         return canMergeRunes(dragSourceEntity as RuneEntity, targetEntity as RuneEntity);
-      }
-      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator') {
+      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator')
         return true;
-      }
-      if (dragSourceEntity.kind === 'flowerpot' && targetEntity.kind === 'flowerpot') {
+      if (dragSourceEntity.kind === 'flowerpot' && targetEntity.kind === 'flowerpot')
         return canMergeFlowerPots(dragSourceEntity as FlowerPotEntity, targetEntity as FlowerPotEntity);
-      }
       return false;
     },
     [dragSource, dragSourceEntity, grid.cells, entities]
   );
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    const entityId = grid.cells[index];
-    if (!entityId) {
-      e.preventDefault();
-      return;
-    }
-    setDragSource(index);
-    setChargePopup(null);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
+  // ── Document-level pointer handlers (stable — never recreated) ──
 
-    const cell = e.currentTarget as HTMLElement;
-    e.dataTransfer.setDragImage(cell, cell.offsetWidth / 2, cell.offsetHeight / 2);
-  };
+  // All three document handlers are defined once via useRef to avoid
+  // stale closure issues and to allow easy add/removeEventListener.
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (dragSource === null || dragSource === index) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = canDropOnTarget(index) ? 'move' : 'none';
-    setDragOver(index);
-  };
+  const docHandlers = useRef({
+    onMove: (e: PointerEvent) => {
+      const ds = dragRef.current;
+      if (!ds || ds.pointerId !== e.pointerId) return;
 
-  const handleDragLeave = () => {
-    setDragOver(null);
-  };
+      if (ds.phase === 'pending') {
+        // Check threshold
+        const dx = e.clientX - ds.startX;
+        const dy = e.clientY - ds.startY;
+        if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (dragSource !== null && dragSource !== targetIndex) {
-      const sourceId = grid.cells[dragSource];
-      const targetId = grid.cells[targetIndex];
-      const sourceKind = sourceId ? entities[sourceId]?.kind : undefined;
-      const targetKind = targetId ? entities[targetId]?.kind : undefined;
+        // Threshold crossed — start drag
+        ds.phase = 'dragging';
 
-      if (sourceKind === 'creature' && targetKind === 'predator') {
-        feedPredator(targetId!, sourceId!);
-      } else {
-        interactCells(dragSource, targetIndex);
+        const cellEl = cellRefs.current.get(ds.cellIndex);
+        if (cellEl) {
+          const rect = cellEl.getBoundingClientRect();
+          setCloneHtml(cellEl.innerHTML);
+          setCloneSize({ w: rect.width, h: rect.height });
+        }
+        setDragSource(ds.cellIndex);
+        setChargePopup(null);
+        dragCtxRef.current.activeDrag.current = { cellIndex: ds.cellIndex, entityId: ds.entityId };
       }
-    }
-    setDragSource(null);
-    setDragOver(null);
-  };
 
-  const handleDragEnd = () => {
-    setDragSource(null);
-    setDragOver(null);
-  };
+      // Move clone
+      setClonePos({ x: e.clientX, y: e.clientY });
+
+      // Detect which grid cell is under pointer
+      const targetIdx = getCellIndexAtPoint(e.clientX, e.clientY);
+      setDragOver(targetIdx !== null && targetIdx !== ds.cellIndex ? targetIdx : null);
+
+      // Check external drop zones (KrakenPanel)
+      const ctx = dragCtxRef.current;
+      const zone = ctx.hitTestDropZones(e.clientX, e.clientY);
+      const zoneId = zone?.id ?? null;
+      if (zoneId !== ds.hoveredZoneId) {
+        if (ds.hoveredZoneId) ctx.notifyAllLeave();
+        if (zone?.onDragEnter) zone.onDragEnter();
+        ds.hoveredZoneId = zoneId;
+      }
+    },
+
+    onUp: (e: PointerEvent) => {
+      const ds = dragRef.current;
+      if (!ds || ds.pointerId !== e.pointerId) return;
+
+      // Remove document listeners
+      document.removeEventListener('pointermove', docHandlers.current.onMove);
+      document.removeEventListener('pointerup', docHandlers.current.onUp);
+      document.removeEventListener('pointercancel', docHandlers.current.onCancel);
+
+      if (ds.phase === 'pending') {
+        // Never crossed threshold — it's a tap. Let click fire naturally.
+        dragRef.current = null;
+        return;
+      }
+
+      // It was a drag — suppress the subsequent click
+      justDraggedRef.current = true;
+      requestAnimationFrame(() => { justDraggedRef.current = false; });
+
+      // Notify zone leave
+      const ctx = dragCtxRef.current;
+      if (ds.hoveredZoneId) ctx.notifyAllLeave();
+
+      // Check external drop zones
+      const zone = ctx.hitTestDropZones(e.clientX, e.clientY);
+      if (zone?.onDrop) {
+        zone.onDrop(ds.cellIndex, ds.entityId);
+      } else {
+        // Check grid cell target
+        const targetIdx = getCellIndexAtPoint(e.clientX, e.clientY);
+        if (targetIdx !== null && targetIdx !== ds.cellIndex) {
+          const { grid: g, entities: ents, interactCells: interact, feedPredator: feed } = storeRef.current;
+          const sourceId = g.cells[ds.cellIndex];
+          const targetId = g.cells[targetIdx];
+          const sourceKind = sourceId ? ents[sourceId]?.kind : undefined;
+          const targetKind = targetId ? ents[targetId]?.kind : undefined;
+
+          if (sourceKind === 'creature' && targetKind === 'predator') {
+            feed(targetId!, sourceId!);
+          } else {
+            interact(ds.cellIndex, targetIdx);
+          }
+        }
+      }
+
+      // Cleanup visual state
+      dragRef.current = null;
+      ctx.activeDrag.current = null;
+      setDragSource(null);
+      setDragOver(null);
+      setClonePos(null);
+      setCloneHtml('');
+    },
+
+    onCancel: (e: PointerEvent) => {
+      const ds = dragRef.current;
+      if (!ds || ds.pointerId !== e.pointerId) return;
+
+      document.removeEventListener('pointermove', docHandlers.current.onMove);
+      document.removeEventListener('pointerup', docHandlers.current.onUp);
+      document.removeEventListener('pointercancel', docHandlers.current.onCancel);
+
+      const ctx = dragCtxRef.current;
+      if (ds.hoveredZoneId) ctx.notifyAllLeave();
+
+      dragRef.current = null;
+      ctx.activeDrag.current = null;
+      setDragSource(null);
+      setDragOver(null);
+      setClonePos(null);
+      setCloneHtml('');
+    },
+  });
+
+  // Clean up on unmount
+  useEffect(() => {
+    const handlers = docHandlers.current;
+    return () => {
+      document.removeEventListener('pointermove', handlers.onMove);
+      document.removeEventListener('pointerup', handlers.onUp);
+      document.removeEventListener('pointercancel', handlers.onCancel);
+    };
+  }, []);
+
+  // ── Pointer down on cell ──
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, index: number) => {
+    const entityId = grid.cells[index];
+    if (!entityId) return;
+    const entity = entities[entityId];
+    if (!isDraggableEntity(entity)) return;
+    if (e.button !== 0) return;
+
+    // touch-action: none in CSS prevents scroll/zoom, so we don't need e.preventDefault()
+    // here. Keeping click events alive allows tap on generators/boxes to work naturally.
+
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      cellIndex: index,
+      entityId,
+      phase: 'pending',
+      hoveredZoneId: null,
+    };
+
+    // Add document-level listeners for move/up/cancel
+    document.addEventListener('pointermove', docHandlers.current.onMove);
+    document.addEventListener('pointerup', docHandlers.current.onUp);
+    document.addEventListener('pointercancel', docHandlers.current.onCancel);
+  }, [grid.cells, entities]);
+
+  // ── Click / double-click ──
 
   const handleCellClick = (e: React.MouseEvent, index: number) => {
+    if (justDraggedRef.current) {
+      justDraggedRef.current = false;
+      return;
+    }
+
     const entityId = grid.cells[index];
     if (!entityId) {
       setChargePopup(null);
@@ -176,18 +318,15 @@ export function GridBoard() {
 
     if (entity.kind === 'generator') {
       const gen = entity as GeneratorEntity;
-
       if (gen.charges.length > 0) {
-        // Has charges — tap to spawn 1 creature
         tapGenerator(gen.id);
         setChargePopup(null);
       } else {
-        // Empty — show charge popup
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setChargePopup({
           entity: gen,
           x: rect.left + rect.width / 2,
-          y: rect.bottom + 4
+          y: rect.bottom + 4,
         });
       }
     } else if (entity.kind === 'box') {
@@ -217,7 +356,7 @@ export function GridBoard() {
     const { levelConfig } = getGeneratorConfig(
       BALANCE,
       chargePopup.entity.generatorId,
-      chargePopup.entity.level
+      chargePopup.entity.level,
     );
     const canAfford = resources.meat >= levelConfig.chargeCost;
     return { levelConfig, canAfford };
@@ -266,14 +405,14 @@ export function GridBoard() {
           return (
             <div
               key={index}
+              data-cell-index={index}
+              ref={(el) => {
+                if (el) cellRefs.current.set(index, el);
+                else cellRefs.current.delete(index);
+              }}
               className={getCellClassName(index, entity)}
               style={entity?.kind === 'generator' ? { backgroundColor: '#a0a0a0' } : undefined}
-              draggable={!!entity && entity.kind !== 'box' && entity.kind !== 'predator'}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
+              onPointerDown={(e) => handlePointerDown(e, index)}
               onClick={(e) => handleCellClick(e, index)}
               onDoubleClick={() => handleCellDoubleClick(index)}
             >
@@ -309,7 +448,7 @@ export function GridBoard() {
                               justifyContent: 'center',
                               fontSize: '14px',
                               fontWeight: 'bold',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
                             }}
                           >
                             {chargeCount}
@@ -384,6 +523,21 @@ export function GridBoard() {
         })}
       </div>
 
+      {/* Floating drag clone */}
+      {clonePos && cloneHtml && createPortal(
+        <div
+          className="drag-clone"
+          style={{
+            left: clonePos.x,
+            top: clonePos.y,
+            width: cloneSize.w,
+            height: cloneSize.h,
+          }}
+          dangerouslySetInnerHTML={{ __html: cloneHtml }}
+        />,
+        document.body,
+      )}
+
       {chargePopup && chargeInfo && (
         <div
           className="generator-popup"
@@ -391,7 +545,7 @@ export function GridBoard() {
             position: 'fixed',
             left: chargePopup.x,
             top: chargePopup.y,
-            transform: 'translateX(-50%)'
+            transform: 'translateX(-50%)',
           }}
         >
           <div className="popup-title">

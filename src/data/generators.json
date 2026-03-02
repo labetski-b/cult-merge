@@ -135,7 +135,7 @@
       "levels": [
         {
           "level": 1,
-          "chargeCost": 9,
+          "chargeCost": 6,
           "numCreatures": 15,
           "outputs": [
             { "creatureType": "Creature7", "level": 1, "chance": 1.0 }
@@ -143,7 +143,7 @@
         },
         {
           "level": 2,
-          "chargeCost": 11,
+          "chargeCost": 7,
           "numCreatures": 20,
           "outputs": [
             { "creatureType": "Creature7", "level": 1, "chance": 0.54 },
@@ -153,7 +153,7 @@
         },
         {
           "level": 3,
-          "chargeCost": 12,
+          "chargeCost": 8,
           "numCreatures": 25,
           "outputs": [
             { "creatureType": "Creature7", "level": 1, "chance": 0.42 },
@@ -164,7 +164,7 @@
         },
         {
           "level": 4,
-          "chargeCost": 14,
+          "chargeCost": 9,
           "numCreatures": 30,
           "outputs": [
             { "creatureType": "Creature7", "level": 1, "chance": 0.2 },
@@ -175,7 +175,7 @@
         },
         {
           "level": 5,
-          "chargeCost": 15,
+          "chargeCost": 10,
           "numCreatures": 40,
           "outputs": [
             { "creatureType": "Creature7", "level": 1, "chance": 0.04 },
@@ -205,7 +205,7 @@
         },
         {
           "level": 2,
-          "chargeCost": 7,
+          "chargeCost": 11,
           "numCreatures": 20,
           "outputs": [
             { "creatureType": "Creature9", "level": 1, "chance": 0.54 },
@@ -215,7 +215,7 @@
         },
         {
           "level": 3,
-          "chargeCost": 9,
+          "chargeCost": 11,
           "numCreatures": 25,
           "outputs": [
             { "creatureType": "Creature9", "level": 1, "chance": 0.42 },
@@ -237,7 +237,7 @@
         },
         {
           "level": 5,
-          "chargeCost": 12,
+          "chargeCost": 11,
           "numCreatures": 40,
           "outputs": [
             { "creatureType": "Creature9", "level": 1, "chance": 0.04 },
@@ -259,7 +259,7 @@
       "levels": [
         {
           "level": 1,
-          "chargeCost": 12,
+          "chargeCost": 11,
           "numCreatures": 15,
           "outputs": [
             { "creatureType": "Creature11", "level": 1, "chance": 1.0 }
@@ -267,7 +267,7 @@
         },
         {
           "level": 2,
-          "chargeCost": 12,
+          "chargeCost": 14,
           "numCreatures": 20,
           "outputs": [
             { "creatureType": "Creature11", "level": 1, "chance": 0.54 },
@@ -288,7 +288,7 @@
         },
         {
           "level": 4,
-          "chargeCost": 15,
+          "chargeCost": 14,
           "numCreatures": 30,
           "outputs": [
             { "creatureType": "Creature11", "level": 1, "chance": 0.2 },
@@ -299,7 +299,7 @@
         },
         {
           "level": 5,
-          "chargeCost": 17,
+          "chargeCost": 14,
           "numCreatures": 40,
           "outputs": [
             { "creatureType": "Creature11", "level": 1, "chance": 0.04 },
@@ -321,7 +321,7 @@
       "levels": [
         {
           "level": 1,
-          "chargeCost": 15,
+          "chargeCost": 13,
           "numCreatures": 15,
           "outputs": [
             { "creatureType": "Creature13", "level": 1, "chance": 1.0 }
@@ -329,7 +329,7 @@
         },
         {
           "level": 2,
-          "chargeCost": 15,
+          "chargeCost": 17,
           "numCreatures": 20,
           "outputs": [
             { "creatureType": "Creature13", "level": 1, "chance": 0.54 },
@@ -350,7 +350,7 @@
         },
         {
           "level": 4,
-          "chargeCost": 19,
+          "chargeCost": 17,
           "numCreatures": 30,
           "outputs": [
             { "creatureType": "Creature13", "level": 1, "chance": 0.2 },
@@ -361,7 +361,7 @@
         },
         {
           "level": 5,
-          "chargeCost": 21,
+          "chargeCost": 17,
           "numCreatures": 40,
           "outputs": [
             { "creatureType": "Creature13", "level": 1, "chance": 0.04 },
@@ -383,7 +383,7 @@
       "levels": [
         {
           "level": 1,
-          "chargeCost": 17,
+          "chargeCost": 15,
           "numCreatures": 15,
           "outputs": [
             { "creatureType": "Creature15", "level": 1, "chance": 1.0 }
@@ -391,7 +391,7 @@
         },
         {
           "level": 2,
-          "chargeCost": 17,
+          "chargeCost": 19,
           "numCreatures": 20,
           "outputs": [
             { "creatureType": "Creature15", "level": 1, "chance": 0.54 },
@@ -412,7 +412,7 @@
         },
         {
           "level": 4,
-          "chargeCost": 20,
+          "chargeCost": 19,
           "numCreatures": 30,
           "outputs": [
             { "creatureType": "Creature15", "level": 1, "chance": 0.2 },
@@ -423,7 +423,7 @@
         },
         {
           "level": 5,
-          "chargeCost": 22,
+          "chargeCost": 19,
           "numCreatures": 40,
           "outputs": [
             { "creatureType": "Creature15", "level": 1, "chance": 0.04 },
