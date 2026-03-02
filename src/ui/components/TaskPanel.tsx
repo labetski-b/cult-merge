@@ -59,7 +59,7 @@ export function TaskPanel() {
                     <span className="task-req-label">{requirement.type}</span>
                   )}
                   <span className="task-req-count">
-                    L{requirement.level} {count}/{requirement.count}
+                    {count}/{requirement.count}
                   </span>
                 </div>
               );
