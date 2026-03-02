@@ -9,6 +9,8 @@ main.ts                    — UI дашборда, запуск симуляц�
 engine/SimulationEngine.ts — движок: тики, выполнение действий, метрики
 engine/types.ts            — типы (SimulationAction, AIStrategy, метрики)
 engine/metrics.ts          — захват метрик по тику
+engine/actionTime.ts       — оценка реального времени игрока по действиям
+engine/chartAggregation.ts — агрегация данных для графиков по оси X
 strategies/               — стратегия AI-игрока
 ```
 
@@ -142,30 +144,34 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 
 ### Таблица видимости графиков (`CHART_VISIBILITY` в `main.ts`)
 
-| График | Агрегация | Ticks | Sessions | Sacrifices | Per Task |
-|--------|-----------|:-----:|:--------:|:----------:|:--------:|
-| Kraken Level | ↓ last | ✅ | ✅ | ✅ | ✅ |
-| Eyes | ∅ avg | ✅ | ✅ | ✅ | — |
-| EXP (cumulative) | ↓ last + Δ rate | ✅ | ✅ | ✅ | — |
-| EXP per Quest | Δ delta | — | — | — | ✅ |
-| Meat (gained + spent/period + drop/press) | Δ flow + ↓ drop | ✅ | ✅ | ✅ | ✅ |
-| Runes (balance) | ∅ avg | ✅ | ✅ | ✅ | ✅ |
-| Runes Flow (emission / sink) | Δ delta | ✅ | ✅ | ✅ | — |
-| Eyes (balance) | ∅ avg | ✅ | ✅ | ✅ | — |
-| Eyes Flow (emission) | Δ delta | ✅ | ✅ | ✅ | — |
-| Gems (balance + emission) | ∅ avg + Δ | ✅ | ✅ | ✅ | — |
-| Meat per Quest | Δ delta | — | — | — | ✅ |
-| Grid Size | ↓ last | ✅ | ✅ | — | — |
-| Current Task reqs | ↓ last | ✅ | — | — | ✅ |
-| Tasks (cumul. + Δ rate) | ↓ last + Δ | ✅ | ✅ | ✅ | — |
-| New Creatures Discovered | Δ delta | — | ✅ | — | — |
-| Spawns & Merges | Δ delta | ✅ | ✅ | ✅ | — |
-| Generator Charges | Δ delta | ✅ | ✅ | ✅ | — |
-| Runes | ∅ avg | ✅ | ✅ | ✅ | ✅ |
-| Session & Presses | ↓ last | ✅ | — | ✅ | — |
-| Generators | ↓ last | ✅ | ✅ | ✅ | ✅ |
+| График | Агрегация | Ticks | Sessions | Sacrifices | Per Task | Time |
+|--------|-----------|:-----:|:--------:|:----------:|:--------:|:----:|
+| Kraken Level | ↓ last | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Eyes | ∅ avg | ✅ | ✅ | ✅ | — | ✅ |
+| EXP (cumulative) | ↓ last + Δ rate | ✅ | ✅ | ✅ | — | ✅ |
+| EXP per Quest | Δ delta | — | — | — | ✅ | — |
+| Meat (gained + drop/press) | Δ flow + ↓ drop | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Runes (balance) | ∅ avg | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Runes Flow (emission / sink) | Δ delta | ✅ | ✅ | ✅ | — | ✅ |
+| Eyes (balance) | ∅ avg | ✅ | ✅ | ✅ | — | ✅ |
+| Eyes Flow (emission) | Δ delta | ✅ | ✅ | ✅ | — | ✅ |
+| Gems (balance + emission) | ∅ avg + Δ | ✅ | ✅ | ✅ | — | ✅ |
+| Meat per Quest | Δ delta | — | — | — | ✅ | — |
+| Grid Size | ↓ last | ✅ | ✅ | — | — | ✅ |
+| Current Task reqs | ↓ last | ✅ | — | — | ✅ | — |
+| Tasks (cumul. + Δ rate) | ↓ last + Δ | ✅ | ✅ | ✅ | — | ✅ |
+| Session & Presses | ↓ last | ✅ | — | ✅ | — | — |
+| Time per Session | ↓ last | — | ✅ | — | — | — |
+| New Creatures Discovered | Δ delta | — | ✅ | — | — | ✅ |
+| Spawns & Merges | Δ delta | ✅ | ✅ | ✅ | — | ✅ |
+| Generator Charges | Δ delta | ✅ | ✅ | ✅ | — | ✅ |
+| Generators | ↓ last | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Creature Progress | ↓ last | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Eyes per Meat Spent | Δ ratio | — | ✅ | ✅ | — | ✅ |
 
 **Per Task** группирует тики по `s.metrics.totalTasksCompleted`. Новая точка появляется при завершении каждого квеста.
+
+**Time (Minutes)** группирует тики по `Math.floor(totalTimeSec / 60)` — одна точка на каждую минуту оценочного игрового времени.
 
 ### Новые cumulative-счётчики (`totalUniqueCreatures`, `totalSpawns`, `totalMerges`)
 

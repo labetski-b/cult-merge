@@ -1,7 +1,7 @@
 import type { SimulationSnapshot, TickMetrics } from './types';
 
 export type AggMode = 'last' | 'avg' | 'delta';
-export type XAxisMode = 'ticks' | 'sessions' | 'presses' | 'tasks' | 'time';
+export type XAxisMode = 'ticks' | 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel';
 
 /**
  * Aggregation mode for each metric when X-axis collapses ticks into groups (session or presses).
@@ -107,6 +107,26 @@ export function getKeyFn(xMode: Exclude<XAxisMode, 'ticks'>): (snap: SimulationS
     case 'sessions': return (s) => s.gameState.session;
     case 'presses':  return (s) => s.gameState.meatButtonPresses;
     case 'tasks':    return (s) => s.metrics.totalTasksCompleted;
-    case 'time':     return (s) => Math.floor(s.metrics.totalTimeSec / 60);
+    case 'time':       return (s) => Math.floor(s.metrics.totalTimeSec / 60);
+    case 'krakenLevel': return (s) => s.metrics.krakenLevel;
   }
+}
+
+/**
+ * Groups snapshots by getKey, counts distinct values of getValue per group.
+ * Used for: per-level, count how many distinct session numbers appear.
+ */
+export function countDistinctBy(
+  history: SimulationSnapshot[],
+  getKey: (snap: SimulationSnapshot) => number,
+  getValue: (snap: SimulationSnapshot) => number
+): { labels: number[]; data: number[] } {
+  const order: number[] = [];
+  const groups = new Map<number, Set<number>>();
+  for (const snap of history) {
+    const k = getKey(snap);
+    if (!groups.has(k)) { order.push(k); groups.set(k, new Set()); }
+    groups.get(k)!.add(getValue(snap));
+  }
+  return { labels: order, data: order.map(k => groups.get(k)!.size) };
 }

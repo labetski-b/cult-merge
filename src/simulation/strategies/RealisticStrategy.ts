@@ -3,7 +3,7 @@ import { getFreeCellIndexes } from '@domain/grid';
 import { canMergeGenerators, canMergeRunes } from '@domain/merge';
 import { getCurrentMandatoryTask } from '@domain/tasks';
 import { SeededRng } from '@infra/rng';
-import { BALANCE } from '@data/loadBalance';
+import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction } from './base';
 
 /**
@@ -50,6 +50,11 @@ function calcGensNeeded(targetLevel: number, avail: number[]): number {
 export class RealisticStrategy implements AIStrategy {
   name = 'RP';
   description = 'Task-focused only';
+  private balance: typeof DEFAULT_BALANCE;
+
+  constructor(balance?: typeof DEFAULT_BALANCE) {
+    this.balance = balance ?? DEFAULT_BALANCE;
+  }
 
   decide(state: GameSnapshot, rng: SeededRng): SimulationAction[] {
     const actions: SimulationAction[] = [];
@@ -80,7 +85,7 @@ export class RealisticStrategy implements AIStrategy {
     }
 
     const task: TaskDefinition | null =
-      getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress)
+      getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
       ?? state.currentAutoTask;
 
     if (!task) return actions;
@@ -135,7 +140,7 @@ export class RealisticStrategy implements AIStrategy {
     const generators = Object.values(state.entities)
       .filter(e => e.kind === 'generator' && !usedIds?.has(e.id)) as GeneratorEntity[];
     return generators.filter(gen => {
-      const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+      const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
       if (!genConfig) return false;
       const levelConfig = genConfig.levels.find(l => l.level === gen.level);
       if (!levelConfig) return false;
@@ -148,7 +153,7 @@ export class RealisticStrategy implements AIStrategy {
     const generators = Object.values(state.entities)
       .filter(e => e.kind === 'generator' && !usedIds?.has(e.id)) as GeneratorEntity[];
     return generators.filter(gen => {
-      const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+      const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
       if (!genConfig) return false;
       return genConfig.lines.some(line => neededTypes.has(line));
     });
@@ -206,7 +211,7 @@ export class RealisticStrategy implements AIStrategy {
     let remainingMeat = state.resources.meat;
 
     for (const gen of generators) {
-      const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+      const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
       const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
       let chargesLeft = gen.charges.length;
 
@@ -401,7 +406,7 @@ export class RealisticStrategy implements AIStrategy {
     const actions: SimulationAction[] = [];
     const allGens = Object.values(state.entities).filter(e => e.kind === 'generator') as GeneratorEntity[];
 
-    for (const genConfig of BALANCE.generators.generators) {
+    for (const genConfig of this.balance.generators.generators) {
       if (state.kraken.level < genConfig.krakenRequired) continue;
       if (!genConfig.lines.some(line => neededTypes.has(line))) continue;
 
@@ -492,7 +497,7 @@ export class RealisticStrategy implements AIStrategy {
       let bestGen: GeneratorEntity | null = null;
       let bestChance = 0;
       for (const gen of generators) {
-        const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+        const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
         const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
         if (!levelConfig) continue;
         const output = levelConfig.outputs.find(o => o.creatureType === type);
@@ -538,7 +543,7 @@ export class RealisticStrategy implements AIStrategy {
       // Generator drained fully and space + meat remain → one extra charge+spawn
       const drained = toSpawn === gen.charges.length;
       if (drained && freeSlots > 0) {
-        const genConfig = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+        const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
         const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
         if (levelConfig && remainingMeat >= levelConfig.chargeCost) {
           actions.push({ type: 'charge_generator', generatorId: gen.id });

@@ -1,0 +1,51 @@
+{
+  "flowerpot": {
+    "purchaseCurrency": "rune1",
+    "purchaseCost": 20,
+    "spawnIntervalMs": 1800000,
+    "lines": ["Creature5", "Creature6"],
+    "levels": [
+      {
+        "level": 1,
+        "outputs": [
+          { "creatureType": "Creature5", "level": 1, "chance": 1.0 }
+        ]
+      },
+      {
+        "level": 2,
+        "outputs": [
+          { "creatureType": "Creature5", "level": 1, "chance": 0.54 },
+          { "creatureType": "Creature5", "level": 2, "chance": 0.36 },
+          { "creatureType": "Creature6", "level": 1, "chance": 0.1 }
+        ]
+      },
+      {
+        "level": 3,
+        "outputs": [
+          { "creatureType": "Creature5", "level": 1, "chance": 0.42 },
+          { "creatureType": "Creature5", "level": 2, "chance": 0.28 },
+          { "creatureType": "Creature6", "level": 1, "chance": 0.18 },
+          { "creatureType": "Creature6", "level": 2, "chance": 0.12 }
+        ]
+      },
+      {
+        "level": 4,
+        "outputs": [
+          { "creatureType": "Creature5", "level": 1, "chance": 0.2 },
+          { "creatureType": "Creature5", "level": 2, "chance": 0.2 },
+          { "creatureType": "Creature6", "level": 1, "chance": 0.3 },
+          { "creatureType": "Creature6", "level": 2, "chance": 0.3 }
+        ]
+      },
+      {
+        "level": 5,
+        "outputs": [
+          { "creatureType": "Creature5", "level": 1, "chance": 0.04 },
+          { "creatureType": "Creature5", "level": 2, "chance": 0.06 },
+          { "creatureType": "Creature6", "level": 1, "chance": 0.36 },
+          { "creatureType": "Creature6", "level": 2, "chance": 0.54 }
+        ]
+      }
+    ]
+  }
+}

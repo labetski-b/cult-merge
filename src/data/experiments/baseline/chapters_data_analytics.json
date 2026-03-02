@@ -13,85 +13,85 @@
   },
   {
     "chapter": 4,
-    "merge_resource": 4750,
+    "merge_resource": 5230,
     "meat_min": 5,
     "meat_max": 6
   },
   {
     "chapter": 5,
-    "merge_resource": 8900,
+    "merge_resource": 7947,
     "meat_min": 7,
     "meat_max": 8
   },
   {
     "chapter": 6,
-    "merge_resource": 16100,
+    "merge_resource": 9045,
     "meat_min": 9,
     "meat_max": 9
   },
   {
     "chapter": 7,
-    "merge_resource": 28200,
+    "merge_resource": 12853,
     "meat_min": 10,
     "meat_max": 10
   },
   {
     "chapter": 8,
-    "merge_resource": 47400,
+    "merge_resource": 18242,
     "meat_min": 11,
     "meat_max": 12
   },
   {
     "chapter": 9,
-    "merge_resource": 76500,
+    "merge_resource": 18462,
     "meat_min": 13,
     "meat_max": 14
   },
   {
     "chapter": 10,
-    "merge_resource": 119000,
+    "merge_resource": 24920,
     "meat_min": 15,
     "meat_max": 16
   },
   {
     "chapter": 11,
-    "merge_resource": 177000,
+    "merge_resource": 26437,
     "meat_min": 17,
     "meat_max": 18
   },
   {
     "chapter": 12,
-    "merge_resource": 252000,
+    "merge_resource": 37797,
     "meat_min": 19,
     "meat_max": 20
   },
   {
     "chapter": 13,
-    "merge_resource": 342000,
+    "merge_resource": 39687,
     "meat_min": 21,
     "meat_max": 22
   },
   {
     "chapter": 14,
-    "merge_resource": 442000,
+    "merge_resource": 49502,
     "meat_min": 23,
     "meat_max": 24
   },
   {
     "chapter": 15,
-    "merge_resource": 544000,
+    "merge_resource": 60013,
     "meat_min": 25,
     "meat_max": 26
   },
   {
     "chapter": 16,
-    "merge_resource": 633000,
+    "merge_resource": 73930,
     "meat_min": 26,
     "meat_max": 27
   },
   {
     "chapter": 17,
-    "merge_resource": 696451,
+    "merge_resource": 63573,
     "meat_min": 27,
     "meat_max": 28
   }

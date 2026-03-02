@@ -1,25 +1,27 @@
 /**
  * Run baseline vs experiment simulation and print a comparison.
- * generators.json is NOT modified — experiment data is loaded separately.
+ * Balance JSON files are NOT modified — experiment overrides are loaded
+ * from experiments/<name>/ (generators.json, chapters_data_analytics.json, creatures.json).
  *
- * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts <expName> [ticks] [filter]
+ * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts <name> [ticks] [filter]
  *
  * Examples:
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts experiment1
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts experiment1 50000
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts experiment1 50000 charge_generator
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 50000
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 50000 charge_generator
  *
- * To permanently apply the experiment:
- *   cp src/data/generators.experiment1.json src/data/generators.json
+ * Each experiment lives in src/data/experiments/<name>/ with its own README.md.
  */
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
 import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
 import { BALANCE } from '../src/data/loadBalance';
-import { generatorsDataSchema } from '../src/data/schemas';
+import { generatorsDataSchema, chaptersDataSchema, creaturesDataSchema } from '../src/data/schemas';
+import { getCurrentChapter } from '../src/domain/chapters';
+import type { ZodType } from 'zod';
 
 const expName = process.argv[2];
 if (!expName) {
@@ -31,18 +33,40 @@ const ticks = parseInt(process.argv[3] ?? '50000', 10);
 const filter = process.argv[4]?.toLowerCase() ?? '';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const expDir = resolve(__dirname, `../src/data/experiments/${expName}`);
 
-// Load experiment generators
-const expPath = resolve(__dirname, `../src/data/generators.${expName}.json`);
-let expGeneratorsRaw: unknown;
-try {
-  expGeneratorsRaw = JSON.parse(readFileSync(expPath, 'utf-8'));
-} catch {
-  console.error(`Could not read experiment file: ${expPath}`);
+// ── Load experiment overrides ───────────────────────────────────────────────
+
+function tryLoadFile<T>(filename: string, schema: ZodType<T>): T | null {
+  const filePath = resolve(expDir, filename);
+  if (!existsSync(filePath)) return null;
+  const raw = JSON.parse(readFileSync(filePath, 'utf-8'));
+  return schema.parse(raw);
+}
+
+const expGenerators = tryLoadFile('generators.json', generatorsDataSchema);
+const expChapters = tryLoadFile('chapters_data_analytics.json', chaptersDataSchema);
+const expCreatures = tryLoadFile('creatures.json', creaturesDataSchema);
+
+const loaded: string[] = [];
+if (expGenerators) loaded.push('generators.json');
+if (expChapters) loaded.push('chapters_data_analytics.json');
+if (expCreatures) loaded.push('creatures.json');
+
+if (loaded.length === 0) {
+  console.error(`No experiment files found in ${expDir}`);
+  console.error('Expected at least one of: generators.json, chapters_data_analytics.json, creatures.json');
   process.exit(1);
 }
-const expGenerators = generatorsDataSchema.parse(expGeneratorsRaw);
-const expBalance = { ...BALANCE, generators: expGenerators };
+
+console.log(`Experiment "${expName}" overrides: ${loaded.join(', ')}`);
+
+const expBalance = {
+  ...BALANCE,
+  ...(expGenerators && { generators: expGenerators }),
+  ...(expChapters && { chapters: expChapters }),
+  ...(expCreatures && { creatures: expCreatures }),
+};
 
 // ── Run both simulations ──────────────────────────────────────────────────────
 
@@ -63,7 +87,7 @@ const expEngine = new SimulationEngine({
   stopCondition: { type: 'ticks', value: ticks },
   maxTicks: ticks,
   tickInterval: 1000,
-  strategy: new RealisticStrategy(),
+  strategy: new RealisticStrategy(expBalance),
   balance: expBalance,
 });
 const experiment = expEngine.run();
@@ -78,6 +102,7 @@ function getMetrics(result: ReturnType<SimulationEngine['run']>) {
     finalLevel: result.summary.finalLevel,
     totalTasks: result.summary.totalTasksCompleted,
     totalExp: result.summary.totalExpGained,
+    totalEyes: result.summary.totalEyesGained,
     totalCharges,
     finalSession,
     avgChargesPerSession: finalSession > 0 ? totalCharges / finalSession : 0,
@@ -86,6 +111,9 @@ function getMetrics(result: ReturnType<SimulationEngine['run']>) {
 
 const bm = getMetrics(baseline);
 const em = getMetrics(experiment);
+
+const bmChapter = getCurrentChapter(BALANCE, bm.totalEyes).chapter;
+const emChapter = getCurrentChapter(expBalance, em.totalEyes).chapter;
 
 // ── Comparison table ──────────────────────────────────────────────────────────
 
@@ -108,8 +136,63 @@ console.log(`  ${'Total EXP'.padEnd(26)} ${pad(bm.totalExp.toFixed(0), 10)} ${pa
 console.log(`  ${'Total charges'.padEnd(26)} ${pad(bm.totalCharges, 10)} ${pad(em.totalCharges, 12)} ${pad(delta(bm.totalCharges, em.totalCharges), 8)}`);
 console.log(`  ${'Final session'.padEnd(26)} ${pad(bm.finalSession, 10)} ${pad(em.finalSession, 12)} ${pad(delta(bm.finalSession, em.finalSession), 8)}`);
 console.log(`  ${'Avg charges/session'.padEnd(26)} ${pad(bm.avgChargesPerSession.toFixed(2), 10)} ${pad(em.avgChargesPerSession.toFixed(2), 12)} ${pad(delta(bm.avgChargesPerSession, em.avgChargesPerSession, 2), 8)}`);
+console.log(`  ${'Total eyes'.padEnd(26)} ${pad(bm.totalEyes, 10)} ${pad(em.totalEyes, 12)} ${pad(delta(bm.totalEyes, em.totalEyes), 8)}`);
+console.log(`  ${'Final chapter'.padEnd(26)} ${pad(bmChapter, 10)} ${pad(emChapter, 12)} ${pad(delta(bmChapter, emChapter), 8)}`);
 console.log('═══════════════════════════════════════════════════════════════');
 console.log('');
+
+// ── Chapter milestones ──────────────────────────────────────────────────────
+
+interface ChapterMilestone {
+  chapter: number;
+  tick: number;
+  krakenLevel: number;
+}
+
+function extractChapterMilestones(result: ReturnType<SimulationEngine['run']>): ChapterMilestone[] {
+  const milestones: ChapterMilestone[] = [];
+  const seen = new Set<number>();
+  for (const snap of result.history) {
+    const ch = snap.metrics.chapter;
+    if (!seen.has(ch)) {
+      seen.add(ch);
+      milestones.push({ chapter: ch, tick: snap.tick, krakenLevel: snap.metrics.krakenLevel });
+    }
+  }
+  return milestones;
+}
+
+const baselineMilestones = extractChapterMilestones(baseline);
+const experimentMilestones = extractChapterMilestones(experiment);
+
+// Collect all chapters that appear in either run
+const allChapters = new Set([
+  ...baselineMilestones.map(m => m.chapter),
+  ...experimentMilestones.map(m => m.chapter),
+]);
+const sortedChapters = [...allChapters].sort((a, b) => a - b);
+
+if (sortedChapters.length > 1) {
+  const bMap = new Map(baselineMilestones.map(m => [m.chapter, m]));
+  const eMap = new Map(experimentMilestones.map(m => [m.chapter, m]));
+
+  console.log('  CHAPTER MILESTONES');
+  console.log('  ' + '─'.repeat(60));
+  console.log(`  ${'Chapter'.padEnd(10)} ${'Baseline (tick / Lv)'.padEnd(24)} ${'Experiment (tick / Lv)'.padEnd(24)}`);
+  console.log('  ' + '─'.repeat(60));
+
+  for (const ch of sortedChapters) {
+    // Skip the first chapter (Ch2 at tick 0) — it's always the starting chapter
+    const bm = bMap.get(ch);
+    const em = eMap.get(ch);
+    const bStr = bm ? `T${String(bm.tick).padStart(5)} / Lv${String(bm.krakenLevel).padStart(3)}` : '—'.padStart(17);
+    const eStr = em ? `T${String(em.tick).padStart(5)} / Lv${String(em.krakenLevel).padStart(3)}` : '—'.padStart(17);
+    console.log(`  ${'Ch' + ch}${' '.repeat(Math.max(1, 10 - ('Ch' + ch).length))}${bStr.padEnd(24)} ${eStr.padEnd(24)}`);
+  }
+
+  console.log('  ' + '─'.repeat(60));
+  console.log('');
+}
 
 // ── Optional: action log (experiment only, filtered) ─────────────────────────
 

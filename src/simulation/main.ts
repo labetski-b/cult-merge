@@ -4,7 +4,7 @@ import { RealisticStrategy } from './strategies/RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
-import { METRIC_AGGREGATION, aggregateHistory, getKeyFn, type AggMode, type XAxisMode } from './engine/chartAggregation';
+import { METRIC_AGGREGATION, aggregateHistory, countDistinctBy, getKeyFn, type AggMode, type XAxisMode } from './engine/chartAggregation';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -324,11 +324,12 @@ function getCurrentXAxisMode(): XAxisMode {
 }
 
 const X_AXIS_TITLES: Record<XAxisMode, string> = {
-  ticks:    'Tick',
-  sessions: 'Session',
-  presses:  'Sacrifices',
-  tasks:    'Task',
-  time:     'Minutes',
+  ticks:       'Tick',
+  sessions:    'Session',
+  presses:     'Sacrifices',
+  tasks:       'Task',
+  time:        'Minutes',
+  krakenLevel: 'Kraken Level',
 };
 
 // Which X-axis modes each chart is visible in.
@@ -353,8 +354,9 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   charges:            ['ticks', 'sessions', 'presses', 'time'],
   'runes-flow':       ['ticks', 'sessions', 'presses', 'time'],
   'eyes-flow':        ['ticks', 'sessions', 'presses', 'time'],
-  'eyes-vs-meat':     ['sessions', 'presses', 'time'],
-  gems:               ['ticks', 'sessions', 'presses', 'time'],
+  'eyes-vs-meat':       ['sessions', 'presses', 'time'],
+  gems:                 ['ticks', 'sessions', 'presses', 'time'],
+  'sessions-per-level': ['krakenLevel'],
 };
 
 
@@ -1009,5 +1011,25 @@ function renderCharts(results: SimulationResult[]) {
         interaction: commonInteraction,
       }
     });
+  }
+
+  // ── Sessions per Kraken Level ─────────────────────────────────────────────
+  if (visible('sessions-per-level')) {
+    setAggBadge('sessions-per-level', '# sessions');
+    const keyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const valFn = (s: SimulationSnapshot) => s.gameState.session;
+    const { labels: krakenLabels } = countDistinctBy(results[0]!.history, keyFn, valFn);
+    const datasets = results.map((result, idx) => {
+      const { data } = countDistinctBy(result.history, keyFn, valFn);
+      return ds('Sessions at level', data, color(idx));
+    });
+    charts['sessions-per-level'] = new Chart(
+      document.getElementById('chart-sessions-per-level') as HTMLCanvasElement,
+      {
+        type: 'line',
+        data: { labels: krakenLabels, datasets },
+        options: xOpts('Sessions'),
+      }
+    );
   }
 }
