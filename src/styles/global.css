@@ -527,10 +527,6 @@ body {
   .layout {
     grid-template-columns: 1fr;
   }
-
-  .top-panels {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ── Kraken Header ── */
@@ -697,10 +693,6 @@ body {
 
 @media (max-width: 1100px) {
   .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .top-panels {
     grid-template-columns: 1fr;
   }
 }
