@@ -5,6 +5,7 @@ dist
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+CLAUDE.md
 
 # Source assets from Unity (not needed in git)
 FROM UNITY/
