@@ -168,6 +168,25 @@ body {
   pointer-events: none;
 }
 
+.task-needed-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4caf50;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
 .cell-empty {
   cursor: default;
   opacity: 0.4;

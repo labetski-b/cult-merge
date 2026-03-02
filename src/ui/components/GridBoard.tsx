@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
-import { useGameStore } from '@store/gameStore';
+import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
 import { calcPendingSpawns } from '@domain/flowerpot';
 import { canMergeCreatures, canMergeFlowerPots, canMergeGenerators, canMergeRunes } from '@domain/merge';
+import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
 
@@ -63,6 +64,22 @@ export function GridBoard() {
   const feedPredator = useGameStore((state) => state.feedPredator);
   const speedUpFlowerPot = useGameStore((state) => state.speedUpFlowerPot);
   const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
+
+  const currentTask = useCurrentTask();
+  const currentTaskFed = useCurrentTaskFed();
+
+  // Compute which creature type+level combos are still needed for the current task
+  const neededCreatures = useMemo(() => {
+    const needed = new Set<string>();
+    if (!currentTask) return needed;
+    const progress = getTaskFedProgress(currentTask.creatures, currentTaskFed);
+    for (const { requirement, fed: count } of progress) {
+      if (count < requirement.count) {
+        needed.add(`${requirement.type}:${requirement.level}`);
+      }
+    }
+    return needed;
+  }, [currentTask, currentTaskFed]);
 
   const dragCtx = useDragContext();
 
@@ -509,6 +526,9 @@ export function GridBoard() {
                     <>
                       <img src={img} alt={entityLabel(entity)} className="creature-image" draggable={false} />
                       {badge && <span className="cell-badge">{badge}</span>}
+                      {entity.kind === 'creature' && neededCreatures.has(`${entity.creatureType}:${entity.level}`) && (
+                        <span className="task-needed-badge">&#x2713;</span>
+                      )}
                     </>
                   ) : (
                     <>
