@@ -1,0 +1,770 @@
+{
+  "Wood": [
+    {
+      "chapter": 2,
+      "res_min": 4,
+      "res_max": 1291
+    },
+    {
+      "chapter": 3,
+      "res_min": 2813,
+      "res_max": 34246
+    },
+    {
+      "chapter": 4,
+      "res_min": 74656,
+      "res_max": 908724
+    },
+    {
+      "chapter": 5,
+      "res_min": 1981017,
+      "res_max": 24113304
+    },
+    {
+      "chapter": 6,
+      "res_min": 52567003,
+      "res_max": 639855128
+    },
+    {
+      "chapter": 7,
+      "res_min": 1394884179,
+      "res_max": 16978784214
+    },
+    {
+      "chapter": 8,
+      "res_min": 37013749586,
+      "res_max": 450538099485
+    },
+    {
+      "chapter": 9,
+      "res_min": 982173056878,
+      "res_max": 11955189284130
+    },
+    {
+      "chapter": 10,
+      "res_min": 26062312639403,
+      "res_max": 317235214918878
+    },
+    {
+      "chapter": 11,
+      "res_min": 691572768523155,
+      "res_max": 8417949661258870
+    },
+    {
+      "chapter": 12,
+      "res_min": 18351130261544300,
+      "res_max": 223373298949830000
+    },
+    {
+      "chapter": 13,
+      "res_min": 486953791710630000,
+      "res_max": 5927290218110980000
+    },
+    {
+      "chapter": 14,
+      "res_min": 12921492675481900000,
+      "res_max": 157282761614247000000
+    },
+    {
+      "chapter": 15,
+      "res_min": 342876420319058000000,
+      "res_max": 4.1735542196697e+21
+    },
+    {
+      "chapter": 16,
+      "res_min": 9.09834819887996e+21,
+      "res_max": 1.10746750920127e+23
+    },
+    {
+      "chapter": 17,
+      "res_min": 2.41427917005878e+23,
+      "res_max": 6.40637595261219e+24
+    }
+  ],
+  "Stone": [
+    {
+      "chapter": 2,
+      "res_min": 1,
+      "res_max": 1256
+    },
+    {
+      "chapter": 3,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 4,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 5,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 6,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 7,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 8,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 9,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 10,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 11,
+      "res_min": 673249242775222,
+      "res_max": 8194912369475000
+    },
+    {
+      "chapter": 12,
+      "res_min": 17864908965455500,
+      "res_max": 217454924801802000
+    },
+    {
+      "chapter": 13,
+      "res_min": 474051736067928000,
+      "res_max": 5770244047598850000
+    },
+    {
+      "chapter": 14,
+      "res_min": 12579132023765500000,
+      "res_max": 153115485423920000000
+    },
+    {
+      "chapter": 15,
+      "res_min": 333791758224147000000,
+      "res_max": 4.06297405849907e+21
+    },
+    {
+      "chapter": 16,
+      "res_min": 8.85728344752796e+21,
+      "res_max": 1.07812466873174e+23
+    },
+    {
+      "chapter": 17,
+      "res_min": 2.35031177783519e+23,
+      "res_max": 6.23663619410593e+24
+    }
+  ],
+  "Potion": [
+    {
+      "chapter": 2,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 3,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 4,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 5,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 6,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 7,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 8,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 9,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 10,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 11,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 12,
+      "res_min": 673249242775222,
+      "res_max": 8194912369475000
+    },
+    {
+      "chapter": 13,
+      "res_min": 17864908965455500,
+      "res_max": 217454924801802000
+    },
+    {
+      "chapter": 14,
+      "res_min": 474051736067928000,
+      "res_max": 5770244047598850000
+    },
+    {
+      "chapter": 15,
+      "res_min": 12579132023765500000,
+      "res_max": 153115485423920000000
+    },
+    {
+      "chapter": 16,
+      "res_min": 333791758224147000000,
+      "res_max": 4.06297405849907e+21
+    },
+    {
+      "chapter": 17,
+      "res_min": 8.85728344752796e+21,
+      "res_max": 2.35031177783519e+23
+    }
+  ],
+  "Book": [
+    {
+      "chapter": 3,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 4,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 5,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 6,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 7,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 8,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 9,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 10,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 11,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 12,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 13,
+      "res_min": 673249242775222,
+      "res_max": 8194912369475000
+    },
+    {
+      "chapter": 14,
+      "res_min": 17864908965455500,
+      "res_max": 217454924801802000
+    },
+    {
+      "chapter": 15,
+      "res_min": 474051736067928000,
+      "res_max": 5770244047598850000
+    },
+    {
+      "chapter": 16,
+      "res_min": 12579132023765500000,
+      "res_max": 153115485423920000000
+    },
+    {
+      "chapter": 17,
+      "res_min": 333791758224147000000,
+      "res_max": 8.85728344752796e+21
+    }
+  ],
+  "Board": [
+    {
+      "chapter": 5,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 6,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 7,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 8,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 9,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 10,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 11,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 12,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 13,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 14,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 15,
+      "res_min": 673249242775222,
+      "res_max": 8194912369475000
+    },
+    {
+      "chapter": 16,
+      "res_min": 17864908965455500,
+      "res_max": 217454924801802000
+    },
+    {
+      "chapter": 17,
+      "res_min": 474051736067928000,
+      "res_max": 12579132023765500000
+    }
+  ],
+  "SoulCrystal": [
+    {
+      "chapter": 6,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 7,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 8,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 9,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 10,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 11,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 12,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 13,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 14,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 15,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 16,
+      "res_min": 673249242775222,
+      "res_max": 8194912369475000
+    },
+    {
+      "chapter": 17,
+      "res_min": 17864908965455500,
+      "res_max": 474051736067928000
+    }
+  ],
+  "BonesBlock": [
+    {
+      "chapter": 7,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 8,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 9,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 10,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 11,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 12,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 13,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 14,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 15,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 16,
+      "res_min": 25371780162657,
+      "res_max": 308829927878542
+    },
+    {
+      "chapter": 17,
+      "res_min": 673249242775222,
+      "res_max": 17864908965455500
+    }
+  ],
+  "Wax": [
+    {
+      "chapter": 8,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 9,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 10,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 11,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 12,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 13,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 14,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 15,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 16,
+      "res_min": 956149948225,
+      "res_max": 11638431267274
+    },
+    {
+      "chapter": 17,
+      "res_min": 25371780162657,
+      "res_max": 673249242775222
+    }
+  ],
+  "Potion2": [
+    {
+      "chapter": 9,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 10,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 11,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 12,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 13,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 14,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 15,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 16,
+      "res_min": 36033053953,
+      "res_max": 438600893681
+    },
+    {
+      "chapter": 17,
+      "res_min": 956149948225,
+      "res_max": 25371780162657
+    }
+  ],
+  "Mushroom": [
+    {
+      "chapter": 10,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 11,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 12,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 13,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 14,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 15,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 16,
+      "res_min": 1357926107,
+      "res_max": 16528923832
+    },
+    {
+      "chapter": 17,
+      "res_min": 36033053953,
+      "res_max": 956149948225
+    }
+  ],
+  "MagicScrolls": [
+    {
+      "chapter": 11,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 12,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 13,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 14,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 15,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 16,
+      "res_min": 51174217,
+      "res_max": 622901884
+    },
+    {
+      "chapter": 17,
+      "res_min": 1357926107,
+      "res_max": 36033053953
+    }
+  ],
+  "SoulCrystal2": [
+    {
+      "chapter": 12,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 13,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 14,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 15,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 16,
+      "res_min": 1928529,
+      "res_max": 23474411
+    },
+    {
+      "chapter": 17,
+      "res_min": 51174217,
+      "res_max": 1357926107
+    }
+  ],
+  "EvilHoney": [
+    {
+      "chapter": 13,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 14,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 15,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 16,
+      "res_min": 72678,
+      "res_max": 884647
+    },
+    {
+      "chapter": 17,
+      "res_min": 1928529,
+      "res_max": 51174217
+    }
+  ],
+  "Mushroom2": [
+    {
+      "chapter": 14,
+      "res_min": 1,
+      "res_max": 47
+    },
+    {
+      "chapter": 15,
+      "res_min": 52,
+      "res_max": 1256
+    },
+    {
+      "chapter": 16,
+      "res_min": 2739,
+      "res_max": 33338
+    },
+    {
+      "chapter": 17,
+      "res_min": 72678,
+      "res_max": 1928529
+    }
+  ]
+}
