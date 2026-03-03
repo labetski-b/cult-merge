@@ -407,11 +407,11 @@ function buildMergeQuestsInfo(): string {
   const spawnerMapping = [
     { spawner: 'Egg_Creature1', questId: '0' },
     { spawner: 'Egg_Creature2', questId: '2' },
-    { spawner: 'Egg_Creature3', questId: '4' },
-    { spawner: 'Egg_Creature4', questId: '5' },
-    { spawner: 'Egg_Creature5', questId: '6' },
-    { spawner: 'Egg_Creature6', questId: '7' },
-    { spawner: 'Egg_Creature7', questId: '8' },
+    { spawner: 'Egg_Creature3', questId: '3' },
+    { spawner: 'Egg_Creature4', questId: '4' },
+    { spawner: 'Egg_Creature5', questId: '5' },
+    { spawner: 'Egg_Creature6', questId: '6' },
+    { spawner: 'Egg_Creature7', questId: '7' },
   ];
 
   const rows: string[][] = [];
