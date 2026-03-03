@@ -405,6 +405,7 @@ function buildMergeQuestsInfo(): string {
 
   // Правая часть: Spawner mapping (строки 1-6)
   const spawnerMapping = [
+    { spawner: 'Egg_Creature1', questId: '0' },
     { spawner: 'Egg_Creature2', questId: '2' },
     { spawner: 'Egg_Creature3', questId: '4' },
     { spawner: 'Egg_Creature4', questId: '5' },

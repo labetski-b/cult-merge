@@ -61,6 +61,7 @@ npx tsx --tsconfig tsconfig.app.json converters/export-tsv.ts
 Квесты с ReachLevel = krakenRequired генератора.
 - 6 квестов (по одному на каждый генератор, кроме первого и горшка)
 - Только ReachLevel обновляется из generators.json
+- Правая секция: свапнеры (7 шт) — все генераторы с quest level разлока. Egg_Creature1 всегда присутствует с quest level 0
 
 ## Структура
 ```
