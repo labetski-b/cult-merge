@@ -1,7 +1,7 @@
 /**
  * Run baseline vs experiment simulation and print a comparison.
  * Balance JSON files are NOT modified — experiment overrides are loaded
- * from experiments/<name>/ (generators.json, chapters_data_analytics.json, creatures.json).
+ * from experiments/<name>/ (generators.json, chapters_data_analytics.json, creatures.json, kraken_progression.json).
  *
  * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts <name> [ticks] [filter]
  *
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
 import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
 import { BALANCE } from '../src/data/loadBalance';
-import { generatorsDataSchema, chaptersDataSchema, creaturesDataSchema } from '../src/data/schemas';
+import { generatorsDataSchema, chaptersDataSchema, creaturesDataSchema, krakenProgressionDataSchema } from '../src/data/schemas';
 import { getCurrentChapter } from '../src/domain/chapters';
 import type { ZodType } from 'zod';
 
@@ -47,15 +47,17 @@ function tryLoadFile<T>(filename: string, schema: ZodType<T>): T | null {
 const expGenerators = tryLoadFile('generators.json', generatorsDataSchema);
 const expChapters = tryLoadFile('chapters_data_analytics.json', chaptersDataSchema);
 const expCreatures = tryLoadFile('creatures.json', creaturesDataSchema);
+const expKrakenProgression = tryLoadFile('kraken_progression.json', krakenProgressionDataSchema);
 
 const loaded: string[] = [];
 if (expGenerators) loaded.push('generators.json');
 if (expChapters) loaded.push('chapters_data_analytics.json');
 if (expCreatures) loaded.push('creatures.json');
+if (expKrakenProgression) loaded.push('kraken_progression.json');
 
 if (loaded.length === 0) {
   console.error(`No experiment files found in ${expDir}`);
-  console.error('Expected at least one of: generators.json, chapters_data_analytics.json, creatures.json');
+  console.error('Expected at least one of: generators.json, chapters_data_analytics.json, creatures.json, kraken_progression.json');
   process.exit(1);
 }
 
@@ -66,6 +68,7 @@ const expBalance = {
   ...(expGenerators && { generators: expGenerators }),
   ...(expChapters && { chapters: expChapters }),
   ...(expCreatures && { creatures: expCreatures }),
+  ...(expKrakenProgression && { krakenProgression: expKrakenProgression }),
 };
 
 // ── Run both simulations ──────────────────────────────────────────────────────

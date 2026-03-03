@@ -1,11 +1,11 @@
 QuestId	SubQuestId	Type	Value	Amount	Reward	Reward Amount		Spawner	QuestId		Key	Value
 1	1	DoMerge		100	matter	1		Egg_Creature1	0			
 	2	GetSpawner	Egg_Creature1_3	1	hard	1		Egg_Creature2	2			
-	3	GetCreature	Creature2_5	1	faith	1		Egg_Creature3	4			
-	4	ReachLevel		7	hard	1		Egg_Creature4	5			
-2	1	DoMerge		200	matter	1		Egg_Creature5	6			
-	2	GetSpawner	Chicken_2	1	hard	1		Egg_Creature6	7			
-	3	WinToad		10	faith	1		Egg_Creature7	8			
+	3	GetCreature	Creature2_5	1	faith	1		Egg_Creature3	3			
+	4	ReachLevel		7	hard	1		Egg_Creature4	4			
+2	1	DoMerge		200	matter	1		Egg_Creature5	5			
+	2	GetSpawner	Chicken_2	1	hard	1		Egg_Creature6	6			
+	3	WinToad		10	faith	1		Egg_Creature7	7			
 	4	ReachLevel		13	hard	1
 3	1	DoMerge		300	matter	1
 	2	GetSpawner	Egg_Creature3_3	1	hard	1
