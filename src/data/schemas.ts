@@ -79,17 +79,20 @@ const taskSchema = z.object({
 });
 
 const maxCountByOffsetEntrySchema = z.object({
-  minOffset: z.number().int().min(0),
-  maxOffset: z.number().int().min(0),
+  offset: z.number().int().min(0),
   maxCount: z.number().int().min(1),
 });
 
 export const autoConfigSchema = z.object({
+  difficultyFlow: z.array(z.number().int().positive()).optional(),
+  difficultySacMap: z.array(z.number().min(0)).optional(),
   budgetAnchors: z.array(z.tuple([z.number(), z.number()])),
   sawTooth: z.array(z.number()).length(7),
-  maxSacrifices: z.number().default(3),
   rampUpSchedule: z.array(z.tuple([z.number().int(), z.number().int()])).optional(),
+  rampUpThreshold: z.number().int().positive().optional(),
+  dualQuestProbability: z.number().min(0).max(1).optional(),
   maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
+  maxSpawns: z.number().optional(),
 });
 
 export const tasksDataSchema = z.object({

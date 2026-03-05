@@ -1,232 +1,315 @@
 # Quest Algorithm v2
 
-**Эксперимент 6** | Статус: дизайн
-**Заменяет:** эксперимент 5 (quest-balance) — признан неудачным
+**Эксперимент 6** | Статус: в разработке
+**Заменяет:** эксперимент 5 (quest-balance)
 
 ---
 
-## Общая структура
+## Ключевая идея
 
-Две фазы:
+Каждый квест — это пара **(генератор + линейка существ)** с конкретным уровнем. Алгоритм оперирует единственной метрикой эффективности — **eyesPerMeat** — которая позволяет сравнить любых кандидатов между собой и с целевым бюджетом.
 
-1. **Фаза расчёта** — состояние поля, генераторы, эффективность, классификация main/filler
-2. **Фаза формирования заказа** — difficulty flow → выбор генератора → type + level + count
+```
+eyesPerMeat = 2 × eyesMult × l1PerCharge / chargeCost
+```
 
-**Ключевое отличие от v1**: алгоритм generator-centric. Мы выбираем генератор, а не creature type. Бюджет в мясе, не зарядах.
+Эта метрика **постоянна** для данной пары (gen+level, creature) и **не зависит от уровня существа**.
 
 ---
 
-## Фаза 1: Расчёт
-
-### 1.1 Бюджет поля (Field Budget)
-
-Для каждого creature type считаем L1-эквиваленты на поле:
+## Блок-схема алгоритма
 
 ```
-fieldL1[creatureType] = Σ 2^(level-1) для каждого существа этого типа
+generateAutoTask(config, state, rng)
+│
+├─── ФАЗА 1: БЮДЖЕТЫ ─────────────────────────────────────────
+│  ├─ targetEyes = interpolate(budgetAnchors, krakenLevel) × sawTooth[pos]
+│  ├─ difficulty = difficultyFlow[totalCompleted % length]
+│  │   sacBudget = difficultySacMap[difficulty]
+│  ├─ meatDrop = calculateMeatDrop(eyes)
+│  ├─ meatBudget = sacBudget × meatDrop
+│  └─ requiredEyesPerMeat = targetEyes / meatBudget
+│
+├─── ФАЗА 2: ТАБЛИЦА КАНДИДАТОВ ───────────────────────────────
+│  ├─ Для каждого генератора (реальный + фантомные уровни):
+│  │   ├─ Реальный: текущий уровень на поле
+│  │   ├─ Фантомная покупка: новый генератор L1 (если хватает рун)
+│  │   └─ Фантомный апгрейд: L+1, L+2, ... (если хватает рун)
+│  │
+│  ├─ Для каждого (gen+level, creature line):
+│  │   ├─ l1PerCharge, chargeCost, eyesMult, numCreatures
+│  │   └─ eyesPerMeat = 2 × eyesMult × l1PerCharge / chargeCost
+│  │
+│  ├─ ДЕДУПЛИКАЦИЯ: для каждого creature → лучший eyesPerMeat
+│  └─ СОРТИРОВКА: по eyesPerMeat DESC
+│
+├─── RAMP-UP CHECK ────────────────────────────────────────────
+│  └─ Новейший gen (max krakenRequired) primary < 5 completions?
+│     ├─ ДА → ramp-up квест по расписанию → ВЫХОД
+│     └─ НЕТ → продолжить
+│
+├─── DIFFICULTY = 1 (особый случай) ───────────────────────────
+│  └─ Есть Lv6+ на поле?
+│     ├─ ДА → забрать существо → ВЫХОД
+│     └─ НЕТ → difficulty = 2, пересчитать бюджеты
+│
+├─── SINGLE vs DUAL ───────────────────────────────────────────
+│  └─ Все линейки изучены И difficulty ≥ 2?
+│     ├─ ДА → 50/50 single или dual
+│     └─ НЕТ → single
+│
+│
+│  ┌─── SINGLE QUEST ─────────────────────────────────────────┐
+│  │                                                          │
+│  │  Выбрать кандидата ближайшего к requiredEyesPerMeat      │
+│  │  score = |eyesPerMeat / requiredEyesPerMeat - 1.0|       │
+│  │  weight = 1 / (score + 0.1)                              │
+│  │  → weighted random                                       │
+│  │                                                          │
+│  │  Определить targetLevel:                                 │
+│  │    level = ceil(log₂(targetEyes / eyesMult))             │
+│  │    level = clamp(1, maxLevel, gridCap)                   │
+│  │    level = clampBySpawns(maxSpawns)                        │
+│  │                                                          │
+│  │  count из maxCountByOffset                               │
+│  │  count = clampBySpawns(maxSpawns)                        │
+│  │                                                          │
+│  └──────────────────────────────────────────────────────────┘
+│
+│
+│  ┌─── DUAL QUEST ───────────────────────────────────────────┐
+│  │                                                          │
+│  │  Кандидаты отсортированы по eyesPerMeat DESC              │
+│  │                                                          │
+│  │  MAIN: выбрать из топ-3 (самые эффективные)              │
+│  │    weight = 1 / (score + 0.1), weighted random           │
+│  │    → mainCreature, mainLevel                             │
+│  │                                                          │
+│  │  FILLER: выбрать из остальных (исключить main пару)      │
+│  │    weight = 1 / (score + 0.1), weighted random           │
+│  │    → fillerCreature, fillerLevel                         │
+│  │                                                          │
+│  │  Оба count=1                                             │
+│  │                                                          │
+│  └──────────────────────────────────────────────────────────┘
+│
+├─── ANTI-DUPLICATE ───────────────────────────────────────────
+│  └─ Квест = предыдущему? → перевыбрать (до 10 попыток)
+│
+└─── ВЫХОД: quest
 ```
 
-Пример: на поле Creature1 Lv3 + Creature1 Lv1 → fieldL1["Creature1"] = 4 + 1 = 5
+---
 
-### 1.2 Мясной бюджет (Meat Budget)
+## Фаза 1: Бюджеты
+
+Определяем **целевые показатели** квеста.
+
+### 1.1 Target Eyes
 
 ```
-meatDrop = calculateMeatDrop(config, state.resources.eyes)
+targetEyes = interpolate(budgetAnchors, krakenLevel) × sawTooth[position]
 ```
 
-Это мясо от одного sacrifice при текущем уровне кнопки GetMeat. Базовая единица для расчёта сложности.
+Желаемая награда квеста по глазам. Определяет целевой уровень существа.
 
-### 1.3 Генераторы + фантомные + эффективность
+### 1.2 Difficulty → Meat Budget
 
-Собираем **все** доступные генераторы — реальные и фантомные.
+```
+difficulty = difficultyFlow[totalCompleted % length]
+sacBudget  = difficultySacMap[difficulty]
+meatDrop   = calculateMeatDrop(config, eyes)
+meatBudget = sacBudget × meatDrop
+```
 
-**Реальные** — генераторы на поле с текущим уровнем.
+| Diff | sacBudget | Ощущение |
+|------|-----------|----------|
+| 1 | 0 (особый) | С поля / мгновенный |
+| 2 | 0.5 | Быстрый |
+| 3 | 0.8 | Средний |
+| 4 | 1.2 | Ощутимый |
+| 5 | 2.0 | Долгий |
 
-**Фантомные** — которых нет на поле, но можно получить:
+### 1.3 Required Eyes/Meat
 
-- Купить новый генератор (хватает рун + krakenRequired) → новые линейки существ
-- Апгрейднуть существующий генератор → лучшая эффективность
-- Купить более низкоуровневый генератор, если он эффективнее для нужного типа
+```
+requiredEyesPerMeat = targetEyes / meatBudget
+```
 
-Для каждого генератора считаем:
-
-- `l1PerCharge[creatureType]` — сколько L1-eq за одну зарядку
-- `chargeCost` — стоимость одной зарядки в мясе
-- `efficiency[creatureType]` = `l1PerCharge / chargeCost` — L1-eq за единицу мяса
-
-### 1.4 Main vs Filler (классификация генераторов)
-
-Классификация **по chargeCost генератора**:
-
-**Main** = генераторы с высоким chargeCost (дорогие, обычно новые).
-**Filler** = генераторы с низким chargeCost (дешёвые, обычно старые).
-
-Логика: дорогой генератор ↔ новый ↔ актуальные существа. Дешёвый ↔ старый ↔ уже освоенные существа.
-
-Порог: сортируем генераторы по chargeCost desc. Топ-2 = main, остальные = filler.  
-*(Конфигурируемо через `mainGeneratorCount`)*
-
-**Взаимодействие с difficulty:**
-
-- Hard квесты (diff 4-5) → **только main генераторы** (естественно решает проблему дешёвого генератора + большой бюджет)
-- Medium квесты (diff 2-3) → любой генератор
-- Easy квесты (diff 1) → любой генератор (бюджет = 0, берём с поля)
+Целевая эффективность: сколько глаз должен приносить 1 мясо. Это единственная метрика для сравнения кандидатов.
 
 ### Итог фазы 1
 
 ```
-fieldL1:       Map<creatureType, number>     — бюджет поля
-meatDrop:      number                         — мясо за 1 sacrifice
-generators:    Map<genId, {
-  level, chargeCost,
-  efficiency: Map<creatureType, l1PerCharge>
-}>
-mainGens:      genId[]   — дорогие генераторы (топ по chargeCost)
-fillerGens:    genId[]   — дешёвые генераторы (остальные)
+targetEyes:          number
+meatBudget:          number
+requiredEyesPerMeat: number
+difficulty:          1-5
 ```
 
 ---
 
-## Фаза 2: Формирование заказа
+## Фаза 2: Таблица кандидатов
 
-### 2.1 Ramp-up (новая линейка)
+Составляем полный список пар **(генератор+уровень, линейка существ)** с их eyesPerMeat.
 
-Если у новейшего генератора primary creature выполнено < 5 квестов → выдаём ramp-up квест по расписанию:
+### 2.1 Реальные генераторы
+
+Генераторы на поле с текущим уровнем. Для каждого — все creature lines (primary + secondary при genLv ≥ 2).
+
+### 2.2 Фантомные генераторы
+
+Генераторы, которых нет на поле, но можно **купить** (хватает рун + krakenRequired). Добавляются на L1.
+
+### 2.3 Фантомные апгрейды
+
+Для каждого генератора на поле: если хватает рун на апгрейд, добавить **следующие уровни** как отдельных кандидатов.
+
+Пример: Gen1 на поле L2, у игрока 5 rune1.
+- Gen1 L2 — реальный (уже есть)
+- Gen1 L3 — фантомный апгрейд (если стоимость ≤ 5 rune1)
+- Gen1 L4 — фантомный апгрейд (если стоимость ≤ 5 rune1)
+- Gen1 L5 — фантомный апгрейд (если стоимость ≤ 5 rune1)
+
+Каждый уровень даёт **разных кандидатов** с разным eyesPerMeat. При L5 secondary creatures получают l1/ch=57.6, что радикально меняет их eyesPerMeat.
+
+### 2.4 eyesPerMeat для каждого кандидата
 
 ```
-Completion 0: Lv1 × 1   (знакомство)
+eyesPerMeat = 2 × eyesMult × l1PerCharge / chargeCost
+```
+
+### 2.5 Дедупликация по существу
+
+Для каждого `creatureType` оставляем **только одну пару** (gen+level) с **лучшим eyesPerMeat**. Это гарантирует, что каждое существо представлено наиболее эффективным способом его производства.
+
+### 2.6 Сортировка
+
+Финальные кандидаты сортируются по **eyesPerMeat DESC** (самые эффективные сверху).
+
+### Пример таблицы (mid-game)
+
+Генераторы на поле: Gen1 L2, Gen2 L2, Gen4 L2. Рун хватает на апгрейд Gen1→L5.
+
+**До дедупликации (8 пар):**
+
+| # | Генератор | Creature | l1/ch | cc | eyesPerMeat |
+|---|-----------|----------|-------|----|-------------|
+| 1 | Gen4 L2 | C7 (pri) | 25.2 | 7 | 115.2 |
+| 2 | Gen1 L2 | C1 (pri) | 25.2 | 1 | 50.4 |
+| 3 | Gen2 L2 | C3 (pri) | 25.2 | 4 | 50.4 |
+| 4 | Gen1 L5* | C2 (sec) | 57.6 | 5 | 46.1 |
+| 5 | Gen4 L2 | C8 (sec) | 2.0 | 7 | 9.1 |
+| 6 | Gen2 L2 | C4 (sec) | 2.0 | 4 | 8.0 |
+| 7 | Gen1 L2 | C2 (sec) | 2.0 | 1 | 8.0 |
+| 8 | Gen1 L5* | C1 (pri) | 6.4 | 5 | 2.6 |
+
+**После дедупликации (6 кандидатов):**
+
+| # | Генератор | Creature | eyesPerMeat | Почему этот |
+|---|-----------|----------|-------------|-------------|
+| 1 | Gen4 L2 | C7 | 115.2 | единственный |
+| 2 | Gen1 L2 | C1 | 50.4 | > Gen1 L5 C1 (2.6) |
+| 3 | Gen2 L2 | C3 | 50.4 | единственный |
+| 4 | Gen1 L5* | C2 | 46.1 | > Gen1 L2 C2 (8.0) |
+| 5 | Gen4 L2 | C8 | 9.1 | единственный |
+| 6 | Gen2 L2 | C4 | 8.0 | единственный |
+
+Дедупликация убрала 2 дубля: C1 от Gen1 L5 (epm=2.6, проигрывает Gen1 L2 с 50.4) и C2 от Gen1 L2 (epm=8.0, проигрывает Gen1 L5 с 46.1).
+
+*Фантомный апгрейд. Обратите внимание: Gen1 L5 C2 (sec) имеет eyesPerMeat=46 — лучший для C2. А Gen1 L5 C1 (pri) проседает до 2.6, проигрывая Gen1 L2 (50.4).
+
+---
+
+## Фаза 3: Выбор кандидата
+
+### 3.1 Ramp-up
+
+Если у новейшего генератора (max krakenRequired) primary creature выполнено < 5 квестов → ramp-up по расписанию:
+
+```
+Completion 0: Lv1 × 1
 Completion 1: Lv1 × 2
 Completion 2: Lv2 × 1
 Completion 3: Lv2 × 2
 Completion 4: Lv3 × 1
 ```
 
-После 5 completions → переход к нормальной генерации.
+### 3.2 Difficulty = 1 (особый случай)
 
-### 2.2 Количество существ в заказе
+- Есть Lv6+ на поле → забрать (random из пула, anti-duplicate)
+- Нет → повысить до D2, пересчитать бюджеты
 
-Бросаем монетку (**50/50**): одно или два существа в квесте.
-
-Условие для двух: **все линейки** на поле изучены (≥5 completions каждая).
-Иначе → одно существо.
-
-### 2.3 Difficulty Flow
-
-Сложность квеста определяется **паттерном**, который зацикливается:
-
-```json
-"difficultyFlow": [1, 1, 2, 2, 3, 4, 2, 5]
-```
-
-Индекс = `totalAutoTasksCompleted % difficultyFlow.length`
-
-Ритм: лёгкий → лёгкий → средний → средний → сложнее → сложный → средний → босс → повтор.
-
-### 2.4 Difficulty → мясной бюджет
-
-Сложность определяет **мясной бюджет** квеста (в единицах meatDrop):
-
-```json
-"difficultyMeatMultiplier": [0, 0, 0.5, 1, 2, 3]
-```
-
-(Индекс 0 не используется, difficulty 1-indexed)
+### 3.3 Single quest
 
 ```
-meatBudget = difficultyMeatMultiplier[difficulty] × meatDrop
+score = |eyesPerMeat / requiredEyesPerMeat - 1.0|
+weight = 1 / (score + 0.1)
+→ weighted random из ВСЕХ кандидатов
 ```
 
+Ближайший по eyesPerMeat к requiredEyesPerMeat имеет наибольший вес.
 
-| Diff  | Множитель | Мясо (пример meatDrop=10) | Описание                                                                         |
-| ----- | --------- | ------------------------- | -------------------------------------------------------------------------------- |
-| **1** | 0         | 0                         | С поля. Если есть Lv6+ → забираем его (100%). Если нет → лёгкий квест из fieldL1 |
-| **2** | 0.5       | 5                         | Половина sacrifice                                                               |
-| **3** | 1         | 10                        | Одно sacrifice                                                                   |
-| **4** | 2         | 20                        | 1.5 - 2 sacrifice                                                                |
-| **5** | 3         | 30                        | Три sacrifice (максимум)                                                         |
+### 3.4 Dual quest
 
+Кандидаты уже отсортированы по eyesPerMeat DESC.
 
-Заряды = следствие: `charges = meatBudget / chargeCost_генератора`
+**MAIN:** weighted random из **топ-3** кандидатов (самые эффективные).
 
-> Step0 из эксп. 5 **убран**. Механика "отдай Lv6+ с поля" встроена в difficulty=1 и **детерминированная** (100% если есть подходящее существо).
+**FILLER:** weighted random из **остальных** кандидатов (исключая выбранную main пару).
 
-### 2.5 Выбор генератора
+Score и weight те же: `weight = 1 / (score + 0.1)`.
 
-**Взвешенный рандом** с учётом difficulty:
+Main и filler всегда от **разных** пар (gen+creature). Оба count=1.
 
-1. **Пул генераторов** определяется difficulty:
-  - diff 1-3: все генераторы (main + filler)
-  - diff 4-5: **только main** генераторы
-2. **Веса**: main генераторы получают больший вес (60-70%), filler — меньший (30-40%).
-  *(Конфигурируемо)*
-3. **Не повторять** генератор предыдущего квеста (с 90% вероятностью, как в v1).
-4. Из выбранного генератора берём creature type:
-  - Если генератор даёт 2 типа (Creature1+Creature2) → выбираем по эффективности или рандомно
+---
 
-### 2.6 Расчёт level и count
+## Фаза 4: Уровень и ограничения
 
-Для каждого creature slot:
+После выбора кандидата определяем конкретный level, count, и проверяем ограничения.
 
-**1. Выбираем генератор** (по 2.5)
-
-**2. Выбираем creature type** от этого генератора
-
-**3. Считаем доступный бюджет L1-eq:**
+### 4.1 Target Level
 
 ```
-charges = meatBudget / chargeCost
-totalL1 = fieldL1[creatureType] + charges × l1PerCharge
+targetLevel = ceil(log₂(targetEyes / eyesMult))
+targetLevel = clamp(targetLevel, 1, creature.maxLevel, gridCap)
 ```
 
-**4. Считаем maxLevel:**
+### 4.2 Spawn cap
 
 ```
-maxLevel = min(floor(log2(totalL1)) + 1, creature.maxLevel, gridCap)
+netL1   = max(0, 2^(targetLevel-1) - fieldL1[creatureType])
+charges = ceil(netL1 / l1PerCharge)
+spawns  = charges × numCreatures
 ```
 
-**5. Выбираем (level, count) с минимальным count:**
+Если `spawns > maxSpawns` → снижаем targetLevel пока `spawns ≤ maxSpawns`.
 
-Перебираем все пары (level, count) где `count × 2^(level-1) ≤ totalL1`:
-
-- Берём пару с **минимальным count** → максимальный level
-- При одинаковом count → максимальный level
+### 4.3 Count (только single)
 
 ```
-Пример (totalL1 = 8):
-  Lv4 × 1 (needs 8)  ← ВЫБИРАЕМ (count=1)
-  Lv3 × 2 (needs 8)  — count=2, хуже
-  Lv2 × 4 (needs 8)  — count=4, хуже
-
-Пример (totalL1 = 12):
-  Lv4 × 1 (needs 8)  ← ВЫБИРАЕМ (count=1, 4 L1 "лишних")
-  Lv3 × 3 (needs 12) — count=3, хуже
+offset = maxAchievableLevel - targetLevel
+count  = maxCountByOffset[offset]
 ```
 
-### 2.7 Двойной квест (main + filler)
+Затем проверяем spawn cap для финального count и снижаем count если нужно.
 
-**Структура:** строго один main генератор + один filler генератор.
-*(Позже возможно: каждому слоту независимый 50/50 кубик)*
+В dual квестах count=1 для обоих слотов.
 
-**Бюджет мяса:** 70% main / 30% filler.
+### 4.4 Field L1 discount
 
-```json
-"dualQuestMainShare": 0.7
+```
+fieldL1[creatureType] = Σ 2^(level-1) для существ этого типа на поле
+netL1 = max(0, 2^(targetLevel-1) - fieldL1)
 ```
 
-Конфигурируемо в балансе.
+Существа, уже присутствующие на поле, удешевляют квест.
 
-**Ограничения:**
+---
 
-- Два существа от **разных генераторов**
-- Общий мясной бюджет делится 70/30
-- Main слот → генератор из mainGens
-- Filler слот → генератор из fillerGens
-- Каждый слот: charges = свой_бюджет / chargeCost → level + count
+## Anti-duplicate
 
-### 2.8 Anti-duplicate
-
-Если сгенерированный квест идентичен предыдущему (тот же type + level + count):
-→ Перевыбрать генератор (до 10 попыток).
+Если квест совпадает с предыдущим → перевыбрать (до 10 попыток).
 
 ---
 
@@ -236,104 +319,57 @@ maxLevel = min(floor(log2(totalL1)) + 1, creature.maxLevel, gridCap)
 {
   "autoConfig": {
     "difficultyFlow": [1, 1, 2, 2, 3, 4, 2, 5],
-    "difficultyMeatMultiplier": [0, 0, 0.5, 1, 2, 3],
-    "maxSacrifices": 3,
+    "difficultySacMap": [0, 0, 0.5, 0.8, 1.2, 2.0],
+    "budgetAnchors": [[2, 10], [6, 60], [9, 209], [12, 429], [17, 825], [22, 1331], [27, 2056], [32, 3156], [49, 5773]],
+    "sawTooth": [0.65, 0.65, 0.93, 0.93, 1.22, 1.22, 1.40],
+    "maxSpawns": 100,
     "rampUpSchedule": [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]],
     "rampUpThreshold": 5,
-    "dualQuestMainShare": 0.7,
     "dualQuestProbability": 0.5,
-    "mainGeneratorCount": 2,
-    "mainGeneratorWeight": 0.65,
-    "fillerGeneratorWeight": 0.35
+    "maxCountByOffset": [
+      { "offset": 0, "maxCount": 1 },
+      { "offset": 1, "maxCount": 2 },
+      { "offset": 2, "maxCount": 3 }
+    ]
   }
 }
 ```
 
+| Параметр | Описание |
+|----------|----------|
+| `difficultyFlow` | Паттерн сложности, зацикливается |
+| `difficultySacMap` | Difficulty → sacrifice budget (1-indexed) |
+| `budgetAnchors` | [krakenLevel, targetEyes] — точки интерполяции |
+| `sawTooth` | Множитель targetEyes, цикл внутри батча квестов |
+| `maxSpawns` | Максимум спавнов на квест |
+| `rampUpSchedule` | Расписание для новой линейки: `[level, count][]` |
+| `rampUpThreshold` | Квестов для "изучения" линейки |
+| `dualQuestProbability` | Вероятность dual квеста (50%) |
+| `maxCountByOffset` | Count cap по offset от maxLevel |
 
-| Параметр                   | Описание                                               |
-| -------------------------- | ------------------------------------------------------ |
-| `difficultyFlow`           | Паттерн сложности, зацикливается                       |
-| `difficultyMeatMultiplier` | Difficulty → множитель meatDrop (1-indexed)            |
-| `maxSacrifices`            | Потолок sacrifices на квест                            |
-| `rampUpSchedule`           | Расписание для новой линейки: `[level, count][]`       |
-| `rampUpThreshold`          | Квестов для "изучения" линейки                         |
-| `dualQuestMainShare`       | Доля мясного бюджета на main в двойном квесте          |
-| `dualQuestProbability`     | Вероятность двойного квеста (50%)                      |
-| `mainGeneratorCount`       | Сколько генераторов считаются main (топ по chargeCost) |
-| `mainGeneratorWeight`      | Вес main генераторов при выборе                        |
-| `fillerGeneratorWeight`    | Вес filler генераторов при выборе                      |
-
+Убрано: `recencyWeights`, `dualQuestMainShare`, `maxSacrifices`, `mainGeneratorCount`, `scoringFilter`.
 
 ---
 
-## Справка: генератор → существа
+## Справка: eyesPerMeat по генераторам
 
-
-| Генератор | krakenReq | Покупка  | chargeCost (Lv1→Lv5) | Существа               |
-| --------- | --------- | -------- | -------------------- | ---------------------- |
-| Gen1      | 1         | 5 rune1  | 1→2→3→4→5            | Creature1, Creature2   |
-| Gen2      | 7         | 5 rune2  | 1→2→3→4→5            | Creature3, Creature4   |
-| Gen4      | 13        | 20 rune2 | 3→6→9→12→15          | Creature7, Creature8   |
-| Gen5      | 18        | 40 rune1 | 3→6→9→12→15          | Creature9, Creature10  |
-| Gen6      | 23        | 40 rune2 | 5→10→15→20→25        | Creature11, Creature12 |
-| Gen7      | 28        | 60 rune1 | 5→10→15→20→25        | Creature13, Creature14 |
-| Gen8      | 33        | 60 rune2 | 7→14→21→28→35        | Creature15, Creature16 |
-
+| Creature | Gen | GenLv | eyesMult | l1/ch | cc | eyesPerMeat |
+|----------|-----|-------|----------|-------|----|-------------|
+| C1 (pri) | Gen1 | L2 | 1 | 25.2 | 1 | 50.4 |
+| C2 (sec) | Gen1 | L5 | 2 | 57.6 | 5 | 46.1 |
+| C3 (pri) | Gen2 | L2 | 4 | 25.2 | 4 | 50.4 |
+| C4 (sec) | Gen2 | L5 | 8 | 57.6 | 8 | 115.2 |
+| C7 (pri) | Gen4 | L2 | 16 | 25.2 | 7 | 115.2 |
+| C8 (sec) | Gen4 | L5 | 16 | 57.6 | 10 | 184.3 |
+| C9 (pri) | Gen5 | L2 | 16 | 25.2 | 11 | 73.3 |
+| C10 (sec) | Gen5 | L5 | 16 | 57.6 | 11 | 167.6 |
+| C11 (pri) | Gen6 | L2 | 26 | 25.2 | 14 | 93.6 |
+| C12 (sec) | Gen6 | L5 | 26 | 57.6 | 14 | 214.0 |
+| C13 (pri) | Gen7 | L2 | 35 | 25.2 | 17 | 103.8 |
+| C14 (sec) | Gen7 | L5 | 35 | 57.6 | 17 | 237.2 |
+| C15 (pri) | Gen8 | L2 | 43 | 25.2 | 19 | 114.1 |
+| C16 (sec) | Gen8 | L5 | 43 | 57.6 | 19 | 261.3 |
 
 Creature5, Creature6 — без генератора (спецмеханика).
 
----
-
-## Переиспользуемые функции (src/domain/tasks.ts)
-
-
-| Функция                     | Назначение                                        |
-| --------------------------- | ------------------------------------------------- |
-| `countFieldL1Equivalents()` | fieldL1 per creature type                         |
-| `buildFieldCreatureMap()`   | Генераторы + фантомные + l1PerCharge + chargeCost |
-| `getExpectedL1PerCharge()`  | L1-eq per charge для пары (gen, creatureType)     |
-| `calcMaxAchievableLevel()`  | Макс level с учётом поля + зарядов                |
-| `countAvailableRunes()`     | Руны (кошелёк + поле + боксы)                     |
-| `getGridSizeForLevel()`     | Grid cap для creature level                       |
-| `calculateMeatDrop()`       | Мясо за 1 sacrifice (из chapters)                 |
-
-
----
-
-## Блок-схема алгоритма
-
-```
-generateAutoTask(config, state, rng)
-│
-├─ Фаза 1: Расчёт
-│  ├─ fieldL1 = countFieldL1 для каждого creature type
-│  ├─ meatDrop = calculateMeatDrop(eyes)
-│  ├─ generators = buildFieldCreatureMap (реальные + фантомные)
-│  └─ mainGens / fillerGens = sort by chargeCost, top-N = main
-│
-├─ Ramp-up? → если новейший gen primary < 5 completions → ramp-up квест
-│
-├─ Dual quest? → 50/50 И все линейки изучены
-│
-├─ difficulty = difficultyFlow[totalCompleted % length]
-│
-├─ meatBudget = difficultyMeatMultiplier[difficulty] × meatDrop
-│
-├─ Выбор генератора:
-│  ├─ diff 4-5 → только mainGens
-│  └─ diff 1-3 → mainGens (65%) + fillerGens (35%)
-│  └─ Не повторять предыдущий (90%)
-│
-├─ creature type = от выбранного генератора
-│
-├─ diff=1 + Lv6+ на поле → забрать существо (100%)
-│
-├─ charges = meatBudget / chargeCost
-├─ totalL1 = fieldL1 + charges × l1PerCharge
-├─ level/count = min-count pair где count × 2^(level-1) ≤ totalL1
-│
-├─ [Если dual] → повторить для второго слота (main/filler, 70/30 бюджет)
-│
-└─ Anti-duplicate → перевыбрать генератор (до 10 попыток)
-```
-
+**Тренд:** secondary при GenL5 всегда эффективнее primary при GenL2. Фантомные апгрейды до L5 открывают secondary-существ как конкурентоспособных кандидатов.

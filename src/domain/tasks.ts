@@ -71,23 +71,25 @@ export function selectCreaturesForTask(task: TaskDefinition, creatures: Creature
   return selected;
 }
 
-// ─── Auto-task generation (budget-based algorithm) ─────────────────────────
-
-const DEFAULT_MAX_COUNT_BY_OFFSET = [
-  { minOffset: 0, maxOffset: 1, maxCount: 1 },
-  { minOffset: 2, maxOffset: 3, maxCount: 2 },
-  { minOffset: 4, maxOffset: 99, maxCount: 3 },
-];
+// ─── Auto-task generation (Quest Algorithm v2 — generator-centric) ──────────
 
 const DEFAULT_AUTO_CONFIG = {
+  difficultyFlow: [1, 1, 2, 2, 3, 4, 2, 5],
+  difficultySacMap: [0, 0, 0.5, 0.8, 1.2, 2.0],  // index = difficulty level
   budgetAnchors: [
     [2, 10], [6, 60], [9, 209], [12, 429],
     [17, 825], [22, 1331], [27, 2056], [32, 3156], [49, 5773],
   ] as [number, number][],
   sawTooth: [0.65, 0.65, 0.93, 0.93, 1.22, 1.22, 1.40],
-  maxSacrifices: 3,
   rampUpSchedule: [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]] as [number, number][],
-  maxCountByOffset: DEFAULT_MAX_COUNT_BY_OFFSET,
+  rampUpThreshold: 5,
+  dualQuestProbability: 0.5,
+  maxCountByOffset: [
+    { offset: 0, maxCount: 1 },
+    { offset: 1, maxCount: 2 },
+    { offset: 2, maxCount: 3 },
+  ],
+  maxSpawns: 100,
 };
 
 /** Count all rune currency: wallet + rune entities on field + box contents. */
@@ -183,204 +185,193 @@ function getExpectedL1PerCharge(
 
 /** Lookup max count allowed for a given creature level based on offset from maxAchievableLevel. */
 function getMaxCountForLevel(
-  config: { maxCountByOffset?: { minOffset: number; maxOffset: number; maxCount: number }[] },
+  config: { maxCountByOffset?: { offset: number; maxCount: number }[] },
   level: number,
   maxAchievableLevel: number,
 ): number {
   const offset = maxAchievableLevel - level;
-  const rules = config.maxCountByOffset ?? DEFAULT_MAX_COUNT_BY_OFFSET;
+  const rules = config.maxCountByOffset ?? DEFAULT_AUTO_CONFIG.maxCountByOffset;
+  // Exact offset match; if not found, use the last entry's maxCount as fallback
   for (const rule of rules) {
-    if (offset >= rule.minOffset && offset <= rule.maxOffset) return rule.maxCount;
+    if (offset === rule.offset) return rule.maxCount;
   }
-  return 3; // fallback
+  return rules[rules.length - 1]?.maxCount ?? 3;
+}
+
+/** Per-(generator+level, creature) candidate with precomputed eyesPerMeat. */
+interface GeneratorCandidate {
+  genId: number;
+  genLevel: number;
+  creatureType: string;
+  l1PerCharge: number;
+  chargeCost: number;
+  eyesMult: number;
+  numCreatures: number;
+  eyesPerMeat: number;
 }
 
 /**
- * Find the (level, count) pair whose eyes value best matches targetEyes,
- * subject to: spawn-cost ((L1-equiv - fieldL1) / l1PerCharge * chargeCost ≤ meatBudget)
- * and grid level cap (creature level ≤ available cells, since incremental
- * merging to level L requires at least L cells on the field).
- * fieldL1 = L1-equivalents of this creature type already on the field.
+ * Compute upgrade cost from currentLevel to targetLevel for a generator.
+ * Generators upgrade by merging pairs: two LN → one L(N+1).
+ * To go from currentLevel to targetLevel, the player needs (2^delta - 1)
+ * additional copies at currentLevel, each costing purchaseCost runes.
+ * Returns the total rune cost of the additional copies.
  */
-function findBestLevelCount(
-  targetEyes: number,
-  creatureType: string,
-  l1PerCharge: number,
-  meatBudget: number,
-  chargeCost: number,
-  config: BalanceConfig,
-  maxAchievableLevel: number,
-  gridSize: number,
-  fieldL1: number,
-  lastLevel: number,
-): { level: number; count: number } | null {
-  const creature = config.creatures.creatures.find(c => c.type === creatureType);
-  if (!creature || l1PerCharge <= 0) return null;
-
-  const autoConfig = config.tasks.autoConfig ?? DEFAULT_AUTO_CONFIG;
-  const resMultiplier = 2; // auto-tasks always use resMultiplier = 2
-
-  let bestScore = Infinity;
-  let bestPair: { level: number; count: number } | null = null;
-  const levelCeiling = Math.min(creature.maxLevel, maxAchievableLevel);
-
-  for (let level = 1; level <= levelCeiling; level++) {
-    const eyesPerUnit = getCreatureReward(config, creatureType, level).eyes;
-    const maxCountForLevel = getMaxCountForLevel(autoConfig, level, maxAchievableLevel);
-
-    for (let count = 1; count <= maxCountForLevel; count++) {
-      const eyes = eyesPerUnit * count * resMultiplier;
-      const l1needed = count * Math.pow(2, level - 1);
-      const netL1 = Math.max(0, l1needed - fieldL1);
-      const spawns = netL1 / l1PerCharge;
-
-      if (spawns * chargeCost > meatBudget) continue;
-      if (level > gridSize) continue; // incremental merge to level L needs at least L cells
-
-      const levelBonus = level > lastLevel ? -0.15 : 0;
-      const countPenalty = (count - 1) * 0.1;
-      const score = Math.abs(eyes - targetEyes) / targetEyes + countPenalty + levelBonus;
-      if (score < bestScore) {
-        bestScore = score;
-        bestPair = { level, count };
-      }
-    }
-  }
-
-  return bestPair;
+function generatorUpgradeCost(currentLevel: number, targetLevel: number, purchaseCost: number): number {
+  if (targetLevel <= currentLevel) return 0;
+  // Need 2^(targetLevel - currentLevel) total copies at currentLevel; already have 1.
+  const copiesNeeded = Math.pow(2, targetLevel - currentLevel) - 1;
+  return copiesNeeded * purchaseCost;
 }
 
 /**
- * Build a map of creatureType → best l1PerCharge from generators currently on the field.
- * Also returns an ordered list of generator IDs (by seniority) for weighting.
+ * Build candidate table: real generators, phantom purchases, and phantom upgrades.
+ * Each candidate has a precomputed eyesPerMeat for scoring.
+ * Candidates are sorted by eyesPerMeat DESC.
  */
-function buildFieldCreatureMap(
+function buildCandidateTable(
   config: BalanceConfig,
   state: GameSnapshot,
-): { l1Map: Map<string, number>; chargeCostMap: Map<string, number>; genOrder: number[] } {
-  const generators = Object.values(state.entities).filter(
+): GeneratorCandidate[] {
+  const fieldGenerators = Object.values(state.entities).filter(
     (e): e is GeneratorEntity => e.kind === 'generator'
   );
 
-  // Collect best generator instance per generatorId (highest level)
+  // Best level per generator on the field
   const bestGenLevel = new Map<number, number>();
-  for (const gen of generators) {
+  for (const gen of fieldGenerators) {
     const cur = bestGenLevel.get(gen.generatorId) ?? 0;
     if (gen.level > cur) bestGenLevel.set(gen.generatorId, gen.level);
   }
 
-  // === PASS A: Virtual generators for unlocked+affordable gens not on field ===
   const { rune1: availRune1, rune2: availRune2 } = countAvailableRunes(state);
-  for (const genConfig of config.generators.generators) {
-    if (state.kraken.level < genConfig.krakenRequired) continue;
-    if (bestGenLevel.has(genConfig.id)) continue; // already on field
-    const avail = genConfig.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
-    if (avail >= genConfig.purchaseCost) {
-      bestGenLevel.set(genConfig.id, 1); // virtual L1 instance
-    }
-  }
 
-  // Order generator IDs by seniority (descending by id — higher id = newer/more senior)
-  const genOrder = [...bestGenLevel.keys()].sort((a, b) => b - a);
+  const candidates: GeneratorCandidate[] = [];
 
-  // For each generator on field, compute l1PerCharge for each creature type it outputs.
-  // Keep the best (highest) l1PerCharge per creature type across all generators.
-  const l1Map = new Map<string, number>();
-  const chargeCostMap = new Map<string, number>();
-  for (const [genId, genLevel] of bestGenLevel) {
+  /** Add all creature-line candidates for a given (genId, genLevel). */
+  const addCandidatesForLevel = (genId: number, genLevel: number) => {
     const genConfig = config.generators.generators.find(g => g.id === genId);
-    if (!genConfig) continue;
-
+    if (!genConfig) return;
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
-    if (!levelConfig) continue;
+    if (!levelConfig) return;
 
-    // Get unique creature types from this generator level
     const types = new Set(levelConfig.outputs.map(o => o.creatureType));
     for (const ct of types) {
       const l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
-      const existing = l1Map.get(ct) ?? 0;
-      if (l1pc > existing) {
-        l1Map.set(ct, l1pc);
-        chargeCostMap.set(ct, levelConfig.chargeCost);
+      if (l1pc <= 0) continue;
+      const eyesMult = getCreatureReward(config, ct, 1).eyes / 2;
+      const epm = levelConfig.chargeCost > 0
+        ? 2 * eyesMult * l1pc / levelConfig.chargeCost
+        : 0;
+      candidates.push({
+        genId,
+        genLevel,
+        creatureType: ct,
+        l1PerCharge: l1pc,
+        chargeCost: levelConfig.chargeCost,
+        eyesMult,
+        numCreatures: levelConfig.numCreatures,
+        eyesPerMeat: epm,
+      });
+    }
+  };
+
+  for (const genConfig of config.generators.generators) {
+    if (state.kraken.level < genConfig.krakenRequired) continue;
+
+    const currentLevel = bestGenLevel.get(genConfig.id);
+    const availRunes = genConfig.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
+
+    if (currentLevel != null) {
+      // Real generator on field: add candidates at current level
+      addCandidatesForLevel(genConfig.id, currentLevel);
+
+      // Phantom upgrades: higher levels if runes suffice
+      const maxGenLevel = genConfig.levels.length > 0
+        ? Math.max(...genConfig.levels.map(l => l.level))
+        : currentLevel;
+      for (let lv = currentLevel + 1; lv <= maxGenLevel; lv++) {
+        const cost = generatorUpgradeCost(currentLevel, lv, genConfig.purchaseCost);
+        if (cost > availRunes) break; // higher levels only cost more
+        addCandidatesForLevel(genConfig.id, lv);
+      }
+    } else {
+      // Phantom purchase: not on field, affordable at L1
+      if (availRunes >= genConfig.purchaseCost) {
+        addCandidatesForLevel(genConfig.id, 1);
       }
     }
   }
 
-  return { l1Map, chargeCostMap, genOrder };
+  // Deduplicate: for each creatureType, keep only the best eyesPerMeat pair
+  const bestByCreature = new Map<string, GeneratorCandidate>();
+  for (const c of candidates) {
+    const existing = bestByCreature.get(c.creatureType);
+    if (!existing || c.eyesPerMeat > existing.eyesPerMeat) {
+      bestByCreature.set(c.creatureType, c);
+    }
+  }
+  const deduped = [...bestByCreature.values()];
+
+  // Sort by eyesPerMeat DESC
+  deduped.sort((a, b) => b.eyesPerMeat - a.eyesPerMeat);
+
+  return deduped;
+}
+
+/** Score a candidate against requiredEyesPerMeat. Returns { score, weight }. */
+function scoreCandidate(candidate: GeneratorCandidate, requiredEyesPerMeat: number): { score: number; weight: number } {
+  const ratio = requiredEyesPerMeat > 0 ? candidate.eyesPerMeat / requiredEyesPerMeat : 1;
+  const score = Math.abs(ratio - 1.0);
+  const weight = 1 / (score + 0.1);
+  return { score, weight };
+}
+
+/** Weighted random selection from candidates with precomputed weights. */
+function pickWeightedCandidate(
+  candidates: { candidate: GeneratorCandidate; weight: number }[],
+  rng: SeededRng,
+): GeneratorCandidate | null {
+  if (candidates.length === 0) return null;
+  const total = candidates.reduce((sum, c) => sum + c.weight, 0);
+  if (total <= 0) return candidates[0]?.candidate ?? null;
+  const roll = rng.next() * total;
+  let cum = 0;
+  for (const c of candidates) {
+    cum += c.weight;
+    if (roll < cum) return c.candidate;
+  }
+  return candidates[candidates.length - 1]?.candidate ?? null;
 }
 
 /**
- * Pick a creature type using weighted selection based on generator recency.
- * Latest generator's creatures: 40%, previous: 35%, older: 25% (split).
- * 90% chance to exclude previous quest's creature type.
+ * Determine target level and apply spawn cap.
+ * Returns the clamped targetLevel.
  */
-function pickWeightedCreatureType(
-  config: BalanceConfig,
-  creatureTypes: string[],
-  genOrder: number[],
-  lastLine: string | null,
-  rng: SeededRng,
-): string {
-  if (creatureTypes.length === 0) return 'Creature1';
-  if (creatureTypes.length === 1) return creatureTypes[0]!;
+function computeTargetLevel(
+  candidate: GeneratorCandidate,
+  targetEyes: number,
+  maxLevel: number,
+  gridCap: number,
+  fieldL1: number,
+  maxSpawns: number,
+): number {
+  let targetLevel = Math.ceil(Math.log2(targetEyes / candidate.eyesMult));
+  targetLevel = Math.max(1, Math.min(targetLevel, maxLevel, gridCap));
 
-  // 90% chance to exclude previous task's line
-  let pool = creatureTypes;
-  if (pool.length > 1 && lastLine && rng.next() < 0.9) {
-    const filtered = pool.filter(ct => ct !== lastLine);
-    if (filtered.length > 0) pool = filtered;
+  // Spawn cap: reduce targetLevel if spawns exceed limit
+  while (targetLevel > 1) {
+    const netL1 = Math.max(0, Math.pow(2, targetLevel - 1) - fieldL1);
+    const charges = candidate.l1PerCharge > 0 ? Math.ceil(netL1 / candidate.l1PerCharge) : 0;
+    if (charges * candidate.numCreatures <= maxSpawns) break;
+    targetLevel--;
   }
 
-  if (pool.length === 1) return pool[0]!;
+  return targetLevel;
+}
 
-  // Assign weights based on which generator produces each creature type
-  const genCreatures = new Map<number, Set<string>>();
-  for (const gen of config.generators.generators) {
-    const types = new Set<string>();
-    for (const level of gen.levels) {
-      for (const output of level.outputs) {
-        types.add(output.creatureType);
-      }
-    }
-    genCreatures.set(gen.id, types);
-  }
-
-  // For each creature type, find which generator (by seniority rank) produces it
-  const typeRank = new Map<string, number>(); // 0 = latest gen, 1 = previous, 2+ = older
-  for (const ct of pool) {
-    let rank = genOrder.length; // default: not found (oldest)
-    for (let i = 0; i < genOrder.length; i++) {
-      if (genCreatures.get(genOrder[i]!)?.has(ct)) {
-        rank = i;
-        break;
-      }
-    }
-    typeRank.set(ct, rank);
-  }
-
-  // Assign weights: rank 0 → 40, rank 1 → 35, rank 2+ → 25 (split among them)
-  const weights: number[] = [];
-  const olderCount = pool.filter(ct => (typeRank.get(ct) ?? 99) >= 2).length;
-  const olderWeight = olderCount > 0 ? 25 / olderCount : 0;
-
-  for (const ct of pool) {
-    const rank = typeRank.get(ct) ?? 99;
-    if (rank === 0) weights.push(40);
-    else if (rank === 1) weights.push(35);
-    else weights.push(olderWeight);
-  }
-
-  // Weighted random selection
-  const total = weights.reduce((a, b) => a + b, 0);
-  if (total <= 0) return pool[0]!;
-
-  const roll = rng.next() * total;
-  let cum = 0;
-  for (let i = 0; i < pool.length; i++) {
-    cum += weights[i]!;
-    if (roll < cum) return pool[i]!;
-  }
-  return pool[pool.length - 1]!;
+function makeTaskId(rng: SeededRng): string {
+  return `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`;
 }
 
 export function generateAutoTask(
@@ -389,62 +380,79 @@ export function generateAutoTask(
   rng: SeededRng
 ): TaskDefinition {
   const autoConfig = config.tasks.autoConfig ?? DEFAULT_AUTO_CONFIG;
-  const {
-    budgetAnchors,
-    sawTooth,
-    maxSacrifices,
-  } = autoConfig;
-  const meatDrop = calculateMeatDrop(config, state.resources.eyes);
-  const meatBudget = maxSacrifices * meatDrop;
+  const budgetAnchors = autoConfig.budgetAnchors;
+  const sawTooth = autoConfig.sawTooth;
   const rampUpSchedule = autoConfig.rampUpSchedule ?? DEFAULT_AUTO_CONFIG.rampUpSchedule;
+  const rampUpThreshold = autoConfig.rampUpThreshold ?? DEFAULT_AUTO_CONFIG.rampUpThreshold;
+  const dualQuestProbability = autoConfig.dualQuestProbability ?? DEFAULT_AUTO_CONFIG.dualQuestProbability;
+  const difficultyFlow = autoConfig.difficultyFlow ?? DEFAULT_AUTO_CONFIG.difficultyFlow;
+  const difficultySacMap = autoConfig.difficultySacMap ?? DEFAULT_AUTO_CONFIG.difficultySacMap;
+  const maxSpawns = autoConfig.maxSpawns ?? DEFAULT_AUTO_CONFIG.maxSpawns;
 
-  // Field capacity cap: level ≤ available_cells
-  // All generators of one line (same generatorId) merge into 1 — so footprint = unique generatorId count
+  // ─── PHASE 1: BUDGETS ───────────────────────────────────────────────────
+
+  const meatDrop = calculateMeatDrop(config, state.resources.eyes);
+
+  // Field capacity cap
   const { rows, cols } = getGridSizeForLevel(config, state.kraken.level);
   const gridCells = rows * cols;
-  const generators = Object.values(state.entities).filter(
+  const fieldGenerators = Object.values(state.entities).filter(
     (e): e is GeneratorEntity => e.kind === 'generator'
   );
-  const generatorFootprint = new Set(generators.map(g => g.generatorId)).size;
-  const fieldLevelCap = Math.max(1, gridCells - generatorFootprint);
+  const generatorFootprint = new Set(fieldGenerators.map(g => g.generatorId)).size;
+  const gridCap = Math.max(1, gridCells - generatorFootprint);
 
-  // Step 0: 50% chance to target a high-level creature already on field (level 6+)
-  const highLevelCreatures = Object.values(state.entities).filter(
-    (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 6
-  );
-  const prev0 = state.currentAutoTask;
-  const prevType0 = prev0?.creatures[0]?.type;
-  const prevLevel0 = prev0?.creatures[0]?.level;
-  const filteredHigh = prevType0
-    ? highLevelCreatures.filter((e) => e.creatureType !== prevType0 || e.level !== prevLevel0)
-    : highLevelCreatures;
-  const step0Pool = filteredHigh.length > 0 ? filteredHigh : highLevelCreatures;
-  if (step0Pool.length > 0 && rng.next() < 0.5) {
-    const pick = step0Pool[Math.floor(rng.next() * step0Pool.length)]!;
-    return {
-      id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
-      creatures: [{ type: pick.creatureType, level: Math.min(pick.level, fieldLevelCap), count: 1 }],
-      expMultiplier: 0,
-      resMultiplier: 2
-    };
+  // Build fieldL1 map for all creature types
+  const fieldL1Map = new Map<string, number>();
+  for (const entity of Object.values(state.entities)) {
+    if (entity.kind === 'creature') {
+      const cr = entity as CreatureEntity;
+      const cur = fieldL1Map.get(cr.creatureType) ?? 0;
+      fieldL1Map.set(cr.creatureType, cur + Math.pow(2, cr.level - 1));
+    }
   }
 
-  // Build creature type map from generators currently ON FIELD
-  const { l1Map, chargeCostMap, genOrder } = buildFieldCreatureMap(config, state);
-  const allCreatureTypes = [...l1Map.keys()];
+  // totalCompleted = sum of all autoTaskLineCompletions
+  const totalCompleted = Object.values(state.autoTaskLineCompletions).reduce((a, b) => a + b, 0);
 
-  // Fallback: if no generators on field, produce a minimal quest
-  if (allCreatureTypes.length === 0) {
+  // Target eyes budget
+  const sawToothPos = totalCompleted % sawTooth.length;
+  const targetEyes = baseBudget(state.kraken.level, budgetAnchors as [number, number][])
+    * sawTooth[sawToothPos]!;
+
+  // Difficulty → sacrifice budget → meat budget
+  const diffIdx = totalCompleted % difficultyFlow.length;
+  let difficulty = difficultyFlow[diffIdx]!;
+  let sacBudget = difficultySacMap[difficulty] ?? 0;
+  let meatBudget = sacBudget * meatDrop;
+  const requiredEyesPerMeat = meatBudget > 0 ? targetEyes / meatBudget : 0;
+
+  // ─── PHASE 2: CANDIDATE TABLE ──────────────────────────────────────────
+
+  const candidates = buildCandidateTable(config, state);
+
+  // Fallback: no generators available at all
+  if (candidates.length === 0) {
     return {
-      id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
+      id: makeTaskId(rng),
       creatures: [{ type: 'Creature1', level: 1, count: 1 }],
       expMultiplier: 0,
-      resMultiplier: 2
+      resMultiplier: 2,
     };
   }
 
-  // INTRODUCTION + RAMP-UP: only for primary creature of the newest generator
-  const newestGenId = genOrder[0];
+  const prev = state.currentAutoTask;
+
+  // ─── RAMP-UP CHECK ─────────────────────────────────────────────────────
+
+  const candidateGenIds = [...new Set(candidates.map(c => c.genId))];
+  const newestGenId = candidateGenIds.length > 0
+    ? candidateGenIds.reduce((best, gid) => {
+        const gc = config.generators.generators.find(g => g.id === gid);
+        const bc = config.generators.generators.find(g => g.id === best);
+        return (gc?.krakenRequired ?? 0) > (bc?.krakenRequired ?? 0) ? gid : best;
+      }, candidateGenIds[0]!)
+    : undefined;
   const newestGenConfig = newestGenId != null
     ? config.generators.generators.find(g => g.id === newestGenId)
     : null;
@@ -452,210 +460,180 @@ export function generateAutoTask(
     ? newestGenConfig.levels[0]?.outputs.find(o => o.chance >= 0.99)?.creatureType ?? null
     : null;
 
-  if (newestPrimaryType && l1Map.has(newestPrimaryType)) {
+  if (newestPrimaryType) {
     const completions = state.autoTaskLineCompletions[newestPrimaryType] ?? 0;
-    if (completions === 0) {
-      return {
-        id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
-        creatures: [{ type: newestPrimaryType, level: 1, count: 1 }],
-        expMultiplier: 0,
-        resMultiplier: 2
-      };
-    }
-    if (completions < rampUpSchedule.length) {
-      const [level, count] = rampUpSchedule[completions]!;
+    if (completions < rampUpThreshold) {
+      const schedIdx = Math.min(completions, rampUpSchedule.length - 1);
+      const [level, count] = rampUpSchedule[schedIdx]!;
       const creature = config.creatures.creatures.find(c => c.type === newestPrimaryType);
       const maxLevel = creature?.maxLevel ?? 9;
-      const clampedLevel = Math.max(1, Math.min(level!, maxLevel, fieldLevelCap));
+      const clampedLevel = Math.max(1, Math.min(level!, maxLevel, gridCap));
       return {
-        id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
+        id: makeTaskId(rng),
         creatures: [{ type: newestPrimaryType, level: clampedLevel, count: count! }],
         expMultiplier: 0,
-        resMultiplier: 2
+        resMultiplier: 2,
       };
     }
   }
 
-  // NORMAL quest generation with budget
-  const questIndex = Object.values(state.autoTaskLineCompletions).reduce((a, b) => a + b, 0);
-  const targetEyes = baseBudget(state.kraken.level, budgetAnchors as [number, number][])
-    * sawTooth[questIndex % 7]!;
+  // ─── DIFFICULTY = 1 (special case) ─────────────────────────────────────
 
-  const prev = state.currentAutoTask;
-
-  // ── Multi-creature quest (fresh + filler) ──────────────────────────────
-  const uniqueGenIds = [...new Set(
-    Object.values(state.entities)
-      .filter((e): e is GeneratorEntity => e.kind === 'generator')
-      .map(e => e.generatorId)
-  )];
-
-  // Map generator IDs on the field to creature types they can CURRENTLY produce
-  // (only from their current upgrade level, not all possible levels)
-  const fieldCreatureTypes = new Set<string>(
-    allCreatureTypes.filter(ct => {
-      for (const genId of uniqueGenIds) {
-        const genConfig = config.generators.generators.find(g => g.id === genId);
-        if (!genConfig) continue;
-        const genLevel = Math.max(...generators.filter(g => g.generatorId === genId).map(g => g.level));
-        const levelConfig = genConfig.levels.find(l => l.level === genLevel);
-        if (levelConfig?.outputs.some(o => o.creatureType === ct)) return true;
-      }
-      return false;
-    })
-  );
-
-  // Only check ramp-up for creature types from generators currently on the field
-  const fieldCreatureTypesArr = [...fieldCreatureTypes];
-  const allRampedUp = fieldCreatureTypesArr.every(
-    ct => (state.autoTaskLineCompletions[ct] ?? 0) >= rampUpSchedule.length
-  );
-
-  // [TEMPORARILY DISABLED FOR BATCH SIM]
-  // console.log('[QUEST-DBG] multi-creature check:', {
-  //   uniqueGenIds,
-  //   uniqueGenIdsLen: uniqueGenIds.length,
-  //   allRampedUp,
-  //   fieldCreatureTypes: fieldCreatureTypesArr,
-  //   allCreatureTypes,
-  //   allCreatureTypesNote: 'from l1Map (current gen levels + virtual affordable)',
-  //   fieldCreatureTypesNote: 'intersection of allCreatureTypes with field gen current-level outputs',
-  //   lineCompletions: state.autoTaskLineCompletions,
-  //   rampUpLen: rampUpSchedule.length,
-  //   perCreature: Object.fromEntries(
-  //     fieldCreatureTypesArr.map(ct => [ct, {
-  //       completions: state.autoTaskLineCompletions[ct] ?? 0,
-  //       rampedUp: (state.autoTaskLineCompletions[ct] ?? 0) >= rampUpSchedule.length
-  //     }])
-  //   ),
-  // });
-
-  if (uniqueGenIds.length >= 2 && allRampedUp && rng.next() < 0.5) {
-    // Sort generator configs by krakenRequired descending (newest first)
-    const genConfigs = uniqueGenIds
-      .map(id => config.generators.generators.find(g => g.id === id))
-      .filter((g): g is NonNullable<typeof g> => g != null)
-      .sort((a, b) => b.krakenRequired - a.krakenRequired);
-
-    if (genConfigs.length >= 2) {
-      const freshGens = genConfigs.slice(0, 2);
-      const fillerGens = genConfigs.slice(2);
-
-      // Determine creature types from fresh (2 newest) and filler (rest) generators
-      const freshTypes = new Set<string>();
-      for (const gen of freshGens) {
-        for (const level of gen.levels) {
-          for (const output of level.outputs) freshTypes.add(output.creatureType);
-        }
-      }
-      const fillerTypes = new Set<string>();
-      for (const gen of fillerGens) {
-        for (const level of gen.levels) {
-          for (const output of level.outputs) fillerTypes.add(output.creatureType);
-        }
-      }
-
-      // Pick one fresh and one filler type that are available on field
-      const freshCandidates = [...freshTypes].filter(ct => l1Map.has(ct));
-      const fillerCandidates = [...fillerTypes].filter(ct => l1Map.has(ct) && !freshTypes.has(ct));
-
-      if (freshCandidates.length > 0 && fillerCandidates.length > 0) {
-        const freshType = freshCandidates[Math.floor(rng.next() * freshCandidates.length)]!;
-        const fillerType = fillerCandidates[Math.floor(rng.next() * fillerCandidates.length)]!;
-
-        const freshBudget = Math.round(targetEyes * 0.6);
-        const fillerBudget = Math.round(targetEyes * 0.4);
-
-        const freshL1pc = l1Map.get(freshType) ?? 0;
-        const fillerL1pc = l1Map.get(fillerType) ?? 0;
-        const freshChargeCost = chargeCostMap.get(freshType) ?? 1;
-        const fillerChargeCost = chargeCostMap.get(fillerType) ?? 1;
-
-        const freshMaxLvl = calcMaxAchievableLevel(config, state, freshType, freshL1pc, meatBudget, freshChargeCost);
-        const freshFieldL1 = countFieldL1Equivalents(state, freshType);
-        const freshLastLevel = state.autoTaskLastLevels?.[freshType] ?? 0;
-        const freshPair = findBestLevelCount(freshBudget, freshType, freshL1pc, meatBudget, freshChargeCost, config, freshMaxLvl, fieldLevelCap, freshFieldL1, freshLastLevel);
-        const fillerMaxLvl = calcMaxAchievableLevel(config, state, fillerType, fillerL1pc, meatBudget, fillerChargeCost);
-        const fillerFieldL1 = countFieldL1Equivalents(state, fillerType);
-        const fillerLastLevel = state.autoTaskLastLevels?.[fillerType] ?? 0;
-        const fillerPair = findBestLevelCount(fillerBudget, fillerType, fillerL1pc, meatBudget, fillerChargeCost, config, fillerMaxLvl, fieldLevelCap, fillerFieldL1, fillerLastLevel);
-
-        if (freshPair && fillerPair) {
-          const freshCreature = config.creatures.creatures.find(c => c.type === freshType);
-          const fillerCreature = config.creatures.creatures.find(c => c.type === fillerType);
-          const freshMaxLevel = freshCreature?.maxLevel ?? 9;
-          const fillerMaxLevel = fillerCreature?.maxLevel ?? 9;
-
-          const freshLevel = Math.max(1, Math.min(freshPair.level, freshMaxLevel, fieldLevelCap));
-          const fillerLevel = Math.max(1, Math.min(fillerPair.level, fillerMaxLevel, fieldLevelCap));
-
-          // Anti-duplicate: check that the combination isn't identical to previous quest
-          const isDuplicate =
-            prev?.creatures.length === 2 &&
-            prev.creatures[0]!.type === freshType &&
-            prev.creatures[0]!.level === freshLevel &&
-            prev.creatures[1]!.type === fillerType &&
-            prev.creatures[1]!.level === fillerLevel;
-
-          if (!isDuplicate) {
-            return {
-              id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
-              creatures: [
-                { type: freshType, level: freshLevel, count: freshPair.count },
-                { type: fillerType, level: fillerLevel, count: fillerPair.count }
-              ],
-              expMultiplier: 0,
-              resMultiplier: 2
-            };
-          }
-        }
-      }
+  if (difficulty === 1) {
+    const highLevelCreatures = Object.values(state.entities).filter(
+      (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 6
+    );
+    if (highLevelCreatures.length > 0) {
+      const prevType = prev?.creatures[0]?.type;
+      const prevLevel = prev?.creatures[0]?.level;
+      const filtered = prevType
+        ? highLevelCreatures.filter(e => e.creatureType !== prevType || e.level !== prevLevel)
+        : highLevelCreatures;
+      const pool = filtered.length > 0 ? filtered : highLevelCreatures;
+      const pick = pool[Math.floor(rng.next() * pool.length)]!;
+      return {
+        id: makeTaskId(rng),
+        creatures: [{ type: pick.creatureType, level: Math.min(pick.level, gridCap), count: 1 }],
+        expMultiplier: 0,
+        resMultiplier: 2,
+      };
     }
-    // Fall through to single-creature quest if multi-creature fails
+    // No Lv6+ on field → bump to difficulty 2
+    difficulty = 2;
+    sacBudget = difficultySacMap[2] ?? 0.5;
+    meatBudget = sacBudget * meatDrop;
   }
 
-  // ── Single-creature quest ──────────────────────────────────────────────
-  // Retry loop to avoid identical consecutive tasks
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const creatureType = pickWeightedCreatureType(
-      config, allCreatureTypes, genOrder, state.lastAutoTaskLine, rng
-    );
+  // Recompute requiredEyesPerMeat after potential difficulty bump
+  const finalRequiredEPM = meatBudget > 0 ? targetEyes / meatBudget : requiredEyesPerMeat;
 
-    const l1pc = l1Map.get(creatureType) ?? 0;
-    const crChargeCost = chargeCostMap.get(creatureType) ?? 1;
-    const maxAchievable = calcMaxAchievableLevel(config, state, creatureType, l1pc, meatBudget, crChargeCost);
-    const crFieldL1 = countFieldL1Equivalents(state, creatureType);
-    const lastLevel = state.autoTaskLastLevels?.[creatureType] ?? 0;
-    const pair = findBestLevelCount(targetEyes, creatureType, l1pc, meatBudget, crChargeCost, config, maxAchievable, fieldLevelCap, crFieldL1, lastLevel);
+  // ─── SINGLE vs DUAL DECISION ───────────────────────────────────────────
 
-    if (pair) {
-      const creature = config.creatures.creatures.find(c => c.type === creatureType);
-      const maxLevel = creature?.maxLevel ?? 9;
-      const level = Math.max(1, Math.min(pair.level, maxLevel, fieldLevelCap));
+  const allCreatureTypes = [...new Set(candidates.map(c => c.creatureType))];
+  const allLinesLearned = allCreatureTypes.every(
+    ct => (state.autoTaskLineCompletions[ct] ?? 0) >= rampUpThreshold
+  );
+  const isDual = allLinesLearned && difficulty >= 2 && rng.next() < dualQuestProbability;
 
-      // Anti-duplicate: if identical to previous task, retry
+  // ─── PHASE 3: SELECTION ─────────────────────────────────────────────────
+
+  if (isDual) {
+    // ── DUAL QUEST ──
+    // Candidates already sorted by eyesPerMeat DESC.
+    // MAIN: weighted random from top-3. FILLER: weighted random from rest.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const mainPool = candidates.slice(0, 3).map(c => ({
+        candidate: c,
+        ...scoreCandidate(c, finalRequiredEPM),
+      }));
+      const mainPick = pickWeightedCandidate(mainPool, rng);
+      if (!mainPick) break;
+
+      // FILLER: all candidates except the main pick's (genId + creatureType) pair
+      const fillerPool = candidates
+        .slice(3)
+        .filter(c => !(c.genId === mainPick.genId && c.creatureType === mainPick.creatureType))
+        .map(c => ({ candidate: c, ...scoreCandidate(c, finalRequiredEPM) }));
+      // If no filler candidates in rest, try from all excluding main pair
+      const effectiveFillerPool = fillerPool.length > 0
+        ? fillerPool
+        : candidates
+            .filter(c => !(c.genId === mainPick.genId && c.creatureType === mainPick.creatureType))
+            .map(c => ({ candidate: c, ...scoreCandidate(c, finalRequiredEPM) }));
+      const fillerPick = pickWeightedCandidate(effectiveFillerPool, rng);
+      if (!fillerPick) break;
+
+      // Phase 4: determine target levels for both slots
+      const mainCreature = config.creatures.creatures.find(c => c.type === mainPick.creatureType);
+      const mainMaxLevel = mainCreature?.maxLevel ?? 9;
+      const mainTargetLevel = computeTargetLevel(
+        mainPick, targetEyes, mainMaxLevel, gridCap,
+        fieldL1Map.get(mainPick.creatureType) ?? 0, maxSpawns,
+      );
+
+      const fillerCreature = config.creatures.creatures.find(c => c.type === fillerPick.creatureType);
+      const fillerMaxLevel = fillerCreature?.maxLevel ?? 9;
+      const fillerTargetLevel = computeTargetLevel(
+        fillerPick, targetEyes, fillerMaxLevel, gridCap,
+        fieldL1Map.get(fillerPick.creatureType) ?? 0, maxSpawns,
+      );
+
+      // Anti-duplicate
       const isDuplicate =
-        prev?.creatures.length === 1 &&
-        prev.creatures[0]!.type === creatureType &&
-        prev.creatures[0]!.level === level;
+        prev?.creatures.length === 2 &&
+        prev.creatures[0]!.type === mainPick.creatureType &&
+        prev.creatures[0]!.level === mainTargetLevel &&
+        prev.creatures[1]!.type === fillerPick.creatureType &&
+        prev.creatures[1]!.level === fillerTargetLevel;
 
       if (!isDuplicate || attempt === 9) {
         return {
-          id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
-          creatures: [{ type: creatureType, level, count: pair.count }],
+          id: makeTaskId(rng),
+          creatures: [
+            { type: mainPick.creatureType, level: mainTargetLevel, count: 1 },
+            { type: fillerPick.creatureType, level: fillerTargetLevel, count: 1 },
+          ],
           expMultiplier: 0,
-          resMultiplier: 2
+          resMultiplier: 2,
         };
       }
     }
-    // If no valid pair for this creature type, retry with different selection
+    // Fall through to single if dual fails
   }
 
-  // Unreachable fallback (TypeScript needs it)
+  // ── SINGLE QUEST ──
+  for (let attempt = 0; attempt < 10; attempt++) {
+    // Score all candidates
+    const scored = candidates.map(c => ({
+      candidate: c,
+      ...scoreCandidate(c, finalRequiredEPM),
+    }));
+    const pick = pickWeightedCandidate(scored, rng);
+    if (!pick) break;
+
+    // Phase 4: level & constraints
+    const creature = config.creatures.creatures.find(c => c.type === pick.creatureType);
+    const maxLevel = creature?.maxLevel ?? 9;
+    const fieldL1 = fieldL1Map.get(pick.creatureType) ?? 0;
+    const targetLevel = computeTargetLevel(pick, targetEyes, maxLevel, gridCap, fieldL1, maxSpawns);
+
+    // Count from maxCountByOffset
+    const maxAchievable = calcMaxAchievableLevel(
+      config, state, pick.creatureType, pick.l1PerCharge, meatBudget, pick.chargeCost
+    );
+    const count = getMaxCountForLevel(autoConfig, targetLevel, maxAchievable);
+
+    // Cap count by spawn limit
+    let finalCount = count;
+    while (finalCount > 1) {
+      const totalL1 = finalCount * Math.pow(2, targetLevel - 1);
+      const netL1 = Math.max(0, totalL1 - fieldL1);
+      const charges = pick.l1PerCharge > 0 ? Math.ceil(netL1 / pick.l1PerCharge) : 0;
+      if (charges * pick.numCreatures <= maxSpawns) break;
+      finalCount--;
+    }
+
+    // Anti-duplicate
+    const isDuplicate =
+      prev?.creatures.length === 1 &&
+      prev.creatures[0]!.type === pick.creatureType &&
+      prev.creatures[0]!.level === targetLevel;
+
+    if (!isDuplicate || attempt === 9) {
+      return {
+        id: makeTaskId(rng),
+        creatures: [{ type: pick.creatureType, level: targetLevel, count: finalCount }],
+        expMultiplier: 0,
+        resMultiplier: 2,
+      };
+    }
+  }
+
+  // Unreachable fallback
   return {
-    id: `auto_${Date.now()}_${Math.floor(rng.next() * 100000)}`,
+    id: makeTaskId(rng),
     creatures: [{ type: 'Creature1', level: 1, count: 1 }],
     expMultiplier: 0,
-    resMultiplier: 2
+    resMultiplier: 2,
   };
 }
