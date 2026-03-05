@@ -14,6 +14,7 @@ export function ControlsPanel() {
   const addKrakenExp = useGameStore((state) => state.addKrakenExp);
   const kraken = useGameStore((state) => state.kraken);
   const buyFlowerPot = useGameStore((state) => state.buyFlowerPot);
+  const completeQuest = useGameStore((state) => state.completeQuest);
   const resetGame = useGameStore((state) => state.resetGame);
 
   return (
@@ -52,6 +53,9 @@ export function ControlsPanel() {
         </button>
         <button className="btn small" onClick={buyFlowerPot} type="button">
           Buy Pot
+        </button>
+        <button className="btn small" onClick={completeQuest} type="button">
+          Complete Quest
         </button>
         <button className="btn small danger" onClick={resetGame} type="button">
           Reset

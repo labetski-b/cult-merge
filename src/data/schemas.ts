@@ -78,8 +78,23 @@ const taskSchema = z.object({
   resMultiplier: z.number().min(0)
 });
 
+const maxCountByOffsetEntrySchema = z.object({
+  minOffset: z.number().int().min(0),
+  maxOffset: z.number().int().min(0),
+  maxCount: z.number().int().min(1),
+});
+
+export const autoConfigSchema = z.object({
+  budgetAnchors: z.array(z.tuple([z.number(), z.number()])),
+  sawTooth: z.array(z.number()).length(7),
+  maxSacrifices: z.number().default(3),
+  rampUpSchedule: z.array(z.tuple([z.number().int(), z.number().int()])).optional(),
+  maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
+});
+
 export const tasksDataSchema = z.object({
-  mandatory: z.record(z.array(taskSchema))
+  mandatory: z.record(z.array(taskSchema)),
+  autoConfig: autoConfigSchema.optional(),
 });
 
 const progressionRewardSchema = z

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
@@ -31,6 +31,7 @@ interface GameActions {
   addRune2: (amount: number) => void;
   spawnAll: () => void;
   feedAll: () => void;
+  completeQuest: () => void;
   feedPredator: (predatorId: string, creatureId: string) => void;
   addKrakenExp: (amount: number) => void;
   tickFlowerPots: (now: number) => void;
@@ -79,6 +80,7 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     currentAutoTask: null,
     lastAutoTaskLine: null,
     autoTaskLineCompletions: {},
+    autoTaskLastLevels: {},
     session: 1,
     meatButtonPresses: 0
   };
@@ -193,6 +195,14 @@ export const useGameStore = create<GameStore>()(
               taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
 
               if (isMandatory) {
+                const nextCompletions = { ...state.autoTaskLineCompletions };
+                for (const cr of task.creatures) {
+                  nextCompletions[cr.type] = (nextCompletions[cr.type] ?? 0) + 1;
+                }
+                const nextLastLevels = { ...state.autoTaskLastLevels };
+                for (const cr of task.creatures) {
+                  nextLastLevels[cr.type] = cr.level;
+                }
                 const levelKey = expResult.newState.level.toString();
                 const newTaskProgress = {
                   ...state.taskProgress,
@@ -213,18 +223,24 @@ export const useGameStore = create<GameStore>()(
                   currentTaskFed: [],
                   taskProgress: newTaskProgress,
                   currentAutoTask: newAutoTask,
+                  autoTaskLineCompletions: nextCompletions,
+                  autoTaskLastLevels: nextLastLevels,
                   lastMessage: `Task complete! +${taskEyes} Eyes`
                 };
               } else {
                 // Auto task completion → generate next auto task
-                const completedLine = task.creatures[0]?.type ?? null;
                 const nextCompletions = { ...state.autoTaskLineCompletions };
-                if (completedLine) {
-                  nextCompletions[completedLine] = (nextCompletions[completedLine] ?? 0) + 1;
+                for (const cr of task.creatures) {
+                  nextCompletions[cr.type] = (nextCompletions[cr.type] ?? 0) + 1;
                 }
+                const nextLastLevels = { ...state.autoTaskLastLevels };
+                for (const cr of task.creatures) {
+                  nextLastLevels[cr.type] = cr.level;
+                }
+                const completedLine = task.creatures[0]?.type ?? null;
                 const nextAutoTask = generateAutoTask(
                   BALANCE,
-                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, autoTaskLineCompletions: nextCompletions },
+                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, autoTaskLineCompletions: nextCompletions, autoTaskLastLevels: nextLastLevels },
                   rng
                 );
                 return {
@@ -238,6 +254,7 @@ export const useGameStore = create<GameStore>()(
                   currentAutoTask: nextAutoTask,
                   lastAutoTaskLine: completedLine,
                   autoTaskLineCompletions: nextCompletions,
+                  autoTaskLastLevels: nextLastLevels,
                   lastMessage: `Task complete! +${taskEyes} Eyes`
                 };
               }
@@ -644,6 +661,7 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTask = state.currentAutoTask;
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
+          let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -691,21 +709,30 @@ export const useGameStore = create<GameStore>()(
                 nextTaskFed = [];
 
                 if (isMandatoryTask) {
+                  for (const cr of task.creatures) {
+                    nextAutoTaskLineCompletions[cr.type] = (nextAutoTaskLineCompletions[cr.type] ?? 0) + 1;
+                  }
+                  for (const cr of task.creatures) {
+                    nextAutoTaskLastLevels[cr.type] = cr.level;
+                  }
                   const levelKey = krakenState.level.toString();
                   nextTaskProgress = { ...nextTaskProgress, [levelKey]: (nextTaskProgress[levelKey] ?? 0) + 1 };
                   // If this was the last mandatory task, generate first auto task
                   const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
                   if (nextMandatory === null) {
-                    const snapForGen = { ...state, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities };
+                    const snapForGen = { ...state, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels };
                     nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
                   }
                 } else {
                   // Auto task → generate next
-                  const completedLine = task.creatures[0]?.type ?? null;
-                  if (completedLine) {
-                    nextAutoTaskLineCompletions[completedLine] = (nextAutoTaskLineCompletions[completedLine] ?? 0) + 1;
+                  for (const cr of task.creatures) {
+                    nextAutoTaskLineCompletions[cr.type] = (nextAutoTaskLineCompletions[cr.type] ?? 0) + 1;
                   }
-                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions };
+                  for (const cr of task.creatures) {
+                    nextAutoTaskLastLevels[cr.type] = cr.level;
+                  }
+                  const completedLine = task.creatures[0]?.type ?? null;
+                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels };
                   nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
                   nextAutoTaskLine = completedLine;
                 }
@@ -733,8 +760,523 @@ export const useGameStore = create<GameStore>()(
             currentAutoTask: nextAutoTask,
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
+            autoTaskLastLevels: nextAutoTaskLastLevels,
             rngState: rng.getState(),
             lastMessage: `Fed ${fed} entities (+${totalExp} EXP${totalEyes > 0 ? `, +${totalEyes} Eyes` : ''}).`
+          };
+        });
+      },
+
+      completeQuest: () => {
+        set((state) => {
+          const MAX_OPS = 1000;
+          let ops = 0;
+
+          const rng = new SeededRng(state.rngState);
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          const nextEntities: Record<string, Entity> = { ...state.entities };
+          let nextResources = { ...state.resources };
+          let krakenState = state.kraken;
+          let nextPendingRewards = [...state.pendingRewards];
+          let nextTaskFed = [...state.currentTaskFed];
+          let nextTaskProgress = { ...state.taskProgress };
+          let nextAutoTask = state.currentAutoTask;
+          let nextAutoTaskLine = state.lastAutoTaskLine;
+          let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
+          let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let meatButtonPresses = state.meatButtonPresses;
+          let session = state.session;
+
+          // --- Helpers ---
+          function getGrid() {
+            return { rows: nextGrid.rows, cols: nextGrid.cols, cells: nextGrid.cells } as typeof state.grid;
+          }
+
+          function removeFromGrid(entityId: string) {
+            const cellIndex = findEntityCell(getGrid(), entityId);
+            if (cellIndex >= 0) nextGrid.cells[cellIndex] = null;
+            delete nextEntities[entityId];
+          }
+
+          function placeOnGrid(entity: Entity): boolean {
+            const freeSlots = getFreeCellIndexes(getGrid());
+            if (freeSlots.length === 0) return false;
+            nextGrid.cells[freeSlots[0]!] = entity.id;
+            nextEntities[entity.id] = entity;
+            return true;
+          }
+
+          function feedRune(runeEntity: RuneEntity) {
+            const { nextResources: nr } = feedRuneToResources(nextResources, runeEntity.runeType);
+            nextResources = nr;
+          }
+
+          // --- Helper: feed lowest-level creatures to make space ---
+          function makeSpace() {
+            const creatures = Object.values(nextEntities)
+              .filter((e): e is CreatureEntity => e.kind === 'creature')
+              .sort((a, b) => a.level - b.level);
+            for (const creature of creatures) {
+              if (ops >= MAX_OPS) break;
+              if (getFreeCellIndexes(getGrid()).length > 0) break;
+              ops++;
+              removeFromGrid(creature.id);
+              const reward = getEntityReward(BALANCE, creature);
+              const expResult = addExp(BALANCE, krakenState, reward.exp);
+              krakenState = expResult.newState;
+              nextPendingRewards.push(...expResult.rewards);
+              nextTaskFed = [
+                ...nextTaskFed,
+                { type: creature.creatureType, level: creature.level }
+              ];
+            }
+          }
+
+          // --- PHASE 1: Clear pipeline ---
+          // Claim all pending rewards
+          while (nextPendingRewards.length > 0 && ops < MAX_OPS) {
+            ops++;
+            const reward = nextPendingRewards.shift()!;
+
+            if (reward.type === 'egg' && typeof reward.value === 'string') {
+              const parts = reward.value.match(/^gen_(\d+)_(\d+)$/);
+              if (parts) {
+                const genId = Number(parts[1]);
+                const genLevel = Number(parts[2]);
+                const newGenId = rng.nextId();
+                const gen = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
+                if (!placeOnGrid(gen)) {
+                  makeSpace();
+                  placeOnGrid(gen);
+                }
+              }
+            } else if (reward.type === 'res_box' && typeof reward.value === 'number') {
+              const boxEntityId = rng.nextId();
+              const drops = openBox(BALANCE, reward.value, rng);
+              const contents: RuneItemKey[] = [];
+              for (const drop of drops) {
+                for (let i = 0; i < drop.amount; i++) {
+                  contents.push(drop.key);
+                }
+              }
+              const boxEntity: BoxEntity = {
+                id: boxEntityId,
+                kind: 'box',
+                boxId: reward.value,
+                contents
+              };
+              if (!placeOnGrid(boxEntity)) {
+                makeSpace();
+                placeOnGrid(boxEntity);
+              }
+            } else if (reward.type === 'grid') {
+              const nextGridSize = getGridSizeForLevel(BALANCE, krakenState.level);
+              if (nextGrid.rows !== nextGridSize.rows || nextGrid.cols !== nextGridSize.cols) {
+                const resized = resizeGrid(getGrid(), nextGridSize.rows, nextGridSize.cols);
+                nextGrid.rows = resized.rows;
+                nextGrid.cols = resized.cols;
+                nextGrid.cells = resized.cells;
+              }
+            }
+
+            // After claiming last reward, advance kraken past 0-exp steps
+            if (nextPendingRewards.length === 0) {
+              const expResult = addExp(BALANCE, krakenState, 0);
+              if (expResult.newState.level !== krakenState.level || expResult.newState.step !== krakenState.step) {
+                krakenState = expResult.newState;
+                const nextGridSize = getGridSizeForLevel(BALANCE, krakenState.level);
+                if (nextGrid.rows !== nextGridSize.rows || nextGrid.cols !== nextGridSize.cols) {
+                  const resized = resizeGrid(getGrid(), nextGridSize.rows, nextGridSize.cols);
+                  nextGrid.rows = resized.rows;
+                  nextGrid.cols = resized.cols;
+                  nextGrid.cells = resized.cells;
+                }
+                nextPendingRewards.push(...expResult.rewards);
+              }
+            }
+          }
+
+          // Open all boxes → extract runes
+          for (const [entityId, entity] of Object.entries(nextEntities)) {
+            if (entity.kind !== 'box') continue;
+            if (ops >= MAX_OPS) break;
+            ops++;
+            const box = entity as BoxEntity;
+            for (const runeKey of box.contents) {
+              const runeId = rng.nextId();
+              const runeEntity: RuneEntity = { id: runeId, kind: 'rune', runeType: runeKey };
+              placeOnGrid(runeEntity);
+            }
+            removeFromGrid(entityId);
+          }
+
+          // Feed all runes on field
+          for (const [entityId, entity] of Object.entries(nextEntities)) {
+            if (entity.kind !== 'rune') continue;
+            if (ops >= MAX_OPS) break;
+            ops++;
+            feedRune(entity as RuneEntity);
+            removeFromGrid(entityId);
+          }
+
+          // --- PHASE 2: Ensure task exists ---
+          let task = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress)
+            ?? nextAutoTask;
+
+          if (!task) {
+            nextAutoTask = generateAutoTask(BALANCE, { ...state, kraken: krakenState, resources: nextResources, entities: nextEntities, taskProgress: nextTaskProgress }, rng);
+            task = nextAutoTask;
+          }
+
+          if (!task) {
+            return {
+              grid: getGrid(),
+              entities: nextEntities,
+              resources: nextResources,
+              kraken: krakenState,
+              pendingRewards: nextPendingRewards,
+              currentTaskFed: nextTaskFed,
+              taskProgress: nextTaskProgress,
+              currentAutoTask: nextAutoTask,
+              lastAutoTaskLine: nextAutoTaskLine,
+              autoTaskLineCompletions: nextAutoTaskLineCompletions,
+              autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatButtonPresses,
+              session,
+              rngState: rng.getState(),
+              lastMessage: 'No quest available.'
+            };
+          }
+
+          // --- Helper: feed off-task creatures to free grid space ---
+          // Builds a set of entity IDs that are needed for the task (right type contributing to requirements)
+          function getNeededCreatureIds(): Set<string> {
+            const needed = new Set<string>();
+            for (const req of task!.creatures) {
+              // Keep creatures of the right type (any level ≤ req.level, usable for merging)
+              const ofType = Object.values(nextEntities).filter(
+                (e): e is CreatureEntity => e.kind === 'creature' && e.creatureType === req.type
+              );
+              for (const c of ofType) needed.add(c.id);
+            }
+            return needed;
+          }
+
+          function feedOffTaskCreatures() {
+            const neededIds = getNeededCreatureIds();
+            // Collect off-task creatures, sorted by level ascending (feed cheapest first)
+            const offTask = Object.values(nextEntities)
+              .filter((e): e is CreatureEntity => e.kind === 'creature' && !neededIds.has(e.id))
+              .sort((a, b) => a.level - b.level);
+
+            for (const creature of offTask) {
+              if (ops >= MAX_OPS) break;
+              ops++;
+              removeFromGrid(creature.id);
+              const reward = getEntityReward(BALANCE, creature);
+              const expResult = addExp(BALANCE, krakenState, reward.exp);
+              krakenState = expResult.newState;
+              nextPendingRewards.push(...expResult.rewards);
+              nextTaskFed = [
+                ...nextTaskFed,
+                { type: creature.creatureType, level: creature.level }
+              ];
+            }
+          }
+
+          // --- PHASE 3: Produce needed creatures ---
+          for (const req of task.creatures) {
+            if (ops >= MAX_OPS) break;
+
+            // Count already fed matching creatures
+            const alreadyFed = nextTaskFed.filter(
+              (f) => f.type === req.type && f.level === req.level
+            ).length;
+            const totalNeeded = req.count - alreadyFed;
+            if (totalNeeded <= 0) continue;
+
+            // Count matching creatures already on field at required level
+            const fieldMatchCount = () =>
+              Object.values(nextEntities).filter(
+                (e) => e.kind === 'creature' && e.creatureType === req.type && e.level === req.level
+              ).length;
+
+            // Calculate L1-equivalents needed
+            const l1EquivPerCreature = Math.pow(2, req.level - 1);
+            const neededAtLevel = totalNeeded - fieldMatchCount();
+
+            if (neededAtLevel > 0) {
+              // Count existing L1-equiv on field for this type
+              const fieldL1Equiv = () => {
+                let sum = 0;
+                for (const e of Object.values(nextEntities)) {
+                  if (e.kind === 'creature' && e.creatureType === req.type && e.level < req.level) {
+                    sum += Math.pow(2, e.level - 1);
+                  }
+                }
+                return sum;
+              };
+
+              const totalL1Needed = neededAtLevel * l1EquivPerCreature;
+              let deficit = totalL1Needed - fieldL1Equiv();
+
+              // Spawn from generators
+              if (deficit > 0) {
+                const generators = Object.values(nextEntities).filter(
+                  (e): e is GeneratorEntity => e.kind === 'generator'
+                );
+
+                // Find generators that output the needed creature type
+                for (const gen of generators) {
+                  if (ops >= MAX_OPS || deficit <= 0) break;
+
+                  const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
+                  const producesType = levelConfig.outputs.some((o) => o.creatureType === req.type);
+                  if (!producesType) continue;
+
+                  let currentGen = nextEntities[gen.id] as GeneratorEntity;
+
+                  // Charge and spawn loop
+                  let chargeAttempts = 0;
+                  while (deficit > 0 && ops < MAX_OPS && chargeAttempts < 20) {
+                    chargeAttempts++;
+                    ops++;
+
+                    // Charge if empty
+                    if (currentGen.charges.length === 0) {
+                      // Get meat if needed
+                      while (nextResources.meat < levelConfig.chargeCost && ops < MAX_OPS) {
+                        ops++;
+                        meatButtonPresses++;
+                        session = calculateSession(meatButtonPresses);
+                        const meatAmount = calculateMeatDrop(BALANCE, nextResources.eyes);
+                        if (meatAmount <= 0) break;
+                        nextResources = { ...nextResources, meat: nextResources.meat + meatAmount };
+                      }
+
+                      if (nextResources.meat < levelConfig.chargeCost) break;
+
+                      nextResources = { ...nextResources, meat: nextResources.meat - levelConfig.chargeCost };
+                      const spawns = rollGeneratorSpawn(rng, currentGen, BALANCE);
+                      currentGen = {
+                        ...currentGen,
+                        charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
+                      };
+                      nextEntities[currentGen.id] = currentGen;
+                    }
+
+                    // Spawn all charges onto grid — feed off-task creatures if grid full
+                    while (currentGen.charges.length > 0 && ops < MAX_OPS) {
+                      ops++;
+                      let freeSlots = getFreeCellIndexes(getGrid());
+                      if (freeSlots.length === 0) {
+                        feedOffTaskCreatures();
+                        freeSlots = getFreeCellIndexes(getGrid());
+                        if (freeSlots.length === 0) break;
+                      }
+
+                      const [spawn, ...rest] = currentGen.charges;
+                      const creatureId = rng.nextId();
+                      nextGrid.cells[freeSlots[0]!] = creatureId;
+                      nextEntities[creatureId] = {
+                        id: creatureId,
+                        kind: 'creature',
+                        creatureType: spawn!.creatureType,
+                        level: spawn!.level
+                      };
+                      currentGen = { ...currentGen, charges: rest };
+                      nextEntities[currentGen.id] = currentGen;
+
+                      if (spawn!.creatureType === req.type) {
+                        deficit -= Math.pow(2, spawn!.level - 1);
+                      }
+                    }
+                  }
+                }
+              }
+
+              // Merge creatures bottom-up toward required level
+              for (let lvl = 1; lvl < req.level && ops < MAX_OPS; lvl++) {
+                // Find all creatures of this type at this level
+                let pairsAtLevel = Object.values(nextEntities).filter(
+                  (e): e is CreatureEntity =>
+                    e.kind === 'creature' && e.creatureType === req.type && e.level === lvl
+                );
+
+                while (pairsAtLevel.length >= 2 && ops < MAX_OPS) {
+                  ops++;
+                  const a = pairsAtLevel[0]!;
+                  const b = pairsAtLevel[1]!;
+                  const mergedId = rng.nextId();
+                  const merged: CreatureEntity = {
+                    id: mergedId,
+                    kind: 'creature',
+                    creatureType: req.type,
+                    level: lvl + 1
+                  };
+
+                  // Remove sources from grid
+                  removeFromGrid(a.id);
+                  removeFromGrid(b.id);
+                  placeOnGrid(merged);
+
+                  // Re-query for remaining pairs
+                  pairsAtLevel = Object.values(nextEntities).filter(
+                    (e): e is CreatureEntity =>
+                      e.kind === 'creature' && e.creatureType === req.type && e.level === lvl
+                  );
+                }
+              }
+            }
+          }
+
+          // --- PHASE 4: Feed task creatures ---
+          let totalExp = 0;
+          let totalEyes = 0;
+
+          for (const req of task.creatures) {
+            if (ops >= MAX_OPS) break;
+
+            const alreadyFed = nextTaskFed.filter(
+              (f) => f.type === req.type && f.level === req.level
+            ).length;
+            const needed = req.count - alreadyFed;
+
+            const matching = Object.values(nextEntities).filter(
+              (e): e is CreatureEntity =>
+                e.kind === 'creature' && e.creatureType === req.type && e.level === req.level
+            );
+
+            const toFeed = matching.slice(0, needed);
+            for (const creature of toFeed) {
+              if (ops >= MAX_OPS) break;
+              ops++;
+
+              removeFromGrid(creature.id);
+
+              const reward = getEntityReward(BALANCE, creature);
+              totalExp += reward.exp;
+              const expResult = addExp(BALANCE, krakenState, reward.exp);
+              krakenState = expResult.newState;
+              nextPendingRewards.push(...expResult.rewards);
+
+              nextTaskFed = [
+                ...nextTaskFed,
+                { type: creature.creatureType, level: creature.level }
+              ];
+            }
+          }
+
+          // Resize grid if level changed
+          const nextGridSize = getGridSizeForLevel(BALANCE, krakenState.level);
+          if (nextGrid.rows !== nextGridSize.rows || nextGrid.cols !== nextGridSize.cols) {
+            const resized = resizeGrid(getGrid(), nextGridSize.rows, nextGridSize.cols);
+            nextGrid.rows = resized.rows;
+            nextGrid.cols = resized.cols;
+            nextGrid.cells = resized.cells;
+          }
+
+          // Check task completion
+          const mandatoryTask = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
+          const isMandatoryTask = mandatoryTask !== null;
+          const currentTask = mandatoryTask ?? nextAutoTask;
+
+          if (currentTask && isTaskComplete(currentTask, nextTaskFed)) {
+            let taskEyes = 0;
+            for (const req of currentTask.creatures) {
+              const cr = getCreatureReward(BALANCE, req.type, req.level);
+              taskEyes += cr.eyes * req.count;
+            }
+            taskEyes = Math.floor(applyTaskMultiplier(taskEyes, currentTask.resMultiplier));
+            totalEyes += taskEyes;
+            nextResources = { ...nextResources, eyes: nextResources.eyes + totalEyes };
+            nextTaskFed = [];
+
+            if (isMandatoryTask) {
+              for (const cr of currentTask.creatures) {
+                nextAutoTaskLineCompletions[cr.type] =
+                  (nextAutoTaskLineCompletions[cr.type] ?? 0) + 1;
+              }
+              for (const cr of currentTask.creatures) {
+                nextAutoTaskLastLevels[cr.type] = cr.level;
+              }
+              const levelKey = krakenState.level.toString();
+              nextTaskProgress = {
+                ...nextTaskProgress,
+                [levelKey]: (nextTaskProgress[levelKey] ?? 0) + 1
+              };
+              const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
+              if (nextMandatory === null) {
+                const snapForGen = {
+                  ...state,
+                  kraken: krakenState,
+                  taskProgress: nextTaskProgress,
+                  currentAutoTask: null as typeof nextAutoTask,
+                  lastAutoTaskLine: null as string | null,
+                  resources: nextResources,
+                  entities: nextEntities,
+                  autoTaskLastLevels: nextAutoTaskLastLevels
+                };
+                nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+              }
+            } else {
+              for (const cr of currentTask.creatures) {
+                nextAutoTaskLineCompletions[cr.type] =
+                  (nextAutoTaskLineCompletions[cr.type] ?? 0) + 1;
+              }
+              for (const cr of currentTask.creatures) {
+                nextAutoTaskLastLevels[cr.type] = cr.level;
+              }
+              const completedLine = currentTask.creatures[0]?.type ?? null;
+              const snapForGen = {
+                ...state,
+                lastAutoTaskLine: completedLine,
+                currentAutoTask: currentTask,
+                resources: nextResources,
+                entities: nextEntities,
+                autoTaskLineCompletions: nextAutoTaskLineCompletions,
+                autoTaskLastLevels: nextAutoTaskLastLevels
+              };
+              nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+              nextAutoTaskLine = completedLine;
+            }
+
+            return {
+              grid: getGrid(),
+              entities: nextEntities,
+              resources: nextResources,
+              kraken: krakenState,
+              pendingRewards: nextPendingRewards,
+              currentTaskFed: nextTaskFed,
+              taskProgress: nextTaskProgress,
+              currentAutoTask: nextAutoTask,
+              lastAutoTaskLine: nextAutoTaskLine,
+              autoTaskLineCompletions: nextAutoTaskLineCompletions,
+              autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatButtonPresses,
+              session,
+              rngState: rng.getState(),
+              lastMessage: `Quest complete! +${totalExp} EXP, +${totalEyes} Eyes.`
+            };
+          }
+
+          // Task not completed — return partial progress
+          return {
+            grid: getGrid(),
+            entities: nextEntities,
+            resources: nextResources,
+            kraken: krakenState,
+            pendingRewards: nextPendingRewards,
+            currentTaskFed: nextTaskFed,
+            taskProgress: nextTaskProgress,
+            currentAutoTask: nextAutoTask,
+            lastAutoTaskLine: nextAutoTaskLine,
+            autoTaskLineCompletions: nextAutoTaskLineCompletions,
+            autoTaskLastLevels: nextAutoTaskLastLevels,
+            meatButtonPresses,
+            session,
+            rngState: rng.getState(),
+            lastMessage: `Quest partially progressed (+${totalExp} EXP). Could not fully complete.`
           };
         });
       },

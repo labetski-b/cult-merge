@@ -339,8 +339,11 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   eyes:               ['ticks', 'sessions', 'presses', 'time'],
   exp:                ['ticks', 'sessions', 'presses', 'time'],
   'exp-per-task':     ['tasks'],
-  resources:          ['ticks', 'sessions', 'presses', 'tasks', 'time'],
-  'meat-per-task':    ['tasks'],
+  'charges-per-task': ['tasks'],
+  'meat-per-task': ['tasks'],
+  'sacrifices-per-task': ['tasks'],
+  'eyes-per-task':    ['tasks'],
+  resources:          ['ticks', 'sessions', 'presses', 'time'],
   gridsize:           ['ticks', 'sessions', 'time'],
   'task-creature':    ['ticks', 'tasks'],
   tasks:              ['ticks', 'sessions', 'presses', 'time'],
@@ -569,6 +572,68 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
+  // ── Eyes per Quest — between-group delta (eyes gained atomically with task completion) ─
+  if (visible('eyes-per-task')) {
+    setAggBadge('eyes-per-task', 'Δ step');
+    charts['eyes-per-task'] = new Chart(document.getElementById('chart-eyes-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) => {
+          const cumData = series(result.history, s => s.metrics.totalEyesGained, 'last');
+          const stepDelta = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+          return ds('Eyes per quest', stepDelta, color(idx));
+        })
+      },
+      options: xOpts('Eyes gained')
+    });
+  }
+
+  // ── Charges per Quest ────────────────────────────────────────────────
+  if (visible('charges-per-task')) {
+    setAggBadge('charges-per-task', 'Δ delta');
+    charts['charges-per-task'] = new Chart(document.getElementById('chart-charges-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) =>
+          ds('Charges', series(result.history, s => s.metrics.totalCharges, 'delta'), color(idx))
+        )
+      },
+      options: xOpts('Charges')
+    });
+  }
+
+  // ── Meat on Charges per Quest ───────────────────────────────────────
+  if (visible('meat-per-task')) {
+    setAggBadge('meat-per-task', 'Δ delta');
+    charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) =>
+          ds('Meat on charges', series(result.history, s => s.metrics.totalMeatSpentOnCharges, 'delta'), color(idx))
+        )
+      },
+      options: xOpts('Meat spent')
+    });
+  }
+
+  // ── Sacrifices per Quest ────────────────────────────────────────────
+  if (visible('sacrifices-per-task')) {
+    setAggBadge('sacrifices-per-task', 'Δ delta');
+    charts['sacrifices-per-task'] = new Chart(document.getElementById('chart-sacrifices-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) =>
+          ds('Sacrifices', series(result.history, s => s.gameState.meatButtonPresses, 'delta'), color(idx))
+        )
+      },
+      options: xOpts('Sacrifices')
+    });
+  }
+
   // ── Session & Sacrifices ──────────────────────────────────────────────────
   if (visible('session')) {
     setAggBadge('session', '↓ last');
@@ -647,23 +712,6 @@ function renderCharts(results: SimulationResult[]) {
         plugins: commonPlugins,
         interaction: commonInteraction,
       }
-    });
-  }
-
-  // ── Meat per Quest — delta per task group ────────────────────────────────
-  if (visible('meat-per-task')) {
-    setAggBadge('meat-per-task', 'Δ delta');
-    charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
-      type: 'line',
-      data: {
-        labels: xLabels,
-        datasets: results.map((result, idx) => ds(
-          'Meat Δ/quest',
-          series(result.history, s => s.metrics.meat, 'delta'),
-          color(idx)
-        ))
-      },
-      options: xOpts('Meat Δ')
     });
   }
 

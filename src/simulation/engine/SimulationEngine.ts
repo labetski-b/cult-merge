@@ -47,6 +47,7 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     currentAutoTask: null,
     lastAutoTaskLine: null,
     autoTaskLineCompletions: {},
+    autoTaskLastLevels: {},
     session: 1,
     meatButtonPresses: 0
   };
@@ -165,15 +166,15 @@ export class SimulationEngine {
     // Strategy decides actions
     const actions = this.config.strategy.decide(this.state, this.rng);
 
-    // Debug: log actions for first 3 ticks
-    if (tick < 3) {
-      console.log(`Tick ${tick} actions:`, actions.map(a => a.type));
-      console.log(`Tick ${tick} BEFORE state:`, {
-        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
-        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
-        meat: this.state.resources.meat
-      });
-    }
+    // Debug: log actions for first 3 ticks [TEMPORARILY DISABLED FOR BATCH SIM]
+    // if (tick < 3) {
+    //   console.log(`Tick ${tick} actions:`, actions.map(a => a.type));
+    //   console.log(`Tick ${tick} BEFORE state:`, {
+    //     creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+    //     generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+    //     meat: this.state.resources.meat
+    //   });
+    // }
 
     // Execute all actions and log each one (skip no-ops)
     let logIndex = 0;
@@ -212,15 +213,15 @@ export class SimulationEngine {
     // Strategy uses a snapshot so it can't see entities created mid-tick by merge actions.
     logIndex = this.executeTaskFeedSweep(tick, logIndex);
 
-    // Debug: log state AFTER actions
-    if (tick < 3) {
-      console.log(`Tick ${tick} AFTER state:`, {
-        creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
-        generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
-        meat: this.state.resources.meat,
-        cumulative: { ...this.cumulative }
-      });
-    }
+    // Debug: log state AFTER actions [TEMPORARILY DISABLED FOR BATCH SIM]
+    // if (tick < 3) {
+    //   console.log(`Tick ${tick} AFTER state:`, {
+    //     creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
+    //     generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
+    //     meat: this.state.resources.meat,
+    //     cumulative: { ...this.cumulative }
+    //   });
+    // }
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
@@ -554,11 +555,14 @@ export class SimulationEngine {
             this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
           }
         } else {
-          // Auto task: track completion stats, generate next
-          const completedLine = task.creatures[0]?.type ?? null;
-          if (completedLine) {
-            this.state.autoTaskLineCompletions[completedLine] = (this.state.autoTaskLineCompletions[completedLine] ?? 0) + 1;
+          // Auto task: track completion for primary creature line only (avoids double-counting questIndex)
+          for (const cr of task.creatures) {
+            this.state.autoTaskLineCompletions[cr.type] = (this.state.autoTaskLineCompletions[cr.type] ?? 0) + 1;
           }
+          for (const cr of task.creatures) {
+            this.state.autoTaskLastLevels[cr.type] = cr.level;
+          }
+          const completedLine = task.creatures[0]?.type ?? null;
           const snapForGen = { ...this.state, lastAutoTaskLine: completedLine, currentAutoTask: task };
           this.state.currentAutoTask = generateAutoTask(this.config.balance, snapForGen, this.rng);
           this.state.lastAutoTaskLine = completedLine;
@@ -592,6 +596,7 @@ export class SimulationEngine {
     };
     this.state.resources.meat -= levelConfig.chargeCost;
     this.cumulative.totalMeatSpent += levelConfig.chargeCost;
+    this.cumulative.totalMeatSpentOnCharges += levelConfig.chargeCost;
     this.cumulative.totalCharges++;
   }
 

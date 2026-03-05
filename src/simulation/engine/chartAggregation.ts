@@ -24,6 +24,7 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
   totalExpGained:       'last',
   totalTasksCompleted:  'last',
   totalMeatSpent:       'last',
+  totalMeatSpentOnCharges: 'last',
   totalEyesGained:      'last',
   totalCreaturesFed:    'last',
 

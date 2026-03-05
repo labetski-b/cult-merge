@@ -128,6 +128,7 @@ export interface GameSnapshot {
   currentAutoTask: TaskDefinition | null;
   lastAutoTaskLine: string | null;
   autoTaskLineCompletions: Record<string, number>;
+  autoTaskLastLevels: Record<string, number>;
   session: number;
   meatButtonPresses: number;
 }

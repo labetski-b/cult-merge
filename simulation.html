@@ -182,6 +182,9 @@
       padding: 20px;
       position: relative;
     }
+    .chart-full-width {
+      grid-column: 1 / -1;
+    }
     .chart-container h3 {
       font-size: 18px;
       margin-bottom: 16px;
@@ -403,6 +406,12 @@
         </label>
       </div>
       <section class="charts">
+        <div class="chart-container chart-full-width">
+          <h3>Current Task (creature level needed)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-task-creature"></canvas>
+        </div>
+
         <div class="chart-container">
           <h3>Kraken Level Progression</h3>
           <span class="agg-badge"></span>
@@ -446,6 +455,30 @@
         </div>
 
         <div class="chart-container">
+          <h3>Eyes per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-eyes-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Charges per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-charges-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Meat on Charges per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-meat-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Sacrifices per Quest</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-sacrifices-per-task"></canvas>
+        </div>
+
+        <div class="chart-container">
           <h3>Session &amp; Sacrifices</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-session"></canvas>
@@ -461,12 +494,6 @@
           <h3>Meat Spent &amp; Drop per Press</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-resources"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3>Meat per Quest</h3>
-          <span class="agg-badge"></span>
-          <canvas id="chart-meat-per-task"></canvas>
         </div>
 
         <div class="chart-container">
@@ -509,12 +536,6 @@
           <h3>Grid Size</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-gridsize"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3>Current Task (creature level needed)</h3>
-          <span class="agg-badge"></span>
-          <canvas id="chart-task-creature"></canvas>
         </div>
 
         <div class="chart-container">

@@ -10,6 +10,7 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalEyesGained: 0,
     totalTasksCompleted: 0,
     totalMeatSpent: 0,
+    totalMeatSpentOnCharges: 0,
     totalCreaturesFed: 0,
     totalUniqueCreatures: 0,
     totalSpawns: 0,

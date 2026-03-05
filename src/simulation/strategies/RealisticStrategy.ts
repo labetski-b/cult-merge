@@ -99,21 +99,65 @@ export class RealisticStrategy implements AIStrategy {
     const canProduce = workGenerators.length > 0;
 
     if (canProduce) {
-      // Check if needed creatures (exact type + level) are already on the field
+      // Check which needed creature types are missing from the field (per-type, not any)
       const creatures = Object.values(state.entities)
         .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
-      const hasNeededOnField = creatures.some(c =>
-        task.creatures.some(req => c.creatureType === req.type && c.level === req.level)
-      );
 
-      if (!hasNeededOnField) {
+      const missingTypes = new Set<string>();
+      for (const type of neededTypes) {
+        const hasOnField = creatures.some(c =>
+          c.creatureType === type && task.creatures.some(req => req.type === type && c.level === req.level)
+        );
+        if (!hasOnField) missingTypes.add(type);
+      }
+
+      if (missingTypes.size > 0) {
         const freeCells = getFreeCellIndexes(state.grid).length;
         if (freeCells === 0) {
           // Grid full — displace off-line creatures and spawn in same tick (cycle)
-          actions.push(...this.displaceThenSpawn(workGenerators, state, neededTypes, usedIds));
+          actions.push(...this.displaceThenSpawn(workGenerators, state, task, usedIds));
         } else {
-          // Slots available — spawn all charges; recharge and continue if generator empties
-          actions.push(...this.spawnFull(workGenerators, state));
+          // Find generators for each missing type and allocate grid space fairly.
+          // Prioritize: 1) has charges, 2) affordable to charge, 3) higher output chance for needed type.
+          const gensToSpawn: GeneratorEntity[] = [];
+          const currentMeat = state.resources.meat;
+          for (const type of missingTypes) {
+            const gensForType = workGenerators.filter(gen => {
+              const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
+              const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
+              return levelConfig?.outputs.some(o => o.creatureType === type) ?? false;
+            });
+            if (gensForType.length === 0) continue;
+
+            gensForType.sort((a, b) => {
+              const aHasCharges = a.charges.length > 0 ? 1 : 0;
+              const bHasCharges = b.charges.length > 0 ? 1 : 0;
+              if (aHasCharges !== bHasCharges) return bHasCharges - aHasCharges;
+
+              const aConfig = this.balance.generators.generators.find(g => g.id === a.generatorId);
+              const aLevel = aConfig?.levels.find(l => l.level === a.level);
+              const bConfig = this.balance.generators.generators.find(g => g.id === b.generatorId);
+              const bLevel = bConfig?.levels.find(l => l.level === b.level);
+
+              const aAffordable = aLevel && currentMeat >= aLevel.chargeCost ? 1 : 0;
+              const bAffordable = bLevel && currentMeat >= bLevel.chargeCost ? 1 : 0;
+              if (aAffordable !== bAffordable) return bAffordable - aAffordable;
+
+              const aChance = aLevel?.outputs
+                .filter(o => o.creatureType === type)
+                .reduce((sum, o) => sum + o.chance, 0) ?? 0;
+              const bChance = bLevel?.outputs
+                .filter(o => o.creatureType === type)
+                .reduce((sum, o) => sum + o.chance, 0) ?? 0;
+              return bChance - aChance;
+            });
+
+            if (!gensToSpawn.includes(gensForType[0]!)) {
+              gensToSpawn.push(gensForType[0]!);
+            }
+          }
+          // Spawn with per-generator cap so each gets a fair share of free cells
+          actions.push(...this.spawnFullFair(gensToSpawn, state));
         }
       }
 
@@ -121,7 +165,7 @@ export class RealisticStrategy implements AIStrategy {
       // Do NOT feed low-level creatures of needed type — they're building blocks for merging.
       actions.push(...this.mergeForTask(state, task, usedIds));
       actions.push(...this.feedPartialTask(state, task, usedIds));
-      actions.push(...this.feedExcess(state, neededTypes, usedIds));
+      actions.push(...this.feedExcess(state, task, usedIds));
       actions.push(...this.chargeOnly(workGenerators));
 
     } else {
@@ -195,12 +239,16 @@ export class RealisticStrategy implements AIStrategy {
   private displaceThenSpawn(
     generators: GeneratorEntity[],
     state: GameSnapshot,
-    neededTypes: Set<string>,
+    task: TaskDefinition,
     usedIds: Set<string>
   ): SimulationAction[] {
     const offLine = (Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[])
-      .filter(c => !neededTypes.has(c.creatureType))
+      .filter(c => {
+        const matchingReqs = task.creatures.filter(r => r.type === c.creatureType);
+        if (matchingReqs.length === 0) return true; // type not needed → can displace
+        return matchingReqs.every(r => c.level > r.level); // over-leveled → can displace
+      })
       .sort((a, b) => a.level - b.level);
 
     if (offLine.length === 0) return [];
@@ -322,11 +370,16 @@ export class RealisticStrategy implements AIStrategy {
 
   // ---------- EXP farming ----------
 
-  /** Feed creatures whose type is NOT needed by the current task. */
-  private feedExcess(state: GameSnapshot, neededTypes: Set<string>, usedIds: Set<string>): SimulationAction[] {
+  /** Feed creatures not needed by the task: wrong type OR over-leveled (above max required level). */
+  private feedExcess(state: GameSnapshot, task: TaskDefinition, usedIds: Set<string>): SimulationAction[] {
     const creatures = Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
-    const excess = creatures.filter(c => !neededTypes.has(c.creatureType));
+    const excess = creatures.filter(c => {
+      const matchingReqs = task.creatures.filter(r => r.type === c.creatureType);
+      if (matchingReqs.length === 0) return true; // type not needed → excess
+      // Over-leveled: level is above ALL required levels for this type → can't help quest
+      return matchingReqs.every(r => c.level > r.level);
+    });
     return excess.map(c => {
       usedIds.add(c.id);
       return { type: 'feed' as const, entityId: c.id };
@@ -549,6 +602,48 @@ export class RealisticStrategy implements AIStrategy {
           actions.push({ type: 'charge_generator', generatorId: gen.id });
           remainingMeat -= levelConfig.chargeCost;
           const moreSpawns = Math.min(levelConfig.numCreatures, freeSlots);
+          for (let i = 0; i < moreSpawns; i++) {
+            actions.push({ type: 'spawn_generator', generatorId: gen.id });
+            freeSlots--;
+          }
+        }
+      }
+    }
+
+    return actions;
+  }
+
+  /**
+   * Like spawnFull, but caps each generator to floor(freeSlots / numGenerators)
+   * so that multiple generators each get a fair share of the grid.
+   */
+  private spawnFullFair(generators: GeneratorEntity[], state: GameSnapshot): SimulationAction[] {
+    if (generators.length === 0) return [];
+    if (generators.length === 1) return this.spawnFull(generators, state);
+
+    const actions: SimulationAction[] = [];
+    let freeSlots = getFreeCellIndexes(state.grid).length;
+    let remainingMeat = state.resources.meat;
+    const perGenCap = Math.floor(freeSlots / generators.length);
+
+    for (const gen of generators) {
+      let slotBudget = Math.min(perGenCap, freeSlots);
+      const toSpawn = Math.min(gen.charges.length, slotBudget);
+      for (let i = 0; i < toSpawn; i++) {
+        actions.push({ type: 'spawn_generator', generatorId: gen.id });
+        freeSlots--;
+        slotBudget--;
+      }
+
+      // Generator drained fully and budget + meat remain → one extra charge+spawn
+      const drained = toSpawn === gen.charges.length;
+      if (drained && slotBudget > 0) {
+        const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
+        const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
+        if (levelConfig && remainingMeat >= levelConfig.chargeCost) {
+          actions.push({ type: 'charge_generator', generatorId: gen.id });
+          remainingMeat -= levelConfig.chargeCost;
+          const moreSpawns = Math.min(levelConfig.numCreatures, slotBudget);
           for (let i = 0; i < moreSpawns; i++) {
             actions.push({ type: 'spawn_generator', generatorId: gen.id });
             freeSlots--;

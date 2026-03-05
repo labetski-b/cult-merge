@@ -75,6 +75,7 @@ export interface TickMetrics {
   totalEyesGained: number;
   totalTasksCompleted: number;
   totalMeatSpent: number;
+  totalMeatSpentOnCharges: number;
   totalCreaturesFed: number;
   totalUniqueCreatures: number;
   totalSpawns: number;
@@ -162,6 +163,7 @@ export interface CumulativeMetrics {
   totalEyesGained: number;
   totalTasksCompleted: number;
   totalMeatSpent: number;
+  totalMeatSpentOnCharges: number;
   totalCreaturesFed: number;
   totalUniqueCreatures: number;
   totalSpawns: number;
