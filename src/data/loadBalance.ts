@@ -9,6 +9,7 @@ import managersRaw from '@data/managers.json';
 import flowerpotsRaw from '@data/flowerpots.json';
 import chaptersRaw from '@data/chapters_data_analytics.json';
 import runesRaw from '@data/runes.json';
+import questsRaw from '@data/quests.json';
 import {
   creaturesDataSchema,
   generatorsDataSchema,
@@ -21,6 +22,7 @@ import {
   flowerpotsDataSchema,
   chaptersDataSchema,
   runesDataSchema,
+  questsDataSchema,
   type BalanceConfig
 } from '@data/schemas';
 
@@ -66,7 +68,8 @@ export function loadBalanceConfig(): BalanceConfig {
     managers: managersDataSchema.parse(managersRaw),
     flowerpots: flowerpotsDataSchema.parse(flowerpotsRaw),
     chapters: chaptersDataSchema.parse(chaptersRaw),
-    runes: runesDataSchema.parse(runesRaw)
+    runes: runesDataSchema.parse(runesRaw),
+    quests: questsDataSchema.parse(questsRaw),
   };
 
   validateConfig(config);

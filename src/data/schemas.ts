@@ -209,6 +209,33 @@ export const runesDataSchema = z.object({
 
 export type RunesData = z.infer<typeof runesDataSchema>;
 
+const questParamsSchema = z.object({
+  creatureType: z.string().min(1).optional(),
+  level: z.number().int().positive().optional(),
+  generatorId: z.number().int().positive().optional(),
+}).optional();
+
+const questDefinitionSchema = z.object({
+  id: z.string().min(1),
+  type: z.number().int().min(1).max(8),
+  params: questParamsSchema,
+  target: z.number().positive(),
+  description: z.string().min(1),
+});
+
+const questChapterSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+  unlocksGenerator: z.number().int().positive(),
+  quests: z.array(questDefinitionSchema).min(1),
+});
+
+export const questsDataSchema = z.object({
+  chapters: z.array(questChapterSchema).min(1),
+});
+
+export type QuestsData = z.infer<typeof questsDataSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -221,4 +248,5 @@ export interface BalanceConfig {
   flowerpots: FlowerpotsData;
   chapters: ChaptersData;
   runes: RunesData;
+  quests: QuestsData;
 }

@@ -6,6 +6,7 @@ import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
+import { QuestPanel } from '@ui/components/QuestPanel';
 import { MeatButton } from '@ui/components/MeatButton';
 import { useGameStore } from '@store/gameStore';
 import { DragProvider } from '@ui/DragContext';
@@ -43,6 +44,7 @@ function App() {
         </div>
 
         <KrakenPanel />
+        <QuestPanel />
         <GridBoard />
         <MeatButton />
         <ManagerCollection />

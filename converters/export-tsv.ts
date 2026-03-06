@@ -337,108 +337,73 @@ function buildMergeGrid(): string {
 function buildMergeQuestsInfo(): string {
   const header = [
     'QuestId', 'SubQuestId', 'Type', 'Value', 'Amount', 'Reward', 'Reward Amount',
-    '', 'Spawner', 'QuestId', '', 'Key', 'Value',
+    'Kraken Level', 'Spawner', 'QuestId', '', 'Key', 'Value',
   ];
 
+  const chapters = BALANCE.quests.chapters;
   const generators = BALANCE.generators.generators;
 
-  // Порядок генераторов для квестов (исключая Gen1 — стартовый, и flowerpot)
-  // Gen2, Gen4, Gen5, Gen6, Gen7, Gen8
-  const questGens = [2, 4, 5, 6, 7, 8].map(id => generators.find(g => g.id === id)!);
-
-  // Маппинг eggType по генератору (для GetSpawner значений)
-  // Gen2 → Egg_Creature2, Gen4 → Egg_Creature3, etc.
-
-  type SubQuest = {
-    type: string;
-    value: string;
-    amount: string;
-    reward: string;
-    rewardAmount: string;
+  // Маппинг числовых типов → строковые имена
+  const typeNames: Record<number, string> = {
+    1: 'GetCreature', 2: 'GetSpawner', 3: 'FeedRunes', 4: 'DoMerge',
+    5: 'ReachLevel', 6: 'WinToad', 7: 'DoTasks', 8: 'Spawn',
   };
 
-  // Шаблон квестов
-  const questTemplates: SubQuest[][] = [
-    // Quest 1: Gen2 (krakenRequired=7)
-    [
-      { type: 'DoMerge', value: '', amount: '100', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Egg_Creature1_3', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'GetCreature', value: 'Creature2_5', amount: '1', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[0]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-    // Quest 2: Gen4 (krakenRequired=13)
-    [
-      { type: 'DoMerge', value: '', amount: '200', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Chicken_2', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'WinToad', value: '', amount: '10', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[1]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-    // Quest 3: Gen5 (krakenRequired=18)
-    [
-      { type: 'DoMerge', value: '', amount: '300', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Egg_Creature3_3', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'WinToad', value: '', amount: '15', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[2]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-    // Quest 4: Gen6 (krakenRequired=23)
-    [
-      { type: 'DoMerge', value: '', amount: '400', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Egg_Creature4_3', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'WinToad', value: '', amount: '20', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[3]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-    // Quest 5: Gen7 (krakenRequired=28)
-    [
-      { type: 'DoMerge', value: '', amount: '500', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Egg_Creature5_3', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'WinToad', value: '', amount: '25', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[4]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-    // Quest 6: Gen8 (krakenRequired=33)
-    [
-      { type: 'DoMerge', value: '', amount: '600', reward: 'matter', rewardAmount: '1' },
-      { type: 'GetSpawner', value: 'Egg_Creature6_3', amount: '1', reward: 'hard', rewardAmount: '1' },
-      { type: 'WinToad', value: '', amount: '30', reward: 'faith', rewardAmount: '1' },
-      { type: 'ReachLevel', value: '', amount: String(questGens[5]!.krakenRequired), reward: 'hard', rewardAmount: '1' },
-    ],
-  ];
+  // Reward amounts по позиции подквеста (0-based): 1, 1, 2, 3
+  const rewardAmounts = [1, 1, 2, 3];
 
-  // Правая часть: Spawner mapping (строки 1-6)
-  const spawnerMapping = [
-    { spawner: 'Egg_Creature1', questId: '0' },
-    { spawner: 'Egg_Creature2', questId: '2' },
-    { spawner: 'Egg_Creature3', questId: '3' },
-    { spawner: 'Egg_Creature4', questId: '4' },
-    { spawner: 'Egg_Creature5', questId: '5' },
-    { spawner: 'Egg_Creature6', questId: '6' },
-    { spawner: 'Egg_Creature7', questId: '7' },
+  // Правая часть: Spawner mapping
+  // Gen1 всегда доступен (questId=0), остальные разблокируются главами
+  const spawnerMapping: { spawner: string; questId: string }[] = [
+    { spawner: generators.find(g => g.id === 1)!.eggType, questId: '0' },
   ];
+  for (const ch of chapters) {
+    const gen = generators.find(g => g.id === ch.unlocksGenerator);
+    if (gen) {
+      // questId = число из eggType (Egg_Creature2 → 2, Egg_Creature3 → 3, ...)
+      const num = gen.eggType.match(/\d+$/)?.[0] ?? String(ch.id);
+      spawnerMapping.push({ spawner: gen.eggType, questId: num });
+    }
+  }
+
+  function questValue(type: number, params?: { creatureType?: string; level?: number; generatorId?: number }): string {
+    if (type === 1 && params?.creatureType && params?.level) {
+      return `${params.creatureType}_${params.level}`;
+    }
+    if (type === 2 && params?.generatorId && params?.level) {
+      const gen = generators.find(g => g.id === params.generatorId);
+      if (gen) return `${gen.eggType}_${params.level}`;
+    }
+    return '';
+  }
 
   const rows: string[][] = [];
   rows.push(header);
 
-  let globalRowIdx = 0; // Счетчик строк данных (0-based)
+  let globalRowIdx = 0;
 
-  for (let q = 0; q < questTemplates.length; q++) {
-    const quest = questTemplates[q]!;
-    for (let s = 0; s < quest.length; s++) {
-      const sub = quest[s]!;
-      const questIdCol = s === 0 ? String(q + 1) : '';
+  for (const chapter of chapters) {
+    // Kraken level = target квеста ReachLevel в этой главе
+    const reachLevelQuest = chapter.quests.find(q => q.type === 5);
+    const krakenLevel = reachLevelQuest ? String(reachLevelQuest.target) : '';
 
+    for (let s = 0; s < chapter.quests.length; s++) {
+      const quest = chapter.quests[s]!;
       const row = [
-        questIdCol,
+        s === 0 ? String(chapter.id) : '',
         String(s + 1),
-        sub.type,
-        sub.value,
-        sub.amount,
-        sub.reward,
-        sub.rewardAmount,
+        typeNames[quest.type] ?? String(quest.type),
+        questValue(quest.type, quest.params),
+        String(quest.target),
+        'hard',
+        String(rewardAmounts[s] ?? 1),
+        s === 0 ? krakenLevel : '',
       ];
 
       // Правые колонки
       if (globalRowIdx < spawnerMapping.length) {
         const sm = spawnerMapping[globalRowIdx]!;
-        row.push('', sm.spawner, sm.questId, '', '', '');
+        row.push(sm.spawner, sm.questId, '', '', '');
       }
 
       rows.push(row);

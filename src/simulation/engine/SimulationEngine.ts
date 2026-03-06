@@ -1,4 +1,5 @@
 import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
+import type { CumulativeStats, QuestState } from '@domain/types';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
 import { createGrid, findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
@@ -7,6 +8,7 @@ import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
+import { evaluateAllQuests, createEmptyCumulativeStats, createEmptyQuestState } from '@domain/quests';
 import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
@@ -49,7 +51,9 @@ function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
     autoTaskLineCompletions: {},
     autoTaskLastLevels: {},
     session: 1,
-    meatButtonPresses: 0
+    meatButtonPresses: 0,
+    cumulativeStats: createEmptyCumulativeStats(),
+    questState: createEmptyQuestState()
   };
 }
 
@@ -84,6 +88,7 @@ export class SimulationEngine {
   private actionLog: ActionLogEntry[];
   private currentTick = 0;
   private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
+  private runesFedCount = 0;
   private sessionTimeSec = 0;
   private lastSession = 1;
 
@@ -222,6 +227,12 @@ export class SimulationEngine {
     //     cumulative: { ...this.cumulative }
     //   });
     // }
+
+    // Sync cumulative stats to state for quest evaluation
+    this.syncCumulativeStats();
+
+    // Evaluate quests and log completions
+    this.evaluateAndLogQuests();
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
@@ -497,6 +508,7 @@ export class SimulationEngine {
         this.state.resources.gems += gained;
         this.cumulative.totalGemsGained += gained;
       }
+      this.runesFedCount++;
       return;
     }
 
@@ -666,6 +678,75 @@ export class SimulationEngine {
     }
 
     return logIndex;
+  }
+
+  /** Sync engine's CumulativeMetrics into state.cumulativeStats (domain CumulativeStats). */
+  private syncCumulativeStats() {
+    // Collect max generator levels from current entities
+    const maxGenLevelById: Record<number, number> = {};
+    for (const entity of Object.values(this.state.entities)) {
+      if (entity.kind === 'generator') {
+        const gen = entity as GeneratorEntity;
+        const prev = maxGenLevelById[gen.generatorId] ?? 0;
+        if (gen.level > prev) maxGenLevelById[gen.generatorId] = gen.level;
+      }
+    }
+
+    this.state.cumulativeStats = {
+      totalMerges: this.cumulative.totalMerges,
+      totalTasksCompleted: this.cumulative.totalTasksCompleted,
+      totalRunesFed: this.runesFedCount,
+      totalPredatorFeeds: 0, // predators not simulated
+      totalSpawns: this.cumulative.totalSpawns,
+      maxCreatureLevelByType: { ...this.cumulative.maxCreatureLevelByType },
+      maxGeneratorLevelById: maxGenLevelById,
+    };
+  }
+
+  /** Evaluate quest state and log any newly completed quests/chapters. */
+  private evaluateAndLogQuests() {
+    if (!this.config.balance.quests?.chapters?.length) return;
+
+    const prevQuestState = this.state.questState;
+    this.state.questState = evaluateAllQuests(this.config.balance, this.state.cumulativeStats, this.state);
+
+    for (const chapter of this.config.balance.quests.chapters) {
+      const prev = prevQuestState.chapters[chapter.id];
+      const curr = this.state.questState.chapters[chapter.id];
+      if (!curr) continue;
+
+      // Log individual quest completions
+      for (const quest of chapter.quests) {
+        const prevQ = prev?.quests[quest.id];
+        const currQ = curr.quests[quest.id];
+        if (currQ?.completed && !prevQ?.completed) {
+          const questAction: SimulationAction = { type: 'new_quest', taskLabel: `[Quest] Ch${chapter.id}: ${quest.id} completed` };
+          const dt = this.addActionTime(questAction);
+          const logState = this.captureCompactState(dt);
+          this.actionLog.push({
+            tick: this.currentTick,
+            actionIndex: this.actionLog.length,
+            action: questAction,
+            state: logState,
+            note: `Quest ${quest.id} (ch${chapter.id}) completed`
+          });
+        }
+      }
+
+      // Log chapter completion
+      if (curr.completed && !prev?.completed) {
+        const chapterAction: SimulationAction = { type: 'new_quest', taskLabel: `[Chapter] ${chapter.name} (ch${chapter.id}) completed!` };
+        const dt = this.addActionTime(chapterAction);
+        const logState = this.captureCompactState(dt);
+        this.actionLog.push({
+          tick: this.currentTick,
+          actionIndex: this.actionLog.length,
+          action: chapterAction,
+          state: logState,
+          note: `Chapter ${chapter.id} "${chapter.name}" completed — unlocks generator ${chapter.unlocksGenerator}`
+        });
+      }
+    }
   }
 
   private captureTaskLabel(): string {
