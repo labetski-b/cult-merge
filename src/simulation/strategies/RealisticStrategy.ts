@@ -1,7 +1,7 @@
 import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition } from '@domain/types';
 import { getFreeCellIndexes } from '@domain/grid';
 import { canMergeGenerators, canMergeRunes } from '@domain/merge';
-import { getCurrentMandatoryTask } from '@domain/tasks';
+import { getCurrentMandatoryTask, getTaskFedProgress } from '@domain/tasks';
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction } from './base';
@@ -92,10 +92,22 @@ export class RealisticStrategy implements AIStrategy {
 
     const neededTypes = new Set(task.creatures.map(r => r.type));
 
+    // For dual quests, focus on one creature type at a time to avoid field congestion
+    if (task.creatures.length > 1) {
+      const focusType = this.pickFocusType(task, state);
+      neededTypes.clear();
+      neededTypes.add(focusType);
+    }
+
     // Proactive upgrade: always try to level up the highest generator
     actions.push(...this.proactiveUpgrade(state, neededTypes, task, usedIds));
 
     const workGenerators = this.findGeneratorsByOutputs(state, neededTypes, usedIds);
+    // Sort by efficiency: higher level generators produce better output per charge
+    workGenerators.sort((a, b) => {
+      if (a.level !== b.level) return b.level - a.level;
+      return b.charges.length - a.charges.length;
+    });
     const canProduce = workGenerators.length > 0;
 
     if (canProduce) {
@@ -115,7 +127,7 @@ export class RealisticStrategy implements AIStrategy {
         const freeCells = getFreeCellIndexes(state.grid).length;
         if (freeCells === 0) {
           // Grid full — displace off-line creatures and spawn in same tick (cycle)
-          actions.push(...this.displaceThenSpawn(workGenerators, state, task, usedIds));
+          actions.push(...this.displaceThenSpawn(workGenerators, state, task, usedIds, neededTypes));
         } else {
           // Find generators for each missing type and allocate grid space fairly.
           // Prioritize: 1) has charges, 2) affordable to charge, 3) higher output chance for needed type.
@@ -163,20 +175,49 @@ export class RealisticStrategy implements AIStrategy {
 
       // Merge toward target level, feed matching creatures, then clear off-task creatures.
       // Do NOT feed low-level creatures of needed type — they're building blocks for merging.
-      actions.push(...this.mergeForTask(state, task, usedIds));
+      actions.push(...this.mergeForTask(state, task, usedIds, neededTypes));
       actions.push(...this.feedPartialTask(state, task, usedIds));
-      actions.push(...this.feedExcess(state, task, usedIds));
-      actions.push(...this.chargeOnly(workGenerators));
+      actions.push(...this.feedExcess(state, task, usedIds, neededTypes));
+      // Only charge the most efficient generator to avoid wasting meat on inferior ones
+      actions.push(...this.chargeOnly(workGenerators.slice(0, 1)));
 
     } else {
-      // No matching generator — spawn from line generators for EXP
-      // (EXP → kraken level up → rune rewards → upgrade next tick)
-      const lineGenerators = this.findGeneratorsByLine(state, neededTypes, usedIds);
-      actions.push(...this.spawnAndCharge(lineGenerators));
-      actions.push(...this.feedAllForExp(state, usedIds));
+      // If a generator merge was just scheduled, the merged result will appear next tick —
+      // don't feed building blocks, just wait
+      const hasPendingGenMerge = actions.some(a => {
+        if (a.type !== 'merge') return false;
+        const source = state.entities[a.sourceId!];
+        return source?.kind === 'generator';
+      });
+
+      if (!hasPendingGenMerge) {
+        // No matching generator — spawn from line generators for EXP
+        // (EXP → kraken level up → rune rewards → upgrade next tick)
+        const lineGenerators = this.findGeneratorsByLine(state, neededTypes, usedIds);
+        actions.push(...this.spawnAndCharge(lineGenerators));
+        actions.push(...this.feedAllForExp(state, usedIds));
+      }
     }
 
     return actions;
+  }
+
+  /** Pick the creature type to focus on in a dual quest. Prioritizes the type closest to completion. */
+  private pickFocusType(task: TaskDefinition, state: GameSnapshot): string {
+    const progress = getTaskFedProgress(task.creatures, state.currentTaskFed);
+    const unfulfilled = progress
+      .filter(p => p.fed < p.requirement.count)
+      .sort((a, b) => {
+        // Prefer the one closer to completion (less remaining)
+        const remainA = a.requirement.count - a.fed;
+        const remainB = b.requirement.count - b.fed;
+        if (remainA !== remainB) return remainA - remainB;
+        // Tiebreak: lower merge cost first (cheaper to complete)
+        const costA = Math.pow(2, a.requirement.level - 1);
+        const costB = Math.pow(2, b.requirement.level - 1);
+        return costA - costB;
+      });
+    return unfulfilled.length > 0 ? unfulfilled[0]!.requirement.type : task.creatures[0]!.type;
   }
 
   /** Generators whose current-level outputs include a needed creature type. Excludes usedIds (e.g. scheduled for merge). */
@@ -240,11 +281,13 @@ export class RealisticStrategy implements AIStrategy {
     generators: GeneratorEntity[],
     state: GameSnapshot,
     task: TaskDefinition,
-    usedIds: Set<string>
+    usedIds: Set<string>,
+    neededTypes: Set<string>
   ): SimulationAction[] {
     const offLine = (Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[])
       .filter(c => {
+        if (!neededTypes.has(c.creatureType)) return true; // not focused → can displace
         const matchingReqs = task.creatures.filter(r => r.type === c.creatureType);
         if (matchingReqs.length === 0) return true; // type not needed → can displace
         return matchingReqs.every(r => c.level > r.level); // over-leveled → can displace
@@ -371,10 +414,11 @@ export class RealisticStrategy implements AIStrategy {
   // ---------- EXP farming ----------
 
   /** Feed creatures not needed by the task: wrong type OR over-leveled (above max required level). */
-  private feedExcess(state: GameSnapshot, task: TaskDefinition, usedIds: Set<string>): SimulationAction[] {
+  private feedExcess(state: GameSnapshot, task: TaskDefinition, usedIds: Set<string>, neededTypes: Set<string>): SimulationAction[] {
     const creatures = Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
     const excess = creatures.filter(c => {
+      if (!neededTypes.has(c.creatureType)) return true; // not focused → excess
       const matchingReqs = task.creatures.filter(r => r.type === c.creatureType);
       if (matchingReqs.length === 0) return true; // type not needed → excess
       // Over-leveled: level is above ALL required levels for this type → can't help quest
@@ -401,9 +445,10 @@ export class RealisticStrategy implements AIStrategy {
   // ---------- Merging ----------
 
   /** Merge only creatures whose type is needed by the task, up to the required level. */
-  private mergeForTask(state: GameSnapshot, task: TaskDefinition, usedIds: Set<string>): SimulationAction[] {
+  private mergeForTask(state: GameSnapshot, task: TaskDefinition, usedIds: Set<string>, neededTypes: Set<string>): SimulationAction[] {
     const maxLevelNeeded = new Map<string, number>();
     for (const req of task.creatures) {
+      if (!neededTypes.has(req.type)) continue; // only merge focused types
       const cur = maxLevelNeeded.get(req.type) ?? 0;
       if (req.level > cur) maxLevelNeeded.set(req.type, req.level);
     }

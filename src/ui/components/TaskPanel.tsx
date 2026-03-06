@@ -35,11 +35,15 @@ export function TaskPanel() {
 
   let totalEyes = 0;
   if (task) {
-    for (const req of task.creatures) {
-      const reward = getCreatureReward(BALANCE, req.type, req.level);
-      totalEyes += reward.eyes * req.count;
+    if (task.eyeReward != null) {
+      totalEyes = task.eyeReward;
+    } else {
+      for (const req of task.creatures) {
+        const reward = getCreatureReward(BALANCE, req.type, req.level);
+        totalEyes += reward.eyes * req.count;
+      }
+      totalEyes = Math.floor(applyTaskMultiplier(totalEyes, task.resMultiplier));
     }
-    totalEyes = Math.floor(applyTaskMultiplier(totalEyes, task.resMultiplier));
   }
 
   return (

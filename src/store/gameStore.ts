@@ -192,11 +192,15 @@ export const useGameStore = create<GameStore>()(
             const task = mandatoryTask ?? state.currentAutoTask;
             if (task && isTaskComplete(task, nextTaskFed)) {
               let taskEyes = 0;
-              for (const req of task.creatures) {
-                const cr = getCreatureReward(BALANCE, req.type, req.level);
-                taskEyes += cr.eyes * req.count;
+              if (task.eyeReward != null) {
+                taskEyes = task.eyeReward;
+              } else {
+                for (const req of task.creatures) {
+                  const cr = getCreatureReward(BALANCE, req.type, req.level);
+                  taskEyes += cr.eyes * req.count;
+                }
+                taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
               }
-              taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
 
               if (isMandatory) {
                 const nextCompletions = { ...state.autoTaskLineCompletions };
@@ -734,11 +738,15 @@ export const useGameStore = create<GameStore>()(
               const task = mandatoryTask ?? nextAutoTask;
               if (task && isTaskComplete(task, nextTaskFed)) {
                 let taskEyes = 0;
-                for (const req of task.creatures) {
-                  const cr = getCreatureReward(BALANCE, req.type, req.level);
-                  taskEyes += cr.eyes * req.count;
+                if (task.eyeReward != null) {
+                  taskEyes = task.eyeReward;
+                } else {
+                  for (const req of task.creatures) {
+                    const cr = getCreatureReward(BALANCE, req.type, req.level);
+                    taskEyes += cr.eyes * req.count;
+                  }
+                  taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
                 }
-                taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
                 totalEyes += taskEyes;
                 nextTaskFed = [];
                 tasksCompleted += 1;

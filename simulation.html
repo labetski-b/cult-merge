@@ -313,6 +313,30 @@
       font-size: 14px;
       margin-left: 8px;
     }
+
+    /* Quest Distribution Table */
+    #quest-distribution-table {
+      display: none;
+      background: rgba(14, 25, 42, 0.7);
+      border: 1px solid rgba(143, 193, 255, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    #quest-distribution-table h3 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #ffd966;
+    }
+    #quest-distribution-table pre {
+      margin: 0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      color: #e8f1f5;
+      line-height: 1.6;
+      white-space: pre;
+    }
   </style>
 </head>
 <body>
@@ -405,6 +429,11 @@
           </select>
         </label>
       </div>
+      <div id="quest-distribution-table">
+        <h3>Quest Distribution by Era</h3>
+        <div id="quest-distribution-table-inner"></div>
+      </div>
+
       <section class="charts">
         <div class="chart-container chart-full-width">
           <h3>Current Task (creature level needed)</h3>

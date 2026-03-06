@@ -288,7 +288,6 @@
     "rampUpSchedule": [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]],
     "rampUpThreshold": 5,
     "dualQuestProbability": 0.5,
-    "dualBudgetSplit": [0.7, 0.3],
     "maxCountByOffset": [
       { "offset": 0, "maxCount": 1 },
       { "offset": 1, "maxCount": 2 },

@@ -80,6 +80,7 @@ export interface TaskDefinition {
   creatures: TaskRequirement[];
   expMultiplier: number;
   resMultiplier: number;
+  eyeReward?: number;
 }
 
 export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';

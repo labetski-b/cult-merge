@@ -75,7 +75,8 @@ const taskSchema = z.object({
   id: z.string().min(1),
   creatures: z.array(taskRequirementSchema).min(1),
   expMultiplier: z.number().min(0),
-  resMultiplier: z.number().min(0)
+  resMultiplier: z.number().min(0),
+  eyeReward: z.number().min(0).optional()
 });
 
 const maxCountByOffsetEntrySchema = z.object({
@@ -86,13 +87,16 @@ const maxCountByOffsetEntrySchema = z.object({
 export const autoConfigSchema = z.object({
   difficultyFlow: z.array(z.number().int().positive()).optional(),
   difficultySacMap: z.array(z.number().min(0)).optional(),
-  budgetAnchors: z.array(z.tuple([z.number(), z.number()])),
-  sawTooth: z.array(z.number()).length(7),
+  budgetAnchors: z.array(z.tuple([z.number(), z.number()])).optional(),
+  sawTooth: z.array(z.number()).length(7).optional(),
   rampUpSchedule: z.array(z.tuple([z.number().int(), z.number().int()])).optional(),
   rampUpThreshold: z.number().int().positive().optional(),
   dualQuestProbability: z.number().min(0).max(1).optional(),
+  dualBudgetSplit: z.tuple([z.number(), z.number()]).optional(),
   maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
   maxSpawns: z.number().optional(),
+  eyeRewardByChapter: z.array(z.tuple([z.number().int(), z.number()])).optional(),
+  difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
 });
 
 export const tasksDataSchema = z.object({

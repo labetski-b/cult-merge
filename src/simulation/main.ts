@@ -1061,6 +1061,9 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
+  // ── Quest Distribution Table — only in "tasks" X-axis mode ──────────────
+  renderQuestDistributionTable(results);
+
   // ── Sessions per Kraken Level ─────────────────────────────────────────────
   if (visible('sessions-per-level')) {
     setAggBadge('sessions-per-level', '# sessions');
@@ -1080,4 +1083,285 @@ function renderCharts(results: SimulationResult[]) {
       }
     );
   }
+}
+
+// ── Quest Distribution Table ───────────────────────────────────────────────
+
+interface EraData {
+  label: string;
+  tickStart: number;
+  tickEnd: number; // -1 means "open end" (last era)
+  // creature type → quest count (number of new_quest entries containing that creature)
+  questCounts: Record<string, number>;
+  totalQuests: number;
+}
+
+/**
+ * Parse creature types from a task string like:
+ *   "Creature1 Lv2 x1, Creature7 Lv3 x1"
+ * Returns an array of unique creature type names (e.g. ["Creature1", "Creature7"]).
+ */
+function parseCreatureTypes(taskStr: string): string[] {
+  if (!taskStr) return [];
+  const parts = taskStr.split(',');
+  const types: string[] = [];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    const lvIdx = trimmed.indexOf(' Lv');
+    if (lvIdx > 0) {
+      types.push(trimmed.slice(0, lvIdx));
+    }
+  }
+  return types;
+}
+
+/**
+ * Build era data from a single SimulationResult's actionLog.
+ * An era starts when a new creature type first appears in a quest.
+ */
+function buildErasFromResult(result: SimulationResult): EraData[] {
+  const log = result.actionLog;
+  const newQuestEntries = log.filter(e => e.action.type === 'new_quest');
+
+  // First pass: find the tick when each creature type first appears
+  const firstAppearance = new Map<string, number>(); // creature type → tick
+  for (const entry of newQuestEntries) {
+    const types = parseCreatureTypes(entry.state.currentTask);
+    for (const t of types) {
+      if (!firstAppearance.has(t)) {
+        firstAppearance.set(t, entry.tick);
+      }
+    }
+  }
+
+  // Build era boundaries from first-appearance ticks
+  // Group creatures that appear at the same tick
+  const tickToCreatures = new Map<number, string[]>();
+  for (const [creature, tick] of firstAppearance) {
+    const arr = tickToCreatures.get(tick) ?? [];
+    arr.push(creature);
+    tickToCreatures.set(tick, arr);
+  }
+
+  // Sort ticks, build boundaries
+  const sortedTicks = [...tickToCreatures.keys()].sort((a, b) => a - b);
+  const eraBoundaries: Array<{ tick: number; label: string }> = [];
+  for (let i = 0; i < sortedTicks.length; i++) {
+    const tick = sortedTicks[i]!;
+    const creatures = tickToCreatures.get(tick)!.sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+    if (i === 0) {
+      // First era: "Creature1 only" or "Creature1, Creature2 only" if multiple at tick 0
+      eraBoundaries.push({ tick, label: creatures.join(', ') + ' only' });
+    } else {
+      eraBoundaries.push({ tick, label: '+' + creatures.join(', ') });
+    }
+  }
+
+  if (eraBoundaries.length === 0) return [];
+
+  // Build eras: each era covers [boundary.tick, nextBoundary.tick - 1]
+  // Last era uses tickEnd = -1 (sentinel for "open end")
+  const eras: EraData[] = eraBoundaries.map((b, i) => {
+    const isLast = i === eraBoundaries.length - 1;
+    const nextBoundaryTick = isLast ? -1 : eraBoundaries[i + 1]!.tick - 1;
+    return {
+      label: isLast ? b.label + ' (final)' : b.label,
+      tickStart: b.tick,
+      tickEnd: nextBoundaryTick, // -1 for last era (open-ended sentinel)
+      questCounts: {},
+      totalQuests: 0,
+    };
+  });
+
+  // Second pass: count quest distribution per era
+  for (const entry of newQuestEntries) {
+    // Find the era: last boundary whose tick <= entry.tick
+    let eraIdx = 0;
+    for (let i = 1; i < eraBoundaries.length; i++) {
+      if (eraBoundaries[i]!.tick <= entry.tick) {
+        eraIdx = i;
+      } else {
+        break;
+      }
+    }
+
+    const taskStr = entry.state.currentTask;
+    const types = parseCreatureTypes(taskStr);
+    const era = eras[eraIdx]!;
+    era.totalQuests++;
+    for (const t of types) {
+      era.questCounts[t] = (era.questCounts[t] ?? 0) + 1;
+    }
+  }
+
+  // Drop eras with zero quests
+  return eras.filter(e => e.totalQuests > 0);
+}
+
+/**
+ * Merge era data from multiple seeds by averaging percentages.
+ * All seeds must have the same era structure (same number of eras).
+ * We average the quest-count ratios across seeds.
+ */
+function mergeErasAcrossSeeds(allEras: EraData[][]): EraData[] {
+  if (allEras.length === 0) return [];
+
+  // Use max number of eras across all seeds
+  const maxEras = Math.max(...allEras.map(e => e.length));
+  const merged: EraData[] = [];
+
+  for (let i = 0; i < maxEras; i++) {
+    // Collect seeds that have this era
+    const seedEras = allEras.map(e => e[i]).filter(Boolean) as EraData[];
+    if (seedEras.length === 0) continue;
+
+    // Use label from first seed
+    const label = seedEras[0]!.label;
+
+    // Collect all creature types seen in this era across all seeds
+    const allTypes = new Set<string>();
+    for (const e of seedEras) {
+      for (const t of Object.keys(e.questCounts)) allTypes.add(t);
+    }
+
+    // Average tick ranges across seeds
+    const avgTickStart = Math.round(seedEras.reduce((acc, e) => acc + e.tickStart, 0) / seedEras.length);
+    // tickEnd = -1 means open-ended (last era); use -1 if any seed has -1, else average
+    const hasOpenEnd = seedEras.some(e => e.tickEnd === -1);
+    const avgTickEnd = hasOpenEnd ? -1 : Math.round(seedEras.reduce((acc, e) => acc + e.tickEnd, 0) / seedEras.length);
+
+    // Average quest counts (as raw counts, we'll compute % later)
+    const avgCounts: Record<string, number> = {};
+    let avgTotal = 0;
+    for (const t of allTypes) {
+      const sum = seedEras.reduce((acc, e) => acc + (e.questCounts[t] ?? 0), 0);
+      avgCounts[t] = sum / seedEras.length;
+    }
+    avgTotal = seedEras.reduce((acc, e) => acc + e.totalQuests, 0) / seedEras.length;
+
+    merged.push({ label, tickStart: avgTickStart, tickEnd: avgTickEnd, questCounts: avgCounts, totalQuests: avgTotal });
+  }
+
+  return merged;
+}
+
+function renderQuestDistributionTable(results: SimulationResult[]) {
+  const container = document.getElementById('quest-distribution-table') as HTMLDivElement;
+  const inner = document.getElementById('quest-distribution-table-inner') as HTMLDivElement;
+
+  const currentMode = getCurrentXAxisMode();
+  if (currentMode !== 'tasks') {
+    container.style.display = 'none';
+    return;
+  }
+
+  if (results.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Build eras per seed, then merge
+  const allEras = results.map(r => buildErasFromResult(r));
+  const eras = mergeErasAcrossSeeds(allEras);
+
+  if (eras.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Collect all creature types across all eras, sort by creature number
+  const allTypesSet = new Set<string>();
+  for (const era of eras) {
+    for (const t of Object.keys(era.questCounts)) allTypesSet.add(t);
+  }
+  const allTypes = [...allTypesSet].sort((a, b) => {
+    const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    return numA - numB;
+  });
+
+  // Determine which creature types are "available" in each era
+  // A type is available in era i if it appeared in era i OR any earlier era
+  const availableByEra: Set<string>[] = [];
+  const cumulativeTypes = new Set<string>();
+  for (const era of eras) {
+    for (const t of Object.keys(era.questCounts)) cumulativeTypes.add(t);
+    availableByEra.push(new Set(cumulativeTypes));
+  }
+
+  // Short column names: "Creature7" → "C7"
+  const shortNames = allTypes.map(t => {
+    const num = t.replace(/\D/g, '');
+    return `C${num}`;
+  });
+
+  // Column width: each data column is 5 chars wide (e.g. "  73%" or "   -")
+  const COL_W = 5;
+
+  // Era label column: compute max width needed (include "Overall" label)
+  const eraLabelCol = [...eras.map(e => e.label), 'Overall'];
+  const maxLabelLen = Math.max(...eraLabelCol.map(l => l.length));
+  const LEFT_W = maxLabelLen;
+
+  // Helper: pad string to width (right-aligned within COL_W)
+  function padCell(s: string, w = COL_W): string {
+    return s.padStart(w);
+  }
+
+  // Build header line
+  const headerLabel = 'Era'.padEnd(LEFT_W);
+  const headerCols = shortNames.map(n => padCell(n)).join('');
+  const headerLine = headerLabel + headerCols;
+
+  // Separator line
+  const separatorLine = '─'.repeat(headerLine.length);
+
+  // Build data rows
+  const dataRows: string[] = [];
+  for (let i = 0; i < eras.length; i++) {
+    const era = eras[i]!;
+    const available = availableByEra[i]!;
+    const rowLabel = era.label.padEnd(LEFT_W);
+
+    const cells = allTypes.map(t => {
+      if (!available.has(t)) {
+        return padCell('-');
+      }
+      const count = era.questCounts[t] ?? 0;
+      const pct = era.totalQuests > 0 ? Math.round((count / era.totalQuests) * 100) : 0;
+      if (pct === 0) {
+        return padCell('-');
+      }
+      return padCell(`${pct}%`);
+    });
+
+    dataRows.push(rowLabel + cells.join(''));
+  }
+
+  // Build Overall row: aggregate counts across all eras
+  const overallCounts: Record<string, number> = {};
+  let overallTotal = 0;
+  for (const era of eras) {
+    for (const t of allTypes) {
+      overallCounts[t] = (overallCounts[t] ?? 0) + (era.questCounts[t] ?? 0);
+    }
+    overallTotal += era.totalQuests;
+  }
+  const overallRowLabel = 'Overall'.padEnd(LEFT_W);
+  const overallCells = allTypes.map(t => {
+    const count = overallCounts[t] ?? 0;
+    const pct = overallTotal > 0 ? Math.round((count / overallTotal) * 100) : 0;
+    if (pct === 0) return padCell('-');
+    return padCell(`${pct}%`);
+  });
+  const overallRow = overallRowLabel + overallCells.join('');
+
+  const preText = [headerLine, separatorLine, ...dataRows, separatorLine, overallRow].join('\n');
+
+  inner.innerHTML = `<pre style="margin:0; font-family:'Courier New',Courier,monospace; font-size:13px; color:#e8f1f5; line-height:1.6;">${preText}</pre>`;
+  container.style.display = 'block';
 }

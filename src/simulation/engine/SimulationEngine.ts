@@ -311,9 +311,11 @@ export class SimulationEngine {
           return levelConfig.outputs.some(o => neededTypes.has(o.creatureType));
         });
         if (workGens.length > 0) {
-          relevantCost = Math.min(...workGens.map(gen => {
-            const { levelConfig } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
-            return levelConfig.chargeCost;
+          // Gather enough meat for the most expensive relevant generator —
+          // strategy may focus on any type, so ensure all generators are affordable
+          relevantCost = Math.max(...workGens.map(gen => {
+            const { levelConfig: wlc } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
+            return wlc.chargeCost;
           }));
         }
       }
@@ -549,11 +551,15 @@ export class SimulationEngine {
 
       if (task && isTaskComplete(task, nextTaskFed)) {
         let taskEyes = 0;
-        for (const req of task.creatures) {
-          const cr = getCreatureReward(this.config.balance, req.type, req.level);
-          taskEyes += cr.eyes * req.count;
+        if (task.eyeReward != null) {
+          taskEyes = task.eyeReward;
+        } else {
+          for (const req of task.creatures) {
+            const cr = getCreatureReward(this.config.balance, req.type, req.level);
+            taskEyes += cr.eyes * req.count;
+          }
+          taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
         }
-        taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
 
         this.state.resources.eyes += taskEyes;
         this.state.currentTaskFed = [];
