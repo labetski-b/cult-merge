@@ -1,6 +1,29 @@
-.quest-panel h2 {
-  margin: 0 0 8px;
+.quest-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.quest-panel-header h2 {
+  margin: 0 0 0;
   font-size: 14px;
+  color: #8fc1ff;
+}
+
+.quest-panel-header + .quest-list,
+.quest-panel-header + .quest-all-done {
+  margin-top: 8px;
+}
+
+.quest-toggle {
+  font-size: 11px;
+  color: rgba(143, 193, 255, 0.6);
+  transition: color 0.2s;
+}
+
+.quest-panel-header:hover .quest-toggle {
   color: #8fc1ff;
 }
 

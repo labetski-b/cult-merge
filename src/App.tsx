@@ -44,9 +44,9 @@ function App() {
         </div>
 
         <KrakenPanel />
-        <QuestPanel />
         <GridBoard />
         <MeatButton />
+        <QuestPanel />
         <ManagerCollection />
         <ControlsPanel />
 

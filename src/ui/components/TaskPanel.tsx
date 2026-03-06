@@ -10,6 +10,7 @@ export function TaskPanel() {
   const task = useCurrentTask();
   const fed = useCurrentTaskFed();
   const ensureAutoTask = useGameStore((s) => s.ensureAutoTask);
+  const completeQuest = useGameStore((s) => s.completeQuest);
 
   // Generate auto-task if none exists and level allows
   useEffect(() => {
@@ -28,7 +29,6 @@ export function TaskPanel() {
     );
   }
 
-  const completeQuest = useGameStore((s) => s.completeQuest);
   const progress = task ? getTaskFedProgress(task.creatures, fed) : [];
 
   const allDone = progress.length > 0 && progress.every(({ requirement, fed: count }) => count >= requirement.count);
@@ -52,7 +52,7 @@ export function TaskPanel() {
       onClick={() => completeQuest()}
       style={{ cursor: 'pointer' }}
     >
-      <h2>Task</h2>
+      <h2>Task {task ? <span className="task-source">({task.id.startsWith('mandatory') ? 'Mandatory' : 'Generated'})</span> : ''}</h2>
       {task ? (
         <>
           <div className="task-requirements">
