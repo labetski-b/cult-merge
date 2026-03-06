@@ -131,4 +131,43 @@ export interface GameSnapshot {
   autoTaskLastLevels: Record<string, number>;
   session: number;
   meatButtonPresses: number;
+  cumulativeStats: CumulativeStats;
+  questState: QuestState;
+}
+
+export enum QuestType {
+  GetCreature = 1,
+  GetSpawner = 2,
+  FeedRunes = 3,
+  DoMerge = 4,
+  ReachLevel = 5,
+  WinToad = 6,
+  DoTasks = 7,
+  Spawn = 8,
+}
+
+export interface CumulativeStats {
+  totalMerges: number;
+  totalTasksCompleted: number;
+  totalRunesFed: number;
+  totalPredatorFeeds: number;
+  totalSpawns: number;
+  maxCreatureLevelByType: Record<string, number>;
+  maxGeneratorLevelById: Record<number, number>;
+}
+
+export interface QuestProgress {
+  questId: string;
+  completed: boolean;
+}
+
+export interface ChapterProgress {
+  chapterId: number;
+  quests: Record<string, QuestProgress>;
+  completed: boolean;
+}
+
+export interface QuestState {
+  chapters: Record<number, ChapterProgress>;
+  chapterBaselines: Record<number, CumulativeStats>;
 }

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, QuestState, RuneEntity, RuneItemKey } from '@domain/types';
+import { createEmptyCumulativeStats, createEmptyQuestState, evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
@@ -82,7 +83,9 @@ function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
     autoTaskLineCompletions: {},
     autoTaskLastLevels: {},
     session: 1,
-    meatButtonPresses: 0
+    meatButtonPresses: 0,
+    cumulativeStats: createEmptyCumulativeStats(),
+    questState: createEmptyQuestState(),
   };
 }
 
@@ -123,7 +126,7 @@ function resolveCurrentTask(state: GameSnapshot) {
 
 export const useGameStore = create<GameStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...createInitialSnapshot(),
 
       addMeat: (amount) => {
@@ -154,6 +157,7 @@ export const useGameStore = create<GameStore>()(
               entities: nextEntities,
               grid: nextGrid,
               resources: nextResources,
+              cumulativeStats: { ...state.cumulativeStats, totalRunesFed: state.cumulativeStats.totalRunesFed + 1 },
               lastMessage: message
             };
           }
@@ -225,6 +229,7 @@ export const useGameStore = create<GameStore>()(
                   currentAutoTask: newAutoTask,
                   autoTaskLineCompletions: nextCompletions,
                   autoTaskLastLevels: nextLastLevels,
+                  cumulativeStats: { ...state.cumulativeStats, totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + 1 },
                   lastMessage: `Task complete! +${taskEyes} Eyes`
                 };
               } else {
@@ -255,6 +260,7 @@ export const useGameStore = create<GameStore>()(
                   lastAutoTaskLine: completedLine,
                   autoTaskLineCompletions: nextCompletions,
                   autoTaskLastLevels: nextLastLevels,
+                  cumulativeStats: { ...state.cumulativeStats, totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + 1 },
                   lastMessage: `Task complete! +${taskEyes} Eyes`
                 };
               }
@@ -274,6 +280,8 @@ export const useGameStore = create<GameStore>()(
 
           return { lastMessage: 'Cannot feed this entity.' };
         });
+        const afterFeed = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterFeed.cumulativeStats, afterFeed) });
       },
 
       interactCells: (sourceIndex, targetIndex) => {
@@ -368,6 +376,20 @@ export const useGameStore = create<GameStore>()(
           }
 
           const spawnMsgFinal = spawnMsg;
+          const updatedCumStats = { ...state.cumulativeStats, totalMerges: state.cumulativeStats.totalMerges + 1 };
+          if (merged.kind === 'creature') {
+            const prev = updatedCumStats.maxCreatureLevelByType[merged.creatureType] ?? 0;
+            if (merged.level > prev) {
+              updatedCumStats.maxCreatureLevelByType = { ...updatedCumStats.maxCreatureLevelByType, [merged.creatureType]: merged.level };
+            }
+          }
+          if (merged.kind === 'generator') {
+            const gen = merged as GeneratorEntity;
+            const prev = updatedCumStats.maxGeneratorLevelById[gen.generatorId] ?? 0;
+            if (gen.level > prev) {
+              updatedCumStats.maxGeneratorLevelById = { ...updatedCumStats.maxGeneratorLevelById, [gen.generatorId]: gen.level };
+            }
+          }
           return {
             grid: nextGrid,
             entities: nextEntities,
@@ -375,9 +397,12 @@ export const useGameStore = create<GameStore>()(
             predatorQueueIndex: newQueueIndex,
             predatorsSpawnedOnce: newSpawnedOnce,
             rngState: rng.getState(),
+            cumulativeStats: updatedCumStats,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
         });
+        const afterMerge = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterMerge.cumulativeStats, afterMerge) });
       },
 
       chargeGenerator: (generatorId) => {
@@ -439,9 +464,12 @@ export const useGameStore = create<GameStore>()(
             grid: nextGrid,
             entities: nextEntities,
             rngState: rng.getState(),
+            cumulativeStats: { ...state.cumulativeStats, totalSpawns: state.cumulativeStats.totalSpawns + 1 },
             lastMessage: `Spawned ${spawn.creatureType} L${spawn.level} (${remainingCharges.length} left).`
           };
         });
+        const afterSpawn = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterSpawn.cumulativeStats, afterSpawn) });
       },
 
       claimReward: () => {
@@ -643,9 +671,12 @@ export const useGameStore = create<GameStore>()(
             entities: nextEntities,
             resources: { ...state.resources, meat: nextMeat },
             rngState: rng.getState(),
+            cumulativeStats: { ...state.cumulativeStats, totalSpawns: state.cumulativeStats.totalSpawns + spawned },
             lastMessage: `Spawned ${spawned} creatures.`
           };
         });
+        const afterSpawnAll = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterSpawnAll.cumulativeStats, afterSpawnAll) });
       },
 
       feedAll: () => {
@@ -665,6 +696,8 @@ export const useGameStore = create<GameStore>()(
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
+          let runesFed = 0;
+          let tasksCompleted = 0;
 
           // Collect all feedable entity IDs (creatures and runes, not generators/boxes)
           const feedableIds: string[] = [];
@@ -685,6 +718,7 @@ export const useGameStore = create<GameStore>()(
             if (entity.kind === 'rune') {
               const { nextResources: nr } = feedRuneToResources(nextResources, entity.runeType);
               nextResources = nr;
+              runesFed += 1;
             } else if (entity.kind === 'creature') {
               const reward = getEntityReward(BALANCE, entity);
               totalExp += reward.exp;
@@ -707,6 +741,7 @@ export const useGameStore = create<GameStore>()(
                 taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
                 totalEyes += taskEyes;
                 nextTaskFed = [];
+                tasksCompleted += 1;
 
                 if (isMandatoryTask) {
                   for (const cr of task.creatures) {
@@ -762,9 +797,16 @@ export const useGameStore = create<GameStore>()(
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
             rngState: rng.getState(),
+            cumulativeStats: {
+              ...state.cumulativeStats,
+              totalRunesFed: state.cumulativeStats.totalRunesFed + runesFed,
+              totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + tasksCompleted,
+            },
             lastMessage: `Fed ${fed} entities (+${totalExp} EXP${totalEyes > 0 ? `, +${totalEyes} Eyes` : ''}).`
           };
         });
+        const afterFeedAll = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterFeedAll.cumulativeStats, afterFeedAll) });
       },
 
       completeQuest: () => {
@@ -786,6 +828,12 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
           let meatButtonPresses = state.meatButtonPresses;
           let session = state.session;
+          let cqMerges = 0;
+          let cqSpawns = 0;
+          let cqRunesFed = 0;
+          let cqTasksCompleted = 0;
+          const cqMaxCreature: Record<string, number> = { ...state.cumulativeStats.maxCreatureLevelByType };
+          const cqMaxGenerator: Record<number, number> = { ...state.cumulativeStats.maxGeneratorLevelById };
 
           // --- Helpers ---
           function getGrid() {
@@ -809,6 +857,7 @@ export const useGameStore = create<GameStore>()(
           function feedRune(runeEntity: RuneEntity) {
             const { nextResources: nr } = feedRuneToResources(nextResources, runeEntity.runeType);
             nextResources = nr;
+            cqRunesFed += 1;
           }
 
           // --- Helper: feed lowest-level creatures to make space ---
@@ -1086,6 +1135,7 @@ export const useGameStore = create<GameStore>()(
                       };
                       currentGen = { ...currentGen, charges: rest };
                       nextEntities[currentGen.id] = currentGen;
+                      cqSpawns += 1;
 
                       if (spawn!.creatureType === req.type) {
                         deficit -= Math.pow(2, spawn!.level - 1);
@@ -1119,6 +1169,9 @@ export const useGameStore = create<GameStore>()(
                   removeFromGrid(a.id);
                   removeFromGrid(b.id);
                   placeOnGrid(merged);
+                  cqMerges += 1;
+                  const prevMax = cqMaxCreature[req.type] ?? 0;
+                  if (merged.level > prevMax) cqMaxCreature[req.type] = merged.level;
 
                   // Re-query for remaining pairs
                   pairsAtLevel = Object.values(nextEntities).filter(
@@ -1241,6 +1294,18 @@ export const useGameStore = create<GameStore>()(
               nextAutoTaskLine = completedLine;
             }
 
+            cqTasksCompleted += 1;
+
+            const completedCumStats: CumulativeStats = {
+              totalMerges: state.cumulativeStats.totalMerges + cqMerges,
+              totalSpawns: state.cumulativeStats.totalSpawns + cqSpawns,
+              totalRunesFed: state.cumulativeStats.totalRunesFed + cqRunesFed,
+              totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + cqTasksCompleted,
+              totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds,
+              maxCreatureLevelByType: cqMaxCreature,
+              maxGeneratorLevelById: cqMaxGenerator,
+            };
+
             return {
               grid: getGrid(),
               entities: nextEntities,
@@ -1256,11 +1321,22 @@ export const useGameStore = create<GameStore>()(
               meatButtonPresses,
               session,
               rngState: rng.getState(),
+              cumulativeStats: completedCumStats,
               lastMessage: `Quest complete! +${totalExp} EXP, +${totalEyes} Eyes.`
             };
           }
 
           // Task not completed — return partial progress
+          const partialCumStats: CumulativeStats = {
+            totalMerges: state.cumulativeStats.totalMerges + cqMerges,
+            totalSpawns: state.cumulativeStats.totalSpawns + cqSpawns,
+            totalRunesFed: state.cumulativeStats.totalRunesFed + cqRunesFed,
+            totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + cqTasksCompleted,
+            totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds,
+            maxCreatureLevelByType: cqMaxCreature,
+            maxGeneratorLevelById: cqMaxGenerator,
+          };
+
           return {
             grid: getGrid(),
             entities: nextEntities,
@@ -1276,9 +1352,12 @@ export const useGameStore = create<GameStore>()(
             meatButtonPresses,
             session,
             rngState: rng.getState(),
+            cumulativeStats: partialCumStats,
             lastMessage: `Quest partially progressed (+${totalExp} EXP). Could not fully complete.`
           };
         });
+        const afterCompleteQuest = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterCompleteQuest.cumulativeStats, afterCompleteQuest) });
       },
 
       buyGeneratorOne: () => {
@@ -1418,6 +1497,7 @@ export const useGameStore = create<GameStore>()(
               managerCards: [...state.managerCards, ...cards],
               predatorMergeCounts: newMergeCounts,
               rngState: rng.getState(),
+              cumulativeStats: { ...state.cumulativeStats, totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds + 1 },
               lastMessage: `Predator fed! Got ${cards.length} manager cards!`
             };
           }
@@ -1428,9 +1508,12 @@ export const useGameStore = create<GameStore>()(
             entities: nextEntities,
             grid: nextGrid,
             rngState: rng.getState(),
+            cumulativeStats: { ...state.cumulativeStats, totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds + 1 },
             lastMessage: `Fed predator +${gained} EXP${preferred ? ' (×2 preferred!)' : ''}. ${newExp}/${predator.requiredExp}`
           };
         });
+        const afterPredFeed = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterPredFeed.cumulativeStats, afterPredFeed) });
       },
 
       addKrakenExp: (amount) => {
@@ -1448,6 +1531,8 @@ export const useGameStore = create<GameStore>()(
             lastMessage: `+${amount} EXP added to Kraken.`
           };
         });
+        const afterExp = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterExp.cumulativeStats, afterExp) });
       },
 
       tickFlowerPots: (now) => {

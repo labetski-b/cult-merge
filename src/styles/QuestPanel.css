@@ -1,0 +1,76 @@
+.quest-panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #8fc1ff;
+}
+
+.quest-all-done {
+  color: #4de2c2;
+  font-size: 13px;
+  text-align: center;
+  margin: 8px 0 0;
+}
+
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quest-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.quest-item.quest-done {
+  opacity: 0.55;
+}
+
+.quest-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.quest-check {
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.quest-done .quest-check {
+  color: #4de2c2;
+}
+
+.quest-desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quest-bar-wrap {
+  height: 6px;
+  background: rgba(143, 193, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.quest-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4de2c2, #8fc1ff);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.quest-done .quest-bar-fill {
+  background: #4de2c2;
+}
+
+.quest-progress-text {
+  font-size: 11px;
+  color: rgba(245, 247, 250, 0.6);
+  text-align: right;
+}
