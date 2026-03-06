@@ -80,6 +80,8 @@ const DEFAULT_AUTO_CONFIG = {
   rampUpThreshold: 5,
   dualQuestProbability: 0.5,
   dualBudgetSplit: [0.7, 0.3] as [number, number],
+  eyeRewardByChapter: null as [number, number][] | null,
+  difficultyEyeMultiplier: null as number[] | null,
 };
 
 /** Count all rune currency: wallet + rune entities on field + box contents. */
