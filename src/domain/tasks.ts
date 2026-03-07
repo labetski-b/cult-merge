@@ -5,6 +5,9 @@ import { runeRedemptionValue } from '@domain/rewards';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 
+// This module owns Kraken tasks from tasks.json (mandatory + auto).
+// Kraken quests live in quests.ts and are the unlockable quest layer.
+
 export function getCurrentMandatoryTask(
   config: BalanceConfig,
   level: number,
@@ -78,6 +81,8 @@ const DEFAULT_AUTO_CONFIG = {
   difficultySacMap: [0, 0, 0.8, 1.2, 1.7, 2.0],  // index = difficulty level
   rampUpSchedule: [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]] as [number, number][],
   rampUpThreshold: 5,
+  // Legacy config name kept for JSON compatibility: this still means
+  // "dual-requirement auto task", not a Kraken quest.
   dualQuestProbability: 0.5,
   dualBudgetSplit: [0.7, 0.3] as [number, number],
   eyeRewardByChapter: null as [number, number][] | null,

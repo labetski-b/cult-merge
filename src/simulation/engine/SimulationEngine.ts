@@ -1,77 +1,21 @@
 import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
-import type { CumulativeStats, QuestState } from '@domain/types';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
-import { createGrid, findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
+import { findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
-import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
-import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
-import { evaluateAllQuests, createEmptyCumulativeStats, createEmptyQuestState } from '@domain/quests';
+import { generateAutoTask, getCurrentMandatoryTask } from '@domain/tasks';
+import { evaluateAllQuests } from '@domain/quests';
+import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
+import { feedEntity as applyFeedEntity } from '@domain/runtime/feed';
+import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
-
-function createInitialSnapshot(seed: number, balance: any): GameSnapshot {
-  const rng = new SeededRng(seed);
-  const { rows, cols } = getGridSizeForLevel(balance, 1);
-  const grid = createGrid(rows, cols);
-
-  const initialRewards = [{ type: 'egg' as const, value: 'gen_1_1' }];
-
-  return {
-    kraken: {
-      level: 1,
-      step: 0,
-      currentExp: 0
-    },
-    resources: {
-      meat: 2,
-      eyes: 0,
-      rune1: 0,
-      rune2: 5,
-      gems: 0
-    },
-    grid,
-    entities: {},
-    taskProgress: {},
-    currentTaskFed: [],
-    pendingRewards: initialRewards,
-    rngState: rng.getState(),
-    lastMessage: null,
-    predatorMergeCounts: {},
-    predatorQueueIndex: 0,
-    predatorsSpawnedOnce: [],
-    managerCards: [],
-    currentAutoTask: null,
-    lastAutoTaskLine: null,
-    autoTaskLineCompletions: {},
-    autoTaskLastLevels: {},
-    session: 1,
-    meatButtonPresses: 0,
-    cumulativeStats: createEmptyCumulativeStats(),
-    questState: createEmptyQuestState()
-  };
-}
-
-function runeRedemptionValue(runeType: string): number {
-  if (runeType.startsWith('Rune1_')) {
-    const match = runeType.match(/Rune1_(\d+)/);
-    return match ? Number(match[1]) : 1;
-  }
-  if (runeType.startsWith('Rune2_')) {
-    const match = runeType.match(/Rune2_(\d+)/);
-    return match ? Number(match[1]) : 1;
-  }
-  if (runeType.startsWith('Hard_')) {
-    const match = runeType.match(/Hard_(\d+)/);
-    return match ? Number(match[1]) : 1;
-  }
-  return 1;
-}
 
 function formatTime(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -94,7 +38,7 @@ export class SimulationEngine {
 
   constructor(config: SimulationConfig) {
     this.config = config;
-    this.state = createInitialSnapshot(config.seed, config.balance);
+    this.state = createInitialSnapshot(config.balance, { seed: config.seed });
     this.rng = new SeededRng(config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
@@ -152,9 +96,7 @@ export class SimulationEngine {
   /** Ensure currentAutoTask is set when there's no mandatory task — mirrors game store's ensureAutoTask. */
   private ensureAutoTask() {
     if (this.state.kraken.level < 2) return; // Tasks start at level 2
-    const mandatory = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
-    if (mandatory) return;
-    if (this.state.currentAutoTask) return;
+    if (getActiveTask(this.config.balance, this.state)) return;
     this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
     this.logNewQuest();
   }
@@ -482,184 +424,93 @@ export class SimulationEngine {
   }
 
   private feedEntity(entityId: string) {
-    const entity = this.state.entities[entityId];
-    if (!entity) return;
+    const result = applyFeedEntity(this.state, entityId, {
+      balance: this.config.balance,
+      rng: this.rng
+    });
+    if (!result.changed) return;
 
-    const cellIndex = findEntityCell(this.state.grid, entityId);
-    if (cellIndex >= 0) this.state.grid.cells[cellIndex] = null;
-    delete this.state.entities[entityId];
+    this.state = result.snapshot;
 
-    if (entity.kind === 'rune') {
-      const rune = entity as RuneEntity;
-      if (rune.runeType.startsWith('Rune1_')) {
-        const match = rune.runeType.match(/Rune1_(\d+)/);
-        const level = match ? Number(match[1]) : 1;
-        const values = this.config.balance.runes.rune1RedemptionByLevel;
-        const gained = values[level - 1] ?? level;
-        this.state.resources.rune1 += gained;
-        this.cumulative.totalRune1Gained += gained;
-      } else if (rune.runeType.startsWith('Rune2_')) {
-        const match = rune.runeType.match(/Rune2_(\d+)/);
-        const level = match ? Number(match[1]) : 1;
-        const values = this.config.balance.runes.rune2RedemptionByLevel;
-        const gained = values[level - 1] ?? level;
-        this.state.resources.rune2 += gained;
-        this.cumulative.totalRune2Gained += gained;
-      } else if (rune.runeType.startsWith('Hard_')) {
-        const gained = runeRedemptionValue(rune.runeType);
-        this.state.resources.gems += gained;
-        this.cumulative.totalGemsGained += gained;
-      }
-      this.runesFedCount++;
-      return;
-    }
-
-    if (entity.kind === 'creature') {
-      const creature = entity as CreatureEntity;
-      const reward = getEntityReward(this.config.balance, creature);
-      const expResult = addExp(this.config.balance, this.state.kraken, reward.exp);
-
-      // Track cumulative EXP gain
-      this.cumulative.totalExpGained += reward.exp;
-
-      const nextGridSize = getGridSizeForLevel(this.config.balance, expResult.newState.level);
-      if (this.state.grid.rows !== nextGridSize.rows || this.state.grid.cols !== nextGridSize.cols) {
-        this.state.grid = resizeGrid(this.state.grid, nextGridSize.rows, nextGridSize.cols);
-        const expandAction: SimulationAction = { type: 'expand_board', newRows: nextGridSize.rows, newCols: nextGridSize.cols };
-        const expandDt = this.addActionTime(expandAction);
-        const expandState = this.captureCompactState(expandDt);
-        this.actionLog.push({
-          tick: this.currentTick,
-          actionIndex: this.actionLog.length,
-          action: expandAction,
-          state: expandState,
-          note: `${nextGridSize.rows}×${nextGridSize.cols} = ${nextGridSize.rows * nextGridSize.cols} cells`
-        });
-      }
-
-      this.state.pendingRewards.push(...expResult.rewards);
-      this.state.kraken = expResult.newState;
-
-      const nextTaskFed = [
-        ...this.state.currentTaskFed,
-        { type: creature.creatureType, level: creature.level }
-      ];
-
-      const mandatoryTask = getCurrentMandatoryTask(this.config.balance, expResult.newState.level, this.state.taskProgress);
-      const isMandatory = mandatoryTask !== null;
-      const task = mandatoryTask ?? this.state.currentAutoTask;
-
-      if (task && isTaskComplete(task, nextTaskFed)) {
-        let taskEyes = 0;
-        if (task.eyeReward != null) {
-          taskEyes = task.eyeReward;
-        } else {
-          for (const req of task.creatures) {
-            const cr = getCreatureReward(this.config.balance, req.type, req.level);
-            taskEyes += cr.eyes * req.count;
+    for (const event of result.events) {
+      switch (event.type) {
+        case 'rune_fed':
+          this.runesFedCount++;
+          if (event.resource === 'rune1') {
+            this.cumulative.totalRune1Gained += event.amount;
+          } else if (event.resource === 'rune2') {
+            this.cumulative.totalRune2Gained += event.amount;
+          } else {
+            this.cumulative.totalGemsGained += event.amount;
           }
-          taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
+          break;
+        case 'creature_fed':
+          this.cumulative.totalExpGained += event.expGained;
+          break;
+        case 'grid_resized': {
+          const expandAction: SimulationAction = {
+            type: 'expand_board',
+            newRows: event.rows,
+            newCols: event.cols
+          };
+          const expandDt = this.addActionTime(expandAction);
+          const expandState = this.captureCompactState(expandDt);
+          this.actionLog.push({
+            tick: this.currentTick,
+            actionIndex: this.actionLog.length,
+            action: expandAction,
+            state: expandState,
+            note: `${event.rows}×${event.cols} = ${event.rows * event.cols} cells`
+          });
+          break;
         }
-
-        this.state.resources.eyes += taskEyes;
-        this.state.currentTaskFed = [];
-
-        if (isMandatory) {
-          const levelKey = expResult.newState.level.toString();
-          this.state.taskProgress[levelKey] = (this.state.taskProgress[levelKey] ?? 0) + 1;
-          // If no next mandatory task — generate first auto task
-          const nextMandatory = getCurrentMandatoryTask(this.config.balance, expResult.newState.level, this.state.taskProgress);
-          if (nextMandatory === null) {
-            this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
-          }
-        } else {
-          // Auto task: track completion for primary creature line only (avoids double-counting questIndex)
-          for (const cr of task.creatures) {
-            this.state.autoTaskLineCompletions[cr.type] = (this.state.autoTaskLineCompletions[cr.type] ?? 0) + 1;
-          }
-          for (const cr of task.creatures) {
-            this.state.autoTaskLastLevels[cr.type] = cr.level;
-          }
-          const completedLine = task.creatures[0]?.type ?? null;
-          const snapForGen = { ...this.state, lastAutoTaskLine: completedLine, currentAutoTask: task };
-          this.state.currentAutoTask = generateAutoTask(this.config.balance, snapForGen, this.rng);
-          this.state.lastAutoTaskLine = completedLine;
-        }
-
-        // Calculate predicted EXP from quest requirements only
-        let predictedExp = 0;
-        for (const req of task.creatures) {
-          const cr = getCreatureReward(this.config.balance, req.type, req.level);
-          predictedExp += cr.exp * req.count;
-        }
-        predictedExp = Math.floor(applyTaskMultiplier(predictedExp, task.expMultiplier));
-        this.cumulative.totalPredictedExp += predictedExp;
-
-        // Track cumulative eyes and tasks
-        this.cumulative.totalEyesGained += taskEyes;
-        this.cumulative.totalTasksCompleted += 1;
-        this.logNewQuest();
-      } else {
-        this.state.currentTaskFed = nextTaskFed;
+        case 'task_completed':
+          this.cumulative.totalPredictedExp += event.predictedExp;
+          this.cumulative.totalEyesGained += event.eyesGained;
+          this.cumulative.totalTasksCompleted += 1;
+          this.logNewQuest();
+          break;
       }
     }
   }
 
   private chargeGenerator(generatorId: string) {
-    const entity = this.state.entities[generatorId];
-    if (!entity || entity.kind !== 'generator') return;
+    const result = applyGeneratorCharge(this.state, generatorId, {
+      balance: this.config.balance,
+      rng: this.rng
+    });
+    if (!result.changed) return;
 
-    const gen = entity as GeneratorEntity;
-    if (gen.charges.length > 0) return;
+    this.state = result.snapshot;
 
-    const { levelConfig } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
-    if (this.state.resources.meat < levelConfig.chargeCost) return;
-
-    const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance);
-
-    this.state.entities[generatorId] = {
-      ...gen,
-      charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
-    };
-    this.state.resources.meat -= levelConfig.chargeCost;
-    this.cumulative.totalMeatSpent += levelConfig.chargeCost;
-    this.cumulative.totalMeatSpentOnCharges += levelConfig.chargeCost;
-    this.cumulative.totalCharges++;
+    for (const event of result.events) {
+      if (event.type !== 'generator_charged') continue;
+      this.cumulative.totalMeatSpent += event.meatSpent;
+      this.cumulative.totalMeatSpentOnCharges += event.meatSpent;
+      this.cumulative.totalCharges++;
+    }
   }
 
   private tapGenerator(generatorId: string) {
-    const entity = this.state.entities[generatorId];
-    if (!entity || entity.kind !== 'generator') return;
+    const result = spawnFromGenerator(this.state, generatorId, {
+      balance: this.config.balance,
+      rng: this.rng
+    });
+    if (!result.changed) return;
 
-    const gen = entity as GeneratorEntity;
-    if (gen.charges.length === 0) return;
+    this.state = result.snapshot;
 
-    const freeSlots = getFreeCellIndexes(this.state.grid);
-    if (freeSlots.length === 0) return;
-
-    const [spawn, ...remainingCharges] = gen.charges;
-    if (!spawn) return;
-
-    const creatureId = this.rng.nextId();
-    const targetCell = freeSlots[0]!;
-
-    this.state.grid.cells[targetCell] = creatureId;
-    this.state.entities[creatureId] = {
-      id: creatureId,
-      kind: 'creature',
-      creatureType: spawn.creatureType,
-      level: spawn.level
-    };
-    this.state.entities[generatorId] = { ...gen, charges: remainingCharges };
-
-    this.cumulative.totalSpawns++;
-    const key = `${spawn.creatureType}:${spawn.level}`;
-    if (!this.discoveredCreatures.has(key)) {
-      this.discoveredCreatures.add(key);
-      this.cumulative.totalUniqueCreatures++;
+    for (const event of result.events) {
+      if (event.type !== 'generator_spawned') continue;
+      this.cumulative.totalSpawns++;
+      const key = `${event.creatureType}:${event.level}`;
+      if (!this.discoveredCreatures.has(key)) {
+        this.discoveredCreatures.add(key);
+        this.cumulative.totalUniqueCreatures++;
+      }
+      const prev = this.cumulative.maxCreatureLevelByType[event.creatureType] ?? 0;
+      if (event.level > prev) this.cumulative.maxCreatureLevelByType[event.creatureType] = event.level;
     }
-    const prev = this.cumulative.maxCreatureLevelByType[spawn.creatureType] ?? 0;
-    if (spawn.level > prev) this.cumulative.maxCreatureLevelByType[spawn.creatureType] = spawn.level;
   }
 
   /**
@@ -667,8 +518,7 @@ export class SimulationEngine {
    * Handles creatures produced by merges this tick (they have new IDs unknown to strategy snapshot).
    */
   private executeTaskFeedSweep(tick: number, logIndex: number): number {
-    const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress)
-      ?? this.state.currentAutoTask;
+    const task = getActiveTask(this.config.balance, this.state);
     if (!task) return logIndex;
 
     const matching = (Object.values(this.state.entities).filter(e => e.kind === 'creature') as CreatureEntity[])
@@ -765,8 +615,7 @@ export class SimulationEngine {
   }
 
   private captureTaskLabel(): string {
-    const mandatory = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
-    const task = mandatory ?? this.state.currentAutoTask;
+    const task = getActiveTask(this.config.balance, this.state);
     return task ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ') : 'none';
   }
 
@@ -800,8 +649,7 @@ export class SimulationEngine {
 
   private captureCompactState(actionTimeSec = 0): ActionLogEntry['state'] {
     const entities = Object.values(this.state.entities);
-    const mandatoryTask = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress);
-    const task = mandatoryTask ?? this.state.currentAutoTask;
+    const task = getActiveTask(this.config.balance, this.state);
     const currentTask = task
       ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ')
       : 'none';

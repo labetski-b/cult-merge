@@ -1,6 +1,8 @@
 import { type BalanceConfig } from '@data/schemas';
 import { QuestType, type CumulativeStats, type GameSnapshot, type QuestState, type ChapterProgress, type QuestProgress } from './types';
 
+// Kraken quests are the unlockable quest layer from quests.json.
+// They are chapter-structured, but still belong to Kraken progression.
 export const QUEST_UNLOCK_LEVEL = 4;
 
 export function getQuestCurrentValue(
@@ -50,6 +52,8 @@ export function evaluateAllQuests(
   const chapters: Record<number, ChapterProgress> = {};
   const baselines: Record<number, CumulativeStats> = { ...state.questState.chapterBaselines };
 
+  // "baseline" here means a per-chapter cumulative-stats snapshot used to
+  // measure Kraken-quest progress deltas, not the balance-profile snapshot.
   // Chapter 1 baseline is set when player reaches level 4 (quests unlock at L4)
   if (!baselines[1] && state.kraken.level >= QUEST_UNLOCK_LEVEL) {
     baselines[1] = { ...cumStats };
@@ -82,7 +86,8 @@ export function evaluateAllQuests(
       completed: allCompleted,
     };
 
-    // When chapter just completed, snapshot cumStats as baseline for next chapter
+    // When a chapter is completed, snapshot cumulative stats for the next
+    // chapter of Kraken quests.
     if (allCompleted && !wasCompleted) {
       const nextChapter = config.quests.chapters.find(c => c.id === chapter.id + 1);
       if (nextChapter) {

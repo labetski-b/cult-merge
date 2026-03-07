@@ -1,20 +1,29 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, QuestState, RuneEntity, RuneItemKey } from '@domain/types';
-import { createEmptyCumulativeStats, createEmptyQuestState, evaluateAllQuests } from '@domain/quests';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import { evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
 import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
-import { createGrid, findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
+import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepReward, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
+import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
-import { SeededRng, randomSeed } from '@infra/rng';
+import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
+import {
+  feedEntity as applyFeedEntity,
+  feedRuneToResources,
+  type FeedRuntimeEvent,
+  type FeedRuntimeReason
+} from '@domain/runtime/feed';
+import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { getActiveTask } from '@domain/runtime/getActiveTask';
+import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
 
 interface GameActions {
@@ -46,88 +55,60 @@ interface GameActions {
 
 export type GameStore = GameSnapshot & GameActions;
 
-function createInitialSnapshot(seed = randomSeed()): GameSnapshot {
-  const rng = new SeededRng(seed);
-  const { rows, cols } = getGridSizeForLevel(BALANCE, 1);
-  const grid = createGrid(rows, cols);
+const STORE_INITIAL_LAST_MESSAGE = 'Tap the Kraken to claim your reward!';
 
-  // Level 1 reward (gen_1_1) goes to pendingRewards — player must claim it
-  const initialRewards: ProgressReward[] = [{ type: 'egg', value: 'gen_1_1' }];
-
-  return {
-    kraken: {
-      level: 1,
-      step: 0,
-      currentExp: 0
-    },
-    resources: {
-      meat: 2,
-      eyes: 0,
-      rune1: 0,
-      rune2: 5,
-      gems: 0
-    },
-    grid,
-    entities: {},
-    taskProgress: {},
-    currentTaskFed: [],
-    pendingRewards: initialRewards,
-    rngState: rng.getState(),
-    lastMessage: 'Tap the Kraken to claim your reward!',
-    predatorMergeCounts: {},
-    predatorQueueIndex: 0,
-    predatorsSpawnedOnce: [],
-    managerCards: [],
-    currentAutoTask: null,
-    lastAutoTaskLine: null,
-    autoTaskLineCompletions: {},
-    autoTaskLastLevels: {},
-    session: 1,
-    meatButtonPresses: 0,
-    cumulativeStats: createEmptyCumulativeStats(),
-    questState: createEmptyQuestState(),
-  };
+function getFeedEvent<TType extends FeedRuntimeEvent['type']>(
+  events: FeedRuntimeEvent[],
+  type: TType
+): Extract<FeedRuntimeEvent, { type: TType }> | undefined {
+  return events.find(
+    (event): event is Extract<FeedRuntimeEvent, { type: TType }> => event.type === type
+  );
 }
 
-function feedRuneToResources(
-  resources: GameSnapshot['resources'],
-  runeType: RuneItemKey
-): { nextResources: GameSnapshot['resources']; message: string } {
-  const value = runeRedemptionValue(runeType);
-
-  if (runeType.startsWith('Rune1_')) {
-    return {
-      nextResources: { ...resources, rune1: resources.rune1 + value },
-      message: `Redeemed ${runeType} → +${value} Rune1 currency.`
-    };
+function formatFeedMessage(
+  reason: FeedRuntimeReason | undefined,
+  events: FeedRuntimeEvent[]
+): string {
+  if (reason === 'entity_not_found') {
+    return 'Entity not found.';
   }
 
-  if (runeType.startsWith('Rune2_')) {
-    return {
-      nextResources: { ...resources, rune2: resources.rune2 + value },
-      message: `Redeemed ${runeType} → +${value} Rune2 currency.`
-    };
+  if (reason === 'unsupported_entity') {
+    return 'Cannot feed this entity.';
   }
 
-  if (runeType.startsWith('Hard_')) {
-    return {
-      nextResources: { ...resources, gems: resources.gems + value },
-      message: `Redeemed ${runeType} → +${value} Gems.`
-    };
+  const taskCompleted = getFeedEvent(events, 'task_completed');
+  if (taskCompleted) {
+    return `Task complete! +${taskCompleted.eyesGained} Eyes`;
   }
 
-  return { nextResources: resources, message: `Unknown rune type ${runeType}.` };
-}
+  const runeFed = getFeedEvent(events, 'rune_fed');
+  if (runeFed) {
+    if (runeFed.resource === 'rune1') {
+      return `Redeemed ${runeFed.runeType} → +${runeFed.amount} Rune1 currency.`;
+    }
 
-function resolveCurrentTask(state: GameSnapshot) {
-  return getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress)
-    ?? state.currentAutoTask;
+    if (runeFed.resource === 'rune2') {
+      return `Redeemed ${runeFed.runeType} → +${runeFed.amount} Rune2 currency.`;
+    }
+
+    return `Redeemed ${runeFed.runeType} → +${runeFed.amount} Gems.`;
+  }
+
+  const creatureFed = getFeedEvent(events, 'creature_fed');
+  if (creatureFed) {
+    const rewardSuffix = creatureFed.rewardsAdded > 0 ? ' Reward ready!' : '';
+    return `Fed ${creatureFed.creatureType} L${creatureFed.level} (+${creatureFed.expGained} EXP).${rewardSuffix}`;
+  }
+
+  return 'Cannot feed this entity.';
 }
 
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
-      ...createInitialSnapshot(),
+      ...createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE }),
 
       addMeat: (amount) => {
         if (amount <= 0) return;
@@ -139,150 +120,19 @@ export const useGameStore = create<GameStore>()(
 
       feedEntity: (entityId) => {
         set((state) => {
-          const entity = state.entities[entityId];
-          if (!entity) return { lastMessage: 'Entity not found.' };
+          const result = applyFeedEntity(state, entityId, {
+            balance: BALANCE,
+            rng: new SeededRng(state.rngState)
+          });
 
-          const nextEntities = { ...state.entities };
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          const cellIndex = findEntityCell(nextGrid, entityId);
-
-          if (cellIndex >= 0) {
-            nextGrid.cells[cellIndex] = null;
-          }
-          delete nextEntities[entityId];
-
-          if (entity.kind === 'rune') {
-            const { nextResources, message } = feedRuneToResources(state.resources, entity.runeType);
-            return {
-              entities: nextEntities,
-              grid: nextGrid,
-              resources: nextResources,
-              cumulativeStats: { ...state.cumulativeStats, totalRunesFed: state.cumulativeStats.totalRunesFed + 1 },
-              lastMessage: message
-            };
+          if (!result.changed) {
+            return { lastMessage: formatFeedMessage(result.reason, result.events) };
           }
 
-          if (entity.kind === 'creature') {
-            const reward = getEntityReward(BALANCE, entity);
-            const rng = new SeededRng(state.rngState);
-            const expResult = addExp(BALANCE, state.kraken, reward.exp);
-
-            const nextGridSize = getGridSizeForLevel(BALANCE, expResult.newState.level);
-            const resizedGrid =
-              nextGrid.rows !== nextGridSize.rows || nextGrid.cols !== nextGridSize.cols
-                ? resizeGrid(nextGrid, nextGridSize.rows, nextGridSize.cols)
-                : nextGrid;
-
-            // Queue rewards for manual claim
-            const nextPendingRewards = [...state.pendingRewards, ...expResult.rewards];
-
-            const nextTaskFed = [
-              ...state.currentTaskFed,
-              { type: entity.creatureType, level: entity.level }
-            ];
-
-            // Eyes NOT given per feed — only on task completion
-            const nextResources = { ...state.resources };
-            const message = nextPendingRewards.length > state.pendingRewards.length
-              ? `Fed ${entity.creatureType} L${entity.level} (+${reward.exp} EXP). Reward ready!`
-              : `Fed ${entity.creatureType} L${entity.level} (+${reward.exp} EXP).`;
-
-            const mandatoryTask = getCurrentMandatoryTask(BALANCE, expResult.newState.level, state.taskProgress);
-            const isMandatory = mandatoryTask !== null;
-            const task = mandatoryTask ?? state.currentAutoTask;
-            if (task && isTaskComplete(task, nextTaskFed)) {
-              let taskEyes = 0;
-              if (task.eyeReward != null) {
-                taskEyes = task.eyeReward;
-              } else {
-                for (const req of task.creatures) {
-                  const cr = getCreatureReward(BALANCE, req.type, req.level);
-                  taskEyes += cr.eyes * req.count;
-                }
-                taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
-              }
-
-              if (isMandatory) {
-                const nextCompletions = { ...state.autoTaskLineCompletions };
-                for (const cr of task.creatures) {
-                  nextCompletions[cr.type] = (nextCompletions[cr.type] ?? 0) + 1;
-                }
-                const nextLastLevels = { ...state.autoTaskLastLevels };
-                for (const cr of task.creatures) {
-                  nextLastLevels[cr.type] = cr.level;
-                }
-                const levelKey = expResult.newState.level.toString();
-                const newTaskProgress = {
-                  ...state.taskProgress,
-                  [levelKey]: (state.taskProgress[levelKey] ?? 0) + 1
-                };
-                // If this was the last mandatory task, generate first auto task
-                const nextMandatory = getCurrentMandatoryTask(BALANCE, expResult.newState.level, newTaskProgress);
-                const newAutoTask = nextMandatory === null
-                  ? generateAutoTask(BALANCE, state, rng)
-                  : null;
-                return {
-                  entities: nextEntities,
-                  grid: resizedGrid,
-                  pendingRewards: nextPendingRewards,
-                  kraken: expResult.newState,
-                  rngState: rng.getState(),
-                  resources: { ...nextResources, eyes: nextResources.eyes + taskEyes },
-                  currentTaskFed: [],
-                  taskProgress: newTaskProgress,
-                  currentAutoTask: newAutoTask,
-                  autoTaskLineCompletions: nextCompletions,
-                  autoTaskLastLevels: nextLastLevels,
-                  cumulativeStats: { ...state.cumulativeStats, totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + 1 },
-                  lastMessage: `Task complete! +${taskEyes} Eyes`
-                };
-              } else {
-                // Auto task completion → generate next auto task
-                const nextCompletions = { ...state.autoTaskLineCompletions };
-                for (const cr of task.creatures) {
-                  nextCompletions[cr.type] = (nextCompletions[cr.type] ?? 0) + 1;
-                }
-                const nextLastLevels = { ...state.autoTaskLastLevels };
-                for (const cr of task.creatures) {
-                  nextLastLevels[cr.type] = cr.level;
-                }
-                const completedLine = task.creatures[0]?.type ?? null;
-                const nextAutoTask = generateAutoTask(
-                  BALANCE,
-                  { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, autoTaskLineCompletions: nextCompletions, autoTaskLastLevels: nextLastLevels },
-                  rng
-                );
-                return {
-                  entities: nextEntities,
-                  grid: resizedGrid,
-                  pendingRewards: nextPendingRewards,
-                  kraken: expResult.newState,
-                  rngState: rng.getState(),
-                  resources: { ...nextResources, eyes: nextResources.eyes + taskEyes },
-                  currentTaskFed: [],
-                  currentAutoTask: nextAutoTask,
-                  lastAutoTaskLine: completedLine,
-                  autoTaskLineCompletions: nextCompletions,
-                  autoTaskLastLevels: nextLastLevels,
-                  cumulativeStats: { ...state.cumulativeStats, totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + 1 },
-                  lastMessage: `Task complete! +${taskEyes} Eyes`
-                };
-              }
-            }
-
-            return {
-              entities: nextEntities,
-              grid: resizedGrid,
-              pendingRewards: nextPendingRewards,
-              kraken: expResult.newState,
-              rngState: rng.getState(),
-              resources: nextResources,
-              currentTaskFed: nextTaskFed,
-              lastMessage: message
-            };
-          }
-
-          return { lastMessage: 'Cannot feed this entity.' };
+          return {
+            ...result.snapshot,
+            lastMessage: formatFeedMessage(result.reason, result.events)
+          };
         });
         const afterFeed = get();
         set({ questState: evaluateAllQuests(BALANCE, afterFeed.cumulativeStats, afterFeed) });
@@ -411,65 +261,60 @@ export const useGameStore = create<GameStore>()(
 
       chargeGenerator: (generatorId) => {
         set((state) => {
-          const entity = state.entities[generatorId];
-          if (!entity || entity.kind !== 'generator') return { lastMessage: 'Generator not found.' };
-          if (entity.charges.length > 0) return { lastMessage: 'Generator still has charges. Tap to spawn.' };
-
-          const { levelConfig } = getGeneratorConfig(BALANCE, entity.generatorId, entity.level);
-          if (state.resources.meat < levelConfig.chargeCost) return { lastMessage: 'Not enough meat.' };
-
           const rng = new SeededRng(state.rngState);
-          const spawns = rollGeneratorSpawn(rng, entity, BALANCE);
+          const result = applyGeneratorCharge(state, generatorId, { balance: BALANCE, rng });
 
-          const nextEntities = { ...state.entities };
-          nextEntities[generatorId] = {
-            ...entity,
-            charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
-          };
+          if (!result.changed) {
+            switch (result.reason) {
+              case 'generator_not_found':
+                return { lastMessage: 'Generator not found.' };
+              case 'generator_has_charges':
+                return { lastMessage: 'Generator still has charges. Tap to spawn.' };
+              case 'not_enough_meat':
+                return { lastMessage: 'Not enough meat.' };
+              default:
+                return {};
+            }
+          }
+
+          const event = result.events[0];
+          if (!event || event.type !== 'generator_charged') {
+            return {};
+          }
 
           return {
-            resources: { ...state.resources, meat: state.resources.meat - levelConfig.chargeCost },
-            entities: nextEntities,
-            rngState: rng.getState(),
-            lastMessage: `Generator charged with ${spawns.length} creatures. Tap to spawn.`
+            ...result.snapshot,
+            lastMessage: `Generator charged with ${event.chargeCount} creatures. Tap to spawn.`
           };
         });
       },
 
       tapGenerator: (generatorId) => {
         set((state) => {
-          const entity = state.entities[generatorId];
-          if (!entity || entity.kind !== 'generator') return { lastMessage: 'Generator not found.' };
-          if (entity.charges.length === 0) return { lastMessage: 'Generator is empty. Charge it first.' };
-
-          const freeSlots = getFreeCellIndexes(state.grid);
-          if (freeSlots.length === 0) return { lastMessage: 'No free cell to spawn creature.' };
-
           const rng = new SeededRng(state.rngState);
-          const [spawn, ...remainingCharges] = entity.charges;
-          if (!spawn) return { lastMessage: 'Generator is empty.' };
+          const result = spawnFromGenerator(state, generatorId, { balance: BALANCE, rng });
 
-          const creatureId = rng.nextId();
-          const targetCell = freeSlots[0]!;
+          if (!result.changed) {
+            switch (result.reason) {
+              case 'generator_not_found':
+                return { lastMessage: 'Generator not found.' };
+              case 'generator_empty':
+                return { lastMessage: 'Generator is empty. Charge it first.' };
+              case 'no_free_cell':
+                return { lastMessage: 'No free cell to spawn creature.' };
+              default:
+                return {};
+            }
+          }
 
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          nextGrid.cells[targetCell] = creatureId;
-
-          const nextEntities = { ...state.entities };
-          nextEntities[creatureId] = {
-            id: creatureId,
-            kind: 'creature',
-            creatureType: spawn.creatureType,
-            level: spawn.level
-          };
-          nextEntities[generatorId] = { ...entity, charges: remainingCharges };
+          const event = result.events[0];
+          if (!event || event.type !== 'generator_spawned') {
+            return {};
+          }
 
           return {
-            grid: nextGrid,
-            entities: nextEntities,
-            rngState: rng.getState(),
-            cumulativeStats: { ...state.cumulativeStats, totalSpawns: state.cumulativeStats.totalSpawns + 1 },
-            lastMessage: `Spawned ${spawn.creatureType} L${spawn.level} (${remainingCharges.length} left).`
+            ...result.snapshot,
+            lastMessage: `Spawned ${event.creatureType} L${event.level} (${event.remainingCharges} left).`
           };
         });
         const afterSpawn = get();
@@ -1657,9 +1502,7 @@ export const useGameStore = create<GameStore>()(
 
       ensureAutoTask: () => {
         set((state) => {
-          const mandatory = getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress);
-          if (mandatory) return {};
-          if (state.currentAutoTask) return {};
+          if (getActiveTask(BALANCE, state)) return {};
 
           const rng = new SeededRng(state.rngState);
           const autoTask = generateAutoTask(BALANCE, state, rng);
@@ -1695,7 +1538,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       resetGame: () => {
-        set(createInitialSnapshot());
+        set(createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE }));
       },
 
       clearLastMessage: () => {
@@ -1707,7 +1550,7 @@ export const useGameStore = create<GameStore>()(
       version: SAVE_VERSION,
       migrate: (persistedState, persistedVersion) => {
         if (!persistedState || persistedVersion < SAVE_VERSION) {
-          return createInitialSnapshot();
+          return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
         }
         return persistedState as GameStore;
       }
@@ -1716,9 +1559,7 @@ export const useGameStore = create<GameStore>()(
 );
 
 export function useCurrentTask() {
-  return useGameStore((state) =>
-    getCurrentMandatoryTask(BALANCE, state.kraken.level, state.taskProgress) ?? state.currentAutoTask
-  );
+  return useGameStore((state) => getActiveTask(BALANCE, state));
 }
 
 export function useCurrentTaskFed() {

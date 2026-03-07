@@ -91,6 +91,8 @@ export const autoConfigSchema = z.object({
   sawTooth: z.array(z.number()).length(7).optional(),
   rampUpSchedule: z.array(z.tuple([z.number().int(), z.number().int()])).optional(),
   rampUpThreshold: z.number().int().positive().optional(),
+  // Legacy field name kept for JSON compatibility: controls dual-requirement
+  // auto tasks inside the Kraken-task loop, not Kraken quests.
   dualQuestProbability: z.number().min(0).max(1).optional(),
   dualBudgetSplit: z.tuple([z.number(), z.number()]).optional(),
   maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
@@ -99,6 +101,8 @@ export const autoConfigSchema = z.object({
   difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
 });
 
+// tasks.json defines the Kraken-task loop: mandatory tasks keyed by Kraken
+// level plus auto-task tuning.
 export const tasksDataSchema = z.object({
   mandatory: z.record(z.array(taskSchema)),
   autoConfig: autoConfigSchema.optional(),
@@ -237,6 +241,7 @@ const questChapterSchema = z.object({
   quests: z.array(questDefinitionSchema).min(1),
 });
 
+// quests.json defines unlockable Kraken quests and chapter unlock metadata.
 export const questsDataSchema = z.object({
   chapters: z.array(questChapterSchema).min(1),
 });
