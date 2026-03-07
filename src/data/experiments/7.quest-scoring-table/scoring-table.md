@@ -152,7 +152,35 @@ targetLevel = min(floor(log₂(totalL1)) + 1, maxLevel, gridCap)
 Применяется ко всем точкам выбора: single quest, dual main, dual filler.
 
 ### Anti-duplicate
-Если выбранный квест совпадает с предыдущим (по creature type), производится повторный выбор. Максимум **10 попыток**; если все 10 совпали — квест принимается как есть.
+
+Ни одна пара `(creatureType, level)` из нового таска не должна совпадать с любой парой из предыдущего таска. Проверка работает **между тасками любого размера** (single↔single, single↔dual, dual↔dual).
+
+Примеры:
+- Prev `[C1 L5]` → new `[C1 L5, C3 L3]` — **отклонён** (C1 L5 совпал)
+- Prev `[C1 L5, C3 L3]` → new `[C3 L3]` — **отклонён** (C3 L3 совпал)
+- Prev `[C1 L5]` → new `[C1 L6]` — **ок** (другой level)
+- Prev `[C1 L5, C3 L3]` → new `[C1 L6, C3 L4]` — **ок** (оба level отличаются)
+
+Механизм: собираем `Set<"type:level">` из предыдущего таска; если хоть одна пара нового таска попадает в этот Set — retry. Максимум **10 попыток**; на 11-й квест принимается как есть (fallback).
+
+### Level-Repeat Guard
+
+Дополнительная защита от монотонных квестов. Если scoring table выбрал creature X с targetLevel L, и последний завершённый квест на этот тип существа тоже был уровня L (`autoTaskLastLevels[X] === L`), уровень снижается на 1 (но не ниже 1).
+
+Это создаёт чередование уровней вместо повторения:
+- **Без guard:** C9 L7 → C9 L7 → C9 L7 → C9 L7
+- **С guard:** C9 L7 → C9 L6 → C9 L7 → C9 L6
+
+#### Где применяется
+- Single quest — после `pickWeightedByRecency`
+- Dual quest — к обоим пикам (main + filler)
+- Difficulty=1 (high-level creature pick) — к выбранному существу
+
+#### Где НЕ применяется
+- Ramp-up квесты — имеют свою жёсткую логику уровней
+
+#### Хранение
+`GameSnapshot.autoTaskLastLevels: Record<string, number>` — записывается при завершении таска (`feed.ts`). Ключ = `creatureType`, значение = последний уровень в квесте.
 
 ---
 

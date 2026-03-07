@@ -363,41 +363,70 @@ export function generateAutoTask(
   const prev = state.currentAutoTask;
 
   // ─── RAMP-UP CHECK ─────────────────────────────────────────────────────
+  // Ramp-up works per creature LINE, not per generator.  A line is available
+  // if its creature type appears in outputs of a field generator (at its
+  // current level) or an affordable unlocked generator (level-1 outputs).
+  // Pick the newest available line (highest creature number) that still has
+  // completions < threshold.
 
-  const newestGen = config.generators.generators
-    .filter(g => state.kraken.level >= g.krakenRequired)
-    .sort((a, b) => b.krakenRequired - a.krakenRequired)[0];
-  const newestPrimaryType = newestGen
-    ? newestGen.levels[0]?.outputs.find(o => o.chance >= 0.99)?.creatureType ?? null
-    : null;
+  const { rune1: availR1, rune2: availR2 } = countAvailableRunes(state);
+  const availableTypes = new Set<string>();
 
-  if (newestPrimaryType && newestGen) {
-    // Only ramp-up if the generator is already on the field or affordable
-    const { rune1: availR1, rune2: availR2 } = countAvailableRunes(state);
-    const newestAvailRunes = newestGen.purchaseCurrency === 'rune1' ? availR1 : availR2;
-    const hasGenerator = Object.values(state.entities).some(
-      e => e.kind === 'generator' && (e as GeneratorEntity).generatorId === newestGen.id
-    );
-    const canAfford = newestAvailRunes >= newestGen.purchaseCost;
-
-    const completions = state.autoTaskLineCompletions[newestPrimaryType] ?? 0;
-    if (completions < rampUpThreshold && (hasGenerator || canAfford)) {
-      const schedIdx = Math.min(completions, rampUpSchedule.length - 1);
-      const [level, count] = rampUpSchedule[schedIdx]!;
-      const creature = config.creatures.creatures.find(c => c.type === newestPrimaryType);
-      const maxLevel = creature?.maxLevel ?? 9;
-      const clampedLevel = Math.max(1, Math.min(level!, maxLevel, gridCap));
-      return {
-        id: makeTaskId(rng),
-        creatures: [{ type: newestPrimaryType, level: clampedLevel, count: count! }],
-        expMultiplier: 0,
-        resMultiplier: 2,
-        eyeReward: computeEyeReward(2),
-        difficulty: 0,
-        debugMeatBudget: meatBudget,
-        debugScoringTable: [],
-      };
+  // Field generators: collect creature types from outputs up to current level
+  const fieldGenMaxLevel = new Map<number, number>();
+  for (const entity of Object.values(state.entities)) {
+    if (entity.kind !== 'generator') continue;
+    const gen = entity as GeneratorEntity;
+    const cur = fieldGenMaxLevel.get(gen.generatorId) ?? 0;
+    if (gen.level > cur) fieldGenMaxLevel.set(gen.generatorId, gen.level);
+  }
+  for (const [genId, maxLevel] of fieldGenMaxLevel) {
+    const gc = config.generators.generators.find(g => g.id === genId);
+    if (!gc || state.kraken.level < gc.krakenRequired) continue;
+    for (const lc of gc.levels) {
+      if (lc.level > maxLevel) continue;
+      for (const o of lc.outputs) availableTypes.add(o.creatureType);
     }
+  }
+
+  // Affordable unlocked generators not on field: level-1 outputs only
+  for (const gc of config.generators.generators) {
+    if (state.kraken.level < gc.krakenRequired) continue;
+    if (fieldGenMaxLevel.has(gc.id)) continue;
+    const runes = gc.purchaseCurrency === 'rune1' ? availR1 : availR2;
+    if (runes < gc.purchaseCost) continue;
+    for (const o of (gc.levels[0]?.outputs ?? [])) availableTypes.add(o.creatureType);
+  }
+
+  // Find newest creature line needing ramp-up
+  const creatureNum = (ct: string) => parseInt(ct.replace('Creature', ''), 10);
+  let rampUpType: string | null = null;
+  let rampUpCompletions = 0;
+  for (const ct of availableTypes) {
+    const completions = state.autoTaskLineCompletions[ct] ?? 0;
+    if (completions >= rampUpThreshold) continue;
+    if (!rampUpType || creatureNum(ct) > creatureNum(rampUpType)) {
+      rampUpType = ct;
+      rampUpCompletions = completions;
+    }
+  }
+
+  if (rampUpType) {
+    const schedIdx = Math.min(rampUpCompletions, rampUpSchedule.length - 1);
+    const [level, count] = rampUpSchedule[schedIdx]!;
+    const creature = config.creatures.creatures.find(c => c.type === rampUpType);
+    const maxLevel = creature?.maxLevel ?? 9;
+    const clampedLevel = Math.max(1, Math.min(level!, maxLevel, gridCap));
+    return {
+      id: makeTaskId(rng),
+      creatures: [{ type: rampUpType, level: clampedLevel, count: count! }],
+      expMultiplier: 0,
+      resMultiplier: 2,
+      eyeReward: computeEyeReward(2),
+      difficulty: 0,
+      debugMeatBudget: meatBudget,
+      debugScoringTable: [],
+    };
   }
 
   // ─── DIFFICULTY = 1 (special case) ─────────────────────────────────────
@@ -414,9 +443,14 @@ export function generateAutoTask(
         : highLevelCreatures;
       const pool = filtered.length > 0 ? filtered : highLevelCreatures;
       const pick = pool[Math.floor(rng.next() * pool.length)]!;
+      let pickLevel = Math.min(pick.level, gridCap);
+      // Level-repeat guard: avoid same creature+level as last completed task
+      if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
+        pickLevel = Math.max(1, pickLevel - 1);
+      }
       return {
         id: makeTaskId(rng),
-        creatures: [{ type: pick.creatureType, level: Math.min(pick.level, gridCap), count: 1 }],
+        creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
         expMultiplier: 0,
         resMultiplier: 2,
         eyeReward: computeEyeReward(1),
@@ -474,11 +508,20 @@ export function generateAutoTask(
         prevKeys.has(`${fillerPick.creatureType}:${fillerPick.targetLevel}`);
 
       if (!isDuplicate || attempt === 9) {
+        // Level-repeat guard: avoid same creature+level as last completed task
+        let mainLevel = mainPick.targetLevel;
+        if (state.autoTaskLastLevels[mainPick.creatureType] === mainLevel) {
+          mainLevel = Math.max(1, mainLevel - 1);
+        }
+        let fillerLevel = fillerPick.targetLevel;
+        if (state.autoTaskLastLevels[fillerPick.creatureType] === fillerLevel) {
+          fillerLevel = Math.max(1, fillerLevel - 1);
+        }
         return {
           id: makeTaskId(rng),
           creatures: [
-            { type: mainPick.creatureType, level: mainPick.targetLevel, count: 1 },
-            { type: fillerPick.creatureType, level: fillerPick.targetLevel, count: 1 },
+            { type: mainPick.creatureType, level: mainLevel, count: 1 },
+            { type: fillerPick.creatureType, level: fillerLevel, count: 1 },
           ],
           expMultiplier: 0,
           resMultiplier: 2,
@@ -504,9 +547,14 @@ export function generateAutoTask(
     const isDuplicate = prevKeys.has(`${pick.creatureType}:${pick.targetLevel}`);
 
     if (!isDuplicate || attempt === 9) {
+      // Level-repeat guard: avoid same creature+level as last completed task
+      let pickLevel = pick.targetLevel;
+      if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
+        pickLevel = Math.max(1, pickLevel - 1);
+      }
       return {
         id: makeTaskId(rng),
-        creatures: [{ type: pick.creatureType, level: pick.targetLevel, count: 1 }],
+        creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
         expMultiplier: 0,
         resMultiplier: 2,
         eyeReward: computeEyeReward(difficulty),
