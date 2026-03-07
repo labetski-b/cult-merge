@@ -6,6 +6,11 @@
 - targetLevel ограничен только `maxLevel` и `gridCap`
 
 ## 2. Фантомные апгрейды: правильная стоимость — DONE
+
+## 3. Ladder Guard (защита от перескоков уровней) — DONE
+Уровень квеста на существо не может вырасти больше чем на +1 за раз.
+Если `targetLevel > autoTaskLastLevels[creature] + 1`, ограничиваем до `lastLevel + 1`.
+Применяется перед Level-Repeat Guard во всех 4 точках: D1, dual main, dual filler, single.
 Формула исправлена: `needToBuy = 2^(targetLevel-1) - 2^(currentLevel-1)`.
 
 Каждая L1-копия стоит `purchaseCost`, что правильно отражает мёрдж-дерево генераторов:

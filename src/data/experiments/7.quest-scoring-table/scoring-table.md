@@ -163,6 +163,22 @@ targetLevel = min(floor(log₂(totalL1)) + 1, maxLevel, gridCap)
 
 Механизм: собираем `Set<"type:level">` из предыдущего таска; если хоть одна пара нового таска попадает в этот Set — retry. Максимум **10 попыток**; на 11-й квест принимается как есть (fallback).
 
+### Ladder Guard (защита от перескоков уровней)
+
+Гарантирует, что квесты на каждое существо растут **лесенкой** — максимум +1 уровень за раз. Если scoring table рассчитал targetLevel = 5, а последний квест на это существо был уровня 3, уровень ограничивается до 4 (lastLevel + 1).
+
+```
+const lastLevel = autoTaskLastLevels[creatureType];
+if (lastLevel !== undefined && pickLevel > lastLevel + 1) {
+  pickLevel = lastLevel + 1;
+}
+```
+
+- **Без guard:** C1 L2 → C1 L5 → C1 L7 (перескоки)
+- **С guard:** C1 L2 → C1 L3 → C1 L4 → C1 L5 (лесенка)
+
+Не применяется к первому квесту на существо (когда `lastLevel === undefined`).
+
 ### Level-Repeat Guard
 
 Дополнительная защита от монотонных квестов. Если scoring table выбрал creature X с targetLevel L, и последний завершённый квест на этот тип существа тоже был уровня L (`autoTaskLastLevels[X] === L`), уровень снижается на 1 (но не ниже 1).
@@ -171,12 +187,17 @@ targetLevel = min(floor(log₂(totalL1)) + 1, maxLevel, gridCap)
 - **Без guard:** C9 L7 → C9 L7 → C9 L7 → C9 L7
 - **С guard:** C9 L7 → C9 L6 → C9 L7 → C9 L6
 
-#### Где применяется
+### Порядок применения guards
+
+1. **Ladder Guard** — сначала ограничиваем перескок (lastLevel + 1)
+2. **Level-Repeat Guard** — затем снижаем на 1, если уровень совпал с последним
+
+#### Где применяются оба guard
 - Single quest — после `pickWeightedByRecency`
 - Dual quest — к обоим пикам (main + filler)
 - Difficulty=1 (high-level creature pick) — к выбранному существу
 
-#### Где НЕ применяется
+#### Где НЕ применяются
 - Ramp-up квесты — имеют свою жёсткую логику уровней
 
 #### Хранение

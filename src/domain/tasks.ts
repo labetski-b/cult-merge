@@ -444,6 +444,11 @@ export function generateAutoTask(
       const pool = filtered.length > 0 ? filtered : highLevelCreatures;
       const pick = pool[Math.floor(rng.next() * pool.length)]!;
       let pickLevel = Math.min(pick.level, gridCap);
+      // Ladder guard: never skip more than +1 level vs last quest for this creature
+      const d1LastLevel = state.autoTaskLastLevels[pick.creatureType];
+      if (d1LastLevel !== undefined && pickLevel > d1LastLevel + 1) {
+        pickLevel = d1LastLevel + 1;
+      }
       // Level-repeat guard: avoid same creature+level as last completed task
       if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
         pickLevel = Math.max(1, pickLevel - 1);
@@ -508,12 +513,21 @@ export function generateAutoTask(
         prevKeys.has(`${fillerPick.creatureType}:${fillerPick.targetLevel}`);
 
       if (!isDuplicate || attempt === 9) {
-        // Level-repeat guard: avoid same creature+level as last completed task
+        // Ladder guard: never skip more than +1 level vs last quest for this creature
         let mainLevel = mainPick.targetLevel;
+        const mainLastLevel = state.autoTaskLastLevels[mainPick.creatureType];
+        if (mainLastLevel !== undefined && mainLevel > mainLastLevel + 1) {
+          mainLevel = mainLastLevel + 1;
+        }
+        let fillerLevel = fillerPick.targetLevel;
+        const fillerLastLevel = state.autoTaskLastLevels[fillerPick.creatureType];
+        if (fillerLastLevel !== undefined && fillerLevel > fillerLastLevel + 1) {
+          fillerLevel = fillerLastLevel + 1;
+        }
+        // Level-repeat guard: avoid same creature+level as last completed task
         if (state.autoTaskLastLevels[mainPick.creatureType] === mainLevel) {
           mainLevel = Math.max(1, mainLevel - 1);
         }
-        let fillerLevel = fillerPick.targetLevel;
         if (state.autoTaskLastLevels[fillerPick.creatureType] === fillerLevel) {
           fillerLevel = Math.max(1, fillerLevel - 1);
         }
@@ -547,8 +561,13 @@ export function generateAutoTask(
     const isDuplicate = prevKeys.has(`${pick.creatureType}:${pick.targetLevel}`);
 
     if (!isDuplicate || attempt === 9) {
-      // Level-repeat guard: avoid same creature+level as last completed task
+      // Ladder guard: never skip more than +1 level vs last quest for this creature
       let pickLevel = pick.targetLevel;
+      const singleLastLevel = state.autoTaskLastLevels[pick.creatureType];
+      if (singleLastLevel !== undefined && pickLevel > singleLastLevel + 1) {
+        pickLevel = singleLastLevel + 1;
+      }
+      // Level-repeat guard: avoid same creature+level as last completed task
       if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
         pickLevel = Math.max(1, pickLevel - 1);
       }
