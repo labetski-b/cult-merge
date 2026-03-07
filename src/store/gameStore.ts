@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity, RuneItemKey } from '@domain/types';
 import { evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
