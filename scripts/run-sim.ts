@@ -18,7 +18,7 @@ const filter = process.argv[3]?.toLowerCase() ?? '';
 const strategy = new RealisticStrategy();
 
 const engine = new SimulationEngine({
-  seed: 42,
+  seed: parseInt(process.argv[4] ?? '42', 10),
   stopCondition: { type: 'ticks', value: ticks },
   maxTicks: ticks,
   tickInterval: 1000,

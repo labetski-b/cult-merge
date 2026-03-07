@@ -24,6 +24,7 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalRune1Spent: 0,
     totalRune2Spent: 0,
     totalTimeSec: 0,
+    totalPredictedExp: 0,
   };
 }
 

@@ -343,6 +343,7 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   'meat-per-task': ['tasks'],
   'sacrifices-per-task': ['tasks'],
   'eyes-per-task':    ['tasks'],
+  'spawns-per-task':  ['tasks'],
   resources:          ['ticks', 'sessions', 'presses', 'time'],
   gridsize:           ['ticks', 'sessions', 'time'],
   'task-creature':    ['ticks', 'tasks'],
@@ -555,24 +556,29 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── EXP per Quest — delta per task group ─────────────────────────────────
+  // ── EXP per Quest — forward step-delta aligned with current task chart ───
   if (visible('exp-per-task')) {
-    setAggBadge('exp-per-task', 'Δ delta');
+    setAggBadge('exp-per-task', 'Δ step');
     charts['exp-per-task'] = new Chart(document.getElementById('chart-exp-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) => ds(
-          'EXP per quest',
-          series(result.history, s => s.metrics.totalExpGained, 'delta'),
-          color(idx)
-        ))
+        datasets: results.map((result, idx) => {
+          const expCum = series(result.history, s => s.metrics.totalExpGained, 'last');
+          const expStep = expCum.map((v, i) => i < expCum.length - 1 ? expCum[i + 1]! - v : 0);
+          const predCum = series(result.history, s => s.metrics.totalPredictedExp, 'last');
+          const predStep = predCum.map((v, i) => i < predCum.length - 1 ? predCum[i + 1]! - v : 0);
+          return [
+            ds('EXP per quest', expStep, color(idx)),
+            ds('Predicted EXP', predStep, color(idx), { borderDash: [4, 4] }),
+          ];
+        }).flat()
       },
       options: xOpts('EXP gained')
     });
   }
 
-  // ── Eyes per Quest — between-group delta (eyes gained atomically with task completion) ─
+  // ── Eyes per Quest — forward step-delta aligned with current task chart ──
   if (visible('eyes-per-task')) {
     setAggBadge('eyes-per-task', 'Δ step');
     charts['eyes-per-task'] = new Chart(document.getElementById('chart-eyes-per-task') as HTMLCanvasElement, {
@@ -581,7 +587,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: xLabels,
         datasets: results.map((result, idx) => {
           const cumData = series(result.history, s => s.metrics.totalEyesGained, 'last');
-          const stepDelta = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+          const stepDelta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
           return ds('Eyes per quest', stepDelta, color(idx));
         })
       },
@@ -589,48 +595,68 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Charges per Quest ────────────────────────────────────────────────
+  // ── Charges per Quest — forward step-delta ───────────────────────────
   if (visible('charges-per-task')) {
-    setAggBadge('charges-per-task', 'Δ delta');
+    setAggBadge('charges-per-task', 'Δ step');
     charts['charges-per-task'] = new Chart(document.getElementById('chart-charges-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) =>
-          ds('Charges', series(result.history, s => s.metrics.totalCharges, 'delta'), color(idx))
-        )
+        datasets: results.map((result, idx) => {
+          const cum = series(result.history, s => s.metrics.totalCharges, 'last');
+          return ds('Charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+        })
       },
       options: xOpts('Charges')
     });
   }
 
-  // ── Meat on Charges per Quest ───────────────────────────────────────
+  // ── Meat on Charges per Quest — forward step-delta ─────────────────
   if (visible('meat-per-task')) {
-    setAggBadge('meat-per-task', 'Δ delta');
+    setAggBadge('meat-per-task', 'Δ step');
     charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) =>
-          ds('Meat on charges', series(result.history, s => s.metrics.totalMeatSpentOnCharges, 'delta'), color(idx))
-        )
+        datasets: results.map((result, idx) => {
+          const cum = series(result.history, s => s.metrics.totalMeatSpentOnCharges, 'last');
+          return ds('Meat on charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+        })
       },
       options: xOpts('Meat spent')
     });
   }
 
-  // ── Sacrifices per Quest ────────────────────────────────────────────
+  // ── Sacrifices per Quest — forward step-delta ──────────────────────
   if (visible('sacrifices-per-task')) {
-    setAggBadge('sacrifices-per-task', 'Δ delta');
+    setAggBadge('sacrifices-per-task', 'Δ step');
     charts['sacrifices-per-task'] = new Chart(document.getElementById('chart-sacrifices-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
         labels: xLabels,
-        datasets: results.map((result, idx) =>
-          ds('Sacrifices', series(result.history, s => s.gameState.meatButtonPresses, 'delta'), color(idx))
-        )
+        datasets: results.map((result, idx) => {
+          const cum = series(result.history, s => s.gameState.meatButtonPresses, 'last');
+          return ds('Sacrifices', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+        })
       },
       options: xOpts('Sacrifices')
+    });
+  }
+
+  // ── Spawns per Quest — forward step-delta aligned with current task chart ─
+  if (visible('spawns-per-task')) {
+    setAggBadge('spawns-per-task', 'Δ step');
+    charts['spawns-per-task'] = new Chart(document.getElementById('chart-spawns-per-task') as HTMLCanvasElement, {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: results.map((result, idx) => {
+          const cumData = series(result.history, s => s.metrics.totalSpawns, 'last');
+          const delta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
+          return ds('Spawns', delta, color(idx));
+        })
+      },
+      options: xOpts('Spawns')
     });
   }
 
@@ -1313,8 +1339,9 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
   }
 
   // Build header line
+  const QTY_W = 5;
   const headerLabel = 'Era'.padEnd(LEFT_W);
-  const headerCols = shortNames.map(n => padCell(n)).join('');
+  const headerCols = padCell('#Q', QTY_W) + shortNames.map(n => padCell(n)).join('');
   const headerLine = headerLabel + headerCols;
 
   // Separator line
@@ -1339,7 +1366,8 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
       return padCell(`${pct}%`);
     });
 
-    dataRows.push(rowLabel + cells.join(''));
+    const qtyCell = padCell(String(Math.round(era.totalQuests)), QTY_W);
+    dataRows.push(rowLabel + qtyCell + cells.join(''));
   }
 
   // Build Overall row: aggregate counts across all eras
@@ -1358,7 +1386,8 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
     if (pct === 0) return padCell('-');
     return padCell(`${pct}%`);
   });
-  const overallRow = overallRowLabel + overallCells.join('');
+  const overallQty = padCell(String(Math.round(overallTotal)), QTY_W);
+  const overallRow = overallRowLabel + overallQty + overallCells.join('');
 
   const preText = [headerLine, separatorLine, ...dataRows, separatorLine, overallRow].join('\n');
 

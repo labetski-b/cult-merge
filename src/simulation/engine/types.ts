@@ -93,6 +93,9 @@ export interface TickMetrics {
   totalRune1Spent: number;
   totalRune2Spent: number;
 
+  // Predicted EXP (sum of creature rewards for quest requirements only)
+  totalPredictedExp: number;
+
   // Time tracking
   totalTimeSec: number;
   sessionTimeSec: number;
@@ -177,4 +180,5 @@ export interface CumulativeMetrics {
   totalRune1Spent: number;
   totalRune2Spent: number;
   totalTimeSec: number;
+  totalPredictedExp: number;
 }

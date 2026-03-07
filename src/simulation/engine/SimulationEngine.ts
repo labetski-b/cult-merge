@@ -586,6 +586,15 @@ export class SimulationEngine {
           this.state.lastAutoTaskLine = completedLine;
         }
 
+        // Calculate predicted EXP from quest requirements only
+        let predictedExp = 0;
+        for (const req of task.creatures) {
+          const cr = getCreatureReward(this.config.balance, req.type, req.level);
+          predictedExp += cr.exp * req.count;
+        }
+        predictedExp = Math.floor(applyTaskMultiplier(predictedExp, task.expMultiplier));
+        this.cumulative.totalPredictedExp += predictedExp;
+
         // Track cumulative eyes and tasks
         this.cumulative.totalEyesGained += taskEyes;
         this.cumulative.totalTasksCompleted += 1;
