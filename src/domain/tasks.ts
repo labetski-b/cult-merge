@@ -1,5 +1,5 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RuneEntity, TaskDefinition, TaskRequirement } from '@domain/types';
+import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RuneEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
 import { runeRedemptionValue } from '@domain/rewards';
 import { getGridSizeForLevel } from '@domain/gridSize';
@@ -136,18 +136,7 @@ function getExpectedL1PerCharge(
 }
 
 /** Scoring table entry: best generator for a creature at given budget. */
-interface ScoringEntry {
-  genId: number;
-  genLevel: number;
-  creatureType: string;
-  l1PerCharge: number;
-  chargeCost: number;
-  charges: number;
-  spawnL1: number;
-  fieldL1: number;
-  totalL1: number;
-  targetLevel: number;
-}
+type ScoringEntry = ScoringTableEntry;
 
 /**
  * Compute upgrade cost from currentLevel to targetLevel for a generator.
@@ -164,28 +153,40 @@ function generatorUpgradeCost(currentLevel: number, targetLevel: number, purchas
  * Build scoring table: for each creature, find best generator by targetLevel.
  * Considers real generators, phantom purchases, and phantom upgrades.
  */
+interface ScoringResult {
+  collapsed: ScoringEntry[];
+  raw: ScoringEntry[];
+}
+
 function buildScoringTable(
   config: BalanceConfig,
   state: GameSnapshot,
   meatBudget: number,
   gridCap: number,
   fieldL1Map: Map<string, number>,
-): ScoringEntry[] {
+): ScoringResult {
   const fieldGenerators = Object.values(state.entities).filter(
     (e): e is GeneratorEntity => e.kind === 'generator'
   );
 
-  const bestGenLevel = new Map<number, number>();
+  // Collect ALL unique levels per generator on field (not just best)
+  const fieldGenLevels = new Map<number, Set<number>>();
   for (const gen of fieldGenerators) {
-    const cur = bestGenLevel.get(gen.generatorId) ?? 0;
-    if (gen.level > cur) bestGenLevel.set(gen.generatorId, gen.level);
+    let levels = fieldGenLevels.get(gen.generatorId);
+    if (!levels) { levels = new Set(); fieldGenLevels.set(gen.generatorId, levels); }
+    levels.add(gen.level);
   }
 
   const { rune1: availRune1, rune2: availRune2 } = countAvailableRunes(state);
 
   const candidates: ScoringEntry[] = [];
+  const addedKeys = new Set<string>(); // prevent duplicates: "genId:genLevel"
 
   const addCandidatesForLevel = (genId: number, genLevel: number) => {
+    const key = `${genId}:${genLevel}`;
+    if (addedKeys.has(key)) return;
+    addedKeys.add(key);
+
     const genConfig = config.generators.generators.find(g => g.id === genId);
     if (!genConfig) return;
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
@@ -196,10 +197,10 @@ function buildScoringTable(
       const l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
       if (l1pc <= 0) continue;
 
-      const charges = levelConfig.chargeCost > 0 ? Math.max(1, Math.floor(meatBudget / levelConfig.chargeCost)) : 1;
+      const l1PerMeat = levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc;
 
       const fieldL1 = fieldL1Map.get(ct) ?? 0;
-      const spawnL1 = charges * l1pc;
+      const spawnL1 = meatBudget * l1PerMeat;
       const totalL1 = spawnL1 + fieldL1;
 
       const creature = config.creatures.creatures.find(c => c.type === ct);
@@ -210,8 +211,8 @@ function buildScoringTable(
 
       candidates.push({
         genId, genLevel, creatureType: ct,
-        l1PerCharge: l1pc, chargeCost: levelConfig.chargeCost,
-        charges, spawnL1, fieldL1, totalL1, targetLevel,
+        l1PerCharge: l1pc, l1PerMeat,
+        meatBudget, spawnL1, fieldL1, totalL1, targetLevel,
       });
     }
   };
@@ -219,24 +220,28 @@ function buildScoringTable(
   for (const genConfig of config.generators.generators) {
     if (state.kraken.level < genConfig.krakenRequired) continue;
 
-    const currentLevel = bestGenLevel.get(genConfig.id);
+    const fieldLevels = fieldGenLevels.get(genConfig.id);
     const availRunes = genConfig.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
 
     const maxGenLevel = genConfig.levels.length > 0
       ? Math.max(...genConfig.levels.map(l => l.level))
       : 1;
 
-    if (currentLevel != null) {
-      addCandidatesForLevel(genConfig.id, currentLevel);
+    if (fieldLevels != null && fieldLevels.size > 0) {
+      // Add ALL levels present on field + phantom upgrades from each
+      for (const baseLv of fieldLevels) {
+        addCandidatesForLevel(genConfig.id, baseLv);
 
-      for (let lv = currentLevel + 1; lv <= maxGenLevel; lv++) {
-        const cost = generatorUpgradeCost(currentLevel, lv, genConfig.purchaseCost);
-        if (cost > availRunes) break;
-        addCandidatesForLevel(genConfig.id, lv);
+        for (let lv = baseLv + 1; lv <= maxGenLevel; lv++) {
+          const cost = generatorUpgradeCost(baseLv, lv, genConfig.purchaseCost);
+          if (cost > availRunes) break;
+          addCandidatesForLevel(genConfig.id, lv);
+        }
       }
 
-      // Phantom lower-level copy: buying a fresh L1 while one already exists on field
-      if (currentLevel > 1 && availRunes >= genConfig.purchaseCost) {
+      // Phantom lower-level copy: buying a fresh L1 while higher already exists
+      const bestLevel = Math.max(...fieldLevels);
+      if (bestLevel > 1 && availRunes >= genConfig.purchaseCost) {
         addCandidatesForLevel(genConfig.id, 1);
       }
     } else {
@@ -254,18 +259,18 @@ function buildScoringTable(
     }
   }
 
-  // Collapse: per creature, keep best by targetLevel (tiebreak: fewer charges)
+  // Collapse: per creature, keep best by targetLevel (tiebreak: higher l1PerMeat)
   const bestByCreature = new Map<string, ScoringEntry>();
   for (const c of candidates) {
     const existing = bestByCreature.get(c.creatureType);
     if (!existing
       || c.targetLevel > existing.targetLevel
-      || (c.targetLevel === existing.targetLevel && c.charges < existing.charges)) {
+      || (c.targetLevel === existing.targetLevel && c.l1PerMeat > existing.l1PerMeat)) {
       bestByCreature.set(c.creatureType, c);
     }
   }
 
-  return [...bestByCreature.values()];
+  return { collapsed: [...bestByCreature.values()], raw: candidates };
 }
 
 function makeTaskId(rng: SeededRng): string {
@@ -388,6 +393,9 @@ export function generateAutoTask(
         expMultiplier: 0,
         resMultiplier: 2,
         eyeReward: computeEyeReward(2),
+        difficulty: 0,
+        debugMeatBudget: meatBudget,
+        debugScoringTable: [],
       };
     }
   }
@@ -412,6 +420,9 @@ export function generateAutoTask(
         expMultiplier: 0,
         resMultiplier: 2,
         eyeReward: computeEyeReward(1),
+        difficulty: 1,
+        debugMeatBudget: meatBudget,
+        debugScoringTable: [],
       };
     }
     difficulty = 2;
@@ -421,7 +432,7 @@ export function generateAutoTask(
 
   // ─── PHASE 2: SCORING TABLE ──────────────────────────────────────────────
 
-  const scoringTable = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
+  const { collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
 
   if (scoringTable.length === 0) {
     return {
@@ -430,6 +441,9 @@ export function generateAutoTask(
       expMultiplier: 0,
       resMultiplier: 2,
       eyeReward: computeEyeReward(difficulty),
+      difficulty,
+      debugMeatBudget: meatBudget,
+      debugScoringTable: [],
     };
   }
 
@@ -437,12 +451,15 @@ export function generateAutoTask(
 
   const isDual = difficulty >= 2 && rng.next() < dualQuestProbability;
 
+  // Set of "type:level" from previous task for anti-duplicate check
+  const prevKeys = new Set(prev?.creatures.map(c => `${c.type}:${c.level}`) ?? []);
+
   // ─── PHASE 3: SELECTION (weighted by recency) ────────────────────────────
 
   if (isDual) {
     const [mainSplit, fillerSplit] = dualBudgetSplit;
-    const mainTable = buildScoringTable(config, state, meatBudget * mainSplit, gridCap, fieldL1Map);
-    const fillerTable = buildScoringTable(config, state, meatBudget * fillerSplit, gridCap, fieldL1Map);
+    const { collapsed: mainTable, raw: mainRaw } = buildScoringTable(config, state, meatBudget * mainSplit, gridCap, fieldL1Map);
+    const { collapsed: fillerTable, raw: fillerRaw } = buildScoringTable(config, state, meatBudget * fillerSplit, gridCap, fieldL1Map);
 
     for (let attempt = 0; attempt < 10; attempt++) {
       if (mainTable.length === 0) break;
@@ -453,11 +470,8 @@ export function generateAutoTask(
       const fillerPick = pickWeightedByRecency(fillerPool, rng);
 
       const isDuplicate =
-        prev?.creatures.length === 2 &&
-        prev.creatures[0]!.type === mainPick.creatureType &&
-        prev.creatures[0]!.level === mainPick.targetLevel &&
-        prev.creatures[1]!.type === fillerPick.creatureType &&
-        prev.creatures[1]!.level === fillerPick.targetLevel;
+        prevKeys.has(`${mainPick.creatureType}:${mainPick.targetLevel}`) ||
+        prevKeys.has(`${fillerPick.creatureType}:${fillerPick.targetLevel}`);
 
       if (!isDuplicate || attempt === 9) {
         return {
@@ -469,6 +483,14 @@ export function generateAutoTask(
           expMultiplier: 0,
           resMultiplier: 2,
           eyeReward: computeEyeReward(difficulty),
+          difficulty,
+          debugMeatBudget: meatBudget,
+          debugScoringTable: scoringRaw,
+          debugCollapsed: scoringTable,
+          debugMainScoringTable: mainRaw,
+          debugMainCollapsed: mainTable,
+          debugFillerScoringTable: fillerRaw,
+          debugFillerCollapsed: fillerTable,
         };
       }
     }
@@ -479,10 +501,7 @@ export function generateAutoTask(
   for (let attempt = 0; attempt < 10; attempt++) {
     const pick = pickWeightedByRecency(scoringTable, rng);
 
-    const isDuplicate =
-      prev?.creatures.length === 1 &&
-      prev.creatures[0]!.type === pick.creatureType &&
-      prev.creatures[0]!.level === pick.targetLevel;
+    const isDuplicate = prevKeys.has(`${pick.creatureType}:${pick.targetLevel}`);
 
     if (!isDuplicate || attempt === 9) {
       return {
@@ -491,6 +510,10 @@ export function generateAutoTask(
         expMultiplier: 0,
         resMultiplier: 2,
         eyeReward: computeEyeReward(difficulty),
+        difficulty,
+        debugMeatBudget: meatBudget,
+        debugScoringTable: scoringRaw,
+        debugCollapsed: scoringTable,
       };
     }
   }
@@ -501,5 +524,9 @@ export function generateAutoTask(
     expMultiplier: 0,
     resMultiplier: 2,
     eyeReward: computeEyeReward(difficulty),
+    difficulty,
+    debugMeatBudget: meatBudget,
+    debugScoringTable: scoringRaw,
+    debugCollapsed: scoringTable,
   };
 }

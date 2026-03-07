@@ -475,10 +475,29 @@ body {
   padding: 4px 0;
 }
 
+.task-req-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+
 .task-req-img {
   width: 32px;
   height: 32px;
   object-fit: contain;
+}
+
+.task-req-level {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
 .task-req-label {
@@ -523,6 +542,66 @@ body {
   opacity: 0.6;
   text-align: center;
   padding: 8px 0;
+}
+
+.task-debug-toggle {
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgba(245, 247, 250, 0.35);
+  cursor: pointer;
+  user-select: none;
+}
+.task-debug-toggle:hover {
+  color: rgba(245, 247, 250, 0.6);
+}
+.task-debug-panel {
+  margin-top: 4px;
+  font-size: 10px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: rgba(245, 247, 250, 0.6);
+  overflow-x: auto;
+}
+.task-debug-panel table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.task-debug-panel th,
+.task-debug-panel td {
+  padding: 1px 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+.task-debug-panel th {
+  color: rgba(245, 247, 250, 0.4);
+  font-weight: 500;
+  border-bottom: 1px solid rgba(245, 247, 250, 0.1);
+}
+.task-debug-panel td:first-child,
+.task-debug-panel th:first-child {
+  text-align: left;
+}
+.task-debug-info {
+  margin-bottom: 4px;
+  color: rgba(245, 247, 250, 0.45);
+}
+.task-debug-label {
+  margin-top: 6px;
+  margin-bottom: 2px;
+  font-weight: 600;
+  color: rgba(245, 247, 250, 0.5);
+}
+.task-debug-panel tr.scoring-picked {
+  background: rgba(77, 226, 194, 0.15);
+  font-weight: 700;
+}
+.task-debug-panel tr.scoring-picked td {
+  color: #4de2c2;
+}
+.task-debug-panel tr.scoring-collapsed {
+  opacity: 0.3;
+}
+.task-debug-panel tr.scoring-collapsed td {
+  text-decoration: line-through;
 }
 
 .kraken-exp {

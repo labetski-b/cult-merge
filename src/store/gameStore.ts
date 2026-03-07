@@ -850,12 +850,14 @@ export const useGameStore = create<GameStore>()(
             };
           }
 
-          // --- Helper: feed off-task creatures to free grid space ---
-          // Builds a set of entity IDs that are needed for the task (right type contributing to requirements)
+          // --- Helper: build set of creature IDs still needed for unfulfilled requirements ---
           function getNeededCreatureIds(): Set<string> {
             const needed = new Set<string>();
             for (const req of task!.creatures) {
-              // Keep creatures of the right type (any level ≤ req.level, usable for merging)
+              const alreadyFed = nextTaskFed.filter(
+                (f) => f.type === req.type && f.level === req.level
+              ).length;
+              if (alreadyFed >= req.count) continue; // requirement fulfilled — not needed
               const ofType = Object.values(nextEntities).filter(
                 (e): e is CreatureEntity => e.kind === 'creature' && e.creatureType === req.type
               );
@@ -864,14 +866,72 @@ export const useGameStore = create<GameStore>()(
             return needed;
           }
 
+          // Merge all creatures on the field to free grid slots (2 creatures → 1)
+          function mergeAllCreatures() {
+            // Collect all creature types present on the field
+            const typeMaxLevel = new Map<string, number>();
+            for (const e of Object.values(nextEntities)) {
+              if (e.kind === 'creature') {
+                const cur = typeMaxLevel.get(e.creatureType) ?? 0;
+                if (e.level > cur) typeMaxLevel.set(e.creatureType, e.level);
+              }
+            }
+            for (const [cType, maxLvl] of typeMaxLevel) {
+              for (let lvl = 1; lvl < maxLvl && ops < MAX_OPS; lvl++) {
+                let pairsAtLevel = Object.values(nextEntities).filter(
+                  (e): e is CreatureEntity =>
+                    e.kind === 'creature' && e.creatureType === cType && e.level === lvl
+                );
+                while (pairsAtLevel.length >= 2 && ops < MAX_OPS) {
+                  ops++;
+                  const a = pairsAtLevel[0]!;
+                  const b = pairsAtLevel[1]!;
+                  const mergedId = rng.nextId();
+                  const merged: CreatureEntity = {
+                    id: mergedId,
+                    kind: 'creature',
+                    creatureType: cType,
+                    level: lvl + 1
+                  };
+                  removeFromGrid(a.id);
+                  removeFromGrid(b.id);
+                  placeOnGrid(merged);
+                  cqMerges += 1;
+                  const prevMax = cqMaxCreature[cType] ?? 0;
+                  if (merged.level > prevMax) cqMaxCreature[cType] = merged.level;
+                  pairsAtLevel = Object.values(nextEntities).filter(
+                    (e): e is CreatureEntity =>
+                      e.kind === 'creature' && e.creatureType === cType && e.level === lvl
+                  );
+                }
+              }
+            }
+          }
+
           function feedOffTaskCreatures() {
             const neededIds = getNeededCreatureIds();
-            // Collect off-task creatures, sorted by level ascending (feed cheapest first)
             const offTask = Object.values(nextEntities)
-              .filter((e): e is CreatureEntity => e.kind === 'creature' && !neededIds.has(e.id))
+              .filter((e): e is CreatureEntity => e.kind === 'creature' && !neededIds.has(e.id));
+
+            // Find the highest creature of each off-task type — protect it
+            const highestByType = new Map<string, string>();
+            for (const c of offTask) {
+              const cur = highestByType.get(c.creatureType);
+              if (!cur) {
+                highestByType.set(c.creatureType, c.id);
+              } else {
+                const curEntity = nextEntities[cur] as CreatureEntity;
+                if (c.level > curEntity.level) highestByType.set(c.creatureType, c.id);
+              }
+            }
+            const protectedIds = new Set(highestByType.values());
+
+            // Feed non-protected first (lowest level first)
+            const feedable = offTask
+              .filter((c) => !protectedIds.has(c.id))
               .sort((a, b) => a.level - b.level);
 
-            for (const creature of offTask) {
+            for (const creature of feedable) {
               if (ops >= MAX_OPS) break;
               ops++;
               removeFromGrid(creature.id);
@@ -883,6 +943,26 @@ export const useGameStore = create<GameStore>()(
                 ...nextTaskFed,
                 { type: creature.creatureType, level: creature.level }
               ];
+            }
+
+            // If still no space, feed protected creatures too (lowest level first)
+            if (getFreeCellIndexes(getGrid()).length === 0) {
+              const protectedCreatures = offTask
+                .filter((c) => protectedIds.has(c.id))
+                .sort((a, b) => a.level - b.level);
+              for (const creature of protectedCreatures) {
+                if (ops >= MAX_OPS) break;
+                ops++;
+                removeFromGrid(creature.id);
+                const reward = getEntityReward(BALANCE, creature);
+                const expResult = addExp(BALANCE, krakenState, reward.exp);
+                krakenState = expResult.newState;
+                nextPendingRewards.push(...expResult.rewards);
+                nextTaskFed = [
+                  ...nextTaskFed,
+                  { type: creature.creatureType, level: creature.level }
+                ];
+              }
             }
           }
 
@@ -971,6 +1051,10 @@ export const useGameStore = create<GameStore>()(
                     while (currentGen.charges.length > 0 && ops < MAX_OPS) {
                       ops++;
                       let freeSlots = getFreeCellIndexes(getGrid());
+                      if (freeSlots.length === 0) {
+                        mergeAllCreatures();
+                        freeSlots = getFreeCellIndexes(getGrid());
+                      }
                       if (freeSlots.length === 0) {
                         feedOffTaskCreatures();
                         freeSlots = getFreeCellIndexes(getGrid());

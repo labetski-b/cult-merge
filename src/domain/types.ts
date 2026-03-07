@@ -81,6 +81,29 @@ export interface TaskDefinition {
   expMultiplier: number;
   resMultiplier: number;
   eyeReward?: number;
+  // Debug info (only for auto-tasks)
+  difficulty?: number;
+  debugMeatBudget?: number;
+  debugScoringTable?: ScoringTableEntry[];       // raw (pre-collapse)
+  debugCollapsed?: ScoringTableEntry[];           // post-collapse
+  // Dual-task split tables (raw)
+  debugMainScoringTable?: ScoringTableEntry[];
+  debugMainCollapsed?: ScoringTableEntry[];
+  debugFillerScoringTable?: ScoringTableEntry[];
+  debugFillerCollapsed?: ScoringTableEntry[];
+}
+
+export interface ScoringTableEntry {
+  genId: number;
+  genLevel: number;
+  creatureType: string;
+  l1PerCharge: number;
+  l1PerMeat: number;
+  meatBudget: number;
+  spawnL1: number;
+  fieldL1: number;
+  totalL1: number;
+  targetLevel: number;
 }
 
 export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
