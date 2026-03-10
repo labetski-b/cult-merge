@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
 import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity, RuneItemKey } from '@domain/types';
 import { evaluateAllQuests } from '@domain/quests';
-import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
+import { trySpawnPredator } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
 import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
@@ -22,6 +22,7 @@ import {
   type FeedRuntimeReason
 } from '@domain/runtime/feed';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { feedPredator as applyFeedPredator } from '@domain/runtime/feedPredator';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
@@ -184,48 +185,21 @@ export const useGameStore = create<GameStore>()(
           delete nextEntities[targetId];
           nextEntities[finalMerged.id] = finalMerged;
 
-          // Increment merge count for the current queued predator
-          const newMergeCounts = { ...state.predatorMergeCounts };
-          let newQueueIndex = state.predatorQueueIndex;
-          let newSpawnedOnce = state.predatorsSpawnedOnce;
-          const currentPred = BALANCE.predators.predators[newQueueIndex];
+          const spawnResult = trySpawnPredator(
+            BALANCE, state.kraken.level, nextGrid,
+            state.predatorQueueIndex, state.predatorMergeCounts, state.predatorsSpawnedOnce, rng
+          );
+          const newMergeCounts = spawnResult.newMergeCounts;
+          const newQueueIndex = spawnResult.newQueueIndex;
+          const newSpawnedOnce = spawnResult.newSpawnedOnce;
 
           let spawnMsg = '';
-          if (currentPred && state.kraken.level >= currentPred.krakenRequiredLevel) {
-            newMergeCounts[currentPred.id] = (newMergeCounts[currentPred.id] ?? 0) + 1;
-
-            if (newMergeCounts[currentPred.id]! >= currentPred.mergeCount) {
-              const free = getFreeCellIndexes(nextGrid);
-              if (free.length > 0) {
-                const predId = rng.nextId();
-                nextGrid.cells[free[0]!] = predId;
-                nextEntities[predId] = {
-                  id: predId,
-                  kind: 'predator',
-                  predatorId: currentPred.id,
-                  currentExp: 0,
-                  requiredExp: currentPred.requiredExp,
-                  preferredCreatureType: currentPred.preferredCreatureType
-                };
-                newMergeCounts[currentPred.id] = 0;
-                if (!newSpawnedOnce.includes(currentPred.id)) {
-                  newSpawnedOnce = [...newSpawnedOnce, currentPred.id];
-                }
-                // Pick next predator randomly from unlocked ones.
-                // Predator_1 (index 0) is one-time only — exclude it after first spawn.
-                const firstPredId = BALANCE.predators.predators[0]?.id;
-                const available = BALANCE.predators.predators
-                  .map((p, idx) => ({ p, idx }))
-                  .filter(({ p }) =>
-                    state.kraken.level >= p.krakenRequiredLevel &&
-                    !(p.id === firstPredId && newSpawnedOnce.includes(p.id))
-                  );
-                if (available.length > 0) {
-                  const pick = Math.floor(rng.next() * available.length);
-                  newQueueIndex = available[pick]!.idx;
-                }
-                spawnMsg = ' A predator appeared!';
-              }
+          if (spawnResult.spawned && spawnResult.entity && spawnResult.predatorId) {
+            const free = getFreeCellIndexes(nextGrid);
+            if (free.length > 0) {
+              nextGrid.cells[free[0]!] = spawnResult.predatorId;
+              nextEntities[spawnResult.predatorId] = spawnResult.entity;
+              spawnMsg = ' A predator appeared!';
             }
           }
 
@@ -1404,51 +1378,25 @@ export const useGameStore = create<GameStore>()(
 
       feedPredator: (predatorId, creatureId) => {
         set((state) => {
-          const predator = state.entities[predatorId];
-          const creature = state.entities[creatureId];
-          if (!predator || predator.kind !== 'predator') return { lastMessage: 'Predator not found.' };
-          if (!creature || creature.kind !== 'creature') return { lastMessage: 'Only creatures can feed predators.' };
-
           const rng = new SeededRng(state.rngState);
-          const gained = calcPredatorFeedExp(BALANCE, predator, creature);
-          const newExp = predator.currentExp + gained;
-
-          const nextEntities = { ...state.entities };
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-
-          const creatureCell = findEntityCell(nextGrid, creatureId);
-          if (creatureCell >= 0) nextGrid.cells[creatureCell] = null;
-          delete nextEntities[creatureId];
-
-          if (newExp >= predator.requiredExp) {
-            const predCell = findEntityCell(nextGrid, predatorId);
-            if (predCell >= 0) nextGrid.cells[predCell] = null;
-            delete nextEntities[predatorId];
-
-            const currentChapter = getCurrentChapter(BALANCE, state.resources.eyes).chapter;
-            const cards = drawManagerCards(BALANCE, rng, currentChapter);
-            const newMergeCounts = { ...state.predatorMergeCounts, [predator.predatorId]: 0 };
-
-            return {
-              entities: nextEntities,
-              grid: nextGrid,
-              managerCards: [...state.managerCards, ...cards],
-              predatorMergeCounts: newMergeCounts,
-              rngState: rng.getState(),
-              cumulativeStats: { ...state.cumulativeStats, totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds + 1 },
-              lastMessage: `Predator fed! Got ${cards.length} manager cards!`
-            };
+          const result = applyFeedPredator(state, predatorId, creatureId, { balance: BALANCE, rng });
+          if (!result.changed) {
+            return { lastMessage: result.reason === 'predator_not_found' ? 'Predator not found.' : 'Only creatures can feed predators.' };
           }
-
-          nextEntities[predatorId] = { ...predator, currentExp: newExp };
-          const preferred = creature.creatureType === predator.preferredCreatureType;
-          return {
-            entities: nextEntities,
-            grid: nextGrid,
-            rngState: rng.getState(),
-            cumulativeStats: { ...state.cumulativeStats, totalPredatorFeeds: state.cumulativeStats.totalPredatorFeeds + 1 },
-            lastMessage: `Fed predator +${gained} EXP${preferred ? ' (×2 preferred!)' : ''}. ${newExp}/${predator.requiredExp}`
-          };
+          let lastMessage = '';
+          for (const event of result.events) {
+            if (event.type === 'predator_killed') {
+              lastMessage = `Predator fed! Got ${event.managersDrawn.length} manager cards!`;
+            } else if (event.type === 'predator_fed_partial') {
+              const predator = state.entities[predatorId];
+              const creature = state.entities[creatureId];
+              const preferred = creature && creature.kind === 'creature' && predator && predator.kind === 'predator'
+                ? creature.creatureType === predator.preferredCreatureType
+                : false;
+              lastMessage = `Fed predator +${event.expGained} EXP${preferred ? ' (×2 preferred!)' : ''}. ${event.currentExp}/${event.requiredExp}`;
+            }
+          }
+          return { ...result.snapshot, lastMessage };
         });
         const afterPredFeed = get();
         set({ questState: evaluateAllQuests(BALANCE, afterPredFeed.cumulativeStats, afterPredFeed) });

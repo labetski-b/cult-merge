@@ -1,17 +1,19 @@
-import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
+import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
 import { findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
+import { trySpawnPredator } from '@domain/predator';
 import { generateAutoTask, getCurrentMandatoryTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { feedEntity as applyFeedEntity } from '@domain/runtime/feed';
+import { feedPredator as applyFeedPredator } from '@domain/runtime/feedPredator';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
-import { calculateMeatDrop, calculateSession } from '@domain/chapters';
+import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
@@ -35,6 +37,8 @@ export class SimulationEngine {
   private runesFedCount = 0;
   private sessionTimeSec = 0;
   private lastSession = 1;
+  private predatorSpawnLog: Array<{ predatorId: string; tick: number; chapter: number; session: number; totalMergesAtSpawn: number; totalTasksAtSpawn: number }> = [];
+  private predatorKillLog: Array<{ predatorId: string; tasksCompletedDuringLife: number }> = [];
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -89,7 +93,9 @@ export class SimulationEngine {
       history: this.history,
       actionLog: this.actionLog,
       finalState: this.state,
-      summary
+      summary,
+      predatorSpawnLog: this.predatorSpawnLog,
+      predatorKillLog: this.predatorKillLog
     };
   }
 
@@ -210,6 +216,9 @@ export class SimulationEngine {
         break;
       case 'buy_generator':
         this.buyGenerator(action.generatorId);
+        break;
+      case 'feed_predator':
+        this.feedPredatorAction(action.predatorId, action.creatureId);
         break;
       case 'new_quest':
         break; // synthetic log-only event, no state mutation
@@ -421,6 +430,37 @@ export class SimulationEngine {
       const prev = this.cumulative.maxCreatureLevelByType[c.creatureType] ?? 0;
       if (c.level > prev) this.cumulative.maxCreatureLevelByType[c.creatureType] = c.level;
     }
+
+    const spawnResult = trySpawnPredator(
+      this.config.balance,
+      this.state.kraken.level,
+      this.state.grid,
+      this.state.predatorQueueIndex,
+      this.state.predatorMergeCounts,
+      this.state.predatorsSpawnedOnce,
+      this.rng
+    );
+    this.state.predatorMergeCounts = spawnResult.newMergeCounts;
+    this.state.predatorQueueIndex = spawnResult.newQueueIndex;
+    this.state.predatorsSpawnedOnce = spawnResult.newSpawnedOnce;
+
+    if (spawnResult.spawned && spawnResult.entity && spawnResult.predatorId) {
+      const free = getFreeCellIndexes(this.state.grid);
+      if (free.length > 0) {
+        this.state.grid.cells[free[0]!] = spawnResult.predatorId;
+        this.state.entities[spawnResult.predatorId] = spawnResult.entity;
+        this.cumulative.totalPredatorSpawns++;
+        const chapter = getCurrentChapter(this.config.balance, this.cumulative.totalEyesGained).chapter;
+        this.predatorSpawnLog.push({
+          predatorId: spawnResult.predatorId,
+          tick: this.currentTick,
+          chapter,
+          session: this.state.session,
+          totalMergesAtSpawn: this.cumulative.totalMerges,
+          totalTasksAtSpawn: this.cumulative.totalTasksCompleted
+        });
+      }
+    }
   }
 
   private feedEntity(entityId: string) {
@@ -513,6 +553,31 @@ export class SimulationEngine {
     }
   }
 
+  private feedPredatorAction(predatorId: string, creatureId: string) {
+    const result = applyFeedPredator(this.state, predatorId, creatureId, {
+      balance: this.config.balance,
+      rng: this.rng
+    });
+    if (!result.changed) return;
+
+    this.state = result.snapshot;
+
+    for (const event of result.events) {
+      if (event.type === 'predator_fed_partial' || event.type === 'predator_killed') {
+        this.cumulative.totalPredatorFeeds++;
+      }
+      if (event.type === 'predator_killed') {
+        const spawnEntry = [...this.predatorSpawnLog].reverse().find(e => e.predatorId === predatorId);
+        if (spawnEntry) {
+          this.predatorKillLog.push({
+            predatorId,
+            tasksCompletedDuringLife: this.cumulative.totalTasksCompleted - spawnEntry.totalTasksAtSpawn
+          });
+        }
+      }
+    }
+  }
+
   /**
    * After all strategy actions, scan live state for task-matching creatures and feed them.
    * Handles creatures produced by merges this tick (they have new IDs unknown to strategy snapshot).
@@ -561,7 +626,7 @@ export class SimulationEngine {
       totalMerges: this.cumulative.totalMerges,
       totalTasksCompleted: this.cumulative.totalTasksCompleted,
       totalRunesFed: this.runesFedCount,
-      totalPredatorFeeds: 0, // predators not simulated
+      totalPredatorFeeds: this.cumulative.totalPredatorFeeds,
       totalSpawns: this.cumulative.totalSpawns,
       maxCreatureLevelByType: { ...this.cumulative.maxCreatureLevelByType },
       maxGeneratorLevelById: maxGenLevelById,
@@ -724,6 +789,14 @@ export class SimulationEngine {
         if (!genCfg) return '';
         const curr = genCfg.purchaseCurrency as keyof typeof this.state.resources;
         return `Gen${action.generatorId} lv1, cost ${genCfg.purchaseCost} ${genCfg.purchaseCurrency} (have: ${this.state.resources[curr]})`;
+      }
+      case 'feed_predator': {
+        const pred = this.state.entities[action.predatorId];
+        const creature = this.state.entities[action.creatureId];
+        if (!pred || pred.kind !== 'predator' || !creature || creature.kind !== 'creature') return '';
+        const p = pred as PredatorEntity;
+        const c = creature as CreatureEntity;
+        return `${c.creatureType} Lv${c.level} → predator ${p.predatorId} (${p.currentExp}/${p.requiredExp})`;
       }
       case 'new_quest':
         return action.taskLabel;

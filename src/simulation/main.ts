@@ -873,6 +873,59 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
+  // ── Generator Level 3 Unlock — kraken level when gen first reached lvl 3 ──
+  {
+    const genColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#ff9966', '#8bc4ff', '#c8ff8b', '#ff6b6b'];
+    const datasets = results.map((result, idx) => {
+      const history = result.history;
+      const genIds = [...new Set(
+        history.flatMap(s => Object.keys(s.metrics.generatorsByType).map(Number))
+      )].sort((a, b) => a - b);
+
+      const points = genIds.flatMap(genId => {
+        for (const snap of history) {
+          const levels = snap.metrics.generatorsByType[genId];
+          if (levels && (levels[3] ?? 0) > 0) {
+            return [{ x: snap.metrics.krakenLevel, y: genId }];
+          }
+        }
+        return [];
+      });
+
+      return {
+        label: result.config.strategyName ?? `Run ${idx + 1}`,
+        data: points,
+        backgroundColor: points.map(p => genColors[(p.y - 1) % genColors.length]!),
+        pointRadius: 8,
+        pointHoverRadius: 10,
+      };
+    });
+
+    charts['generator-lvl3'] = new Chart(document.getElementById('chart-generator-lvl3') as HTMLCanvasElement, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          x: {
+            title: { display: true, text: 'Kraken Level', color: '#aaa' },
+            ticks: { color: '#aaa', stepSize: 1 },
+            grid: { color: 'rgba(143,193,255,0.1)' }
+          },
+          y: {
+            title: { display: true, text: 'Generator ID', color: '#aaa' },
+            ticks: { color: '#aaa', stepSize: 1, callback: (val: unknown) => `Gen ${val}` },
+            grid: { color: 'rgba(143,193,255,0.05)' }
+          }
+        },
+        plugins: {
+          ...commonPlugins,
+          tooltip: { callbacks: { label: (ctx: any) => `Gen ${ctx.parsed.y} → Kraken ${ctx.parsed.x}` } }
+        }
+      }
+    });
+  }
+
   // ── Creature Progress — max level ever reached per creature type ─────────
   if (visible('creature-progress')) {
     setAggBadge('creature-progress', '↓ last');
@@ -1108,6 +1161,122 @@ function renderCharts(results: SimulationResult[]) {
         options: xOpts('Sessions'),
       }
     );
+  }
+
+  // ── Predator Activity — spawns + feeds cumulative ─────────────────────────
+  {
+    setAggBadge('predators', '∑ cumul.');
+    const predatorDatasets = results.flatMap((result, idx) => {
+      const clr = color(idx);
+      return [
+        ds('Predator Spawns (cumul.)', series(result.history, s => s.metrics.totalPredatorSpawns, 'last'), clr, { yAxisID: 'ySpawns' }),
+        ds('Predator Feeds (cumul.)',  series(result.history, s => s.metrics.totalPredatorFeeds,  'last'), '#ff9966', { yAxisID: 'yFeeds', borderDash: [4, 4] }),
+      ];
+    });
+    charts['predators'] = new Chart(document.getElementById('chart-predators') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: xLabels, datasets: predatorDatasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          ySpawns: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Spawns',  color: color(0) },   ticks: { color: color(0) },   grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yFeeds:  { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Feeds',   color: '#ff9966' },   ticks: { color: '#ff9966' },  grid: { drawOnChartArea: false } },
+          x: xAxis,
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Predators per Session ──────────────────────────────────────────────────
+  {
+    const spawnLog = results[0]?.predatorSpawnLog ?? [];
+    const sessionCounts: Record<number, number> = {};
+    for (const entry of spawnLog) {
+      sessionCounts[entry.session] = (sessionCounts[entry.session] ?? 0) + 1;
+    }
+    const maxSession = spawnLog.length > 0 ? Math.max(...spawnLog.map(e => e.session)) : 0;
+    const sessionLabels = Array.from({ length: maxSession }, (_, i) => i + 1);
+    const sessionData = sessionLabels.map(s => sessionCounts[s] ?? 0);
+    charts['predators-per-session'] = new Chart(document.getElementById('chart-predators-per-session') as HTMLCanvasElement, {
+      type: 'bar',
+      data: {
+        labels: sessionLabels,
+        datasets: [ds('Predators spawned', sessionData, color(0))]
+      },
+      options: xOpts('Predators per session')
+    });
+  }
+
+  // ── Manager Cards — accumulated per manager ───────────────────────────────
+  {
+    setAggBadge('manager-cards', '∑ cumul.');
+    const managerColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#ff9966', '#8bc4ff', '#c8ff8b'];
+    const managerIds = results[0]
+      ? [...new Set(results[0].history.flatMap(s => Object.keys(s.metrics.managerCardsByManager)))]
+      : [];
+    const managerDatasets = managerIds.map((mgr, i) => {
+      const clr = managerColors[i % managerColors.length]!;
+      const data = series(results[0]!.history, s => {
+        const cards = s.metrics.managerCardsByManager;
+        return cards[mgr] ?? 0;
+      }, 'last');
+      return ds(mgr, data, clr);
+    });
+    charts['manager-cards'] = new Chart(document.getElementById('chart-manager-cards') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: xLabels, datasets: managerDatasets },
+      options: xOpts('Cards accumulated')
+    });
+  }
+
+  // ── Manager Cards per Chapter ──────────────────────────────────────────────
+  {
+    const managerColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#ff9966', '#8bc4ff', '#c8ff8b'];
+    const history = results[0]?.history ?? [];
+    // Get last snapshot per chapter
+    const chapterSnapshots: Map<number, typeof history[0]> = new Map();
+    for (const snap of history) {
+      chapterSnapshots.set(snap.metrics.chapter, snap);
+    }
+    const chapters = [...chapterSnapshots.keys()].sort((a, b) => a - b);
+    const managerIds = chapters.length > 0
+      ? [...new Set(chapters.flatMap(ch => Object.keys(chapterSnapshots.get(ch)!.metrics.managerCardsByManager)))]
+      : [];
+    const datasets = managerIds.map((mgr, i) => {
+      const clr = managerColors[i % managerColors.length]!;
+      const data = chapters.map(ch => chapterSnapshots.get(ch)!.metrics.managerCardsByManager[mgr] ?? 0);
+      return ds(mgr, data, clr);
+    });
+    charts['manager-cards-chapter'] = new Chart(document.getElementById('chart-manager-cards-chapter') as HTMLCanvasElement, {
+      type: 'line',
+      data: { labels: chapters, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Cards accumulated', color: '#aaa' }, ticks: { color: '#aaa' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          x: { title: { display: true, text: 'Chapter', color: '#aaa' }, ticks: { color: '#aaa' }, grid: { color: 'rgba(143, 193, 255, 0.05)' } }
+        },
+        plugins: commonPlugins,
+        interaction: commonInteraction,
+      }
+    });
+  }
+
+  // ── Tasks During Predator Life ─────────────────────────────────────────────
+  {
+    const killLog = results[0]?.predatorKillLog ?? [];
+    const killLabels = killLog.map((_, i) => i + 1);
+    const killData = killLog.map(e => e.tasksCompletedDuringLife);
+    charts['predator-tasks'] = new Chart(document.getElementById('chart-predator-tasks') as HTMLCanvasElement, {
+      type: 'bar',
+      data: {
+        labels: killLabels,
+        datasets: [ds('Tasks completed', killData, color(0))]
+      },
+      options: xOpts('Tasks during predator life')
+    });
   }
 }
 

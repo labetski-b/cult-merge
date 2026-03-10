@@ -12,7 +12,8 @@ export type SimulationAction =
   | { type: 'buy_generator'; generatorId: number }
   | { type: 'new_quest'; taskLabel: string }
   | { type: 'gather_meat'; count: number; meatGained: number }
-  | { type: 'expand_board'; newRows: number; newCols: number };
+  | { type: 'expand_board'; newRows: number; newCols: number }
+  | { type: 'feed_predator'; predatorId: string; creatureId: string };
 
 export interface AIStrategy {
   name: string;
@@ -96,6 +97,12 @@ export interface TickMetrics {
   // Predicted EXP (sum of creature rewards for quest requirements only)
   totalPredictedExp: number;
 
+  // Predator mechanics
+  activePredatorsCount: number;
+  totalPredatorSpawns: number;
+  totalPredatorFeeds: number;
+  managerCardsByManager: Record<string, number>;
+
   // Time tracking
   totalTimeSec: number;
   sessionTimeSec: number;
@@ -159,6 +166,15 @@ export interface SimulationResult {
   actionLog: ActionLogEntry[];
   finalState: GameSnapshot;
   summary: SimulationSummary;
+  predatorSpawnLog: Array<{
+    predatorId: string;
+    tick: number;
+    chapter: number;
+    session: number;
+    totalMergesAtSpawn: number;
+    totalTasksAtSpawn: number;
+  }>;
+  predatorKillLog: Array<{ predatorId: string; tasksCompletedDuringLife: number }>;
 }
 
 export interface CumulativeMetrics {
@@ -181,4 +197,6 @@ export interface CumulativeMetrics {
   totalRune2Spent: number;
   totalTimeSec: number;
   totalPredictedExp: number;
+  totalPredatorSpawns: number;
+  totalPredatorFeeds: number;
 }

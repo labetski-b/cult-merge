@@ -1,13 +1,19 @@
 {
   "predators": [
     { "id": "Predator_1", "requiredExp": 16, "preferredCreatureType": "Creature1", "krakenRequiredLevel": 6,  "mergeCount": 8   },
-    { "id": "Predator_2", "requiredExp": 40, "preferredCreatureType": "Creature2", "krakenRequiredLevel": 6,  "mergeCount": 150 },
-    { "id": "Predator_3", "requiredExp": 80, "preferredCreatureType": "Creature2", "krakenRequiredLevel": 6,  "mergeCount": 150 },
-    { "id": "Predator_4", "requiredExp": 80, "preferredCreatureType": "Creature3", "krakenRequiredLevel": 6,  "mergeCount": 150 },
-    { "id": "Predator_5", "requiredExp": 80, "preferredCreatureType": "Creature4", "krakenRequiredLevel": 10, "mergeCount": 150 },
-    { "id": "Predator_6", "requiredExp": 80, "preferredCreatureType": "Creature7", "krakenRequiredLevel": 14, "mergeCount": 150 },
-    { "id": "Predator_7", "requiredExp": 80, "preferredCreatureType": "Creature8", "krakenRequiredLevel": 15, "mergeCount": 150 },
-    { "id": "Predator_8", "requiredExp": 80, "preferredCreatureType": "Creature9", "krakenRequiredLevel": 19, "mergeCount": 150 },
-    { "id": "Predator_9", "requiredExp": 80, "preferredCreatureType": "Creature10", "krakenRequiredLevel": 22, "mergeCount": 150 }
+    { "id": "Predator_2", "requiredExp": 40, "preferredCreatureType": "Creature2", "krakenRequiredLevel": 6,  "mergeCount": 140 },
+    { "id": "Predator_3", "requiredExp": 80, "preferredCreatureType": "Creature2", "krakenRequiredLevel": 6,  "mergeCount": 140 },
+    { "id": "Predator_4", "requiredExp": 80, "preferredCreatureType": "Creature3", "krakenRequiredLevel": 7,  "mergeCount": 140 },
+    { "id": "Predator_5", "requiredExp": 80, "preferredCreatureType": "Creature4", "krakenRequiredLevel": 9, "mergeCount": 140 },
+    { "id": "Predator_6", "requiredExp": 80, "preferredCreatureType": "Creature7", "krakenRequiredLevel": 13, "mergeCount": 140 },
+    { "id": "Predator_7", "requiredExp": 80, "preferredCreatureType": "Creature8", "krakenRequiredLevel": 15, "mergeCount": 140 },
+    { "id": "Predator_8", "requiredExp": 80, "preferredCreatureType": "Creature9", "krakenRequiredLevel": 18, "mergeCount": 140 },
+    { "id": "Predator_9", "requiredExp": 80, "preferredCreatureType": "Creature10", "krakenRequiredLevel": 20, "mergeCount": 140 },
+    { "id": "Predator_10", "requiredExp": 80, "preferredCreatureType": "Creature11", "krakenRequiredLevel": 23, "mergeCount": 140 },
+    { "id": "Predator_11", "requiredExp": 80, "preferredCreatureType": "Creature12", "krakenRequiredLevel": 25, "mergeCount": 140 },
+    { "id": "Predator_12", "requiredExp": 80, "preferredCreatureType": "Creature13", "krakenRequiredLevel": 28, "mergeCount": 140 },
+    { "id": "Predator_13", "requiredExp": 80, "preferredCreatureType": "Creature14", "krakenRequiredLevel": 30, "mergeCount": 140 },
+    { "id": "Predator_14", "requiredExp": 80, "preferredCreatureType": "Creature15", "krakenRequiredLevel": 33, "mergeCount": 140 },
+    { "id": "Predator_15", "requiredExp": 80, "preferredCreatureType": "Creature16", "krakenRequiredLevel": 35, "mergeCount": 140 }
   ]
 }

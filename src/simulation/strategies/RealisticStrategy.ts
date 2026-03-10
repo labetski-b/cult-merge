@@ -1,4 +1,4 @@
-import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition } from '@domain/types';
+import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition, PredatorEntity } from '@domain/types';
 import { getFreeCellIndexes } from '@domain/grid';
 import { canMergeGenerators, canMergeRunes } from '@domain/merge';
 import { getCurrentMandatoryTask, getTaskFedProgress } from '@domain/tasks';
@@ -87,6 +87,8 @@ export class RealisticStrategy implements AIStrategy {
     const task: TaskDefinition | null =
       getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
       ?? state.currentAutoTask;
+
+    this.handlePredators(state, task, actions, rng);
 
     if (!task) return actions;
 
@@ -698,6 +700,28 @@ export class RealisticStrategy implements AIStrategy {
     }
 
     return actions;
+  }
+
+  private handlePredators(state: GameSnapshot, task: TaskDefinition | null, actions: SimulationAction[], rng: SeededRng): boolean {
+    const predators = (Object.values(state.entities).filter(e => e.kind === 'predator') as PredatorEntity[]);
+    if (predators.length === 0) return false;
+
+    const predator = predators[0]!;
+    const preferredType = predator.preferredCreatureType;
+
+    if (task) {
+      const taskNeedsPreferred = task.creatures.some(req => req.type === preferredType);
+      if (taskNeedsPreferred && rng.next() < 0.5) return false;
+    }
+
+    const creatures = Object.values(state.entities).filter(e => e.kind === 'creature') as CreatureEntity[];
+    const taskTypes = task ? new Set(task.creatures.map(r => r.type)) : new Set<string>();
+    const candidate = creatures.find(c => c.creatureType === preferredType && !taskTypes.has(c.creatureType));
+
+    if (!candidate) return false;
+
+    actions.push({ type: 'feed_predator', predatorId: predator.id, creatureId: candidate.id });
+    return true;
   }
 
   /** Charge empty generators only (no spawning). */

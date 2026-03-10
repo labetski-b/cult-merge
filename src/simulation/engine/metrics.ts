@@ -25,6 +25,8 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalRune2Spent: 0,
     totalTimeSec: 0,
     totalPredictedExp: 0,
+    totalPredatorSpawns: 0,
+    totalPredatorFeeds: 0,
   };
 }
 
@@ -40,6 +42,7 @@ export function captureTickMetrics(
   const generatorsCount = entities.filter(e => e.kind === 'generator').length;
   const runesCount = entities.filter(e => e.kind === 'rune').length;
   const boxesCount = entities.filter(e => e.kind === 'box').length;
+  const activePredatorsCount = entities.filter(e => e.kind === 'predator').length;
 
   // Breakdown creatures by type and level
   const creaturesByType: Record<string, Record<number, number>> = {};
@@ -118,6 +121,13 @@ export function captureTickMetrics(
     // Cumulative (snapshot scalar fields; object fields need explicit shallow copy)
     ...cumulative,
     maxCreatureLevelByType: { ...cumulative.maxCreatureLevelByType },
+
+    // Predator mechanics
+    activePredatorsCount,
+    managerCardsByManager: state.managerCards.reduce<Record<string, number>>((acc, card) => {
+      acc[card] = (acc[card] ?? 0) + 1;
+      return acc;
+    }, {}),
 
     // Time tracking
     sessionTimeSec,
