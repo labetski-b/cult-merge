@@ -1425,7 +1425,8 @@ export const useGameStore = create<GameStore>()(
             if (predCell >= 0) nextGrid.cells[predCell] = null;
             delete nextEntities[predatorId];
 
-            const cards = drawManagerCards(BALANCE, rng);
+            const currentChapter = getCurrentChapter(BALANCE, state.resources.eyes).chapter;
+            const cards = drawManagerCards(BALANCE, rng, currentChapter);
             const newMergeCounts = { ...state.predatorMergeCounts, [predator.predatorId]: 0 };
 
             return {

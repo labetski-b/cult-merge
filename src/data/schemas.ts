@@ -169,7 +169,8 @@ export const predatorsDataSchema = z.object({
 
 const managerSchema = z.object({
   id: z.string().min(1),
-  name: z.string().min(1)
+  name: z.string().min(1),
+  openOnChapter: z.number().int().positive()
 });
 
 export const managersDataSchema = z.object({

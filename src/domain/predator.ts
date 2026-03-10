@@ -27,12 +27,14 @@ export function calcPredatorFeedExp(
   return exp * multiplier;
 }
 
-export function drawManagerCards(config: BalanceConfig, rng: SeededRng): string[] {
+export function drawManagerCards(config: BalanceConfig, rng: SeededRng, currentChapter: number): string[] {
   const { managers, chestBalance } = config.managers;
+  const available = managers.filter(m => m.openOnChapter <= currentChapter);
+  const pool = available.length > 0 ? available : managers.slice(0, 1);
   const cards: string[] = [];
   for (let i = 0; i < chestBalance.cardsPerChest; i++) {
-    const idx = Math.floor(rng.next() * managers.length);
-    cards.push(managers[idx]!.id);
+    const idx = Math.floor(rng.next() * pool.length);
+    cards.push(pool[idx]!.id);
   }
   return cards;
 }
