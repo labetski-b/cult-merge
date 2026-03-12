@@ -107,7 +107,7 @@ export interface ScoringTableEntry {
   targetLevel: number;
 }
 
-export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
+export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid' | 'flowerpot';
 
 export interface ProgressReward {
   type: RewardType;

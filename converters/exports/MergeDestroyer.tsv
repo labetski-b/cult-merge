@@ -18,22 +18,22 @@ Destroyer_Merge1	8	2	1060	3	Res_Box	2
 Destroyer_Merge1	9	0	1590	3	Res_Box	6
 Destroyer_Merge1	9	1	560	3	Res_Box	2
 Destroyer_Merge1	9	2	1120	3	Res_Box	2
-Destroyer_Merge1	10	0	1680	3	Res_Box	6
-Destroyer_Merge1	10	1	590	3	Res_Box	6
+Destroyer_Merge1	10	0	1680	3	Chicken	1
+Destroyer_Merge1	10	1	590	3	Res_Box	4
 Destroyer_Merge1	10	2	1180	3	Res_Box	6
 Destroyer_Merge1	11	0	1770	3	Res_Box	6
 Destroyer_Merge1	11	1	620	3	Res_Box	2
 Destroyer_Merge1	11	2	1240	3	Res_Box	6
-Destroyer_Merge1	12	0	1860	3	Res_Box	6
-Destroyer_Merge1	12	1	650	3	Res_Box	6
+Destroyer_Merge1	12	0	1860	3	Chicken	1
+Destroyer_Merge1	12	1	650	3	Res_Box	4
 Destroyer_Merge1	12	2	1300	3	Res_Box	2
 Destroyer_Merge1	13	0	1950	3	Res_Box	1
 Destroyer_Merge1	13	1	680	3	Res_Box	1
 Destroyer_Merge1	13	2	1360	3	Res_Box	2
 Destroyer_Merge1	14	0	2040	3		
-Destroyer_Merge1	14	1	710	3	Res_Box	6
-Destroyer_Merge1	14	2	1420	3	Res_Box	6
-Destroyer_Merge1	15	0	2130	3	Res_Box	4
+Destroyer_Merge1	14	1	710	3	Res_Box	4
+Destroyer_Merge1	14	2	1420	3	Res_Box	4
+Destroyer_Merge1	15	0	2130	3	Chicken	1
 Destroyer_Merge1	15	1	740	3	Res_Box	6
 Destroyer_Merge1	15	2	1480	3	Res_Box	6
 Destroyer_Merge1	16	0	2220	3	Res_Box	4
@@ -51,10 +51,10 @@ Destroyer_Merge1	19	2	1720	3	Res_Box	6
 Destroyer_Merge1	20	0	2580	3		
 Destroyer_Merge1	20	1	890	3	Res_Box	7
 Destroyer_Merge1	20	2	1780	3	Res_Box	3
-Destroyer_Merge1	21	0	2670	3	Res_Box	7
-Destroyer_Merge1	21	1	920	3	Res_Box	7
-Destroyer_Merge1	21	2	1840	3	Res_Box	7
-Destroyer_Merge1	22	0	2760	3	Res_Box	5
+Destroyer_Merge1	21	0	2670	3	Chicken	1
+Destroyer_Merge1	21	1	920	3	Res_Box	2
+Destroyer_Merge1	21	2	1840	3	Res_Box	6
+Destroyer_Merge1	22	0	2760	3	Chicken	1
 Destroyer_Merge1	22	1	950	3	Res_Box	2
 Destroyer_Merge1	22	2	1900	3	Res_Box	5
 Destroyer_Merge1	23	0	2850	3	Res_Box	6
@@ -66,7 +66,7 @@ Destroyer_Merge1	24	2	2020	3	Res_Box	3
 Destroyer_Merge1	25	0	3030	3	Res_Box	7
 Destroyer_Merge1	25	1	1040	3	Res_Box	7
 Destroyer_Merge1	25	2	2080	3	Res_Box	7
-Destroyer_Merge1	26	0	3120	3	Res_Box	7
+Destroyer_Merge1	26	0	3120	3	Chicken	1
 Destroyer_Merge1	26	1	1070	3	Res_Box	3
 Destroyer_Merge1	26	2	2140	3	Res_Box	7
 Destroyer_Merge1	27	0	3210	3	Res_Box	7
@@ -80,8 +80,8 @@ Destroyer_Merge1	29	1	1160	3	Res_Box	7
 Destroyer_Merge1	29	2	2320	3	Res_Box	5
 Destroyer_Merge1	30	0	3480	3	Res_Box	7
 Destroyer_Merge1	30	1	1190	3	Res_Box	7
-Destroyer_Merge1	30	2	2380	3	Res_Box	7
-Destroyer_Merge1	31	0	3570	3	Res_Box	3
+Destroyer_Merge1	30	2	2380	3	Res_Box	3
+Destroyer_Merge1	31	0	3570	3	Chicken	1
 Destroyer_Merge1	31	1	1220	3	Res_Box	5
 Destroyer_Merge1	31	2	2440	3	Res_Box	7
 Destroyer_Merge1	32	0	3660	3	Res_Box	7
@@ -95,8 +95,8 @@ Destroyer_Merge1	34	1	1310	3	Res_Box	3
 Destroyer_Merge1	34	2	2620	3	Res_Box	7
 Destroyer_Merge1	35	0	3930	3	Res_Box	7
 Destroyer_Merge1	35	1	1340	3	Res_Box	7
-Destroyer_Merge1	35	2	2680	3	Res_Box	7
-Destroyer_Merge1	36	0	4020	3	Res_Box	1
+Destroyer_Merge1	35	2	2680	3	Res_Box	1
+Destroyer_Merge1	36	0	4020	3	Chicken	1
 Destroyer_Merge1	36	1	1370	3	Res_Box	7
 Destroyer_Merge1	36	2	2740	3	Res_Box	5
 Destroyer_Merge1	37	0	4110	3	Res_Box	3

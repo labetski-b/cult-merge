@@ -407,6 +407,30 @@ export const useGameStore = create<GameStore>()(
               grid: resizedGrid,
               lastMessage: `Field expanded to ${nextGridSize.rows}×${nextGridSize.cols}!`
             };
+          } else if (reward.type === 'flowerpot' && typeof reward.value === 'number') {
+            const freeSlots = getFreeCellIndexes(result.grid ?? state.grid);
+            if (freeSlots.length === 0) return { lastMessage: 'No free cell to place FlowerPot.' };
+
+            const targetCell = freeSlots[0]!;
+            const potId = rng.nextId();
+            const nextGrid = { ...(result.grid ?? state.grid), cells: [...(result.grid ?? state.grid).cells] };
+            const nextEntities = { ...(result.entities ?? state.entities) };
+
+            nextEntities[potId] = {
+              id: potId,
+              kind: 'flowerpot' as const,
+              potLevel: reward.value,
+              lastSpawnTimestamp: Date.now()
+            };
+            nextGrid.cells[targetCell] = potId;
+
+            result = {
+              ...result,
+              grid: nextGrid,
+              entities: nextEntities,
+              rngState: rng.getState(),
+              lastMessage: `FlowerPot Lv${reward.value} placed!`
+            };
           }
 
           // After claiming last reward, advance kraken past any 0-exp steps

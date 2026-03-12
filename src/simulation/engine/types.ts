@@ -17,7 +17,8 @@ export type SimulationAction =
   | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
   | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
   | { type: 'expand_board'; newRows: number; newCols: number }
-  | { type: 'free_cells'; reason: string; freed: number };
+  | { type: 'free_cells'; reason: string; freed: number }
+  | { type: 'tick_flowerpots'; spawned: number };
 
 export interface StrategyDecision {
   actions: SimulationAction[];

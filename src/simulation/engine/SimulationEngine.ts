@@ -1,6 +1,7 @@
-import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
+import type { BoxEntity, CreatureEntity, FlowerPotEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
 import { openBox } from '@domain/boxes';
-import { findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
+import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
+import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
@@ -118,6 +119,7 @@ export class SimulationEngine {
 
     const MAX_ITERATIONS = 500; // safety limit
     this.tickLogIndex = 0;
+    this.tickFlowerPots();
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
       const krakenLevelBefore = this.state.kraken.level;
@@ -168,6 +170,16 @@ export class SimulationEngine {
 
       if (decision.done) {
         if (!isEarlyGame) this.tick++;
+
+        // If flowerpots exist on the field and strategy is idle (waiting for spawns),
+        // advance simulated time by one spawn interval so flowerpots can produce creatures
+        const hasFlowerpots = Object.values(this.state.entities).some(e => e.kind === 'flowerpot');
+        if (hasFlowerpots && decision.actions.length === 0) {
+          const intervalSec = this.config.balance.flowerpots.flowerpot.spawnIntervalMs / 1000;
+          this.cumulative.totalTimeSec += intervalSec;
+          this.sessionTimeSec += intervalSec;
+        }
+
         // Safety net: generate task if domain didn't (e.g. first tick after kraken=2)
         this.ensureAutoTask();
         break;
@@ -312,6 +324,65 @@ export class SimulationEngine {
         contents
       };
       this.state.grid.cells[targetCell] = boxId;
+    } else if (reward.type === 'flowerpot' && typeof reward.value === 'number') {
+      const freeSlots = getFreeCellIndexes(this.state.grid);
+      if (freeSlots.length === 0) return;
+
+      const targetCell = freeSlots[0]!;
+      const potId = this.rng.nextId();
+
+      this.state.entities[potId] = {
+        id: potId,
+        kind: 'flowerpot',
+        potLevel: reward.value,
+        lastSpawnTimestamp: this.cumulative.totalTimeSec * 1000
+      };
+      this.state.grid.cells[targetCell] = potId;
+    }
+  }
+
+  private tickFlowerPots() {
+    const pots = Object.values(this.state.entities).filter(
+      (e): e is FlowerPotEntity => e.kind === 'flowerpot'
+    );
+    if (pots.length === 0) return;
+
+    const intervalMs = this.config.balance.flowerpots.flowerpot.spawnIntervalMs;
+    const nowMs = this.cumulative.totalTimeSec * 1000;
+
+    for (const pot of pots) {
+      const pending = calcPendingSpawns(pot, nowMs, intervalMs);
+      if (pending <= 0) continue;
+
+      const potCell = findEntityCell(this.state.grid, pot.id);
+      if (potCell < 0) continue;
+
+      let spawned = 0;
+      for (let i = 0; i < pending; i++) {
+        const freeNeighbors = getNeighborCellIndexes(this.state.grid, potCell).filter(
+          (idx) => this.state.grid.cells[idx] === null
+        );
+        if (freeNeighbors.length === 0) break;
+
+        const targetIdx = freeNeighbors[Math.floor(this.rng.next() * freeNeighbors.length)]!;
+        const spawn = rollFlowerPotSpawn(this.rng, this.config.balance, pot.potLevel);
+        const creatureId = this.rng.nextId();
+
+        this.state.entities[creatureId] = {
+          id: creatureId,
+          kind: 'creature',
+          creatureType: spawn.creatureType,
+          level: spawn.level
+        };
+        this.state.grid.cells[targetIdx] = creatureId;
+        spawned++;
+      }
+
+      // Update lastSpawnTimestamp
+      this.state.entities[pot.id] = {
+        ...pot,
+        lastSpawnTimestamp: nowMs
+      };
     }
   }
 
@@ -363,7 +434,7 @@ export class SimulationEngine {
       );
       if (creatureConfig) maxCreatureLevel = creatureConfig.maxLevel;
     }
-    const merged = mergeEntities(source, target, this.rng.nextId(), Date.now(), maxCreatureLevel);
+    const merged = mergeEntities(source, target, this.rng.nextId(), this.cumulative.totalTimeSec * 1000, maxCreatureLevel);
     if (!merged) return;
 
     const sourceCell = findEntityCell(this.state.grid, sourceId);

@@ -1,5 +1,5 @@
 QuestId	SubQuestId	Type	Value	Amount	Reward	Reward Amount	Kraken Level	Spawner	QuestId		Key	Value
-1	1	Spawn		50	hard	1	7	Egg_Creature1	0			
+1	1	Spawn		20	hard	1	7	Egg_Creature1	0			
 	2	GetCreature	Creature1_7	1	hard	1		Egg_Creature2	2			
 	3	DoTasks		15	hard	2		Egg_Creature3	3			
 	4	ReachLevel		7	hard	3		Egg_Creature4	4			

@@ -3,99 +3,195 @@
     "2": [
       {
         "id": "mandatory_task_lvl_2_1",
-        "creatures": [{ "type": "Creature1", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_2",
-        "creatures": [{ "type": "Creature1", "level": 1, "count": 5 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 1,
+            "count": 5
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_3",
-        "creatures": [{ "type": "Creature1", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_4",
-        "creatures": [{ "type": "Creature1", "level": 2, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 2,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_5",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_6",
-        "creatures": [{ "type": "Creature1", "level": 3, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 3,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_2_7",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
     ],
     "3": [
       {
-        "id": "mandatory_task_lvl_3_1",
-        "creatures": [{ "type": "Creature2", "level": 1, "count": 1 }],
+        "id": "mandatory_task_lvl_3_2",
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
-        "id": "mandatory_task_lvl_3_2",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 1 }],
+        "id": "mandatory_task_lvl_3_1",
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 1,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_3",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_4",
-        "creatures": [{ "type": "Creature2", "level": 1, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 1,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_5",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_6",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_7",
-        "creatures": [{ "type": "Creature2", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_8",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_3_9",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -103,118 +199,570 @@
     "4": [
       {
         "id": "mandatory_task_lvl_4_1",
-        "creatures": [{ "type": "Creature2", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_2",
-        "creatures": [{ "type": "Creature1", "level": 6, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 6,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_3",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 4,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_4",
-        "creatures": [{ "type": "Creature2", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_5",
-        "creatures": [{ "type": "Creature1", "level": 6, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 6,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_6",
-        "creatures": [{ "type": "Creature2", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature2",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       },
       {
         "id": "mandatory_task_lvl_4_7",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature1",
+            "level": 5,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
     ],
-    "5": [
+    "10": [
       {
-        "id": "mandatory_task_lvl_5_1",
-        "creatures": [{ "type": "Creature1", "level": 4, "count": 3 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_2",
-        "creatures": [{ "type": "Creature2", "level": 5, "count": 1 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_3",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 2 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_4",
-        "creatures": [{ "type": "Creature1", "level": 3, "count": 5 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_5",
-        "creatures": [{ "type": "Creature2", "level": 6, "count": 1 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_6",
-        "creatures": [{ "type": "Creature1", "level": 7, "count": 1 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_5_7",
-        "creatures": [{ "type": "Creature1", "level": 5, "count": 1 }],
+        "id": "mandatory_task_lvl_10_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 1 }],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
     ],
-    "6": [
+    "11": [
       {
-        "id": "mandatory_task_lvl_6_1",
-        "creatures": [{ "type": "Creature1", "level": 8, "count": 1 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_6_2",
-        "creatures": [{ "type": "Creature2", "level": 7, "count": 1 }],
+        "id": "mandatory_task_lvl_11_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
     ],
-    "7": [
+    "12": [
       {
-        "id": "mandatory_task_lvl_7_1",
-        "creatures": [{ "type": "Creature2", "level": 7, "count": 1 }],
-        "expMultiplier": 0,
-        "resMultiplier": 2
-      },
-      {
-        "id": "mandatory_task_lvl_7_2",
-        "creatures": [{ "type": "Creature1", "level": 8, "count": 1 }],
+        "id": "mandatory_task_lvl_12_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 3 }],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
+    ],
+    "13": [
+      {
+        "id": "mandatory_task_lvl_13_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "14": [
+      {
+        "id": "mandatory_task_lvl_14_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "15": [
+      {
+        "id": "mandatory_task_lvl_15_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "16": [
+      {
+        "id": "mandatory_task_lvl_16_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "17": [
+      {
+        "id": "mandatory_task_lvl_17_1",
+        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "18": [
+      {
+        "id": "mandatory_task_lvl_18_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "19": [
+      {
+        "id": "mandatory_task_lvl_19_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "20": [
+      {
+        "id": "mandatory_task_lvl_20_1",
+        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "21": [
+      {
+        "id": "mandatory_task_lvl_21_1",
+        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "22": [
+      {
+        "id": "mandatory_task_lvl_22_1",
+        "creatures": [{ "type": "Creature6", "level": 1, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "23": [
+      {
+        "id": "mandatory_task_lvl_23_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 3 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "24": [
+      {
+        "id": "mandatory_task_lvl_24_1",
+        "creatures": [{ "type": "Creature6", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "25": [
+      {
+        "id": "mandatory_task_lvl_25_1",
+        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "26": [
+      {
+        "id": "mandatory_task_lvl_26_1",
+        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "27": [
+      {
+        "id": "mandatory_task_lvl_27_1",
+        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "28": [
+      {
+        "id": "mandatory_task_lvl_28_1",
+        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "29": [
+      {
+        "id": "mandatory_task_lvl_29_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "30": [
+      {
+        "id": "mandatory_task_lvl_30_1",
+        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "31": [
+      {
+        "id": "mandatory_task_lvl_31_1",
+        "creatures": [{ "type": "Creature5", "level": 3, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "32": [
+      {
+        "id": "mandatory_task_lvl_32_1",
+        "creatures": [{ "type": "Creature6", "level": 4, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "33": [
+      {
+        "id": "mandatory_task_lvl_33_1",
+        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "34": [
+      {
+        "id": "mandatory_task_lvl_34_1",
+        "creatures": [{ "type": "Creature6", "level": 2, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "35": [
+      {
+        "id": "mandatory_task_lvl_35_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "36": [
+      {
+        "id": "mandatory_task_lvl_36_1",
+        "creatures": [{ "type": "Creature6", "level": 2, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "37": [
+      {
+        "id": "mandatory_task_lvl_37_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "38": [
+      {
+        "id": "mandatory_task_lvl_38_1",
+        "creatures": [{ "type": "Creature6", "level": 5, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "39": [
+      {
+        "id": "mandatory_task_lvl_39_1",
+        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "40": [
+      {
+        "id": "mandatory_task_lvl_40_1",
+        "creatures": [{ "type": "Creature6", "level": 1, "count": 3 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "41": [
+      {
+        "id": "mandatory_task_lvl_41_1",
+        "creatures": [{ "type": "Creature5", "level": 3, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "42": [
+      {
+        "id": "mandatory_task_lvl_42_1",
+        "creatures": [{ "type": "Creature6", "level": 2, "count": 3 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "43": [
+      {
+        "id": "mandatory_task_lvl_43_1",
+        "creatures": [{ "type": "Creature5", "level": 5, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "44": [
+      {
+        "id": "mandatory_task_lvl_44_1",
+        "creatures": [{ "type": "Creature6", "level": 1, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "45": [
+      {
+        "id": "mandatory_task_lvl_45_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 3 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "46": [
+      {
+        "id": "mandatory_task_lvl_46_1",
+        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "47": [
+      {
+        "id": "mandatory_task_lvl_47_1",
+        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "48": [
+      {
+        "id": "mandatory_task_lvl_48_1",
+        "creatures": [{ "type": "Creature6", "level": 1, "count": 3 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "49": [
+      {
+        "id": "mandatory_task_lvl_49_1",
+        "creatures": [{ "type": "Creature5", "level": 5, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ],
+    "50": [
+      {
+        "id": "mandatory_task_lvl_50_1",
+        "creatures": [{ "type": "Creature6", "level": 5, "count": 1 }],
+        "expMultiplier": 0,
+        "resMultiplier": 2
+      }
+    ]
+  },
+  "autoConfig": {
+    "difficultyFlow": [
+      1,
+      1,
+      2,
+      2,
+      3,
+      2,
+      4,
+      2,
+      5
+    ],
+    "difficultySacMap": [
+      0,
+      0,
+      0.5,
+      0.8,
+      1,
+      2
+    ],
+    "budgetAnchors": [
+      [
+        2,
+        10
+      ],
+      [
+        6,
+        60
+      ],
+      [
+        9,
+        209
+      ],
+      [
+        12,
+        429
+      ],
+      [
+        17,
+        825
+      ],
+      [
+        22,
+        1331
+      ],
+      [
+        27,
+        2056
+      ],
+      [
+        32,
+        3156
+      ],
+      [
+        49,
+        5773
+      ]
+    ],
+    "sawTooth": [
+      0.65,
+      0.65,
+      0.93,
+      0.93,
+      1.22,
+      1.22,
+      1.4
+    ],
+    "dualQuestProbability": 0.5,
+    "dualBudgetSplit": [
+      0.7,
+      0.3
+    ],
+    "maxCountByOffset": [
+      {
+        "offset": 0,
+        "maxCount": 1
+      },
+      {
+        "offset": 1,
+        "maxCount": 2
+      },
+      {
+        "offset": 2,
+        "maxCount": 3
+      }
+    ],
+    "maxSpawns": 100,
+    "eyePerMeat": [
+      [
+        2,
+        42
+      ],
+      [
+        3,
+        45
+      ],
+      [
+        4,
+        50
+      ],
+      [
+        5,
+        64
+      ],
+      [
+        6,
+        88
+      ],
+      [
+        7,
+        104
+      ],
+      [
+        8,
+        118
+      ],
+      [
+        9,
+        132
+      ],
+      [
+        10,
+        141
+      ],
+      [
+        11,
+        153
+      ],
+      [
+        12,
+        166
+      ],
+      [
+        13,
+        178
+      ],
+      [
+        14,
+        186
+      ],
+      [
+        15,
+        189
+      ],
+      [
+        16,
+        198
+      ],
+      [
+        17,
+        204
+      ]
     ]
   }
 }

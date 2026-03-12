@@ -254,6 +254,9 @@ function buildMergeDestroyer(): string {
     if (reward.type === 'res_box') {
       return ['Res_Box', String(reward.value)];
     }
+    if (reward.type === 'flowerpot') {
+      return ['Chicken', String(reward.value)];
+    }
     // egg, grid, mechanic → пустые
     return ['', ''];
   }
