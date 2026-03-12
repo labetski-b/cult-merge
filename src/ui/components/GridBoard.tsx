@@ -142,8 +142,10 @@ export function GridBoard() {
       if (!dragSourceEntity) return false;
       const targetEntity = entities[targetId];
       if (!targetEntity) return false;
-      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'creature')
-        return canMergeCreatures(dragSourceEntity, targetEntity as CreatureEntity);
+      if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'creature') {
+        const creatureConfig = BALANCE.creatures.creatures.find(c => c.type === dragSourceEntity.creatureType);
+        return canMergeCreatures(dragSourceEntity, targetEntity as CreatureEntity, creatureConfig?.maxLevel ?? 9);
+      }
       if (dragSourceEntity.kind === 'generator' && targetEntity.kind === 'generator')
         return canMergeGenerators(dragSourceEntity as GeneratorEntity, targetEntity as GeneratorEntity);
       if (dragSourceEntity.kind === 'rune' && targetEntity.kind === 'rune')

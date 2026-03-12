@@ -284,7 +284,6 @@
     ],
     "sawTooth": [0.65, 0.65, 0.93, 0.93, 1.22, 1.22, 1.40],
     "maxSacrifices": 3,
-    "rampUpSchedule": [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]],
     "maxCountByOffset": [
       { "minOffset": 0, "maxOffset": 1, "maxCount": 1 },
       { "minOffset": 2, "maxOffset": 3, "maxCount": 2 },

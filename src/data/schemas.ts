@@ -88,9 +88,6 @@ export const autoConfigSchema = z.object({
   difficultyFlow: z.array(z.number().int().positive()).optional(),
   difficultySacMap: z.array(z.number().min(0)).optional(),
   budgetAnchors: z.array(z.tuple([z.number(), z.number()])).optional(),
-  sawTooth: z.array(z.number()).length(7).optional(),
-  rampUpSchedule: z.array(z.tuple([z.number().int(), z.number().int()])).optional(),
-  rampUpThreshold: z.number().int().positive().optional(),
   // Legacy field name kept for JSON compatibility: controls dual-requirement
   // auto tasks inside the Kraken-task loop, not Kraken quests.
   dualQuestProbability: z.number().min(0).max(1).optional(),
@@ -99,6 +96,7 @@ export const autoConfigSchema = z.object({
   maxSpawns: z.number().optional(),
   eyeRewardByChapter: z.array(z.tuple([z.number().int(), z.number()])).optional(),
   difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
+  eyePerMeat: z.array(z.tuple([z.number().int(), z.number()])).optional(),
 });
 
 // tasks.json defines the Kraken-task loop: mandatory tasks keyed by Kraken

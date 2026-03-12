@@ -1,7 +1,7 @@
 import type { SimulationSnapshot, TickMetrics } from './types';
 
 export type AggMode = 'last' | 'avg' | 'delta';
-export type XAxisMode = 'ticks' | 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel';
+export type XAxisMode = 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel' | 'chapter';
 
 /**
  * Aggregation mode for each metric when X-axis collapses ticks into groups (session or presses).
@@ -37,6 +37,7 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
   totalSpawns:          'last',
   totalMerges:          'last',
   totalCharges:         'last',
+  totalQuestMeatCost:   'last',
 
   // Resource flow — cumulative counters
   totalMeatGained:  'last',
@@ -45,6 +46,8 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
   totalGemsGained:  'last',
   totalRune1Spent:  'last',
   totalRune2Spent:  'last',
+  rune1Purchased:   'last',
+  rune2Purchased:   'last',
 
   // Meat mechanics
   meatPerPress:         'last',
@@ -103,13 +106,14 @@ export function aggregateHistory(
 }
 
 /** Returns the grouping key getter for a given X-axis mode. */
-export function getKeyFn(xMode: Exclude<XAxisMode, 'ticks'>): (snap: SimulationSnapshot) => number {
+export function getKeyFn(xMode: XAxisMode): (snap: SimulationSnapshot) => number {
   switch (xMode) {
     case 'sessions': return (s) => s.gameState.session;
     case 'presses':  return (s) => s.gameState.meatButtonPresses;
     case 'tasks':    return (s) => s.metrics.totalTasksCompleted;
     case 'time':       return (s) => Math.floor(s.metrics.totalTimeSec / 60);
     case 'krakenLevel': return (s) => s.metrics.krakenLevel;
+    case 'chapter':     return (s) => s.metrics.chapter;
   }
 }
 

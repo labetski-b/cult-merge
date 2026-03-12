@@ -23,8 +23,11 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalGemsGained: 0,
     totalRune1Spent: 0,
     totalRune2Spent: 0,
+    rune1Purchased: 0,
+    rune2Purchased: 0,
     totalTimeSec: 0,
     totalPredictedExp: 0,
+    totalQuestMeatCost: 0,
   };
 }
 

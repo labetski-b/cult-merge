@@ -197,8 +197,6 @@
       [17, 825], [22, 1331], [27, 2056], [32, 3156], [49, 5773]
     ],
     "sawTooth": [0.65, 0.65, 0.93, 0.93, 1.22, 1.22, 1.40],
-    "rampUpSchedule": [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]],
-    "rampUpThreshold": 5,
     "dualQuestProbability": 0.5,
     "dualBudgetSplit": [0.7, 0.3],
     "maxCountByOffset": [

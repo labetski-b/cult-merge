@@ -1,21 +1,23 @@
 import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
 import { openBox } from '@domain/boxes';
-import { rollGeneratorSpawn, getGeneratorConfig } from '@domain/generator';
 import { findEntityCell, getFreeCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepReward } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
-import { generateAutoTask, getCurrentMandatoryTask } from '@domain/tasks';
+import { generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { feedEntity as applyFeedEntity } from '@domain/runtime/feed';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { rollGeneratorSpawn } from '@domain/generator';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { SeededRng } from '@infra/rng';
-import type { SimulationConfig, SimulationAction, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
-import { initCumulativeMetrics, captureTickMetrics, updateCumulativeMetrics } from './metrics';
+import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
+import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
+
+const MAX_TOTAL_ACTIONS = 500_000;
 
 function formatTime(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -32,9 +34,14 @@ export class SimulationEngine {
   private actionLog: ActionLogEntry[];
   private currentTick = 0;
   private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
+  private tick = 0;
   private runesFedCount = 0;
   private sessionTimeSec = 0;
   private lastSession = 1;
+  private tickLogIndex = 0;
+  private taskNumber = 0;
+  private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
+  private totalActions = 0;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -55,13 +62,19 @@ export class SimulationEngine {
   }
 
   run(): SimulationResult {
+    this.totalActions = 0;
     for (let tick = 0; tick < this.config.maxTicks; tick++) {
       try {
         this.executeTick(tick);
       } catch (error) {
         console.error(`Error at tick ${tick}:`, error);
         console.error('Game state:', JSON.stringify(this.state, null, 2));
-        throw new Error(`Simulation failed at tick ${tick}: ${error instanceof Error ? error.message : String(error)}`);
+        // Don't re-throw — break and return partial results
+        break;
+      }
+      if (this.totalActions >= MAX_TOTAL_ACTIONS) {
+        console.warn(`Global action limit reached (${MAX_TOTAL_ACTIONS}), stopping simulation`);
+        break;
       }
       if (this.shouldStop(tick)) break;
     }
@@ -93,96 +106,87 @@ export class SimulationEngine {
     };
   }
 
-  /** Ensure currentAutoTask is set when there's no mandatory task — mirrors game store's ensureAutoTask. */
+  /** Safety net: ensure currentAutoTask exists (e.g. first tick after kraken reaches level 2). */
   private ensureAutoTask() {
-    if (this.state.kraken.level < 2) return; // Tasks start at level 2
+    if (this.state.kraken.level < 2) return;
     if (getActiveTask(this.config.balance, this.state)) return;
     this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
-    this.logNewQuest();
   }
 
-  private executeTick(tick: number) {
-    this.currentTick = tick;
+  private executeTick(outerTick: number) {
+    this.currentTick = outerTick;
 
-    // Press gather-meat button if needed (simulate player tapping button)
-    this.gatherMeatIfNeeded();
+    const MAX_ITERATIONS = 500; // safety limit
+    this.tickLogIndex = 0;
 
-    // Ensure auto task is present in state (so feedEntity can check it)
-    this.ensureAutoTask();
+    for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+      const krakenLevelBefore = this.state.kraken.level;
+      const isEarlyGame = krakenLevelBefore < 2;
 
-    // Strategy decides actions
-    const actions = this.config.strategy.decide(this.state, this.rng);
+      const decision: StrategyDecision = this.config.strategy.decide(this.state, this.rng);
 
-    // Debug: log actions for first 3 ticks [TEMPORARILY DISABLED FOR BATCH SIM]
-    // if (tick < 3) {
-    //   console.log(`Tick ${tick} actions:`, actions.map(a => a.type));
-    //   console.log(`Tick ${tick} BEFORE state:`, {
-    //     creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
-    //     generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
-    //     meat: this.state.resources.meat
-    //   });
-    // }
-
-    // Execute all actions and log each one (skip no-ops)
-    let logIndex = 0;
-    for (let i = 0; i < actions.length; i++) {
-      const action = actions[i]!;
-      const note = this.buildActionNote(action);
-      const taskBefore = this.captureTaskLabel();
-      const stateBefore = JSON.stringify(this.state);
-      const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
-      try {
-        this.executeAction(action);
-      } catch (error) {
-        console.error(`Error executing action ${i} at tick ${tick}:`, action);
-        throw error;
+      // Execute all actions in this batch
+      for (let i = 0; i < decision.actions.length; i++) {
+        const action = decision.actions[i]!;
+        this.totalActions++;
+        const note = this.buildActionNote(action);
+        const taskBefore = this.captureTaskLabel();
+        const stateBefore = JSON.stringify(this.state);
+        const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
+        try {
+          this.executeAction(action);
+        } catch (error) {
+          console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
+          throw error;
+        }
+        // Only log if the action actually changed state (or is a synthetic log-only event)
+        if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells') {
+          const dt = this.addActionTime(action);
+          const logState = this.captureCompactState(dt);
+          logState.currentTask = taskBefore; // show task active at the time of action, not after
+          this.pushLog(action, logState, note);
+        }
+        // Flush event logs (quest_completed, new_quest, expand_board) after the action's own log
+        for (const pending of this.pendingEventLogs) {
+          this.pushLog(pending.action, pending.state, pending.note);
+        }
+        this.pendingEventLogs.length = 0;
+        // Sync cumulative stats and evaluate quests after each action
+        this.syncCumulativeStats();
+        this.evaluateAndLogQuests();
+        // Quest completed — stop executing remaining actions so next iteration starts fresh
+        if (action.type === 'feed' && this.cumulative.totalTasksCompleted > tasksCompletedBefore) {
+          break;
+        }
       }
-      // Only log if the action actually changed state
-      if (JSON.stringify(this.state) !== stateBefore) {
-        const dt = this.addActionTime(action);
-        const logState = this.captureCompactState(dt);
-        logState.currentTask = taskBefore; // show task active at the time of action, not after
-        this.actionLog.push({
-          tick,
-          actionIndex: logIndex++,
-          action,
-          state: logState,
-          note
-        });
+
+      // Tick boundary
+      if (isEarlyGame) {
+        const levelsGained = this.state.kraken.level - krakenLevelBefore;
+        if (levelsGained > 0) this.tick += levelsGained;
       }
-      // Quest completed — stop executing remaining actions so next tick starts fresh
-      if (action.type === 'feed' && this.cumulative.totalTasksCompleted > tasksCompletedBefore) {
+
+      if (decision.done) {
+        if (!isEarlyGame) this.tick++;
+        // Safety net: generate task if domain didn't (e.g. first tick after kraken=2)
+        this.ensureAutoTask();
+        break;
+      }
+
+      // Safety: if strategy returns no actions and not done, it's stuck
+      if (decision.actions.length === 0) {
+        console.warn(`[Tick ${outerTick}] Strategy returned empty actions without done=true, breaking`);
         break;
       }
     }
-
-    // Post-tick sweep: feed task-matching creatures that appeared from merges this tick.
-    // Strategy uses a snapshot so it can't see entities created mid-tick by merge actions.
-    logIndex = this.executeTaskFeedSweep(tick, logIndex);
-
-    // Debug: log state AFTER actions [TEMPORARILY DISABLED FOR BATCH SIM]
-    // if (tick < 3) {
-    //   console.log(`Tick ${tick} AFTER state:`, {
-    //     creatures: Object.values(this.state.entities).filter(e => e.kind === 'creature').length,
-    //     generators: Object.values(this.state.entities).filter(e => e.kind === 'generator').length,
-    //     meat: this.state.resources.meat,
-    //     cumulative: { ...this.cumulative }
-    //   });
-    // }
-
-    // Sync cumulative stats to state for quest evaluation
-    this.syncCumulativeStats();
-
-    // Evaluate quests and log completions
-    this.evaluateAndLogQuests();
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
 
     // Save snapshot
     this.history.push({
-      tick,
-      timestamp: tick * this.config.tickInterval,
+      tick: outerTick,
+      timestamp: outerTick * this.config.tickInterval,
       gameState: JSON.parse(JSON.stringify(this.state)),
       metrics: JSON.parse(JSON.stringify(metrics))
     });
@@ -211,76 +215,39 @@ export class SimulationEngine {
       case 'buy_generator':
         this.buyGenerator(action.generatorId);
         break;
+      case 'quest_completed':
+        break; // synthetic log-only event, no state mutation
       case 'new_quest':
         break; // synthetic log-only event, no state mutation
       case 'expand_board':
         break; // synthetic log-only event, no state mutation
+      case 'merge_cascade':
+        this.mergeCascade(action.generatorId, action.targetLevel);
+        break;
+      case 'buy_runes':
+        this.state.resources[action.runeType] += action.amount;
+        if (action.runeType === 'rune1') this.cumulative.rune1Purchased += action.amount;
+        else this.cumulative.rune2Purchased += action.amount;
+        break;
       case 'gather_meat':
-        break; // handled before strategy in gatherMeatIfNeeded(), no-op here
+        this.executeGatherMeat(action);
+        break;
+      case 'free_cells':
+        break; // synthetic log-only event, no state mutation
     }
   }
 
   /**
-   * Press the gather-meat button enough times to afford charging the generator
-   * that the strategy needs for the current task. Falls back to any generator
-   * if no task-relevant generator exists on field.
-   * Each press gives calculateMeatDrop(config, totalEyes) meat (starts at 1).
-   * Logs a single event with total presses and meat gained.
+   * Execute a gather_meat action: press meat button until we reach targetCost.
+   * Populates action.count and action.meatGained for logging/timing.
    */
-  private gatherMeatIfNeeded() {
-    const generators = Object.values(this.state.entities)
-      .filter(e => e.kind === 'generator') as GeneratorEntity[];
-
-    let targetMeat: number;
-    if (generators.length === 0) {
-      if (this.state.resources.meat > 0) return;
-      targetMeat = 1;
-    } else {
-      // Try to find generators relevant to the current task
-      const task = getCurrentMandatoryTask(this.config.balance, this.state.kraken.level, this.state.taskProgress)
-        ?? this.state.currentAutoTask;
-
-      let relevantCost: number | null = null;
-
-      if (task) {
-        const neededTypes = new Set(task.creatures.map(r => r.type));
-        const workGens = generators.filter(gen => {
-          const genConfig = this.config.balance.generators.generators.find((g: { id: number }) => g.id === gen.generatorId);
-          if (!genConfig) return false;
-          const levelConfig = (genConfig as { levels: Array<{ level: number; outputs: Array<{ creatureType: string }> }> })
-            .levels.find(l => l.level === gen.level);
-          if (!levelConfig) return false;
-          return levelConfig.outputs.some(o => neededTypes.has(o.creatureType));
-        });
-        if (workGens.length > 0) {
-          // Gather enough meat for the most expensive relevant generator —
-          // strategy may focus on any type, so ensure all generators are affordable
-          relevantCost = Math.max(...workGens.map(gen => {
-            const { levelConfig: wlc } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
-            return wlc.chargeCost;
-          }));
-        }
-      }
-
-      // Fall back to cheapest generator if no task match
-      const minAnyCost = Math.min(
-        ...generators.map(gen => {
-          try {
-            const { levelConfig } = getGeneratorConfig(this.config.balance, gen.generatorId, gen.level);
-            return levelConfig.chargeCost;
-          } catch {
-            return Infinity;
-          }
-        })
-      );
-      targetMeat = relevantCost ?? minAnyCost;
-
-      if (this.state.resources.meat >= targetMeat) return;
-    }
+  private executeGatherMeat(action: SimulationAction & { type: 'gather_meat' }): void {
+    const targetCost = action.targetCost;
+    if (this.state.resources.meat >= targetCost) return;
 
     let pressCount = 0;
     let meatGained = 0;
-    while (this.state.resources.meat < targetMeat) {
+    while (this.state.resources.meat < targetCost) {
       const drop = calculateMeatDrop(this.config.balance, this.cumulative.totalEyesGained);
       this.state.resources.meat += drop;
       this.state.meatButtonPresses += 1;
@@ -290,18 +257,10 @@ export class SimulationEngine {
     }
 
     this.cumulative.totalMeatGained += meatGained;
-    if (pressCount === 0) return;
 
-    const action: SimulationAction = { type: 'gather_meat', count: pressCount, meatGained };
-    const dt = this.addActionTime(action);
-    const logState = this.captureCompactState(dt);
-    this.actionLog.push({
-      tick: this.currentTick,
-      actionIndex: this.actionLog.length,
-      action,
-      state: logState,
-      note: `×${pressCount} → +${meatGained} meat (now ${this.state.resources.meat}) session=${this.state.session}`
-    });
+    // Populate fields on the action object for logging and timing
+    action.count = pressCount;
+    action.meatGained = meatGained;
   }
 
   private claimReward() {
@@ -397,7 +356,14 @@ export class SimulationEngine {
     const target = this.state.entities[targetId];
     if (!source || !target) return;
 
-    const merged = mergeEntities(source, target, this.rng.nextId());
+    let maxCreatureLevel = 9;
+    if (source.kind === 'creature') {
+      const creatureConfig = this.config.balance.creatures.creatures.find(
+        c => c.type === (source as CreatureEntity).creatureType
+      );
+      if (creatureConfig) maxCreatureLevel = creatureConfig.maxLevel;
+    }
+    const merged = mergeEntities(source, target, this.rng.nextId(), Date.now(), maxCreatureLevel);
     if (!merged) return;
 
     const sourceCell = findEntityCell(this.state.grid, sourceId);
@@ -409,6 +375,13 @@ export class SimulationEngine {
     delete this.state.entities[sourceId];
     delete this.state.entities[targetId];
     this.state.entities[merged.id] = merged;
+
+    // In the real game, merged generators come pre-charged
+    if (merged.kind === 'generator') {
+      const gen = merged as GeneratorEntity;
+      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance);
+      gen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
+    }
 
     this.cumulative.totalMerges++;
     if (merged.kind === 'creature') {
@@ -455,21 +428,30 @@ export class SimulationEngine {
           };
           const expandDt = this.addActionTime(expandAction);
           const expandState = this.captureCompactState(expandDt);
-          this.actionLog.push({
-            tick: this.currentTick,
-            actionIndex: this.actionLog.length,
-            action: expandAction,
-            state: expandState,
-            note: `${event.rows}×${event.cols} = ${event.rows * event.cols} cells`
-          });
+          this.pendingEventLogs.push({ action: expandAction, state: expandState, note: `${event.rows}×${event.cols} = ${event.rows * event.cols} cells` });
           break;
         }
-        case 'task_completed':
+        case 'task_completed': {
           this.cumulative.totalPredictedExp += event.predictedExp;
           this.cumulative.totalEyesGained += event.eyesGained;
           this.cumulative.totalTasksCompleted += 1;
-          this.logNewQuest();
+          this.cumulative.totalQuestMeatCost += event.meatCost;
+          this.taskNumber++;
+          // Notify strategy to advance phase: task → reward
+          this.config.strategy.onQuestCompleted?.();
+          // Log quest completed
+          const completedAction: SimulationAction = { type: 'quest_completed', taskLabel: event.taskId };
+          const completedDt = this.addActionTime(completedAction);
+          this.pendingEventLogs.push({ action: completedAction, state: this.captureCompactState(completedDt), note: event.taskId });
+          // Log new quest (domain feed already generated next task in state)
+          const newTaskLabel = this.captureTaskLabel();
+          if (newTaskLabel !== 'none') {
+            const newQuestAction: SimulationAction = { type: 'new_quest', taskLabel: newTaskLabel };
+            const newQuestDt = this.addActionTime(newQuestAction);
+            this.pendingEventLogs.push({ action: newQuestAction, state: this.captureCompactState(newQuestDt), note: newTaskLabel });
+          }
           break;
+        }
       }
     }
   }
@@ -513,37 +495,6 @@ export class SimulationEngine {
     }
   }
 
-  /**
-   * After all strategy actions, scan live state for task-matching creatures and feed them.
-   * Handles creatures produced by merges this tick (they have new IDs unknown to strategy snapshot).
-   */
-  private executeTaskFeedSweep(tick: number, logIndex: number): number {
-    const task = getActiveTask(this.config.balance, this.state);
-    if (!task) return logIndex;
-
-    const matching = (Object.values(this.state.entities).filter(e => e.kind === 'creature') as CreatureEntity[])
-      .filter(c => task.creatures.some(req => c.creatureType === req.type && c.level === req.level));
-
-    for (const creature of matching) {
-      const action: SimulationAction = { type: 'feed', entityId: creature.id };
-      const note = this.buildActionNote(action);
-      const taskBefore = this.captureTaskLabel();
-      const stateBefore = JSON.stringify(this.state);
-      const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
-
-      this.executeAction(action);
-
-      if (JSON.stringify(this.state) !== stateBefore) {
-        const dt = this.addActionTime(action);
-        const logState = this.captureCompactState(dt);
-        logState.currentTask = taskBefore;
-        this.actionLog.push({ tick, actionIndex: logIndex++, action, state: logState, note });
-      }
-      if (this.cumulative.totalTasksCompleted > tasksCompletedBefore) break;
-    }
-
-    return logIndex;
-  }
 
   /** Sync engine's CumulativeMetrics into state.cumulativeStats (domain CumulativeStats). */
   private syncCumulativeStats() {
@@ -588,13 +539,7 @@ export class SimulationEngine {
           const questAction: SimulationAction = { type: 'new_quest', taskLabel: `[Quest] Ch${chapter.id}: ${quest.id} completed` };
           const dt = this.addActionTime(questAction);
           const logState = this.captureCompactState(dt);
-          this.actionLog.push({
-            tick: this.currentTick,
-            actionIndex: this.actionLog.length,
-            action: questAction,
-            state: logState,
-            note: `Quest ${quest.id} (ch${chapter.id}) completed`
-          });
+          this.pushLog(questAction, logState, `Quest ${quest.id} (ch${chapter.id}) completed`);
         }
       }
 
@@ -603,13 +548,7 @@ export class SimulationEngine {
         const chapterAction: SimulationAction = { type: 'new_quest', taskLabel: `[Chapter] ${chapter.name} (ch${chapter.id}) completed!` };
         const dt = this.addActionTime(chapterAction);
         const logState = this.captureCompactState(dt);
-        this.actionLog.push({
-          tick: this.currentTick,
-          actionIndex: this.actionLog.length,
-          action: chapterAction,
-          state: logState,
-          note: `Chapter ${chapter.id} "${chapter.name}" completed — unlocks generator ${chapter.unlocksGenerator}`
-        });
+        this.pushLog(chapterAction, logState, `Chapter ${chapter.id} "${chapter.name}" completed — unlocks generator ${chapter.unlocksGenerator}`);
       }
     }
   }
@@ -619,18 +558,16 @@ export class SimulationEngine {
     return task ? task.creatures.map(r => `${r.type} Lv${r.level} x${r.count}`).join(', ') : 'none';
   }
 
-  /** Push a synthetic log entry recording that a new quest has been assigned. */
-  private logNewQuest() {
-    const taskLabel = this.captureTaskLabel();
-    const questAction: SimulationAction = { type: 'new_quest', taskLabel };
-    const dt = this.addActionTime(questAction);
-    const logState = this.captureCompactState(dt);
+  private pushLog(action: SimulationAction, state: ActionLogEntry['state'], note: string) {
     this.actionLog.push({
-      tick: this.currentTick,
-      actionIndex: this.actionLog.length,
-      action: questAction,
-      state: logState,
-      note: taskLabel
+      tick: this.tick,
+      snapshotTick: this.currentTick,
+      actionIndex: this.tickLogIndex++,
+      taskNumber: this.taskNumber,
+      action,
+      state,
+      fieldSnapshot: this.captureFieldSnapshot(),
+      note
     });
   }
 
@@ -675,6 +612,20 @@ export class SimulationEngine {
       actionTimeSec: actionTimeSec,
       sessionTimeSec: this.sessionTimeSec,
       totalTimeSec: this.cumulative.totalTimeSec,
+    };
+  }
+
+  private captureFieldSnapshot(): ActionLogEntry['fieldSnapshot'] {
+    const entities = Object.values(this.state.entities);
+    const creatureGenMap = this.config.strategy.getCreatureGenMap?.() ?? [];
+    return {
+      creatures: (entities.filter(e => e.kind === 'creature') as CreatureEntity[])
+        .map(c => ({ type: c.creatureType, level: c.level })),
+      generators: (entities.filter(e => e.kind === 'generator') as GeneratorEntity[])
+        .map(g => ({ genId: g.generatorId, level: g.level, charges: g.charges.length })),
+      runes: entities.filter(e => e.kind === 'rune').length,
+      boxes: entities.filter(e => e.kind === 'box').length,
+      creatureGenMap: creatureGenMap.length > 0 ? creatureGenMap : undefined,
     };
   }
 
@@ -725,12 +676,20 @@ export class SimulationEngine {
         const curr = genCfg.purchaseCurrency as keyof typeof this.state.resources;
         return `Gen${action.generatorId} lv1, cost ${genCfg.purchaseCost} ${genCfg.purchaseCurrency} (have: ${this.state.resources[curr]})`;
       }
+      case 'quest_completed':
+        return action.taskLabel;
       case 'new_quest':
         return action.taskLabel;
+      case 'merge_cascade':
+        return `Gen${action.generatorId} → Lv${action.targetLevel}`;
+      case 'buy_runes':
+        return `buy ${action.runeType} x${action.amount}`;
       case 'gather_meat':
-        return `×${action.count} → +${action.meatGained} meat`;
+        return `×${action.count ?? 0} → +${action.meatGained ?? 0} meat (target ${action.targetCost})`;
       case 'expand_board':
         return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
+      case 'free_cells':
+        return `${action.reason}: freed ${action.freed}`;
     }
   }
 
@@ -758,5 +717,33 @@ export class SimulationEngine {
     (this.state.resources[currency] as number) -= generator.purchaseCost;
     if (currency === 'rune1') this.cumulative.totalRune1Spent += generator.purchaseCost;
     else if (currency === 'rune2') this.cumulative.totalRune2Spent += generator.purchaseCost;
+
+    // In the real game, generators come pre-charged on purchase (free first charge)
+    const newGen = this.state.entities[newGenId] as GeneratorEntity;
+    const spawns = rollGeneratorSpawn(this.rng, newGen, this.config.balance);
+    newGen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
+  }
+
+  /**
+   * Cascade-merge all generators of a given family (generatorId) from bottom up
+   * until one reaches targetLevel (or as high as possible).
+   */
+  private mergeCascade(generatorId: number, targetLevel: number) {
+    for (let lv = 1; lv < targetLevel; lv++) {
+      // Find all generators of this family at this level
+      const atLevel = Object.values(this.state.entities).filter(
+        (e): e is GeneratorEntity =>
+          e.kind === 'generator' && (e as GeneratorEntity).generatorId === generatorId && (e as GeneratorEntity).level === lv
+      );
+
+      // Merge pairs at this level
+      for (let i = 0; i + 1 < atLevel.length; i += 2) {
+        const source = atLevel[i]!;
+        const target = atLevel[i + 1]!;
+        // Verify both still exist (previous merges in this loop could theoretically remove them)
+        if (!this.state.entities[source.id] || !this.state.entities[target.id]) continue;
+        this.mergeEntities(source.id, target.id);
+      }
+    }
   }
 }

@@ -49,7 +49,7 @@ const entries = filter
 for (const entry of entries) {
   const { tick, action, state, note } = entry;
   const stateStr = `[Lv${state.krakenLevel}.${state.krakenStep} exp=${state.krakenExp} meat=${state.meat} r1=${state.rune1} r2=${state.rune2} gens=${state.generators} crea=${state.creatures} free=${state.freeCells} ses=${state.session} presses=${state.meatButtonPresses} t=${Math.round(state.totalTimeSec)}s]`;
-  console.log(`T${String(tick).padStart(4,' ')} ${action.type.padEnd(20,' ')} ${note.padEnd(40,' ')} ${stateStr}  task:${state.currentTask}`);
+  console.log(`T${String(tick).padStart(4,' ')} Q${entry.taskNumber} ${action.type.padEnd(20,' ')} ${note.padEnd(40,' ')} ${stateStr}  task:${state.currentTask}`);
 }
 
 console.log(`\nTotal entries: ${result.actionLog.length}, shown: ${entries.length}`);

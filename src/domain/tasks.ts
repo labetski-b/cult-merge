@@ -79,14 +79,11 @@ export function selectCreaturesForTask(task: TaskDefinition, creatures: Creature
 const DEFAULT_AUTO_CONFIG = {
   difficultyFlow: [1, 1, 2, 2, 3, 4, 2, 5],
   difficultySacMap: [0, 0, 0.8, 1.2, 1.7, 2.0],  // index = difficulty level
-  rampUpSchedule: [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]] as [number, number][],
-  rampUpThreshold: 5,
   // Legacy config name kept for JSON compatibility: this still means
   // "dual-requirement auto task", not a Kraken quest.
   dualQuestProbability: 0.5,
   dualBudgetSplit: [0.7, 0.3] as [number, number],
-  eyeRewardByChapter: null as [number, number][] | null,
-  difficultyEyeMultiplier: null as number[] | null,
+  eyePerMeat: null as [number, number][] | null,
 };
 
 /** Count all rune currency: wallet + rune entities on field + box contents. */
@@ -115,7 +112,7 @@ function countAvailableRunes(state: GameSnapshot): { rune1: number; rune2: numbe
 }
 
 /** How many L1-equivalents of `creatureType` a generator produces per charge. */
-function getExpectedL1PerCharge(
+export function getExpectedL1PerCharge(
   config: BalanceConfig,
   genId: number,
   genLevel: number,
@@ -310,26 +307,34 @@ export function generateAutoTask(
   rng: SeededRng
 ): TaskDefinition {
   const autoConfig = config.tasks.autoConfig ?? DEFAULT_AUTO_CONFIG;
-  const rampUpSchedule = autoConfig.rampUpSchedule ?? DEFAULT_AUTO_CONFIG.rampUpSchedule;
-  const rampUpThreshold = autoConfig.rampUpThreshold ?? DEFAULT_AUTO_CONFIG.rampUpThreshold;
   const dualQuestProbability = autoConfig.dualQuestProbability ?? DEFAULT_AUTO_CONFIG.dualQuestProbability;
   const difficultyFlow = autoConfig.difficultyFlow ?? DEFAULT_AUTO_CONFIG.difficultyFlow;
   const difficultySacMap = autoConfig.difficultySacMap ?? DEFAULT_AUTO_CONFIG.difficultySacMap;
   const dualBudgetSplit = autoConfig.dualBudgetSplit ?? DEFAULT_AUTO_CONFIG.dualBudgetSplit;
 
-  // ─── Chapter-based eye reward (experiment 8) ─────────────────────────
-  const eyeRewardByChapter = autoConfig.eyeRewardByChapter ?? null;
-  const difficultyEyeMultiplier = autoConfig.difficultyEyeMultiplier ?? null;
+  // ─── Meat-cost-based eye reward ─────────────────────────────────────
+  const eyePerMeat = autoConfig.eyePerMeat ?? null;
 
-  function computeEyeReward(diff: number): number | undefined {
-    if (!eyeRewardByChapter || !difficultyEyeMultiplier) return undefined;
+  function computeMeatCostEyeReward(
+    creatures: { type: string; level: number; count: number }[],
+    scoringTable: ScoringEntry[]
+  ): { eyeReward: number; meatCost: number } | undefined {
+    if (!eyePerMeat) return undefined;
     const chapter = getCurrentChapter(config, state.resources.eyes);
-    let baseReward = eyeRewardByChapter[0]?.[1] ?? 0;
-    for (const [ch, reward] of eyeRewardByChapter) {
-      if (chapter.chapter >= ch) baseReward = reward;
+    let rate = eyePerMeat[0]?.[1] ?? 0;
+    for (const [ch, value] of eyePerMeat) {
+      if (chapter.chapter >= ch) rate = value;
     }
-    const mult = difficultyEyeMultiplier[diff] ?? 1;
-    return Math.floor(baseReward * mult);
+
+    let totalMeatCost = 0;
+    for (const req of creatures) {
+      const entry = scoringTable.find(e => e.creatureType === req.type);
+      const l1pm = entry?.l1PerMeat ?? 1;
+      const l1Spawns = Math.pow(2, req.level - 1);
+      totalMeatCost += (l1Spawns / l1pm) * req.count;
+    }
+
+    return { eyeReward: Math.floor(totalMeatCost * rate), meatCost: totalMeatCost };
   }
 
   // ─── PHASE 1: BUDGET ─────────────────────────────────────────────────────
@@ -362,72 +367,8 @@ export function generateAutoTask(
 
   const prev = state.currentAutoTask;
 
-  // ─── RAMP-UP CHECK ─────────────────────────────────────────────────────
-  // Ramp-up works per creature LINE, not per generator.  A line is available
-  // if its creature type appears in outputs of a field generator (at its
-  // current level) or an affordable unlocked generator (level-1 outputs).
-  // Pick the newest available line (highest creature number) that still has
-  // completions < threshold.
-
-  const { rune1: availR1, rune2: availR2 } = countAvailableRunes(state);
-  const availableTypes = new Set<string>();
-
-  // Field generators: collect creature types from outputs up to current level
-  const fieldGenMaxLevel = new Map<number, number>();
-  for (const entity of Object.values(state.entities)) {
-    if (entity.kind !== 'generator') continue;
-    const gen = entity as GeneratorEntity;
-    const cur = fieldGenMaxLevel.get(gen.generatorId) ?? 0;
-    if (gen.level > cur) fieldGenMaxLevel.set(gen.generatorId, gen.level);
-  }
-  for (const [genId, maxLevel] of fieldGenMaxLevel) {
-    const gc = config.generators.generators.find(g => g.id === genId);
-    if (!gc || state.kraken.level < gc.krakenRequired) continue;
-    for (const lc of gc.levels) {
-      if (lc.level > maxLevel) continue;
-      for (const o of lc.outputs) availableTypes.add(o.creatureType);
-    }
-  }
-
-  // Affordable unlocked generators not on field: level-1 outputs only
-  for (const gc of config.generators.generators) {
-    if (state.kraken.level < gc.krakenRequired) continue;
-    if (fieldGenMaxLevel.has(gc.id)) continue;
-    const runes = gc.purchaseCurrency === 'rune1' ? availR1 : availR2;
-    if (runes < gc.purchaseCost) continue;
-    for (const o of (gc.levels[0]?.outputs ?? [])) availableTypes.add(o.creatureType);
-  }
-
-  // Find newest creature line needing ramp-up
-  const creatureNum = (ct: string) => parseInt(ct.replace('Creature', ''), 10);
-  let rampUpType: string | null = null;
-  let rampUpCompletions = 0;
-  for (const ct of availableTypes) {
-    const completions = state.autoTaskLineCompletions[ct] ?? 0;
-    if (completions >= rampUpThreshold) continue;
-    if (!rampUpType || creatureNum(ct) > creatureNum(rampUpType)) {
-      rampUpType = ct;
-      rampUpCompletions = completions;
-    }
-  }
-
-  if (rampUpType) {
-    const schedIdx = Math.min(rampUpCompletions, rampUpSchedule.length - 1);
-    const [level, count] = rampUpSchedule[schedIdx]!;
-    const creature = config.creatures.creatures.find(c => c.type === rampUpType);
-    const maxLevel = creature?.maxLevel ?? 9;
-    const clampedLevel = Math.max(1, Math.min(level!, maxLevel, gridCap));
-    return {
-      id: makeTaskId(rng),
-      creatures: [{ type: rampUpType, level: clampedLevel, count: count! }],
-      expMultiplier: 0,
-      resMultiplier: 2,
-      eyeReward: computeEyeReward(2),
-      difficulty: 0,
-      debugMeatBudget: meatBudget,
-      debugScoringTable: [],
-    };
-  }
+  // Minimal scoring table for l1PerMeat lookup (used by diff1)
+  const { collapsed: l1PerMeatLookup } = buildScoringTable(config, state, 0, gridCap, fieldL1Map);
 
   // ─── DIFFICULTY = 1 (special case) ─────────────────────────────────────
 
@@ -453,14 +394,16 @@ export function generateAutoTask(
       if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
         pickLevel = Math.max(1, pickLevel - 1);
       }
+      const d1Reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
       return {
         id: makeTaskId(rng),
         creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
         expMultiplier: 0,
         resMultiplier: 2,
-        eyeReward: computeEyeReward(1),
+        eyeReward: d1Reward?.eyeReward,
         difficulty: 1,
         debugMeatBudget: meatBudget,
+        debugMeatCost: d1Reward?.meatCost,
         debugScoringTable: [],
       };
     }
@@ -474,14 +417,16 @@ export function generateAutoTask(
   const { collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
 
   if (scoringTable.length === 0) {
+    const fallbackReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
     return {
       id: makeTaskId(rng),
       creatures: [{ type: 'Creature1', level: 1, count: 1 }],
       expMultiplier: 0,
       resMultiplier: 2,
-      eyeReward: computeEyeReward(difficulty),
+      eyeReward: fallbackReward?.eyeReward,
       difficulty,
       debugMeatBudget: meatBudget,
+      debugMeatCost: fallbackReward?.meatCost,
       debugScoringTable: [],
     };
   }
@@ -531,6 +476,10 @@ export function generateAutoTask(
         if (state.autoTaskLastLevels[fillerPick.creatureType] === fillerLevel) {
           fillerLevel = Math.max(1, fillerLevel - 1);
         }
+        const dualReward = computeMeatCostEyeReward([
+            { type: mainPick.creatureType, level: mainLevel, count: 1 },
+            { type: fillerPick.creatureType, level: fillerLevel, count: 1 },
+          ], scoringTable);
         return {
           id: makeTaskId(rng),
           creatures: [
@@ -539,9 +488,10 @@ export function generateAutoTask(
           ],
           expMultiplier: 0,
           resMultiplier: 2,
-          eyeReward: computeEyeReward(difficulty),
+          eyeReward: dualReward?.eyeReward,
           difficulty,
           debugMeatBudget: meatBudget,
+          debugMeatCost: dualReward?.meatCost,
           debugScoringTable: scoringRaw,
           debugCollapsed: scoringTable,
           debugMainScoringTable: mainRaw,
@@ -571,28 +521,32 @@ export function generateAutoTask(
       if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
         pickLevel = Math.max(1, pickLevel - 1);
       }
+      const singleReward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], scoringTable);
       return {
         id: makeTaskId(rng),
         creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
         expMultiplier: 0,
         resMultiplier: 2,
-        eyeReward: computeEyeReward(difficulty),
+        eyeReward: singleReward?.eyeReward,
         difficulty,
         debugMeatBudget: meatBudget,
+        debugMeatCost: singleReward?.meatCost,
         debugScoringTable: scoringRaw,
         debugCollapsed: scoringTable,
       };
     }
   }
 
+  const finalReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
   return {
     id: makeTaskId(rng),
     creatures: [{ type: 'Creature1', level: 1, count: 1 }],
     expMultiplier: 0,
     resMultiplier: 2,
-    eyeReward: computeEyeReward(difficulty),
+    eyeReward: finalReward?.eyeReward,
     difficulty,
     debugMeatBudget: meatBudget,
+    debugMeatCost: finalReward?.meatCost,
     debugScoringTable: scoringRaw,
     debugCollapsed: scoringTable,
   };
