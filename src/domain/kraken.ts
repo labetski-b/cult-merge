@@ -12,7 +12,7 @@ function getLevelStepConfigs(config: BalanceConfig, level: number) {
   // Fallback: defaultSteps steps with defaultStepExp each (no rewards)
   const fallback = [];
   for (let s = 0; s < config.krakenProgression.defaultSteps; s++) {
-    fallback.push({ level, step: s, expRequired: config.krakenProgression.defaultStepExp, reward: null });
+    fallback.push({ level, step: s, expRequired: config.krakenProgression.defaultStepExp, rewards: [] });
   }
   return fallback;
 }
@@ -28,7 +28,7 @@ function getStepConfig(config: BalanceConfig, level: number, step: number) {
     level,
     step,
     expRequired: config.krakenProgression.defaultStepExp,
-    reward: null
+    rewards: []
   };
 }
 
@@ -63,14 +63,14 @@ export function getEarnedLevelExp(config: BalanceConfig, state: KrakenState): nu
   return earned;
 }
 
-export function getCurrentStepReward(config: BalanceConfig, state: KrakenState): ProgressReward | null {
-  return getStepConfig(config, state.level, state.step).reward;
+export function getCurrentStepRewards(config: BalanceConfig, state: KrakenState): ProgressReward[] {
+  return getStepConfig(config, state.level, state.step).rewards;
 }
 
 export interface LevelStepInfo {
   step: number;
   expRequired: number;
-  reward: ProgressReward | null;
+  rewards: ProgressReward[];
   completed: boolean;
   current: boolean;
   progress: number; // 0-1 for current step, 1 for completed, 0 for future
@@ -88,7 +88,7 @@ export function getLevelSteps(config: BalanceConfig, state: KrakenState): LevelS
     return {
       step: cfg.step,
       expRequired: cfg.expRequired,
-      reward: cfg.reward,
+      rewards: cfg.rewards,
       completed,
       current,
       progress
@@ -129,8 +129,8 @@ export function addExp(
     remaining -= currentConfig.expRequired;
 
     // Reward is earned when you COMPLETE this step's expRequired
-    if (currentConfig.reward && currentConfig.reward.type !== 'mechanic') {
-      rewards.push(currentConfig.reward);
+    for (const r of currentConfig.rewards) {
+      if (r.type !== 'mechanic') rewards.push(r);
     }
 
     // Advance: check if this was the last step for this level

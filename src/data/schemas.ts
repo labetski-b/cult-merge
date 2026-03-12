@@ -106,18 +106,16 @@ export const tasksDataSchema = z.object({
   autoConfig: autoConfigSchema.optional(),
 });
 
-const progressionRewardSchema = z
-  .object({
-    type: z.enum(['res_box', 'egg', 'mechanic', 'grid']),
-    value: z.union([z.string(), z.number()])
-  })
-  .nullable();
+const progressionRewardSchema = z.object({
+  type: z.enum(['res_box', 'egg', 'mechanic', 'grid', 'flowerpot']),
+  value: z.union([z.string(), z.number()])
+});
 
 const progressionStepSchema = z.object({
   level: z.number().int().min(1),
   step: z.number().int().min(0),
   expRequired: z.number().int().min(0),
-  reward: progressionRewardSchema
+  rewards: z.array(progressionRewardSchema).default([])
 });
 
 export const krakenProgressionDataSchema = z.object({
