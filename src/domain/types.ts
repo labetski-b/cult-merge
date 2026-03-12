@@ -84,6 +84,7 @@ export interface TaskDefinition {
   // Debug info (only for auto-tasks)
   difficulty?: number;
   debugMeatBudget?: number;
+  debugMeatCost?: number;
   debugScoringTable?: ScoringTableEntry[];       // raw (pre-collapse)
   debugCollapsed?: ScoringTableEntry[];           // post-collapse
   // Dual-task split tables (raw)

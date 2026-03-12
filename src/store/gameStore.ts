@@ -162,7 +162,14 @@ export const useGameStore = create<GameStore>()(
           }
 
           const rng = new SeededRng(state.rngState);
-          const merged = mergeEntities(source, target, rng.nextId());
+          let maxCreatureLevel = 9;
+          if (source.kind === 'creature') {
+            const creatureConfig = BALANCE.creatures.creatures.find(
+              c => c.type === (source as CreatureEntity).creatureType
+            );
+            if (creatureConfig) maxCreatureLevel = creatureConfig.maxLevel;
+          }
+          const merged = mergeEntities(source, target, rng.nextId(), Date.now(), maxCreatureLevel);
 
           if (!merged) {
             return { lastMessage: 'These entities cannot merge.' };
@@ -1173,11 +1180,15 @@ export const useGameStore = create<GameStore>()(
 
           if (currentTask && isTaskComplete(currentTask, nextTaskFed)) {
             let taskEyes = 0;
-            for (const req of currentTask.creatures) {
-              const cr = getCreatureReward(BALANCE, req.type, req.level);
-              taskEyes += cr.eyes * req.count;
+            if (currentTask.eyeReward != null) {
+              taskEyes = currentTask.eyeReward;
+            } else {
+              for (const req of currentTask.creatures) {
+                const cr = getCreatureReward(BALANCE, req.type, req.level);
+                taskEyes += cr.eyes * req.count;
+              }
+              taskEyes = Math.floor(applyTaskMultiplier(taskEyes, currentTask.resMultiplier));
             }
-            taskEyes = Math.floor(applyTaskMultiplier(taskEyes, currentTask.resMultiplier));
             totalEyes += taskEyes;
             nextResources = { ...nextResources, eyes: nextResources.eyes + totalEyes };
             nextTaskFed = [];

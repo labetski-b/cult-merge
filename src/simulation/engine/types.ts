@@ -10,14 +10,30 @@ export type SimulationAction =
   | { type: 'charge_generator'; generatorId: string }
   | { type: 'spawn_generator'; generatorId: string }
   | { type: 'buy_generator'; generatorId: number }
+  | { type: 'buy_and_merge'; generatorId: number; count: number; targetLevel: number }
+  | { type: 'merge_cascade'; generatorId: number; targetLevel: number }
+  | { type: 'quest_completed'; taskLabel: string }
   | { type: 'new_quest'; taskLabel: string }
-  | { type: 'gather_meat'; count: number; meatGained: number }
-  | { type: 'expand_board'; newRows: number; newCols: number };
+  | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
+  | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
+  | { type: 'expand_board'; newRows: number; newCols: number }
+  | { type: 'free_cells'; reason: string; freed: number };
+
+export interface StrategyDecision {
+  actions: SimulationAction[];
+  done: boolean;
+}
 
 export interface AIStrategy {
   name: string;
   description: string;
-  decide(state: GameSnapshot, rng: SeededRng): SimulationAction[];
+  decide(state: GameSnapshot, rng: SeededRng): StrategyDecision;
+  /** Called by engine when a task completes, so strategy can advance phase. */
+  onQuestCompleted?(): void;
+  /** Return current creature→generator mapping from invest phase. */
+  getCreatureGenMap?(): Array<{ creatureType: string; genId: number; genLevel: number; l1PerMeat: number }>;
+  /** Reset all mutable state before a new simulation run. */
+  reset?(): void;
 }
 
 export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks';
@@ -81,6 +97,7 @@ export interface TickMetrics {
   totalSpawns: number;
   totalMerges: number;
   totalCharges: number;
+  totalQuestMeatCost: number;
   maxCreatureLevelByType: Record<string, number>;
 
   // Resource flow — emission
@@ -92,6 +109,10 @@ export interface TickMetrics {
   // Resource flow — sink
   totalRune1Spent: number;
   totalRune2Spent: number;
+
+  // Resource flow — purchased with hard currency
+  rune1Purchased: number;
+  rune2Purchased: number;
 
   // Predicted EXP (sum of creature rewards for quest requirements only)
   totalPredictedExp: number;
@@ -125,7 +146,9 @@ export interface SimulationSummary {
 
 export interface ActionLogEntry {
   tick: number;
+  snapshotTick: number; // outer loop tick for snapshot lookup
   actionIndex: number;
+  taskNumber: number; // sequential task counter (1-based)
   action: SimulationAction;
   state: {
     krakenLevel: number;
@@ -149,6 +172,14 @@ export interface ActionLogEntry {
     actionTimeSec: number;
     sessionTimeSec: number;
     totalTimeSec: number;
+  };
+  /** Snapshot of entities at the moment of this action, for field popup. */
+  fieldSnapshot?: {
+    creatures: { type: string; level: number }[];
+    generators: { genId: number; level: number; charges: number }[];
+    runes: number;
+    boxes: number;
+    creatureGenMap?: { creatureType: string; genId: number; genLevel: number; l1PerMeat: number }[];
   };
   note: string;
 }
@@ -179,6 +210,9 @@ export interface CumulativeMetrics {
   totalGemsGained: number;
   totalRune1Spent: number;
   totalRune2Spent: number;
+  rune1Purchased: number;
+  rune2Purchased: number;
   totalTimeSec: number;
   totalPredictedExp: number;
+  totalQuestMeatCost: number;
 }

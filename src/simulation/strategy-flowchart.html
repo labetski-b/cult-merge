@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>RealisticStrategy — Блок-схема</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 24px; }
+  h1 { text-align: center; margin-bottom: 8px; font-size: 28px; color: #fff; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: 14px; }
+  .chart-container { background: #16213e; border-radius: 12px; padding: 24px; margin-bottom: 32px; overflow-x: auto; }
+  .chart-container .mermaid { display: flex; justify-content: center; }
+  h2 { margin: 24px 0 12px; font-size: 20px; color: #4a9eff; }
+  h3 { margin: 24px 0 12px; font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+  th { background: #0f3460; padding: 10px 16px; text-align: left; font-weight: 600; color: #4a9eff; }
+  td { padding: 10px 16px; border-top: 1px solid #1a1a3e; }
+  tr:hover td { background: #1a2744; }
+  .phase-num { display: inline-block; width: 36px; height: 36px; line-height: 36px; text-align: center; border-radius: 50%; background: #0f3460; color: #4a9eff; font-weight: 700; font-size: 14px; }
+  .phase-name { font-weight: 600; color: #fff; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0 24px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .legend-color { width: 16px; height: 16px; border-radius: 4px; }
+  .note { margin-top: 12px; color: #888; font-size: 13px; }
+  .arch-box { background: #0f3460; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; }
+  .arch-box code { background: #1a1a2e; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+  /* Tab navigation */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 6px;
+    background: #0f1a2e;
+    border-radius: 10px;
+  }
+  .tab-btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #8899aa;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .tab-btn:hover {
+    background: #16213e;
+    color: #c0d0e0;
+  }
+  .tab-btn.active {
+    background: #4a9eff;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+  }
+
+  /* Tab content transitions */
+  .tab-content {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.3s ease, max-height 0.01s linear 0.3s;
+    pointer-events: none;
+  }
+  .tab-content.visible {
+    opacity: 1;
+    max-height: none;
+    overflow: visible;
+    transition: opacity 0.3s ease, max-height 0.01s linear 0s;
+    pointer-events: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>RealisticStrategy — Phase State Machine</h1>
+<p class="subtitle">Engine вызывает decide() в цикле. Каждый вызов = микро-шаг. Цикл до done: true. Один tick = один значимый результат.</p>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="phase1">Phase 1: Early Game</button>
+  <button class="tab-btn" data-tab="phase2">Phase 2: Task</button>
+  <button class="tab-btn" data-tab="phase3">Phase 3: Reward</button>
+  <button class="tab-btn" data-tab="phase4">Phase 4: Invest</button>
+  <button class="tab-btn" data-tab="freecells">freeCells()</button>
+</div>
+
+<!-- ═══════════ TAB: OVERVIEW ═══════════ -->
+<div class="tab-content visible" id="tab-overview">
+
+<div class="arch-box">
+  <strong>Tick = один значимый результат:</strong><br>
+  &bull; Early game (kraken &lt; 2): один level-up кракена<br>
+  &bull; Normal game: task &rarr; reward &rarr; invest &rarr; done<br><br>
+  <strong>Движок вызывает стратегию в цикле, пока та не скажет «готово».</strong><br>
+  Engine loop: <code>while (!done) { decision = strategy.decide(state); execute(decision.actions); }</code><br><br>
+  <strong>Стратегия проходит 3 фазы последовательно: выполнить задание &rarr; забрать награды &rarr; вложиться в генераторы.</strong><br>
+  Phase state machine: <code>decide()</code> хранит <code>phase: 'task' | 'reward' | 'invest'</code>.<br><br>
+  <strong>Когда существо скормлено и задание выполнено, domain автоматически создаёт следующее задание. Стратегия переключается на фазу наград.</strong><br>
+  Quest completion: domain <code>feedEntity</code> завершает квест и сразу генерирует следующий task. Engine вызывает <code>strategy.onQuestCompleted()</code> &rarr; phase переключается на <code>'reward'</code>.<br><br>
+  <strong>Подстраховка: если по какой-то причине задание не было создано — генерируем его в конце тика.</strong><br>
+  ensureAutoTask(): safety net в конце тика. Генерирует task только если domain не создал (например первый тик после kraken=2).<br><br>
+  <strong>Когда не хватает мяса для зарядки генератора — стратегия запрашивает добычу мяса.</strong><br>
+  gatherMeat: стратегия эмитит <code>gather_meat</code> action с <code>targetCost</code>.<br><br>
+  <strong>Все покупки и улучшения генераторов за один проход. Без повторных вызовов.</strong><br>
+  One-pass invest: <code>investStep</code> всегда возвращает <code>done: true</code>. Все покупки и мержи происходят за один проход: N × <code>buy_generator</code> + 1 × <code>merge_cascade</code>. Engine обрабатывает <code>merge_cascade</code> — каскадно мержит генераторы от Lv1 до targetLevel.
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-color" style="background:#4a9eff"></div> Старт / Engine</div>
+  <div class="legend-item"><div class="legend-color" style="background:#ff9944"></div> Phase 1: Early game</div>
+  <div class="legend-item"><div class="legend-color" style="background:#3498db"></div> Phase 2: Task</div>
+  <div class="legend-item"><div class="legend-color" style="background:#9966cc"></div> Phase 3: Reward</div>
+  <div class="legend-item"><div class="legend-color" style="background:#27ae60"></div> Phase 4: Invest + Done</div>
+  <div class="legend-item"><div class="legend-color" style="background:#e8c23c"></div> Условие</div>
+  <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div> freeCells</div>
+</div>
+
+<h2>decide() — sequential phase state machine</h2>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    ENGINE["Движок: выполнить тик\nEngine: executeTick()\nloop до done: true"] --> CHECK_EARLY{"Кракен ещё маленький?\nkraken.level < 2?"}
+
+    CHECK_EARLY -- Да --> EARLY["Ранняя игра\nearlyGameStep()\nбез phase machine"]
+    EARLY -.-> DONE
+
+    CHECK_EARLY -- Нет --> TASK_PHASE
+
+    TASK_PHASE["Выполнение задания\nTASK phase\nquestStep(task)"] -.->|"задание в процессе"| TASK_PHASE
+    TASK_PHASE -->|"задание завершено\nonQuestCompleted() / stuck"| REWARD_PHASE
+
+    REWARD_PHASE["Забрать награды\nREWARD phase\nrewardsStep()"] -.->|"ещё есть rewards"| REWARD_PHASE
+    REWARD_PHASE -->|"награды обработаны\nИЛИ их не было"| INVEST_PHASE
+
+    INVEST_PHASE["Вложиться в генераторы\nINVEST phase\ninvestStep()\ndone: true (always)"]
+
+    INVEST_PHASE --> DONE["Подстраховка: создать задание\nensureAutoTask() safety net\nСохранить снимок + метрики\nТик завершён"]
+
+    classDef engineNode fill:#4a9eff,color:#fff,stroke:#3580d4,stroke-width:2px
+    classDef earlyNode fill:#ff9944,color:#fff,stroke:#dd7722,stroke-width:2px
+    classDef questNode fill:#3498db,color:#fff,stroke:#2980b9,stroke-width:2px
+    classDef rewardNode fill:#9966cc,color:#fff,stroke:#7744aa,stroke-width:2px
+    classDef investNode fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+    classDef condNode fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+
+    class ENGINE,DONE engineNode
+    class EARLY earlyNode
+    class TASK_PHASE questNode
+    class REWARD_PHASE rewardNode
+    class INVEST_PHASE investNode
+    class CHECK_EARLY condNode
+</pre>
+</div>
+
+<h2>Порядок фаз в тике</h2>
+<table>
+  <thead>
+    <tr><th style="width:60px">#</th><th style="width:180px">Фаза</th><th>Что делает</th><th style="width:80px">done</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="phase-num" style="background:#ff9944">1</span></td><td class="phase-name">Early game</td><td><strong>Прокачка кракена с нуля.</strong> Пока кракен &lt; 2: цикл кормёжки, спавна, зарядки и добычи мяса до level-up. Отдельная ветка, без phase machine.</td><td>false</td></tr>
+    <tr><td><span class="phase-num" style="background:#3498db">2</span></td><td class="phase-name">Task</td><td><strong>Выполнить текущее задание.</strong> Определить нужное существо &rarr; найти генератор &rarr; разрешить узкое место: добыть мясо &rarr; зарядить &rarr; заспавнить &rarr; освободить место &rarr; смержить &rarr; скормить. При завершении квеста &rarr; phase='reward'. При тупике &rarr; тоже переход к наградам.</td><td>false</td></tr>
+    <tr><td><span class="phase-num" style="background:#9966cc">3</span></td><td class="phase-name">Reward</td><td><strong>Забрать все награды за задание.</strong> Получить ожидающие награды + открыть коробки (освободить место если надо) + смержить и скормить руны. Если наград нет &rarr; сразу к инвестициям.</td><td>false</td></tr>
+    <tr><td><span class="phase-num" style="background:#27ae60">4</span></td><td class="phase-name">Invest</td><td><strong>Оптимизировать генераторы для будущих заданий.</strong> 3 шага: 1) добавить недостающие типы существ из квеста; 2) назначить лучший генератор с поля для каждого существа; 3) купить/улучшить генераторы от новейших к старейшим. <strong>Всегда done:true</strong> — один проход, без повторных вызовов.</td><td><strong>true</strong></td></tr>
+  </tbody>
+</table>
+
+<h2>Ключевые отличия от старой архитектуры</h2>
+<table>
+  <thead>
+    <tr><th style="width:200px">Было</th><th>Стало</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="phase-name">1 тик = 1 вызов decide()</td><td>1 тик = N вызовов decide() (до done: true)</td></tr>
+    <tr><td class="phase-name">gatherMeat — pre-tick фаза в engine</td><td>gather_meat — action от стратегии с targetCost</td></tr>
+    <tr><td class="phase-name">Post-tick sweep (engine)</td><td>Убран. Стратегия видит merge results на следующей итерации</td></tr>
+    <tr><td class="phase-name">Порядок: rewards → quest (priority dispatch)</td><td>Порядок: task → reward → invest (sequential phase state machine)</td></tr>
+    <tr><td class="phase-name">ensureAutoTask() между итерациями</td><td>Domain feed генерит next task. ensureAutoTask() — safety net в конце тика</td></tr>
+    <tr><td class="phase-name">decide() returns SimulationAction[]</td><td>decide() returns { actions, done: boolean }</td></tr>
+    <tr><td class="phase-name">Один результат: набор actions</td><td>Один тик = квест завершён ИЛИ kraken level-up</td></tr>
+  </tbody>
+</table>
+
+</div>
+
+<!-- ═══════════ TAB: PHASE 1 ═══════════ -->
+<div class="tab-content" id="tab-phase1">
+
+<h3 style="color:#ff9944">Phase 1: earlyGameStep() — kraken &lt; 2</h3>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    START["Ранняя игра\nearlyGameStep(state)"] --> HAS_RWD{"Есть награды или руны?\nrewards/boxes/runes?"}
+    HAS_RWD -- Да --> TO_REWARDS["Забрать награды\nrewardsStep()\ndone: false"]
+    HAS_RWD -- Нет --> HAS_CR{"Есть существа на поле?\ncreatures на поле?"}
+
+    HAS_CR -- Да --> FEED_ALL["Скормить всех существ\nот старших к младшим\nfeed ALL, highest level first\ndone: false"]
+
+    HAS_CR -- Нет --> HAS_GEN{"Есть генератор?\ngenerator на поле?"}
+    HAS_GEN -- Нет --> STUCK["Тупик: ничего делать\ndone: true"]
+
+    HAS_GEN -- Да --> HAS_CHARGES{"Генератор заряжен?\ncharges > 0?"}
+    HAS_CHARGES -- Да --> HAS_SPACE{"Есть свободные клетки?\nfree cells > 0?"}
+    HAS_SPACE -- Да --> SPAWN["Заспавнить всех существ\nиз доступных зарядов\nSpawn all charges\ndone: false"]
+    HAS_SPACE -- Нет --> STUCK2["Тупик: поле забито,\nкормить нечего\ndone: true"]
+
+    HAS_CHARGES -- Нет --> HAS_MEAT{"Хватает мяса\nна зарядку?\nmeat >= chargeCost?"}
+    HAS_MEAT -- Нет --> GATHER["Добыть мясо\nна зарядку генератора\ngather_meat(targetCost)\ndone: false"]
+    HAS_MEAT -- Да --> CHARGE["Зарядить генератор\ncharge_generator\ndone: false"]
+
+    classDef startN fill:#ff9944,color:#fff,stroke:#dd7722,stroke-width:2px
+    classDef condN fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef doneN fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+
+    class START startN
+    class HAS_RWD,HAS_CR,HAS_GEN,HAS_CHARGES,HAS_SPACE,HAS_MEAT condN
+    class FEED_ALL,SPAWN,GATHER,CHARGE,TO_REWARDS actionN
+    class STUCK,STUCK2 doneN
+</pre>
+</div>
+<p class="note">Цикл ранней игры: скормить существ &rarr; заспавнить новых &rarr; зарядить генератор &rarr; добыть мясо. Каждый вызов decide() делает один под-шаг. Engine повторяет пока кракен не достигнет уровня 2, после чего включается основная фазовая машина.</p>
+
+</div>
+
+<!-- ═══════════ TAB: PHASE 2 ═══════════ -->
+<div class="tab-content" id="tab-phase2">
+
+<h3 style="color:#3498db">Phase 2: questStep(task) — выполнение квеста</h3>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    START["Выполнение задания\nquestStep(state, task)"] --> FOCUS["Определить, какое существо\nнужно для задания\nДля двойного задания —\nвыбрать ближайшее к завершению\npickFocusType()"]
+    FOCUS --> FIND_WORK["Найти генератор для этого существа\nиз creatureGenMap\n(назначен на фазе invest)"]
+    FIND_WORK --> CAN{"Есть генератор\nдля нужного существа?\ncanProduce?"}
+
+    CAN -- Нет --> RET_STUCK["Тупик: нет генератора\nдля нужного существа\n(invest должен был\nобеспечить его раньше)"]
+
+    CAN -- Да --> MERGE["Попробовать смержить\nи скормить из того,\nчто уже есть на поле\nmergeForTask + feedPartialTask"]
+    MERGE --> HAS_MF{"Удалось что-то\nсмержить или скормить?\nactions > 0?"}
+    HAS_MF -- Да --> RET_MF["done: false"]
+
+    HAS_MF -- Нет --> CHECK_MISS["Каких нужных существ\nещё нет на поле\nв нужном уровне?\nmissingTypes"]
+    CHECK_MISS --> GRID_FULL{"Нужно спавнить,\nно поле забито?\nmissing > 0 AND grid full?"}
+    GRID_FULL -- Да --> FC[/"Освободить место\nна поле\nfreeCells(state, task)"\]
+    FC --> RET_FC["done: false"]
+
+    GRID_FULL -- Нет --> NO_CHARGE{"Генератор разряжен,\nа существа нужны?\ncharges == 0 AND missing > 0"}
+    NO_CHARGE -- Да --> MEAT{"Не хватает мяса\nна зарядку?\nmeat < chargeCost?"}
+    MEAT -- Да --> GATHER["Добыть мясо\ngather_meat(targetCost)\ndone: false"]
+    MEAT -- Нет --> DO_CHARGE["Зарядить генератор\ncharge_generator\ndone: false"]
+
+    NO_CHARGE -- Нет --> NEED_SPAWN{"Ещё нужно спавнить?\nmissing > 0?"}
+    NEED_SPAWN -- Да --> SPAWN["Заспавнить существ\nиз назначенного генератора\nspawnFull()\ndone: false"]
+
+    NEED_SPAWN -- Нет --> CHRG_WORK["Зарядить генератор\nдля следующей итерации\nchargeOnly()"]
+    CHRG_WORK --> HAS_CH{"Удалось зарядить?\ncharge > 0?"}
+    HAS_CH -- Да --> RET_CH["done: false"]
+    HAS_CH -- Нет --> STUCK2["Тупик: ничего не можем\nсделать по заданию"]
+
+    classDef startN fill:#3498db,color:#fff,stroke:#2980b9,stroke-width:2px
+    classDef condN fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef doneN fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+    classDef stuckN fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:2px
+    classDef fcN fill:#c0392b,color:#fff,stroke:#962d22,stroke-width:2px
+
+    class START startN
+    class CAN,GRID_FULL,NO_CHARGE,MEAT,NEED_SPAWN,HAS_MF,HAS_CH condN
+    class FOCUS,FIND_WORK,CHECK_MISS,SPAWN,MERGE,CHRG_WORK,GATHER,DO_CHARGE actionN
+    class RET_FC,RET_MF,RET_CH actionN
+    class RET_STUCK,STUCK2 stuckN
+    class FC fcN
+</pre>
+</div>
+<p class="note">Приоритеты: сначала использовать то, что есть на поле (мерж + кормёжка), потом спавнить недостающее. Один фокус, один генератор — довести до конца, потом следующее существо.</p>
+
+</div>
+
+<!-- ═══════════ TAB: PHASE 3 ═══════════ -->
+<div class="tab-content" id="tab-phase3">
+
+<h3 style="color:#9966cc">Phase 3: rewardsStep() — забрать награды</h3>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    START["Забрать награды\nrewardsStep(state)"] --> VFREE["Посчитать свободные клетки\nvirtualFree = free cells count"]
+    VFREE --> HAS_P{"Есть невостребованные\nнаграды?\npendingRewards > 0?"}
+    HAS_P -- Нет --> BOXES
+
+    HAS_P -- Да --> NEED_SPACE{"Нет места\nдля наград?\nvirtualFree == 0?"}
+    NEED_SPACE -- Да --> FC[/"Освободить место\nfreeCells(state, task)\nvirtualFree += freed"\]
+    FC --> CLAIM
+    NEED_SPACE -- Нет --> CLAIM["Забрать все награды\n(каждая занимает клетку)\nclaim_reward × N"]
+
+    CLAIM --> BOXES["Открыть коробки:\nдля каждой руны внутри\nopenBoxes loop"]
+    BOXES --> BOX_NEED{"Нет места\nдля руны из коробки?\nvirtualFree <= 0?"}
+    BOX_NEED -- Да --> FC_BOX[/"Принудительно освободить\nместо\nfreeCells(force=true)\nvirtualFree += freed"\]
+    FC_BOX --> BOX_DO
+    BOX_NEED -- Нет --> BOX_DO["Открыть коробку\nруна → занимает клетку\nкоробка исчезла → клетка свободна\nopen_box"]
+    BOX_DO --> BOX_MORE{"Ещё есть руны\nв коробках?"}
+    BOX_MORE -- Да --> BOX_NEED
+    BOX_MORE -- Нет --> RUNES["Смержить парные руны\nи скормить остатки\nmergeRunes + feedRunes"]
+    RUNES --> RET["Награды обработаны\nПереход к инвестициям\ndone: false"]
+
+    classDef startN fill:#9966cc,color:#fff,stroke:#7744aa,stroke-width:2px
+    classDef condN fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef fcN fill:#c0392b,color:#fff,stroke:#962d22,stroke-width:2px
+
+    class START startN
+    class HAS_P,NEED_SPACE,BOX_NEED,BOX_MORE condN
+    class VFREE,CLAIM,BOXES,BOX_DO,RUNES,RET actionN
+    class FC,FC_BOX fcN
+</pre>
+</div>
+
+</div>
+
+<!-- ═══════════ TAB: PHASE 4 ═══════════ -->
+<div class="tab-content" id="tab-phase4">
+
+<h3 style="color:#27ae60">Phase 4: investStep() — инвестиции в генераторы</h3>
+
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    START["Инвестировать в генераторы\ninvestStep(state)"] --> INVEST["Оптимизировать генераторы:\nкупить недостающие,\nулучшить существующие\ninvestGenerators()"]
+    INVEST --> RESET["Сбросить фазу на задание\nдля следующего тика\nphase = 'task'"]
+    RESET --> RET["Тик завершён\ndone: true (всегда)"]
+    RET --> AUTO["Подстраховка:\nесли задание не создано —\nсоздать\nensureAutoTask()"]
+    AUTO --> SNAP["Сохранить снимок состояния\nи метрики\nSnapshot + metrics"]
+
+    classDef startN fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef doneN fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+    classDef engineN fill:#4a9eff,color:#fff,stroke:#3580d4,stroke-width:2px
+    classDef investN fill:#2ecc71,color:#1a1a2e,stroke:#27ae60,stroke-width:2px
+
+    class START startN
+    class INVEST investN
+    class RESET actionN
+    class RET doneN
+    class AUTO,SNAP engineN
+</pre>
+</div>
+
+<h3 style="color:#2ecc71">investGenerators() — оптимальные генераторы per creature</h3>
+
+<div class="arch-box">
+  <strong>Цель:</strong> для каждого типа существа найти и обеспечить генератор с лучшей эффективностью (<code>l1PerMeat</code>). Это определяет, сколько Lv1-эквивалентов существ даёт генератор за единицу мяса.<br><br>
+  <strong>l1PerMeat</strong> = <code>Σ(chance × numCreatures × 2^(creatureLevel-1)) / chargeCost</code><br>
+  Lv2 существо = 2× Lv1, Lv3 = 4× Lv1 и т.д. Считается через <code>computeL1PerMeat()</code> (= <code>getExpectedL1PerCharge()</code> / <code>chargeCost</code>).<br><br>
+  <strong>Карта существ:</strong> <code>creatureGenMap</code> хранит для каждого типа существа — какой генератор его производит и насколько он эффективен. Карта сохраняется между тиками и используется фазой заданий для выбора генератора.<br>
+  Техн.: <code>Map&lt;creatureType → { entityId, genId, genLevel, l1PerMeat }&gt;</code> — persistent, хранится в стратегии.<br><br>
+  <strong>Всё за один проход:</strong> <code>investStep</code> всегда возвращает <code>done: true</code>. Покупки + мержи за один проход: buy + <code>merge_cascade</code> action. Engine обрабатывает <code>merge_cascade</code> — каскадно мержит генераторы одной family от Lv1 до targetLevel.<br><br>
+  <strong>Без частичных покупок:</strong> upgrade покупается только если хватает бюджета на полную стоимость. Частичные покупки не производятся.<br><br>
+  <strong>3 шага investGenerators:</strong><br>
+  &bull; <strong>Шаг 1 — Добавить недостающие типы существ из квеста:</strong> если в задании есть существо, для которого нет записи в карте — создать заглушку. Техн.: <code>{ entityId:'', genId:0, genLevel:0, l1PerMeat:0 }</code><br>
+  &bull; <strong>Шаг 2 — Назначить лучший генератор с поля:</strong> для каждого существа в карте перебрать все генераторы на поле, вычислить эффективность и выбрать лучший. Если ни один генератор на поле не производит это существо — пропустить, покупка будет на шаге 3.<br>
+  &bull; <strong>Шаг 3 — Покупка и улучшение (от новейших к старейшим):</strong> зарезервировать бюджет для существ без генератора. Для каждого существа: найти конфиг генератора (доступного на текущем уровне кракена). Две ветки:<br>
+  &nbsp;&nbsp;— <strong>Case A (генератора нет):</strong> купить Lv1. Если рун не хватает на первые генераторы (уровни 1-2, критически важные) — докупить руны.<br>
+  &nbsp;&nbsp;— <strong>Case B (генератор есть):</strong> сравнить 3 варианта: улучшить (+1 уровень), купить новый Lv1, оставить как есть. Выбрать лучший по эффективности. Upgrade: рассчитать каскад покупок &rarr; N × <code>buy_generator</code> + <code>merge_cascade</code>. NewLv1: <code>buy_generator</code>.
+</div>
+
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    IG_START["Оптимизация генераторов\ninvestGenerators(state, usedIds, questCreatureTypes)"] --> IG_STEP1["Шаг 1: Добавить новые типы существ\nЕсли в задании есть существо,\nдля которого нет записи —\nсоздать заглушку\nAdd missing creature types"]
+
+    IG_STEP1 --> IG_STEP2["Шаг 2: Назначить лучший генератор\nДля каждого существа в карте"]
+    IG_STEP2 --> IG_SCAN["Перебрать все генераторы\nна поле и выбрать\nсамый эффективный\n(по l1PerMeat)"]
+    IG_SCAN --> IG_NONE{"На поле нет генератора\nдля этого существа?\nbestL1pm === 0?"}
+    IG_NONE -- Да --> IG_SKIP_S2["Пропустить — генератор\nбудет куплен на шаге 3"]
+    IG_NONE -- Нет --> IG_ASSIGN["Запомнить лучший генератор\nдля этого существа\nupdate creatureGenMap"]
+    IG_SKIP_S2 --> IG_NEXT_S2["Следующее существо"]
+    IG_ASSIGN --> IG_NEXT_S2
+    IG_NEXT_S2 --> IG_STEP2
+
+    IG_NEXT_S2 --> IG_SORT["Шаг 3: Покупка и улучшение\nОт новейших существ к старейшим\nРезерв бюджета для тех,\nу кого нет генератора\nSort newest→oldest"]
+    IG_SORT --> IG_LOOP["Для каждого типа существа:"]
+
+    IG_LOOP --> IG_GENCFG["Найти конфиг генератора,\nкоторый производит это существо\nи доступен на текущем уровне\ngenConfig lookup"]
+    IG_GENCFG --> IG_NO_CFG{"Генератор ещё\nне разблокирован?\ngenConfig not found?"}
+    IG_NO_CFG -- Да --> IG_SKIP["Пропустить"]
+
+    IG_NO_CFG -- Нет --> IG_BRANCH{"Генератора ещё нет?\ngenId === 0?"}
+
+    %% ── Case A: No generator — buy Lv1 ──
+    IG_BRANCH -- "Да (Case A)" --> IG_A_AFFORD{"Хватает рун\nна покупку?\nbudget ≥ purchaseCost?"}
+    IG_A_AFFORD -- Нет --> IG_A_RUNES["Докупить руны\nна первые генераторы\n(только уровни 1-2)\nbuy_runes"]
+    IG_A_RUNES --> IG_A_SPACE
+    IG_A_AFFORD -- Да --> IG_A_SPACE{"Поле забито?\ngrid full?"}
+    IG_A_SPACE -- Да --> IG_A_FREE[/"Освободить место\nfreeCells()"\]
+    IG_A_FREE --> IG_A_FREE_OK{"Удалось освободить?\nfreed cells?"}
+    IG_A_FREE_OK -- Нет --> IG_SKIP
+    IG_A_FREE_OK -- Да --> IG_A_BUY
+    IG_A_SPACE -- Нет --> IG_A_BUY["Купить генератор\nbuy_generator\nbudget -= cost"]
+    IG_A_BUY --> IG_A_UPDATE["Запомнить новый генератор\nв карте существ\nupdate creatureGenMap"]
+    IG_A_UPDATE --> IG_NEXT
+
+    %% ── Case B: Has generator — compare candidates ──
+    IG_BRANCH -- "Нет (Case B)" --> IG_B_CANDS["Сравнить 3 варианта:\n1) Улучшить текущий генератор\n2) Купить новый Lv1\n3) Оставить как есть\nCompare upgrade vs newLv1 vs none"]
+
+    IG_B_CANDS --> IG_B_UPG_CALC["Посчитать стоимость\nулучшения на +1 уровень\nСколько нужно купить Lv1\nдля каскадного мержа?\ncalcGensNeeded → upgradeCost"]
+    IG_B_UPG_CALC --> IG_B_UPG_OK{"Улучшение возможно\nи по карману?\nnextLevel ≤ maxLevel\nAND cost ≤ budget - reserve?"}
+    IG_B_UPG_OK -- Нет --> IG_B_UPG_ZERO["Улучшение невозможно\nили слишком дорого"]
+    IG_B_UPG_OK -- Да --> IG_B_PICK
+
+    IG_B_UPG_ZERO --> IG_B_PICK["Выбрать лучший вариант\nпо эффективности (l1PerMeat)\nmax(upgrade, newLv1) vs current"]
+    IG_B_PICK --> IG_B_CHOICE{"Что выгоднее?"}
+
+    IG_B_CHOICE -- "Оставить" --> IG_SKIP
+    IG_B_CHOICE -- upgrade --> IG_B_DO_UPG["Купить N генераторов Lv1\nи смержить в каскад\nN × buy_generator\n+ merge_cascade"]
+    IG_B_DO_UPG --> IG_B_UPD_UPG["Обновить карту:\nуровень и эффективность\nupdate creatureGenMap"]
+    IG_B_UPD_UPG --> IG_NEXT
+
+    IG_B_CHOICE -- newLv1 --> IG_B_NL1_AFFORD{"Хватает рун\nна новый Lv1?\nbudget ≥ purchaseCost?"}
+    IG_B_NL1_AFFORD -- Нет --> IG_SKIP
+    IG_B_NL1_AFFORD -- Да --> IG_B_DO_NL1["Купить новый Lv1\nfreeCells → buy_generator"]
+    IG_B_DO_NL1 --> IG_B_UPD_NL1["Обновить карту:\nновый Lv1 генератор\nupdate creatureGenMap"]
+    IG_B_UPD_NL1 --> IG_NEXT
+
+    IG_SKIP --> IG_NEXT["Следующий тип существа"]
+    IG_NEXT --> IG_LOOP
+
+    classDef startN fill:#2ecc71,color:#1a1a2e,stroke:#27ae60,stroke-width:2px
+    classDef condN fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef skipN fill:#555,color:#aaa,stroke:#444,stroke-width:1px
+    classDef loopN fill:#1a5276,color:#e0e0e0,stroke:#2471a3,stroke-width:2px
+    classDef step1N fill:#3498db,color:#fff,stroke:#2980b9,stroke-width:2px
+    classDef step2N fill:#9b59b6,color:#fff,stroke:#8e44ad,stroke-width:2px
+    classDef fcN fill:#c0392b,color:#fff,stroke:#962d22,stroke-width:2px
+    classDef mergeN fill:#e67e22,color:#fff,stroke:#d35400,stroke-width:2px
+
+    class IG_START startN
+    class IG_NONE,IG_NO_CFG,IG_BRANCH,IG_A_AFFORD,IG_A_SPACE,IG_A_FREE_OK,IG_B_UPG_OK,IG_B_CHOICE,IG_B_NL1_AFFORD condN
+    class IG_SCAN,IG_SKIP_S2,IG_ASSIGN,IG_GENCFG,IG_B_CANDS,IG_B_UPG_CALC,IG_B_UPG_ZERO,IG_B_PICK,IG_A_RUNES,IG_A_BUY,IG_A_UPDATE,IG_B_DO_UPG,IG_B_UPD_UPG,IG_B_DO_NL1,IG_B_UPD_NL1 actionN
+    class IG_SKIP skipN
+    class IG_LOOP,IG_NEXT,IG_NEXT_S2 loopN
+    class IG_STEP1 step1N
+    class IG_STEP2,IG_SORT step2N
+    class IG_A_FREE fcN
+</pre>
+</div>
+
+<h3 style="color:#2ecc71">calcGensNeeded(targetLevel, avail) — рекурсивный расчёт каскада</h3>
+
+<div class="arch-box">
+  <strong>Задача:</strong> рассчитать, сколько генераторов Lv1 нужно купить, чтобы собрать генератор целевого уровня. Учитывает уже имеющиеся на поле генераторы, которые можно использовать для мержа.<br><br>
+  <strong>avail[i]</strong> = количество генераторов уровня (i+1) на поле. Мутирует массив при «использовании» генераторов.<br><br>
+  <strong>Рекурсия need(lv):</strong><br>
+  &bull; <code>lv == 1</code> → нужен один генератор, return 1 (одна покупка)<br>
+  &bull; <code>avail[lv-2] >= 2</code> → есть два готовых генератора для мержа, return 0 (покупать не надо)<br>
+  &bull; Иначе: не хватает генераторов, <code>missing = 2 - avail[lv-2]</code>, обнулить avail, рекурсивно рассчитать для каждого недостающего<br><br>
+  <strong>Пример:</strong> targetLevel=3, avail=[1,0] (один Lv1 на поле):<br>
+  need(3) → need(2) × 2 → need(2): avail[0]=1, missing=1, need(1)=1. Второй need(2): avail[0]=0, missing=2, need(1)×2=2. Итого: 3 покупки Lv1.
+</div>
+
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    CGN_START["Расчёт каскада покупок\ncalcGensNeeded(targetLevel, avail)"] --> CGN_NEED["Сколько Lv1 нужно купить\nдля сборки целевого уровня?\nneed(lv = targetLevel)"]
+    CGN_NEED --> CGN_BASE{"Нужен Lv1?\nlv == 1?"}
+    CGN_BASE -- Да --> CGN_RET1["Купить 1 генератор\nreturn 1"]
+    CGN_BASE -- Нет --> CGN_HAVE{"Есть 2 готовых\nгенератора для мержа?\navail#91;lv-2#93; >= 2?"}
+    CGN_HAVE -- Да --> CGN_USE["Используем имеющиеся\nПокупать не нужно\navail#91;lv-2#93; -= 2\nreturn 0"]
+    CGN_HAVE -- Нет --> CGN_MISS["Не хватает генераторов\nНужно докупить\nmissing = 2 - avail#91;lv-2#93;\navail#91;lv-2#93; = 0"]
+    CGN_MISS --> CGN_REC["Рекурсивно посчитать\nсколько Lv1 нужно\nдля каждого недостающего\ntotal = Σ need(lv-1)"]
+    CGN_REC --> CGN_RET["Итого покупок Lv1\nreturn total"]
+
+    classDef startN fill:#2ecc71,color:#1a1a2e,stroke:#27ae60,stroke-width:2px
+    classDef condN fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionN fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef retN fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+
+    class CGN_START startN
+    class CGN_BASE,CGN_HAVE condN
+    class CGN_NEED,CGN_MISS,CGN_REC actionN
+    class CGN_RET1,CGN_USE,CGN_RET retN
+</pre>
+</div>
+
+<h3>Scoring table: Gen1 → l1PerMeat</h3>
+<table>
+  <thead>
+    <tr><th>Gen1 Lv</th><th>chargeCost</th><th>Creature1 l1/meat</th><th>Creature2 l1/meat</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>1</td><td>15.0</td><td>—</td></tr>
+    <tr><td>2</td><td>1</td><td style="color:#2ecc71;font-weight:bold">25.2 ← best</td><td>2.0</td></tr>
+    <tr><td>3</td><td>2</td><td>12.3</td><td>5.3</td></tr>
+    <tr><td>4</td><td>3</td><td>6.0</td><td>9.0</td></tr>
+    <tr><td>5</td><td>5</td><td>1.3</td><td style="color:#2ecc71;font-weight:bold">11.5 ← best</td></tr>
+  </tbody>
+</table>
+<p class="note">Формула: <code>l1PerMeat = getExpectedL1PerCharge(genId, genLevel, creatureType) / chargeCost</code></p>
+<p class="note">Где <code>L1PerCharge = Σ(chance × numCreatures × 2^(creatureLevel-1))</code>. Creature Lv2 = 2× L1, Lv3 = 4× L1.</p>
+<p class="note">→ Для Creature1 оптимален Gen1 <strong>Lv2</strong>. Для Creature2 — Gen1 <strong>Lv5</strong>. Стратегия держит два Gen1 разного уровня.</p>
+
+</div>
+
+<!-- ═══════════ TAB: freeCells ═══════════ -->
+<div class="tab-content" id="tab-freecells">
+
+<h3 style="color:#c0392b">freeCells() — универсальная функция освобождения места</h3>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart TD
+    FC_START["Освобождение места на поле\nfreeCells(state, task, usedIds, force?)"] --> FC_CHECK{"Место уже есть\nи не принудительный режим?\n!force AND free cells > 0?"}
+    FC_CHECK -- Да --> FC_NOOP["Ничего делать не нужно\nreturn []"]
+    FC_CHECK -- Нет --> FC_MERGE_CR["Попробовать смержить\nвсех одинаковых существ\n(пропустить макс. уровень)\nbuildMergesDeterministic"]
+    FC_MERGE_CR --> FC_MERGE_RN["Смержить парные руны\nmerge rune pairs"]
+    FC_MERGE_RN --> FC_FREED{"Удалось освободить\nместо мержами?\n(каждый мерж = +1 клетка)"}
+    FC_FREED -- Да --> FC_DONE["Вернуть мерж-действия\nreturn merge actions"]
+    FC_FREED -- Нет --> FC_FIND["Найти существ, которые\nне нужны для задания"]
+    FC_FIND --> FC_HAS{"Есть лишние существа?\nnon-task found?"}
+    FC_HAS -- Да --> FC_SORT["Отсортировать:\nсначала самые старые линейки,\nпотом самый низкий уровень\n(самые бесполезные первыми)"]
+    FC_HAS -- Нет --> FC_FALL["Крайний случай:\nвсе существа по тому же\nпринципу (включая нужных)"]
+    FC_SORT --> FC_FEED["Скормить одно\nсамое бесполезное существо\nfeed cheapest"]
+    FC_FALL --> FC_FEED
+    FC_FEED --> FC_RET["Клетка освобождена\nreturn actions"]
+
+    classDef startFc fill:#c0392b,color:#fff,stroke:#962d22,stroke-width:2px
+    classDef condFc fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef actionFc fill:#2b4570,color:#e0e0e0,stroke:#3a5a8a,stroke-width:1px
+    classDef doneFc fill:#27ae60,color:#fff,stroke:#1e8449,stroke-width:2px
+
+    class FC_START startFc
+    class FC_CHECK,FC_FREED,FC_HAS condFc
+    class FC_MERGE_CR,FC_MERGE_RN,FC_FIND,FC_SORT,FC_FALL,FC_FEED actionFc
+    class FC_NOOP,FC_DONE,FC_RET doneFc
+</pre>
+</div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: {
+      curve: 'basis',
+      padding: 16,
+      nodeSpacing: 30,
+      rankSpacing: 40,
+      useMaxWidth: false
+    },
+    themeVariables: {
+      darkMode: true,
+      background: '#16213e',
+      primaryColor: '#2b4570',
+      primaryTextColor: '#e0e0e0',
+      lineColor: '#4a6fa5',
+      fontSize: '13px'
+    }
+  });
+
+  // Wait for mermaid to render all diagrams (all tabs visible initially via inline style),
+  // then hide non-active tabs.
+  document.addEventListener('DOMContentLoaded', function() {
+    // Make all tabs visible so mermaid can render SVGs
+    var allTabs = document.querySelectorAll('.tab-content');
+    allTabs.forEach(function(tab) {
+      tab.style.opacity = '1';
+      tab.style.maxHeight = 'none';
+      tab.style.overflow = 'visible';
+      tab.style.pointerEvents = 'auto';
+    });
+
+    // After mermaid finishes rendering, hide non-active tabs
+    // mermaid.run() returns a promise; also use a fallback timeout
+    var hideNonActive = function() {
+      allTabs.forEach(function(tab) {
+        tab.style.opacity = '';
+        tab.style.maxHeight = '';
+        tab.style.overflow = '';
+        tab.style.pointerEvents = '';
+        if (!tab.classList.contains('visible')) {
+          // Already not visible by CSS
+        } else {
+          // Keep visible
+        }
+      });
+    };
+
+    // Use mermaid's run promise if available, else timeout
+    if (typeof mermaid.run === 'function') {
+      mermaid.run().then(hideNonActive).catch(function() {
+        setTimeout(hideNonActive, 500);
+      });
+    } else {
+      setTimeout(hideNonActive, 800);
+    }
+
+    // Tab switching logic
+    var buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var targetTab = btn.getAttribute('data-tab');
+
+        // Update active button
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+
+        // Show/hide tab content
+        allTabs.forEach(function(tab) {
+          var tabId = tab.id.replace('tab-', '');
+          if (tabId === targetTab) {
+            tab.classList.add('visible');
+          } else {
+            tab.classList.remove('visible');
+          }
+        });
+      });
+    });
+  });
+</script>
+</body>
+</html>

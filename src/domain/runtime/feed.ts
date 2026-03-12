@@ -38,6 +38,7 @@ export type FeedRuntimeEvent =
       eyesGained: number;
       predictedExp: number;
       completedLine: string | null;
+      meatCost: number;
     };
 
 type FeedRuntimeResult = RuntimeResult<FeedRuntimeEvent, FeedRuntimeReason>;
@@ -201,7 +202,7 @@ export function feedEntity(
     });
   }
 
-  const mandatoryTask = getCurrentMandatoryTask(ctx.balance, expResult.newState.level, snapshot.taskProgress);
+  const mandatoryTask = getCurrentMandatoryTask(ctx.balance, snapshot.kraken.level, snapshot.taskProgress);
   const isMandatory = mandatoryTask !== null;
   const task = mandatoryTask ?? snapshot.currentAutoTask;
 
@@ -242,12 +243,17 @@ export function feedEntity(
   };
 
   if (isMandatory) {
-    const levelKey = expResult.newState.level.toString();
+    const levelKey = snapshot.kraken.level.toString();
     const nextTaskProgress = {
       ...snapshot.taskProgress,
       [levelKey]: (snapshot.taskProgress[levelKey] ?? 0) + 1
     };
-    const nextMandatoryTask = getCurrentMandatoryTask(ctx.balance, expResult.newState.level, nextTaskProgress);
+    // Check old level first for remaining mandatory tasks
+    let nextMandatoryTask = getCurrentMandatoryTask(ctx.balance, snapshot.kraken.level, nextTaskProgress);
+    // If no more at old level and we leveled up, check new level
+    if (!nextMandatoryTask && expResult.newState.level > snapshot.kraken.level) {
+      nextMandatoryTask = getCurrentMandatoryTask(ctx.balance, expResult.newState.level, nextTaskProgress);
+    }
     const generationSnapshot: GameSnapshot = {
       ...nextSnapshot,
       taskProgress: nextTaskProgress,
@@ -295,7 +301,8 @@ export function feedEntity(
     taskKind: isMandatory ? 'mandatory' : 'auto',
     eyesGained: taskEyes,
     predictedExp,
-    completedLine: isMandatory ? null : (task.creatures[0]?.type ?? null)
+    completedLine: isMandatory ? null : (task.creatures[0]?.type ?? null),
+    meatCost: task.debugMeatCost ?? 0
   });
 
   return {

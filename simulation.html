@@ -421,11 +421,11 @@
         <label>X Axis:
           <select id="x-axis-mode">
             <option value="sessions">Sessions</option>
-            <option value="ticks">Ticks</option>
             <option value="presses">Sacrifices</option>
             <option value="tasks">Per Task</option>
             <option value="time">Time (minutes)</option>
             <option value="krakenLevel">Kraken Level</option>
+            <option value="chapter">Chapter</option>
           </select>
         </label>
       </div>
@@ -445,6 +445,12 @@
           <h3>Spawns per Quest</h3>
           <span class="agg-badge"></span>
           <canvas id="chart-spawns-per-task"></canvas>
+        </div>
+
+        <div class="chart-container chart-full-width">
+          <h3>Quest Meat Cost (scoring)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-quest-meat-cost"></canvas>
         </div>
 
         <div class="chart-container">
@@ -590,6 +596,62 @@
           <span class="agg-badge"></span>
           <canvas id="chart-sessions-per-level"></canvas>
         </div>
+
+        <div class="chart-container">
+          <h3>Tasks Completed per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-tasks-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Spawns per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-spawns-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Unique Creatures per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-creatures-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Time per Chapter (min)</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-time-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Meat per Press per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-meat-per-press-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Generators Unlocked per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-generators-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Sessions per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-sessions-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Tasks per Session per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-tasks-per-session-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Meat Spent per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-meat-spent-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Runes Purchased per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-runes-purchased-per-chapter"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Eyes per Quest per Chapter</h3>
+          <span class="agg-badge"></span>
+          <canvas id="chart-eyes-per-quest-per-chapter"></canvas>
+        </div>
       </section>
     </div>
 
@@ -621,6 +683,7 @@
             <thead>
               <tr>
                 <th>#</th>
+                <th>Q#</th>
                 <th>Action</th>
                 <th>Detail</th>
                 <th>Lvl</th>
@@ -643,7 +706,7 @@
               </tr>
             </thead>
             <tbody id="action-log-body">
-              <tr><td colspan="20" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+              <tr><td colspan="21" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
             </tbody>
           </table>
         </div>
