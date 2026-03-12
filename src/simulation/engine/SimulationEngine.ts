@@ -3,7 +3,7 @@ import { openBox } from '@domain/boxes';
 import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
-import { addExp, getCurrentStepReward } from '@domain/kraken';
+import { addExp, getCurrentStepRewards } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
@@ -705,7 +705,9 @@ export class SimulationEngine {
       case 'claim_reward': {
         const r = this.state.pendingRewards[0];
         if (!r) return '';
-        return r.type === 'egg' ? `egg: ${r.value}` : `box #${r.value}`;
+        if (r.type === 'egg') return `egg: ${r.value}`;
+        if (r.type === 'flowerpot') return `flowerpot Lv${r.value}`;
+        return `box #${r.value}`;
       }
       case 'open_box': {
         const box = this.state.entities[action.boxId];

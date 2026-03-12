@@ -118,7 +118,7 @@ export interface ProgressionStep {
   level: number;
   step: number;
   expRequired: number;
-  reward: ProgressReward | null;
+  rewards: ProgressReward[];
 }
 
 export type RuneItemKey =

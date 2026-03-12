@@ -170,13 +170,13 @@ export function KrakenPanel() {
   // Step markers on progress bar -- every step boundary shown.
   // Steps with rewards get a RewardDot icon; steps without get a simple tick mark.
   let cumulativeExp = 0;
-  const stepMarkers: { position: number; reward: ProgressReward | null; completed: boolean }[] = [];
+  const stepMarkers: { position: number; rewards: ProgressReward[]; completed: boolean }[] = [];
   for (const stepInfo of levelSteps) {
     cumulativeExp += stepInfo.expRequired;
     if (totalExp > 0) {
       stepMarkers.push({
         position: cumulativeExp / totalExp,
-        reward: stepInfo.reward,
+        rewards: stepInfo.rewards,
         completed: stepInfo.completed
       });
     }
@@ -214,8 +214,8 @@ export function KrakenPanel() {
             className="step-dot-position"
             style={{ left: `${marker.position * 100}%` }}
           >
-            {marker.reward
-              ? <RewardDot reward={marker.reward} completed={marker.completed} />
+            {marker.rewards.length > 0
+              ? <RewardDot reward={marker.rewards[0]!} completed={marker.completed} />
               : <div className={`step-dot${marker.completed ? ' step-dot-done' : ''}`} />}
           </div>
         ))}

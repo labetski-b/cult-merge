@@ -9,7 +9,7 @@ import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '
 import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
-import { addExp, getRequiredExp, getCurrentStepReward, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
+import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
@@ -1689,8 +1689,8 @@ export function useRequiredExp() {
   return useGameStore((state) => getRequiredExp(BALANCE, state.kraken));
 }
 
-export function useCurrentStepReward() {
-  return useGameStore((state) => getCurrentStepReward(BALANCE, state.kraken));
+export function useCurrentStepRewards() {
+  return useGameStore((state) => getCurrentStepRewards(BALANCE, state.kraken));
 }
 
 export function useLevelSteps() {

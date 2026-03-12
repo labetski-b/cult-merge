@@ -249,7 +249,7 @@ function buildMergeDestroyer(): string {
   const byLevel = groupBy(progression, e => e.level);
   const levels = Array.from(byLevel.keys()).sort((a, b) => a - b);
 
-  function resolveNest(reward: typeof progression[0]['reward']): [string, string] {
+  function resolveNest(reward: typeof progression[0]['rewards'][number] | undefined): [string, string] {
     if (!reward) return ['', ''];
     if (reward.type === 'res_box') {
       return ['Res_Box', String(reward.value)];
@@ -277,7 +277,7 @@ function buildMergeDestroyer(): string {
       if (prevSteps.length > 0) {
         const totalExp = prevSteps.reduce((sum, s) => sum + s.expRequired, 0);
         const lastStep = prevSteps[prevSteps.length - 1]!;
-        const [nestId, nestLevel] = resolveNest(lastStep.reward);
+        const [nestId, nestLevel] = resolveNest(lastStep.rewards[0]);
         rows.push([
           'Destroyer_Merge1', String(k), '0', String(totalExp), '3', nestId, nestLevel,
         ]);
@@ -292,7 +292,7 @@ function buildMergeDestroyer(): string {
       for (let i = 0; i < currAllSteps.length - 1; i++) {
         const step = currAllSteps[i]!;
         cumulativeExp += step.expRequired;
-        const [nestId, nestLevel] = resolveNest(step.reward);
+        const [nestId, nestLevel] = resolveNest(step.rewards[0]);
         rows.push([
           'Destroyer_Merge1', String(k), String(i + 1), String(cumulativeExp), '3', nestId, nestLevel,
         ]);
@@ -311,8 +311,9 @@ function buildMergeGrid(): string {
   // Находим все grid rewards
   const gridRewards: { level: number; value: number }[] = [];
   for (const entry of progression) {
-    if (entry.reward?.type === 'grid') {
-      gridRewards.push({ level: entry.level, value: entry.reward.value as number });
+    const gridReward = entry.rewards.find(r => r.type === 'grid');
+    if (gridReward) {
+      gridRewards.push({ level: entry.level, value: gridReward.value as number });
     }
   }
 
