@@ -1,0 +1,18 @@
+[
+  { "chapter": 2, "baseline_merge_resource": 246, "experiment_merge_resource": 246, "ratio": 1.000 },
+  { "chapter": 3, "baseline_merge_resource": 2453, "experiment_merge_resource": 2453, "ratio": 1.000 },
+  { "chapter": 4, "baseline_merge_resource": 5230, "experiment_merge_resource": 4750, "ratio": 0.908 },
+  { "chapter": 5, "baseline_merge_resource": 7947, "experiment_merge_resource": 8900, "ratio": 1.120 },
+  { "chapter": 6, "baseline_merge_resource": 9045, "experiment_merge_resource": 16100, "ratio": 1.780 },
+  { "chapter": 7, "baseline_merge_resource": 12853, "experiment_merge_resource": 28200, "ratio": 2.194 },
+  { "chapter": 8, "baseline_merge_resource": 18242, "experiment_merge_resource": 47400, "ratio": 2.598 },
+  { "chapter": 9, "baseline_merge_resource": 18462, "experiment_merge_resource": 76500, "ratio": 4.144 },
+  { "chapter": 10, "baseline_merge_resource": 24920, "experiment_merge_resource": 119000, "ratio": 4.775 },
+  { "chapter": 11, "baseline_merge_resource": 26437, "experiment_merge_resource": 177000, "ratio": 6.695 },
+  { "chapter": 12, "baseline_merge_resource": 37797, "experiment_merge_resource": 252000, "ratio": 6.667 },
+  { "chapter": 13, "baseline_merge_resource": 39687, "experiment_merge_resource": 342000, "ratio": 8.617 },
+  { "chapter": 14, "baseline_merge_resource": 49502, "experiment_merge_resource": 442000, "ratio": 8.929 },
+  { "chapter": 15, "baseline_merge_resource": 60013, "experiment_merge_resource": 544000, "ratio": 9.065 },
+  { "chapter": 16, "baseline_merge_resource": 73930, "experiment_merge_resource": 633000, "ratio": 8.562 },
+  { "chapter": 17, "baseline_merge_resource": 63573, "experiment_merge_resource": 696451, "ratio": 10.955 }
+]

@@ -337,6 +337,66 @@
       line-height: 1.6;
       white-space: pre;
     }
+
+    /* ── Quest Rewards tab ── */
+    .qr-charts-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .qr-chart-wrap {
+      flex: 1;
+      min-width: 0;
+      background: #1a252e;
+      border-radius: 8px;
+      padding: 12px;
+      height: 320px;
+    }
+    .quest-rewards-section {
+      max-width: 720px;
+    }
+    .quest-rewards-section h2 {
+      margin-bottom: 4px;
+    }
+    .qr-subtitle {
+      opacity: 0.55;
+      font-size: 12px;
+      margin: 0 0 14px;
+    }
+    .qr-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    .qr-table th {
+      position: sticky;
+      top: 0;
+      background: #1e2a33;
+      padding: 6px 10px;
+      border-bottom: 2px solid #3a4f5e;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .qr-table td {
+      padding: 4px 10px;
+      border-bottom: 1px solid #293742;
+      white-space: nowrap;
+    }
+    .qr-table tbody tr:hover {
+      background: rgba(77, 226, 194, 0.06);
+    }
+    .qr-num   { width: 36px; text-align: center; opacity: 0.5; }
+    .qr-quest { text-align: left; }
+    .qr-center { text-align: center; }
+    .qr-right  { text-align: right; }
+    .qr-pos { color: #4de2c2; }
+    .qr-neg { color: #e24d4d; }
+    .qr-totals td {
+      font-weight: 700;
+      border-top: 2px solid #3a4f5e;
+      padding-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -389,6 +449,7 @@
       <button class="tab-btn active" data-tab="tab-summary">Summary</button>
       <button class="tab-btn" data-tab="tab-charts">Charts</button>
       <button class="tab-btn" data-tab="tab-action-log">Action Log</button>
+      <button class="tab-btn" data-tab="tab-quest-rewards">Quest Rewards</button>
     </div>
 
     <div class="tab-panel" id="tab-summary">
@@ -710,6 +771,42 @@
             </tbody>
           </table>
         </div>
+      </section>
+    </div>
+  </div>
+
+    <div class="tab-panel hidden" id="tab-quest-rewards">
+      <div class="qr-charts-row">
+        <div class="qr-chart-wrap">
+          <canvas id="qr-chart-per-quest"></canvas>
+        </div>
+        <div class="qr-chart-wrap">
+          <canvas id="qr-chart-per-chapter"></canvas>
+        </div>
+      </div>
+      <section class="quest-rewards-section">
+        <h2>Quest Reward Comparison</h2>
+        <p class="qr-subtitle">
+          <b>Current</b> = meatCost × eyePerMeat[chapter] &nbsp;|&nbsp;
+          <b>Old</b> = Σ(creatureEyes × count) × 2
+        </p>
+        <table class="qr-table">
+          <thead>
+            <tr>
+              <th class="qr-num">#</th>
+              <th class="qr-quest">Quest</th>
+              <th class="qr-center">Kraken</th>
+              <th class="qr-center">Ch</th>
+              <th class="qr-right">Current</th>
+              <th class="qr-right">Old</th>
+              <th class="qr-right">Δ</th>
+              <th class="qr-right">Ratio</th>
+            </tr>
+          </thead>
+          <tbody id="quest-rewards-body">
+            <tr><td colspan="8" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+          </tbody>
+        </table>
       </section>
     </div>
   </div>
