@@ -511,7 +511,7 @@ export class SimulationEngine {
           // Notify strategy to advance phase: task → reward
           this.config.strategy.onQuestCompleted?.();
           // Log quest completed
-          const completedAction: SimulationAction = { type: 'quest_completed', taskLabel: event.taskId };
+          const completedAction: SimulationAction = { type: 'quest_completed', taskLabel: event.taskId, eyesGained: event.eyesGained, creatures: event.creatures };
           const completedDt = this.addActionTime(completedAction);
           this.pendingEventLogs.push({ action: completedAction, state: this.captureCompactState(completedDt), note: event.taskId });
           // Log new quest (domain feed already generated next task in state)

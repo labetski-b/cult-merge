@@ -12,7 +12,7 @@ export type SimulationAction =
   | { type: 'buy_generator'; generatorId: number }
   | { type: 'buy_and_merge'; generatorId: number; count: number; targetLevel: number }
   | { type: 'merge_cascade'; generatorId: number; targetLevel: number }
-  | { type: 'quest_completed'; taskLabel: string }
+  | { type: 'quest_completed'; taskLabel: string; eyesGained: number; creatures: { type: string; level: number; count: number }[] }
   | { type: 'new_quest'; taskLabel: string }
   | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
   | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }

@@ -1,0 +1,16 @@
+{
+  "WOOD": 1,
+  "STONE": 3,
+  "POTION": 4,
+  "BOOK": 5,
+  "WOOD2 (BOARD)": 7,
+  "SOUL CRYSTAL": 8,
+  "BONES2 (BONES BLOCK)": 9,
+  "WAX": 10,
+  "POTION2": 11,
+  "MUSHROOM": 12,
+  "BOOK2 (MAGIC SCROLLS)": 13,
+  "SOUL CRYSTAL2": 14,
+  "WAX2 (EVILHONEY)": 15,
+  "MUSHROOM2": 16
+}

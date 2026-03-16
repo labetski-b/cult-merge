@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Experiment 11: Eye Quest Rewards — Balance Calculator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #222;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .controls {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .controls label {
+    font-weight: 600;
+  }
+  .controls input {
+    width: 60px;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 2px 4px;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    text-align: right;
+  }
+  table {
+    border-collapse: collapse;
+    width: auto;
+  }
+  th, td {
+    padding: 4px 10px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  th {
+    background: #2c2c2c;
+    color: #eee;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+  }
+  th:first-child, td:first-child {
+    text-align: center;
+  }
+  tr:nth-child(even) td {
+    background: #e9e9e9;
+  }
+  tr:nth-child(odd) td {
+    background: #fff;
+  }
+  td.calc {
+    color: #1a5f1a;
+    font-weight: 600;
+  }
+  td.sim {
+    color: #666;
+  }
+  td input[type="number"] {
+    width: 64px;
+    font-family: inherit;
+    font-size: 13px;
+    border: none;
+    background: transparent;
+    text-align: right;
+    padding: 0;
+    outline: none;
+    color: #0044aa;
+    font-weight: 600;
+  }
+  td input[type="number"]:focus {
+    background: #fffde0;
+    border-bottom: 1px solid #0044aa;
+  }
+  /* hide spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] { -moz-appearance: textfield; }
+  .delta-pos { color: #1a7f1a; }
+  .delta-neg { color: #cc2222; }
+  th.target { background: #1a3a6c; }
+  td.tcalc { color: #1a3a8c; font-weight: 600; }
+  td input.tinput { color: #1a3a6c; }
+  td.sep, th.sep { border-left: 3px solid #888; }
+</style>
+</head>
+<body>
+
+<h1>Experiment 11: Eye Quest Rewards — Balance Calculator</h1>
+
+<div class="controls">
+  <label for="coeff">Sacrifices per cycle:</label>
+  <input type="number" id="coeff" value="5.8" step="0.1" min="0.1" oninput="recalc()">
+</div>
+<div class="controls">
+  <button onclick="exportConfig()">Export eye/meat</button>
+  <button onclick="exportTargetDemand()">Export t.eyes demand</button>
+  <button onclick="exportRatios()">Export ratios</button>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>ch</th>
+      <th>prev demand</th>
+      <th>eyes demand</th>
+      <th>avg meat</th>
+      <th>eye/meat</th>
+      <th>meat/ch</th>
+      <th>sacrifices</th>
+      <th>sessions</th>
+      <th>quests</th>
+      <th class="sep" style="background:#3c3c3c">sim quests</th>
+      <th style="background:#3c3c3c">sim eyes</th>
+      <th class="target sep">t.quests</th>
+      <th class="target">t.sacrifices</th>
+      <th class="target">t.sessions</th>
+      <th class="target">t.meat/ch</th>
+      <th class="target">t.eyes demand</th>
+      <th class="target">ratio</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+  <tfoot>
+    <tr style="font-weight:700; border-top:2px solid #888;">
+      <td style="text-align:center">Σ</td>
+      <td></td>
+      <td id="sum_demand"></td>
+      <td></td>
+      <td></td>
+      <td id="sum_mpc" class="calc"></td>
+      <td id="sum_sac" class="calc"></td>
+      <td id="sum_ses" class="calc"></td>
+      <td id="sum_qst" class="calc"></td>
+      <td id="sum_simQ" class="sim sep"></td>
+      <td id="sum_simE" class="sim"></td>
+      <td id="sum_tq" class="tcalc sep"></td>
+      <td id="sum_tsac" class="tcalc"></td>
+      <td id="sum_tses" class="tcalc"></td>
+      <td id="sum_tmpc" class="tcalc"></td>
+      <td id="sum_tdem" class="tcalc"></td>
+      <td></td>
+    </tr>
+  </tfoot>
+</table>
+
+<script src="sim-data.js"></script>
+<script>
+const TARGET_QUESTS = [10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+
+const DATA = [
+  { ch: 2,  prevDemand: 350,    demand: 333,    avgMeat: 1.5,  simQ: 16,   simE: 660 },
+  { ch: 3,  prevDemand: 3835,   demand: 3500,   avgMeat: 3.5,  simQ: 21,   simE: 3161 },
+  { ch: 4,  prevDemand: 6680,   demand: 6600,   avgMeat: 5.5,  simQ: 22,   simE: 7553 },
+  { ch: 5,  prevDemand: 10100,  demand: 10500,  avgMeat: 7.5,  simQ: 22,   simE: 12436 },
+  { ch: 6,  prevDemand: 9630,   demand: 21000,  avgMeat: 9,    simQ: 39,   simE: 30130 },
+  { ch: 7,  prevDemand: 14715,  demand: 43333,  avgMeat: 10,   simQ: 71,   simE: 49895 },
+  { ch: 8,  prevDemand: 19370,  demand: 65167,  avgMeat: 11.5, simQ: 110,  simE: 75194 },
+  { ch: 9,  prevDemand: 24525,  demand: 99000,  avgMeat: 13.5, simQ: 117,  simE: 113908 },
+  { ch: 10, prevDemand: 30590,  demand: 139500, avgMeat: 15.5, simQ: 152,  simE: 155184 },
+  { ch: 11, prevDemand: 36505,  demand: 186667, avgMeat: 17.5, simQ: 159,  simE: 233049 },
+  { ch: 12, prevDemand: 43460,  demand: 247000, avgMeat: 19.5, simQ: 180,  simE: 292658 },
+  { ch: 13, prevDemand: 51275,  demand: 315333, avgMeat: 21.5, simQ: 221,  simE: 357105 },
+  { ch: 14, prevDemand: 59290,  demand: 399500, avgMeat: 23.5, simQ: 222,  simE: 430461 },
+  { ch: 15, prevDemand: 67805,  demand: 476000, avgMeat: 25.5, simQ: 241,  simE: 507463 },
+  { ch: 16, prevDemand: 76840,  demand: 556500, avgMeat: 26.5, simQ: 246,  simE: 577752 },
+  { ch: 17, prevDemand: 155295, demand: 1100000, avgMeat: 27.5, simQ: 8694, simE: 17955886 },
+];
+
+// SIM_DATA comes from sim-data.js (if loaded), format: { "2": { quests: 9, eyes: 356 }, ... }
+// Fall back to DATA defaults if not loaded
+function getSimData(ch) {
+  if (typeof SIM_DATA !== 'undefined' && SIM_DATA[ch]) {
+    return SIM_DATA[ch];
+  }
+  const row = DATA.find(r => r.ch === ch);
+  return row ? { quests: row.simQ, eyes: row.simE } : { quests: 0, eyes: 0 };
+}
+
+const tbody = document.getElementById('tbody');
+
+function buildTable() {
+  tbody.innerHTML = '';
+  DATA.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.ch}</td>
+      <td style="color:#999">${row.prevDemand.toLocaleString()}</td>
+      <td>${row.demand.toLocaleString()}</td>
+      <td>${row.avgMeat}</td>
+      <td><input type="number" id="epm_${i}" value="100" step="10" min="1" oninput="recalc()"></td>
+      <td class="calc" id="mpc_${i}"></td>
+      <td class="calc" id="sac_${i}"></td>
+      <td class="calc" id="ses_${i}"></td>
+      <td class="calc" id="qst_${i}"></td>
+      <td class="sim sep" id="sq_${i}"></td>
+      <td class="sim" id="se_${i}"></td>
+      <td class="sep"><input type="number" class="tinput" id="tq_${i}" value="${TARGET_QUESTS[i]}" step="5" min="1" oninput="recalc()"></td>
+      <td class="tcalc" id="tsac_${i}"></td>
+      <td class="tcalc" id="tses_${i}"></td>
+      <td class="tcalc" id="tmpc_${i}"></td>
+      <td class="tcalc" id="tdem_${i}"></td>
+      <td class="tcalc" id="ratio_${i}"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function saveState() {
+  const state = { coeff: document.getElementById('coeff').value, epm: {}, tq: {} };
+  DATA.forEach((_, i) => {
+    state.epm[i] = document.getElementById(`epm_${i}`).value;
+    state.tq[i] = document.getElementById(`tq_${i}`).value;
+  });
+  localStorage.setItem('exp11_balance', JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('exp11_balance');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (state.coeff != null) document.getElementById('coeff').value = state.coeff;
+    if (state.epm) {
+      Object.keys(state.epm).forEach(i => {
+        const el = document.getElementById(`epm_${i}`);
+        if (el) el.value = state.epm[i];
+      });
+    }
+    if (state.tq) {
+      Object.keys(state.tq).forEach(i => {
+        const el = document.getElementById(`tq_${i}`);
+        if (el) el.value = state.tq[i];
+      });
+    }
+  } catch (_) {}
+}
+
+function recalc() {
+  saveState();
+  const coeff = parseFloat(document.getElementById('coeff').value) || 1;
+  const sums = { demand: 0, mpc: 0, sac: 0, ses: 0, qst: 0, simQ: 0, simE: 0, tsac: 0, tses: 0, tmpc: 0, tdem: 0, tq: 0 };
+  DATA.forEach((row, i) => {
+    const eyePerMeat = parseFloat(document.getElementById(`epm_${i}`).value) || 1;
+    const meatPerCh = row.demand / eyePerMeat;
+    const sacrifices = meatPerCh / row.avgMeat;
+    const sessions = sacrifices / 5;
+    const quests = (sacrifices / coeff) * 9;
+
+    document.getElementById(`mpc_${i}`).textContent = meatPerCh.toFixed(1);
+    document.getElementById(`sac_${i}`).textContent = sacrifices.toFixed(1);
+    document.getElementById(`ses_${i}`).textContent = sessions.toFixed(1);
+    document.getElementById(`qst_${i}`).textContent = quests.toFixed(1);
+
+    const sim = getSimData(row.ch);
+    document.getElementById(`sq_${i}`).textContent = sim.quests.toLocaleString();
+    document.getElementById(`se_${i}`).textContent = sim.eyes.toLocaleString();
+
+    // target (reverse calc) — eye/meat from balance table
+    const tEyePerMeat = eyePerMeat;
+    const tQuests = parseFloat(document.getElementById(`tq_${i}`).value) || 0;
+    const tSacrifices = tQuests / 9 * coeff;
+    const tSessions = tSacrifices / 5;
+    const tMeatPerCh = tSacrifices * row.avgMeat;
+    const tDemand = tMeatPerCh * tEyePerMeat;
+
+    document.getElementById(`tsac_${i}`).textContent = tSacrifices.toFixed(1);
+    document.getElementById(`tses_${i}`).textContent = tSessions.toFixed(1);
+    document.getElementById(`tmpc_${i}`).textContent = tMeatPerCh.toFixed(1);
+    document.getElementById(`tdem_${i}`).textContent = Math.round(tDemand).toLocaleString();
+
+    const ratio = row.prevDemand > 0 ? tDemand / row.prevDemand : 0;
+    document.getElementById(`ratio_${i}`).textContent = ratio.toFixed(2) + 'x';
+
+    // accumulate sums
+    sums.demand += row.demand;
+    sums.mpc += meatPerCh; sums.sac += sacrifices; sums.ses += sessions; sums.qst += quests;
+    sums.simQ += sim.quests; sums.simE += sim.eyes;
+    sums.tq += tQuests; sums.tsac += tSacrifices; sums.tses += tSessions; sums.tmpc += tMeatPerCh; sums.tdem += tDemand;
+  });
+  // update sum row
+  document.getElementById('sum_demand').textContent = sums.demand.toLocaleString();
+  document.getElementById('sum_mpc').textContent = sums.mpc.toFixed(1);
+  document.getElementById('sum_sac').textContent = sums.sac.toFixed(1);
+  document.getElementById('sum_ses').textContent = sums.ses.toFixed(1);
+  document.getElementById('sum_qst').textContent = sums.qst.toFixed(1);
+  document.getElementById('sum_simQ').textContent = sums.simQ.toLocaleString();
+  document.getElementById('sum_simE').textContent = sums.simE.toLocaleString();
+  document.getElementById('sum_tq').textContent = sums.tq.toFixed(0);
+  document.getElementById('sum_tsac').textContent = sums.tsac.toFixed(1);
+  document.getElementById('sum_tses').textContent = sums.tses.toFixed(1);
+  document.getElementById('sum_tmpc').textContent = sums.tmpc.toFixed(1);
+  document.getElementById('sum_tdem').textContent = Math.round(sums.tdem).toLocaleString();
+}
+
+function exportConfig() {
+  const config = {};
+  DATA.forEach((row, i) => {
+    config[row.ch] = parseFloat(document.getElementById(`epm_${i}`).value) || 100;
+  });
+  const json = JSON.stringify(config, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'balance-config.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportTargetDemand() {
+  const coeff = parseFloat(document.getElementById('coeff').value) || 1;
+  const result = {};
+  DATA.forEach((row, i) => {
+    const eyePerMeat = parseFloat(document.getElementById(`epm_${i}`).value) || 1;
+    const tQuests = parseFloat(document.getElementById(`tq_${i}`).value) || 0;
+    const tSacrifices = tQuests / 9 * coeff;
+    const tMeatPerCh = tSacrifices * row.avgMeat;
+    const tDemand = Math.round(tMeatPerCh * eyePerMeat);
+    result[row.ch] = tDemand;
+  });
+  const json = JSON.stringify(result, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'target-demand.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportRatios() {
+  const coeff = parseFloat(document.getElementById('coeff').value) || 1;
+  const result = DATA.map((row, i) => {
+    const eyePerMeat = parseFloat(document.getElementById(`epm_${i}`).value) || 1;
+    const tQuests = parseFloat(document.getElementById(`tq_${i}`).value) || 0;
+    const tSacrifices = tQuests / 9 * coeff;
+    const tMeatPerCh = tSacrifices * row.avgMeat;
+    const tDemand = Math.round(tMeatPerCh * eyePerMeat);
+    const ratio = row.prevDemand > 0 ? +(tDemand / row.prevDemand).toFixed(3) : 0;
+    return {
+      chapter: row.ch,
+      baseline_merge_resource: row.prevDemand,
+      experiment_merge_resource: tDemand,
+      ratio: ratio
+    };
+  });
+  const lines = result.map(r => '  ' + JSON.stringify(r));
+  const json = '[\n' + lines.join(',\n') + '\n]';
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ratios.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+buildTable();
+loadState();
+recalc();
+</script>
+
+</body>
+</html>

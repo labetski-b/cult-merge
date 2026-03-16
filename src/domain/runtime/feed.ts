@@ -39,6 +39,7 @@ export type FeedRuntimeEvent =
       predictedExp: number;
       completedLine: string | null;
       meatCost: number;
+      creatures: { type: string; level: number; count: number }[];
     };
 
 type FeedRuntimeResult = RuntimeResult<FeedRuntimeEvent, FeedRuntimeReason>;
@@ -302,7 +303,8 @@ export function feedEntity(
     eyesGained: taskEyes,
     predictedExp,
     completedLine: isMandatory ? null : (task.creatures[0]?.type ?? null),
-    meatCost: task.debugMeatCost ?? 0
+    meatCost: task.debugMeatCost ?? 0,
+    creatures: task.creatures.map(c => ({ type: c.type, level: c.level, count: c.count }))
   });
 
   return {
