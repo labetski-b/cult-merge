@@ -3,7 +3,7 @@
   {"chapter":3,"baseline_merge_resource":3835,"experiment_merge_resource":5833,"ratio":1.521},
   {"chapter":4,"baseline_merge_resource":6680,"experiment_merge_resource":11000,"ratio":1.647},
   {"chapter":5,"baseline_merge_resource":10100,"experiment_merge_resource":20000,"ratio":1.98},
-  {"chapter":6,"baseline_merge_resource":9630,"experiment_merge_resource":21000,"ratio":2.181},
+  {"chapter":6,"baseline_merge_resource":9630,"experiment_merge_resource":24000,"ratio":2.492},
   {"chapter":7,"baseline_merge_resource":14715,"experiment_merge_resource":43333,"ratio":2.945},
   {"chapter":8,"baseline_merge_resource":19370,"experiment_merge_resource":65167,"ratio":3.364},
   {"chapter":9,"baseline_merge_resource":24525,"experiment_merge_resource":99000,"ratio":4.037},
