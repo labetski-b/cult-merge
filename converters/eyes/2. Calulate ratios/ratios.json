@@ -1,8 +1,8 @@
 [
-  {"chapter":2,"baseline_merge_resource":350,"experiment_merge_resource":333,"ratio":0.951},
-  {"chapter":3,"baseline_merge_resource":3835,"experiment_merge_resource":3500,"ratio":0.913},
-  {"chapter":4,"baseline_merge_resource":6680,"experiment_merge_resource":6600,"ratio":0.988},
-  {"chapter":5,"baseline_merge_resource":10100,"experiment_merge_resource":10500,"ratio":1.04},
+  {"chapter":2,"baseline_merge_resource":350,"experiment_merge_resource":533,"ratio":1.523},
+  {"chapter":3,"baseline_merge_resource":3835,"experiment_merge_resource":5833,"ratio":1.521},
+  {"chapter":4,"baseline_merge_resource":6680,"experiment_merge_resource":11000,"ratio":1.647},
+  {"chapter":5,"baseline_merge_resource":10100,"experiment_merge_resource":20000,"ratio":1.98},
   {"chapter":6,"baseline_merge_resource":9630,"experiment_merge_resource":21000,"ratio":2.181},
   {"chapter":7,"baseline_merge_resource":14715,"experiment_merge_resource":43333,"ratio":2.945},
   {"chapter":8,"baseline_merge_resource":19370,"experiment_merge_resource":65167,"ratio":3.364},

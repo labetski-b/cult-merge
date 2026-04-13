@@ -6,7 +6,7 @@
  * умножает MergePrice (A) на ratio из ratios.json.
  *
  * Запуск:
- *   npx tsx --tsconfig tsconfig.app.json converters/eyes/apply-merge-ratios.ts
+ *   npx tsx --tsconfig tsconfig.app.json "converters/eyes/3. Apply new ratios/step1_apply_merge_ratios.ts"
  */
 
 import * as fs from 'fs';
@@ -326,11 +326,11 @@ function findChapterByLevel(
 // ─── Основная логика ────────────────────────────────────────────────────────
 
 function main(): void {
-  const tsvPath = path.join(__dirname, 'CultProto 3.21 - Variant - AI - Main.tsv');
-  const ratiosPath = path.join(__dirname, 'ratios.json');
-  const rangesPath = path.join(__dirname, 'chapter_production_ranges.json');
-  const rankupsPath = path.join(__dirname, 'tycoon_rankups.json');
-  const outputPath = path.join(__dirname, 'CultProto 3.21 - Variant - AI - Main.modified.tsv');
+  const tsvPath = path.join(__dirname, '_CultProto 3.21 - Variant - AI - Main.tsv');
+  const ratiosPath = path.join(__dirname, '_ratios.json');
+  const rangesPath = path.join(__dirname, '_step2b_production_ranges_corrected.json');
+  const rankupsPath = path.join(__dirname, '_tycoon_rankups.json');
+  const outputPath = path.join(__dirname, 'step1_CultProto_main_modified.tsv');
 
   // Проверка файлов
   for (const fp of [tsvPath, ratiosPath, rangesPath, rankupsPath]) {

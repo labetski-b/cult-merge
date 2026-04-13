@@ -105,7 +105,7 @@
 
 <div class="controls">
   <label for="coeff">Sacrifices per cycle:</label>
-  <input type="number" id="coeff" value="5.8" step="0.1" min="0.1" oninput="recalc()">
+  <input type="number" id="coeff" value="4" step="0.1" min="0.1" oninput="recalc()">
 </div>
 <div class="controls">
   <button onclick="exportConfig()">Export eye/meat</button>
@@ -161,25 +161,26 @@
 
 <script src="sim-data.js"></script>
 <script>
-const TARGET_QUESTS = [10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+const TARGET_QUESTS = [8, 25, 30, 40, 35, 65, 85, 110, 135, 160, 190, 220, 255, 280, 315, 600];
+const EYE_PER_MEAT  = [100, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150];
 
 const DATA = [
-  { ch: 2,  prevDemand: 350,    demand: 333,    avgMeat: 1.5,  simQ: 16,   simE: 660 },
-  { ch: 3,  prevDemand: 3835,   demand: 3500,   avgMeat: 3.5,  simQ: 21,   simE: 3161 },
-  { ch: 4,  prevDemand: 6680,   demand: 6600,   avgMeat: 5.5,  simQ: 22,   simE: 7553 },
-  { ch: 5,  prevDemand: 10100,  demand: 10500,  avgMeat: 7.5,  simQ: 22,   simE: 12436 },
-  { ch: 6,  prevDemand: 9630,   demand: 21000,  avgMeat: 9,    simQ: 39,   simE: 30130 },
-  { ch: 7,  prevDemand: 14715,  demand: 43333,  avgMeat: 10,   simQ: 71,   simE: 49895 },
-  { ch: 8,  prevDemand: 19370,  demand: 65167,  avgMeat: 11.5, simQ: 110,  simE: 75194 },
-  { ch: 9,  prevDemand: 24525,  demand: 99000,  avgMeat: 13.5, simQ: 117,  simE: 113908 },
-  { ch: 10, prevDemand: 30590,  demand: 139500, avgMeat: 15.5, simQ: 152,  simE: 155184 },
-  { ch: 11, prevDemand: 36505,  demand: 186667, avgMeat: 17.5, simQ: 159,  simE: 233049 },
-  { ch: 12, prevDemand: 43460,  demand: 247000, avgMeat: 19.5, simQ: 180,  simE: 292658 },
-  { ch: 13, prevDemand: 51275,  demand: 315333, avgMeat: 21.5, simQ: 221,  simE: 357105 },
-  { ch: 14, prevDemand: 59290,  demand: 399500, avgMeat: 23.5, simQ: 222,  simE: 430461 },
-  { ch: 15, prevDemand: 67805,  demand: 476000, avgMeat: 25.5, simQ: 241,  simE: 507463 },
-  { ch: 16, prevDemand: 76840,  demand: 556500, avgMeat: 26.5, simQ: 246,  simE: 577752 },
-  { ch: 17, prevDemand: 155295, demand: 1100000, avgMeat: 27.5, simQ: 8694, simE: 17955886 },
+  { ch: 2,  prevDemand: 350,    demand: 333,    avgMeat: 1.5,  simQ: 9,    simE: 252 },
+  { ch: 3,  prevDemand: 3835,   demand: 3500,   avgMeat: 3.5,  simQ: 23,   simE: 3575 },
+  { ch: 4,  prevDemand: 6680,   demand: 6600,   avgMeat: 5.5,  simQ: 16,   simE: 6419 },
+  { ch: 5,  prevDemand: 10100,  demand: 10500,  avgMeat: 7.5,  simQ: 22,   simE: 10458 },
+  { ch: 6,  prevDemand: 9630,   demand: 21000,  avgMeat: 9,    simQ: 33,   simE: 21118 },
+  { ch: 7,  prevDemand: 14715,  demand: 43333,  avgMeat: 10,   simQ: 63,   simE: 42741 },
+  { ch: 8,  prevDemand: 19370,  demand: 65167,  avgMeat: 11.5, simQ: 89,   simE: 65859 },
+  { ch: 9,  prevDemand: 24525,  demand: 99000,  avgMeat: 13.5, simQ: 101,  simE: 96930 },
+  { ch: 10, prevDemand: 30590,  demand: 139500, avgMeat: 15.5, simQ: 131,  simE: 141208 },
+  { ch: 11, prevDemand: 36505,  demand: 186667, avgMeat: 17.5, simQ: 146,  simE: 186240 },
+  { ch: 12, prevDemand: 43460,  demand: 247000, avgMeat: 19.5, simQ: 134,  simE: 245714 },
+  { ch: 13, prevDemand: 51275,  demand: 315333, avgMeat: 21.5, simQ: 173,  simE: 316941 },
+  { ch: 14, prevDemand: 59290,  demand: 399500, avgMeat: 23.5, simQ: 205,  simE: 398556 },
+  { ch: 15, prevDemand: 67805,  demand: 476000, avgMeat: 25.5, simQ: 249,  simE: 476925 },
+  { ch: 16, prevDemand: 76840,  demand: 556500, avgMeat: 26.5, simQ: 245,  simE: 556920 },
+  { ch: 17, prevDemand: 155295, demand: 1100000, avgMeat: 27.5, simQ: 9031, simE: 20105228 },
 ];
 
 // SIM_DATA comes from sim-data.js (if loaded), format: { "2": { quests: 9, eyes: 356 }, ... }
@@ -203,7 +204,7 @@ function buildTable() {
       <td style="color:#999">${row.prevDemand.toLocaleString()}</td>
       <td>${row.demand.toLocaleString()}</td>
       <td>${row.avgMeat}</td>
-      <td><input type="number" id="epm_${i}" value="100" step="10" min="1" oninput="recalc()"></td>
+      <td><input type="number" id="epm_${i}" value="${EYE_PER_MEAT[i]}" step="10" min="1" oninput="recalc()"></td>
       <td class="calc" id="mpc_${i}"></td>
       <td class="calc" id="sac_${i}"></td>
       <td class="calc" id="ses_${i}"></td>
@@ -221,38 +222,7 @@ function buildTable() {
   });
 }
 
-function saveState() {
-  const state = { coeff: document.getElementById('coeff').value, epm: {}, tq: {} };
-  DATA.forEach((_, i) => {
-    state.epm[i] = document.getElementById(`epm_${i}`).value;
-    state.tq[i] = document.getElementById(`tq_${i}`).value;
-  });
-  localStorage.setItem('exp11_balance', JSON.stringify(state));
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem('exp11_balance');
-    if (!raw) return;
-    const state = JSON.parse(raw);
-    if (state.coeff != null) document.getElementById('coeff').value = state.coeff;
-    if (state.epm) {
-      Object.keys(state.epm).forEach(i => {
-        const el = document.getElementById(`epm_${i}`);
-        if (el) el.value = state.epm[i];
-      });
-    }
-    if (state.tq) {
-      Object.keys(state.tq).forEach(i => {
-        const el = document.getElementById(`tq_${i}`);
-        if (el) el.value = state.tq[i];
-      });
-    }
-  } catch (_) {}
-}
-
 function recalc() {
-  saveState();
   const coeff = parseFloat(document.getElementById('coeff').value) || 1;
   const sums = { demand: 0, mpc: 0, sac: 0, ses: 0, qst: 0, simQ: 0, simE: 0, tsac: 0, tses: 0, tmpc: 0, tdem: 0, tq: 0 };
   DATA.forEach((row, i) => {
@@ -369,7 +339,6 @@ function exportRatios() {
 }
 
 buildTable();
-loadState();
 recalc();
 </script>
 

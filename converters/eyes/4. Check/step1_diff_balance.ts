@@ -64,8 +64,8 @@ function buildColToModuleName(row1: string[]): (col: number) => string {
 
 function main(): void {
   const args = process.argv.slice(2);
-  const fileA = args[0] ?? path.join(__dirname, 'CultProto 3.21 - Variant - AI - Main.tsv');
-  const fileB = args[1] ?? path.join(__dirname, 'CultProto 3.21 - Variant - AI - Main.modified.tsv');
+  const fileA = args[0] ?? path.join(__dirname, '_CultProto 3.21 - Variant - AI - Main.tsv');
+  const fileB = args[1] ?? path.join(__dirname, '_step1_CultProto_main_modified.tsv');
 
   for (const fp of [fileA, fileB]) {
     if (!fs.existsSync(fp)) {
