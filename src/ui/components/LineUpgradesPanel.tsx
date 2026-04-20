@@ -9,7 +9,6 @@ type Props = { open: boolean; onClose: () => void };
 export function LineUpgradesPanel({ open, onClose }: Props) {
   const lineUpgrades = useLineUpgrades();
   const applyAction = useGameStore((s) => s.applyLineUpgradeAction);
-  const state = useGameStore();
 
   const allLines = useMemo(
     () => [...new Set(BALANCE.generators.generators.flatMap((g) => g.lines))],
@@ -18,8 +17,8 @@ export function LineUpgradesPanel({ open, onClose }: Props) {
 
   const sortedLines = useMemo(() => {
     return [...allLines].sort((a, b) => {
-      const availA = isUpgradeAvailable(state, BALANCE.lineUpgrades, a) ? 1 : 0;
-      const availB = isUpgradeAvailable(state, BALANCE.lineUpgrades, b) ? 1 : 0;
+      const availA = isUpgradeAvailable({ lineUpgrades }, BALANCE.lineUpgrades, a) ? 1 : 0;
+      const availB = isUpgradeAvailable({ lineUpgrades }, BALANCE.lineUpgrades, b) ? 1 : 0;
       if (availA !== availB) return availB - availA;
       const cfgA = resolveLineConfig(BALANCE.lineUpgrades, a);
       const cfgB = resolveLineConfig(BALANCE.lineUpgrades, b);
@@ -30,7 +29,7 @@ export function LineUpgradesPanel({ open, onClose }: Props) {
       if (progressA !== progressB) return progressB - progressA;
       return a.localeCompare(b);
     });
-  }, [state, lineUpgrades, allLines]);
+  }, [lineUpgrades, allLines]);
 
   if (!open) return null;
 
@@ -53,13 +52,12 @@ export function LineUpgradesPanel({ open, onClose }: Props) {
 
 function LineUpgradeCard({ line, onApply }: { line: string; onApply: () => void }) {
   const lineUpgrades = useLineUpgrades();
-  const state = useGameStore();
   const cfg = resolveLineConfig(BALANCE.lineUpgrades, line);
   const s = lineUpgrades[line] ?? { mergeCount: 0, appliedUpgrades: 0 };
 
   const atMax = s.appliedUpgrades >= cfg.thresholds.length;
   const threshold = atMax ? null : cfg.thresholds[s.appliedUpgrades];
-  const canApply = !atMax && isUpgradeAvailable(state, BALANCE.lineUpgrades, line);
+  const canApply = !atMax && isUpgradeAvailable({ lineUpgrades }, BALANCE.lineUpgrades, line);
 
   return (
     <div className="line-upgrade-card">
