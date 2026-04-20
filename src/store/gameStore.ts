@@ -31,6 +31,7 @@ import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@do
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
+import { trackLineUpgradeApplied } from '@infra/analytics';
 
 interface GameActions {
   addMeat: (amount: number) => void;
@@ -1681,12 +1682,19 @@ export const useGameStore = create<GameStore>()(
 
       applyLineUpgradeAction: (line: string): ApplyLineUpgradeResult => {
         let out: ApplyLineUpgradeResult = { ok: false, reason: 'not_ready' };
+        let prevMergeCount = 0;
         set((state) => {
+          prevMergeCount = state.lineUpgrades[line]?.mergeCount ?? 0;
           const res = applyLineUpgrade(state, BALANCE.lineUpgrades, line);
           out = res;
           if (!res.ok) return state;
           return res.state;
         });
+        if (out.ok) {
+          const successOut = out as Extract<ApplyLineUpgradeResult, { ok: true }>;
+          const applied = successOut.state.lineUpgrades[line]?.appliedUpgrades ?? 0;
+          trackLineUpgradeApplied(line, applied, prevMergeCount);
+        }
         return out;
       }
     }),
