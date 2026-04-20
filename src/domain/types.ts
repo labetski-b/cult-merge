@@ -198,22 +198,22 @@ export interface QuestState {
   chapterBaselines: Record<number, CumulativeStats>;
 }
 
-export type LineUpgradeState = {
+export interface LineUpgradeState {
   mergeCount: number;
   appliedUpgrades: number;
-};
+}
 
 export type LineUpgradeCost =
   | null
   | { resource: 'meat' | 'rune1' | 'rune2' | 'gems'; amount: number };
 
-export type LineUpgradeLineConfig = {
+export interface LineUpgradeLineConfig {
   thresholds: number[];
   costs: LineUpgradeCost[];
   spawnCapLevel: number;
-};
+}
 
-export type LineUpgradesConfig = {
+export interface LineUpgradesConfig {
   default: LineUpgradeLineConfig;
   overrides: Record<string, Partial<LineUpgradeLineConfig>>;
-};
+}
