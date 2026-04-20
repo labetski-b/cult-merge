@@ -5,6 +5,7 @@ import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid 
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepRewards } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
+import { recordMerge } from '@domain/lineUpgrades';
 import { generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -464,6 +465,10 @@ export class SimulationEngine {
       }
       const prev = this.cumulative.maxCreatureLevelByType[c.creatureType] ?? 0;
       if (c.level > prev) this.cumulative.maxCreatureLevelByType[c.creatureType] = c.level;
+
+      if (source.kind === 'creature') {
+        this.state = recordMerge(this.state, source.creatureType);
+      }
     }
   }
 

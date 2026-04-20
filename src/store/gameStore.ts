@@ -12,6 +12,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
+import { recordMerge } from '@domain/lineUpgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -251,6 +252,13 @@ export const useGameStore = create<GameStore>()(
               updatedCumStats.maxGeneratorLevelById = { ...updatedCumStats.maxGeneratorLevelById, [gen.generatorId]: gen.level };
             }
           }
+
+          let nextLineUpgrades = state.lineUpgrades;
+          if (merged.kind === 'creature' && source.kind === 'creature') {
+            const bumped = recordMerge({ ...state, lineUpgrades: state.lineUpgrades }, source.creatureType);
+            nextLineUpgrades = bumped.lineUpgrades;
+          }
+
           return {
             grid: nextGrid,
             entities: nextEntities,
@@ -259,6 +267,7 @@ export const useGameStore = create<GameStore>()(
             predatorsSpawnedOnce: newSpawnedOnce,
             rngState: rng.getState(),
             cumulativeStats: updatedCumStats,
+            lineUpgrades: nextLineUpgrades,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
         });
