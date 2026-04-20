@@ -66,11 +66,22 @@ function weightedSelect<T extends { chance: number }>(rng: SeededRng, items: T[]
   return fallback;
 }
 
+function applyLineUpgradeToLevel(
+  creatureType: string,
+  baseLevel: number,
+  config: BalanceConfig,
+  state: Pick<GameSnapshot, 'lineUpgrades'>
+): number {
+  const bonus = getSpawnLevelBonus(state, creatureType);
+  const cap = getSpawnCapLevel(config.lineUpgrades, creatureType);
+  return Math.min(baseLevel + bonus, cap);
+}
+
 export function rollGeneratorSpawn(
   rng: SeededRng,
   generatorEntity: GeneratorEntity,
   config: BalanceConfig,
-  state?: Pick<GameSnapshot, 'lineUpgrades'>
+  state: Pick<GameSnapshot, 'lineUpgrades'>
 ): Array<{ creatureType: string; level: number }> {
   const { levelConfig } = getGeneratorConfig(config, generatorEntity.generatorId, generatorEntity.level);
   const spawns: Array<{ creatureType: string; level: number }> = [];
@@ -84,18 +95,6 @@ export function rollGeneratorSpawn(
   return spawns;
 }
 
-function applyLineUpgradeToLevel(
-  creatureType: string,
-  baseLevel: number,
-  config: BalanceConfig,
-  state?: Pick<GameSnapshot, 'lineUpgrades'>
-): number {
-  if (!state) return baseLevel;
-  const bonus = getSpawnLevelBonus(state as GameSnapshot, creatureType);
-  const cap = getSpawnCapLevel(config.lineUpgrades, creatureType);
-  return Math.min(baseLevel + bonus, cap);
-}
-
 /** Create a generator entity that is already charged (pre-rolled spawns).
  *  First creature is guaranteed from the second line L1 (if available at this level). */
 export function createChargedGenerator(
@@ -104,7 +103,7 @@ export function createChargedGenerator(
   generatorId: number,
   level: number,
   config: BalanceConfig,
-  state?: Pick<GameSnapshot, 'lineUpgrades'>
+  state: Pick<GameSnapshot, 'lineUpgrades'>
 ): GeneratorEntity {
   const entity: GeneratorEntity = { id, kind: 'generator', generatorId, level, charges: [] };
   const spawns = rollGeneratorSpawn(rng, entity, config, state);

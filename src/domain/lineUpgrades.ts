@@ -50,7 +50,10 @@ export function isUpgradeAvailable(
   return s.mergeCount >= threshold;
 }
 
-export function getSpawnLevelBonus(state: GameSnapshot, line: string): number {
+export function getSpawnLevelBonus(
+  state: Pick<GameSnapshot, 'lineUpgrades'>,
+  line: string
+): number {
   return state.lineUpgrades[line]?.appliedUpgrades ?? 0;
 }
 

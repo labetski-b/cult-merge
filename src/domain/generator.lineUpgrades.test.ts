@@ -117,10 +117,8 @@ describe('rollGeneratorSpawn applies line upgrade bonus and cap', () => {
     const gen = BALANCE.generators.generators[0]!;
     const firstLine = gen.lines[0]!;
     const secondLine = gen.lines[1];
-    if (!secondLine) {
-      // Skip if the generator is single-line (shouldn't happen for gen 1 in production data).
-      return;
-    }
+    expect(secondLine).toBeDefined();
+    if (!secondLine) return;
     const entity: GeneratorEntity = {
       id: 'g1',
       kind: 'generator',
@@ -148,6 +146,7 @@ describe('createChargedGenerator applies line upgrade bonus to pre-rolled charge
   it('elevates the guaranteed second-line charge by appliedUpgrades', () => {
     const gen = BALANCE.generators.generators[0]!;
     const secondLine = gen.lines[1];
+    expect(secondLine).toBeDefined();
     if (!secondLine) return;
     // Use level 2 of gen 1 where secondLine (Creature2) is a valid output,
     // so the second-line guarantee inside createChargedGenerator triggers.
