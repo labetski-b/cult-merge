@@ -1667,15 +1667,40 @@ export const useGameStore = create<GameStore>()(
     {
       name: SAVE_KEY,
       version: SAVE_VERSION,
-      migrate: (persistedState, persistedVersion) => {
-        if (!persistedState || persistedVersion < SAVE_VERSION) {
-          return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
-        }
-        return persistedState as GameStore;
-      }
+      migrate: (persistedState, persistedVersion) =>
+        migrateGameStore(persistedState, persistedVersion) as GameStore
     }
   )
 );
+
+export function migrateGameStore(
+  persistedState: unknown,
+  persistedVersion: number
+): unknown {
+  if (!persistedState || persistedVersion < 15) {
+    return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
+  }
+
+  if (persistedVersion < 16) {
+    const allLines = BALANCE.generators.generators.flatMap((g) => g.lines);
+    const existing =
+      (persistedState as { lineUpgrades?: Record<string, unknown> })?.lineUpgrades ?? {};
+    const merged: Record<string, { mergeCount: number; appliedUpgrades: number }> = {};
+    for (const line of allLines) {
+      const prev = existing[line];
+      merged[line] =
+        typeof prev === 'object' &&
+        prev !== null &&
+        'mergeCount' in prev &&
+        'appliedUpgrades' in prev
+          ? (prev as { mergeCount: number; appliedUpgrades: number })
+          : { mergeCount: 0, appliedUpgrades: 0 };
+    }
+    persistedState = { ...(persistedState as object), lineUpgrades: merged };
+  }
+
+  return persistedState;
+}
 
 export function useCurrentTask() {
   return useGameStore((state) => getActiveTask(BALANCE, state));
