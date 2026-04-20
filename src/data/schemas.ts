@@ -244,6 +244,35 @@ export const questsDataSchema = z.object({
 
 export type QuestsData = z.infer<typeof questsDataSchema>;
 
+const lineUpgradeCostSchema = z.union([
+  z.null(),
+  z.object({
+    resource: z.enum(['meat', 'rune1', 'rune2', 'gems']),
+    amount: z.number().int().positive(),
+  }),
+]);
+
+const lineUpgradeLineConfigSchema = z.object({
+  thresholds: z.array(z.number().int().positive()).min(1),
+  costs: z.array(lineUpgradeCostSchema),
+  spawnCapLevel: z.number().int().min(1).max(15),
+});
+
+export const lineUpgradesConfigSchema = z.object({
+  default: lineUpgradeLineConfigSchema,
+  overrides: z.record(lineUpgradeLineConfigSchema.partial()),
+}).superRefine((cfg, ctx) => {
+  if (cfg.default.thresholds.length !== cfg.default.costs.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'thresholds and costs must have the same length',
+      path: ['default'],
+    });
+  }
+});
+
+export type LineUpgradesConfigData = z.infer<typeof lineUpgradesConfigSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -257,4 +286,5 @@ export interface BalanceConfig {
   chapters: ChaptersData;
   runes: RunesData;
   quests: QuestsData;
+  lineUpgrades: LineUpgradesConfigData;
 }

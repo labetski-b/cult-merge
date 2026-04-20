@@ -1,0 +1,8 @@
+{
+  "default": {
+    "thresholds": [30, 60, 120, 240, 480],
+    "costs": [null, null, null, null, null],
+    "spawnCapLevel": 7
+  },
+  "overrides": {}
+}
