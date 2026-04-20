@@ -31,7 +31,7 @@ export const generatorsDataSchema = z.object({
 const creatureSchema = z
   .object({
     type: z.string().min(1),
-    maxLevel: z.number().int().min(1).max(9),
+    maxLevel: z.number().int().min(1).max(15),
     baseExp: z.array(z.number().int().positive()).optional(),
     baseEyes: z.array(z.number().int().positive()).optional(),
     baseOn: z.string().min(1).optional(),
