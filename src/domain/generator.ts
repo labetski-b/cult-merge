@@ -1,6 +1,7 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { GeneratorEntity } from '@domain/types';
+import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import { SeededRng } from '@infra/rng';
+import { getSpawnCapLevel, getSpawnLevelBonus } from '@domain/lineUpgrades';
 
 export function getGeneratorConfig(config: BalanceConfig, generatorId: number, level: number) {
   const generator = config.generators.generators.find((value) => value.id === generatorId);
@@ -68,17 +69,31 @@ function weightedSelect<T extends { chance: number }>(rng: SeededRng, items: T[]
 export function rollGeneratorSpawn(
   rng: SeededRng,
   generatorEntity: GeneratorEntity,
-  config: BalanceConfig
+  config: BalanceConfig,
+  state?: Pick<GameSnapshot, 'lineUpgrades'>
 ): Array<{ creatureType: string; level: number }> {
   const { levelConfig } = getGeneratorConfig(config, generatorEntity.generatorId, generatorEntity.level);
   const spawns: Array<{ creatureType: string; level: number }> = [];
 
   for (let index = 0; index < levelConfig.numCreatures; index += 1) {
     const selected = weightedSelect(rng, levelConfig.outputs);
-    spawns.push({ creatureType: selected.creatureType, level: selected.level });
+    const level = applyLineUpgradeToLevel(selected.creatureType, selected.level, config, state);
+    spawns.push({ creatureType: selected.creatureType, level });
   }
 
   return spawns;
+}
+
+function applyLineUpgradeToLevel(
+  creatureType: string,
+  baseLevel: number,
+  config: BalanceConfig,
+  state?: Pick<GameSnapshot, 'lineUpgrades'>
+): number {
+  if (!state) return baseLevel;
+  const bonus = getSpawnLevelBonus(state as GameSnapshot, creatureType);
+  const cap = getSpawnCapLevel(config.lineUpgrades, creatureType);
+  return Math.min(baseLevel + bonus, cap);
 }
 
 /** Create a generator entity that is already charged (pre-rolled spawns).
@@ -88,16 +103,18 @@ export function createChargedGenerator(
   id: string,
   generatorId: number,
   level: number,
-  config: BalanceConfig
+  config: BalanceConfig,
+  state?: Pick<GameSnapshot, 'lineUpgrades'>
 ): GeneratorEntity {
   const entity: GeneratorEntity = { id, kind: 'generator', generatorId, level, charges: [] };
-  const spawns = rollGeneratorSpawn(rng, entity, config);
+  const spawns = rollGeneratorSpawn(rng, entity, config, state);
 
   // Guarantee first creature from second line L1 (once per generator lifetime)
   const { generator, levelConfig } = getGeneratorConfig(config, generatorId, level);
   const secondLine = generator.lines[1];
   if (secondLine && levelConfig.outputs.some((o) => o.creatureType === secondLine)) {
-    spawns[0] = { creatureType: secondLine, level: 1 };
+    const guaranteedLevel = applyLineUpgradeToLevel(secondLine, 1, config, state);
+    spawns[0] = { creatureType: secondLine, level: guaranteedLevel };
   }
 
   return { ...entity, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };

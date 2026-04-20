@@ -180,7 +180,7 @@ export const useGameStore = create<GameStore>()(
           let finalMerged = merged;
           if (merged.kind === 'generator') {
             const gen = merged as GeneratorEntity;
-            finalMerged = createChargedGenerator(rng, gen.id, gen.generatorId, gen.level, BALANCE);
+            finalMerged = createChargedGenerator(rng, gen.id, gen.generatorId, gen.level, BALANCE, state);
           }
 
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
@@ -358,7 +358,7 @@ export const useGameStore = create<GameStore>()(
               const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
               const nextEntities = { ...state.entities };
 
-              nextEntities[newGenId] = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
+              nextEntities[newGenId] = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE, state);
               nextGrid.cells[targetCell] = newGenId;
 
               result = {
@@ -532,7 +532,7 @@ export const useGameStore = create<GameStore>()(
               const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
               if (nextMeat >= levelConfig.chargeCost) {
                 nextMeat -= levelConfig.chargeCost;
-                const spawns = rollGeneratorSpawn(rng, gen, BALANCE);
+                const spawns = rollGeneratorSpawn(rng, gen, BALANCE, state);
                 gen = { ...gen, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
               }
             }
@@ -786,7 +786,7 @@ export const useGameStore = create<GameStore>()(
                 const genId = Number(parts[1]);
                 const genLevel = Number(parts[2]);
                 const newGenId = rng.nextId();
-                const gen = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
+                const gen = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE, state);
                 if (!placeOnGrid(gen)) {
                   makeSpace();
                   placeOnGrid(gen);
@@ -1079,7 +1079,7 @@ export const useGameStore = create<GameStore>()(
                       if (nextResources.meat < levelConfig.chargeCost) break;
 
                       nextResources = { ...nextResources, meat: nextResources.meat - levelConfig.chargeCost };
-                      const spawns = rollGeneratorSpawn(rng, currentGen, BALANCE);
+                      const spawns = rollGeneratorSpawn(rng, currentGen, BALANCE, state);
                       currentGen = {
                         ...currentGen,
                         charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
@@ -1359,7 +1359,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 1, 1, BALANCE);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 1, 1, BALANCE, state);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -1390,7 +1390,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 2, 1, BALANCE);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 2, 1, BALANCE, state);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -1421,7 +1421,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 4, 1, BALANCE);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 4, 1, BALANCE, state);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
