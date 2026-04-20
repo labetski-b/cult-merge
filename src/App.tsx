@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { HeaderBar } from '@ui/components/HeaderBar';
 import { KrakenPanel } from '@ui/components/KrakenPanel';
 import { TaskPanel } from '@ui/components/TaskPanel';
@@ -8,12 +8,15 @@ import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { QuestPanel } from '@ui/components/QuestPanel';
 import { MeatButton } from '@ui/components/MeatButton';
+import { LineUpgradesButton } from '@ui/components/LineUpgradesButton';
+import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
 import { useGameStore } from '@store/gameStore';
 import { DragProvider } from '@ui/DragContext';
 
 function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
   const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
+  const [lineUpgradesOpen, setLineUpgradesOpen] = useState(false);
 
   useEffect(() => {
     tickFlowerPots(Date.now());
@@ -49,6 +52,12 @@ function App() {
         <QuestPanel />
         <ManagerCollection />
         <ControlsPanel />
+
+        <nav className="nav-bar">
+          <LineUpgradesButton onClick={() => setLineUpgradesOpen(true)} />
+        </nav>
+
+        <LineUpgradesPanel open={lineUpgradesOpen} onClose={() => setLineUpgradesOpen(false)} />
 
         <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
       </div>
