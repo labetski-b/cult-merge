@@ -596,7 +596,7 @@ export class RealisticStrategy implements AIStrategy {
       let ml = maxLevelCache.get(creatureType);
       if (ml !== undefined) return ml;
       const cfg = this.balance.creatures.creatures.find(c => c.type === creatureType);
-      ml = cfg?.maxLevel ?? 9;
+      ml = cfg?.maxLevel ?? 15;
       maxLevelCache.set(creatureType, ml);
       return ml;
     };

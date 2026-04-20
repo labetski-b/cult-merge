@@ -201,7 +201,7 @@ function buildScoringTable(
       const totalL1 = spawnL1 + fieldL1;
 
       const creature = config.creatures.creatures.find(c => c.type === ct);
-      const maxLevel = creature?.maxLevel ?? 9;
+      const maxLevel = creature?.maxLevel ?? 15;
       const targetLevel = totalL1 >= 1
         ? Math.min(Math.floor(Math.log2(totalL1)) + 1, maxLevel, gridCap)
         : 1;

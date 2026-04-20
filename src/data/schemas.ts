@@ -67,7 +67,7 @@ export const creaturesDataSchema = z.object({
 
 const taskRequirementSchema = z.object({
   type: z.string().min(1),
-  level: z.number().int().min(1).max(9),
+  level: z.number().int().min(1).max(15),
   count: z.number().int().positive()
 });
 

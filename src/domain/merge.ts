@@ -1,6 +1,6 @@
 import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, RuneEntity, RuneItemKey } from '@domain/types';
 
-export function canMergeCreatures(a: CreatureEntity, b: CreatureEntity, maxLevel = 9): boolean {
+export function canMergeCreatures(a: CreatureEntity, b: CreatureEntity, maxLevel = 15): boolean {
   return a.creatureType === b.creatureType && a.level === b.level && a.level < maxLevel;
 }
 
