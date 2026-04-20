@@ -38,7 +38,7 @@ export function recordMerge(state: GameSnapshot, line: string): GameSnapshot {
 }
 
 export function isUpgradeAvailable(
-  state: GameSnapshot,
+  state: Pick<GameSnapshot, 'lineUpgrades'>,
   config: LineUpgradesConfig,
   line: string
 ): boolean {

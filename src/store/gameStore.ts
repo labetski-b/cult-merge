@@ -12,7 +12,12 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import { recordMerge } from '@domain/lineUpgrades';
+import {
+  applyLineUpgrade,
+  isUpgradeAvailable,
+  recordMerge,
+  type ApplyLineUpgradeResult,
+} from '@domain/lineUpgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -52,6 +57,7 @@ interface GameActions {
   getMeat: () => void;
   resetGame: () => void;
   clearLastMessage: () => void;
+  applyLineUpgradeAction: (line: string) => ApplyLineUpgradeResult;
 }
 
 export type GameStore = GameSnapshot & GameActions;
@@ -1671,6 +1677,17 @@ export const useGameStore = create<GameStore>()(
 
       clearLastMessage: () => {
         set({ lastMessage: null });
+      },
+
+      applyLineUpgradeAction: (line: string): ApplyLineUpgradeResult => {
+        let out: ApplyLineUpgradeResult = { ok: false, reason: 'not_ready' };
+        set((state) => {
+          const res = applyLineUpgrade(state, BALANCE.lineUpgrades, line);
+          out = res;
+          if (!res.ok) return state;
+          return res.state;
+        });
+        return out;
       }
     }),
     {
@@ -1741,4 +1758,20 @@ export function useEarnedLevelExp() {
 
 export function useCurrentChapter() {
   return useGameStore((state) => getCurrentChapter(BALANCE, state.resources.eyes));
+}
+
+export const selectLineUpgrades = (s: Pick<GameStore, 'lineUpgrades'>) => s.lineUpgrades;
+
+export const selectAvailableUpgradesCount = (s: Pick<GameStore, 'lineUpgrades'>): number => {
+  return Object.keys(s.lineUpgrades).reduce((acc, line) => {
+    return acc + (isUpgradeAvailable(s, BALANCE.lineUpgrades, line) ? 1 : 0);
+  }, 0);
+};
+
+export function useLineUpgrades() {
+  return useGameStore(selectLineUpgrades);
+}
+
+export function useAvailableUpgradesCount() {
+  return useGameStore(selectAvailableUpgradesCount);
 }
