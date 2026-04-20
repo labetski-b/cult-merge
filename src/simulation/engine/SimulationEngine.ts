@@ -247,6 +247,8 @@ export class SimulationEngine {
         break;
       case 'free_cells':
         break; // synthetic log-only event, no state mutation
+      case 'line_upgrade_applied':
+        break; // synthetic log-only event; state mutation happens in strategy (Task 16)
     }
   }
 
@@ -768,6 +770,12 @@ export class SimulationEngine {
         return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
       case 'free_cells':
         return `${action.reason}: freed ${action.freed}`;
+      case 'tick_flowerpots':
+        return `spawned ${action.spawned}`;
+      case 'buy_and_merge':
+        return `Gen${action.generatorId} ×${action.count} → Lv${action.targetLevel}`;
+      case 'line_upgrade_applied':
+        return `line_upgrade_applied: ${action.line} → +${action.toAppliedUpgrades - action.fromAppliedUpgrades}`;
     }
   }
 
