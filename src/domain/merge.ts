@@ -1,4 +1,6 @@
-import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, RuneEntity, RuneItemKey } from '@domain/types';
+import type { CreatureEntity, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, RuneEntity, RuneItemKey } from '@domain/types';
+import { findEntityCell } from '@domain/grid';
+import { recordMerge } from '@domain/lineUpgrades';
 
 export function canMergeCreatures(a: CreatureEntity, b: CreatureEntity, maxLevel = 15): boolean {
   return a.creatureType === b.creatureType && a.level === b.level && a.level < maxLevel;
@@ -59,6 +61,43 @@ export function mergeFlowerPots(a: FlowerPotEntity, newId: string, now: number):
     potLevel: a.potLevel + 1,
     lastSpawnTimestamp: now
   };
+}
+
+export function applyCreatureMergeToState(
+  state: GameSnapshot,
+  sourceId: string,
+  targetId: string,
+  newId: string,
+  maxCreatureLevel = 15
+): GameSnapshot | null {
+  const source = state.entities[sourceId];
+  const target = state.entities[targetId];
+  if (!source || !target) return null;
+  if (source.kind !== 'creature' || target.kind !== 'creature') return null;
+  if (!canMergeCreatures(source, target, maxCreatureLevel)) return null;
+
+  const sourceIndex = findEntityCell(state.grid, sourceId);
+  const targetIndex = findEntityCell(state.grid, targetId);
+  if (sourceIndex === -1 || targetIndex === -1) return null;
+
+  const merged = mergeCreatures(source, newId);
+
+  const nextCells = [...state.grid.cells];
+  nextCells[sourceIndex] = null;
+  nextCells[targetIndex] = merged.id;
+
+  const nextEntities = { ...state.entities };
+  delete nextEntities[sourceId];
+  delete nextEntities[targetId];
+  nextEntities[merged.id] = merged;
+
+  const nextState: GameSnapshot = {
+    ...state,
+    grid: { ...state.grid, cells: nextCells },
+    entities: nextEntities,
+  };
+
+  return recordMerge(nextState, source.creatureType);
 }
 
 export function mergeEntities(source: Entity, target: Entity, newId: string, now = Date.now(), maxCreatureLevel = 9): Entity | null {
