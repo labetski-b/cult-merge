@@ -205,7 +205,7 @@ export type LineUpgradeState = {
 
 export type LineUpgradeCost =
   | null
-  | { resource: 'meat' | 'rune1' | 'rune2' | 'gems' | 'soul'; amount: number };
+  | { resource: 'meat' | 'rune1' | 'rune2' | 'gems'; amount: number };
 
 export type LineUpgradeLineConfig = {
   thresholds: number[];
