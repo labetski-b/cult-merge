@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { BALANCE } from '@data/loadBalance';
 import { useGameStore, useLineUpgrades } from '@store/gameStore';
 import { isUpgradeAvailable, resolveLineConfig } from '@domain/lineUpgrades';
+import { getCreatureImage } from '@ui/creatureImages';
 import './LineUpgradesPanel.css';
 
 type Props = { open: boolean; onClose: () => void };
@@ -93,6 +94,20 @@ function LineUpgradeCard({ line, onApply }: { line: string; onApply: () => void 
   );
 }
 
+function PreviewIcon({ type, level }: { type: string; level: number }) {
+  const src = getCreatureImage(type, level);
+  return (
+    <span className="preview-icon">
+      {src ? (
+        <img src={src} alt={`${type} L${level}`} className="preview-icon-img" draggable={false} />
+      ) : (
+        <span className="preview-icon-fallback" />
+      )}
+      <span className="preview-icon-label">L{level}</span>
+    </span>
+  );
+}
+
 function LineUpgradePreview({ line }: { line: string }) {
   const lineUpgrades = useLineUpgrades();
   const applied = lineUpgrades[line]?.appliedUpgrades ?? 0;
@@ -116,8 +131,22 @@ function LineUpgradePreview({ line }: { line: string }) {
 
   return (
     <div className="line-upgrade-preview">
-      <div>Сейчас: {nowLevels.map((lv) => `L${lv}`).join(' · ')}</div>
-      <div>После: {afterLevels.map((lv) => `L${lv}`).join(' · ')}</div>
+      <div className="preview-row">
+        <span className="preview-row-label">Сейчас:</span>
+        <span className="preview-icons">
+          {nowLevels.map((lv) => (
+            <PreviewIcon key={`now-${lv}`} type={line} level={lv} />
+          ))}
+        </span>
+      </div>
+      <div className="preview-row">
+        <span className="preview-row-label">После:</span>
+        <span className="preview-icons">
+          {afterLevels.map((lv) => (
+            <PreviewIcon key={`after-${lv}`} type={line} level={lv} />
+          ))}
+        </span>
+      </div>
     </div>
   );
 }

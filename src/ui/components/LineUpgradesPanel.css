@@ -100,6 +100,56 @@
   line-height: 1.4;
 }
 
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.preview-row-label {
+  min-width: 52px;
+  flex-shrink: 0;
+  color: rgba(245, 247, 250, 0.6);
+}
+
+.preview-icons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preview-icon {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 36px;
+}
+
+.preview-icon-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.preview-icon-fallback {
+  display: block;
+  width: 36px;
+  height: 36px;
+  background: rgba(143, 193, 255, 0.15);
+  border-radius: 4px;
+}
+
+.preview-icon-label {
+  font-size: 10px;
+  color: rgba(245, 247, 250, 0.75);
+  text-align: center;
+  margin-top: 1px;
+  line-height: 1;
+}
+
 .line-upgrade-card button {
   margin-top: 4px;
   width: 100%;
