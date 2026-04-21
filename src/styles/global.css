@@ -860,7 +860,22 @@ body {
 
 /* ── Predator Progress panel ── */
 
-.predator-progress-panel { padding: 10px 14px; }
+.predator-progress-panel { padding: 6px 10px; }
+
+.predator-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.predator-icon { font-size: 14px; line-height: 1; }
+
+.predator-name {
+  font-weight: 600;
+  color: #ffc07a;
+  font-size: 12px;
+  white-space: nowrap;
+}
 
 .predator-rows {
   display: flex;

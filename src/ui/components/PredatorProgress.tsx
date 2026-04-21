@@ -21,15 +21,16 @@ export function PredatorProgress() {
           Unlocks at Kraken Lv.{pred.krakenRequiredLevel}
         </p>
       ) : (
-        <>
-          <h3 className="panel-title">🐸 Next predator: {pred.id}</h3>
+        <div className="predator-progress-row">
+          <span className="predator-icon">🐸</span>
+          <span className="predator-name">{pred.id}</span>
           <div className="predator-merge-bar-wrap">
             <div className="predator-merge-bar-track">
               <div className="predator-merge-bar-fill" style={{ width: `${pct * 100}%` }} />
             </div>
-            <span className="predator-merge-label">{count} / {pred.mergeCount} merges</span>
+            <span className="predator-merge-label">{count}/{pred.mergeCount}</span>
           </div>
-        </>
+        </div>
       )}
     </section>
   );
