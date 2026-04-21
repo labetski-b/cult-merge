@@ -5,7 +5,7 @@ import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid 
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepRewards } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
-import { recordMerge, applyLineUpgrade } from '@domain/lineUpgrades';
+import { recordMerge } from '@domain/lineUpgrades';
 import { generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -247,13 +247,8 @@ export class SimulationEngine {
         break;
       case 'free_cells':
         break; // synthetic log-only event, no state mutation
-      case 'line_upgrade_applied': {
-        const res = applyLineUpgrade(this.state, this.config.balance.lineUpgrades, action.line);
-        if (res.ok) {
-          this.state = res.state;
-        }
-        break;
-      }
+      case 'line_upgrade_applied':
+        break; // synthetic log-only event; state mutation happens in strategy (Task 16)
     }
   }
 
@@ -780,7 +775,7 @@ export class SimulationEngine {
       case 'buy_and_merge':
         return `Gen${action.generatorId} ×${action.count} → Lv${action.targetLevel}`;
       case 'line_upgrade_applied':
-        return `${action.line} applied #${action.toAppliedUpgrades} at ${action.mergeCountAtApply} merges`;
+        return `line_upgrade_applied: ${action.line} → +${action.toAppliedUpgrades - action.fromAppliedUpgrades}`;
     }
   }
 
