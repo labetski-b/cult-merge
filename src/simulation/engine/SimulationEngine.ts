@@ -768,6 +768,10 @@ export class SimulationEngine {
         return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
       case 'free_cells':
         return `${action.reason}: freed ${action.freed}`;
+      case 'tick_flowerpots':
+        return `spawned ${action.spawned}`;
+      case 'buy_and_merge':
+        return `Gen${action.generatorId} ×${action.count} → Lv${action.targetLevel}`;
     }
   }
 
