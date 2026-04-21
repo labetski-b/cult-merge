@@ -278,9 +278,15 @@ body {
   pointer-events: none;
 }
 
+.cell-creature,
+.drag-clone {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .cell-creature .creature-image,
 .drag-clone .creature-image {
-  background: #ffffff;
+  width: 75%;
+  height: 75%;
 }
 
 
