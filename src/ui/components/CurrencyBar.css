@@ -6,6 +6,7 @@
 }
 
 .cur-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -18,6 +19,22 @@
   font-weight: 600;
   line-height: 1;
   min-width: 56px;
+  overflow: visible;
+}
+
+.currency-float {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  transform: translateX(-50%);
+  color: #ffb84d;
+  font-size: 14px;
+  font-weight: 800;
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  animation: float-up 0.85s ease-out forwards;
+  z-index: 10;
+  white-space: nowrap;
 }
 
 .cur-icon {
