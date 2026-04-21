@@ -8,7 +8,6 @@ import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { GeneratorsCollection } from '@ui/components/GeneratorsCollection';
 import { QuestPanel } from '@ui/components/QuestPanel';
-import { MeatButton } from '@ui/components/MeatButton';
 import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
 import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
 import { useGameStore } from '@store/gameStore';
@@ -58,7 +57,6 @@ function App() {
             <ManagerCollection />
             <GeneratorsCollection />
           </div>
-          <MeatButton />
         </div>
         <div className="debug-row">
           <ControlsPanel />
