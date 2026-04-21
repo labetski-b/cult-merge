@@ -95,7 +95,8 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.kraken-drop-active {
+.kraken-drop-active,
+.task-drop-active {
   border-color: rgba(77, 226, 194, 0.7);
   box-shadow: 0 0 16px rgba(77, 226, 194, 0.3), inset 0 0 20px rgba(77, 226, 194, 0.08);
 }
@@ -1207,9 +1208,11 @@ body {
   .header-bar h1 { font-size: 16px; }
   .panel { padding: 8px; border-radius: 8px; }
 
-  .kraken-row { flex-wrap: wrap; }
-  .kraken-row > .kraken-panel { flex: 1 1 100%; }
-  .kraken-row > .task-panel { flex: 1 1 100%; }
+  .kraken-row { gap: 6px; }
+  .kraken-row > .task-panel {
+    flex: 0 0 120px;
+    padding: 6px;
+  }
 
   .quest-line-row { flex-wrap: wrap; }
   .quest-line-row > .predator-progress-panel { flex: 1 1 100%; }

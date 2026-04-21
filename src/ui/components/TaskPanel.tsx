@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getTaskFedProgress } from '@domain/tasks';
-import { getCreatureReward, applyTaskMultiplier } from '@domain/rewards';
+import { getCreatureReward, applyTaskMultiplier, getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import { getCreatureImage } from '@ui/creatureImages';
+import { useDragContext } from '@ui/DragContext';
 import eyesIcon from '@assets/resources/eyes.png';
-import type { ScoringTableEntry } from '@domain/types';
+import type { CreatureEntity, RuneEntity, ScoringTableEntry } from '@domain/types';
 
 function ScoringTable({ rows, picked, collapsed }: {
   rows: ScoringTableEntry[];
@@ -60,13 +61,32 @@ function ScoringTable({ rows, picked, collapsed }: {
   );
 }
 
+interface FloatingText {
+  id: number;
+  text: string;
+  color: string;
+}
+
 export function TaskPanel() {
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const task = useCurrentTask();
   const fed = useCurrentTaskFed();
+  const entities = useGameStore((s) => s.entities);
+  const feedEntity = useGameStore((s) => s.feedEntity);
   const ensureAutoTask = useGameStore((s) => s.ensureAutoTask);
   const completeQuest = useGameStore((s) => s.completeQuest);
   const [showDebug, setShowDebug] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [floats, setFloats] = useState<FloatingText[]>([]);
+  const floatIdRef = useRef(0);
+
+  const dragCtx = useDragContext();
+  const panelRef = useRef<HTMLElement>(null);
+
+  const entitiesRef = useRef(entities);
+  entitiesRef.current = entities;
+  const feedEntityRef = useRef(feedEntity);
+  feedEntityRef.current = feedEntity;
 
   // Generate auto-task if none exists and level allows
   useEffect(() => {
@@ -75,10 +95,40 @@ export function TaskPanel() {
     }
   }, [krakenLevel, task, ensureAutoTask]);
 
+  useEffect(() => {
+    const unregister = dragCtx.registerDropZone({
+      id: 'task-panel',
+      getRect: () => panelRef.current?.getBoundingClientRect() ?? null,
+      onDragEnter: () => setDragOver(true),
+      onDragLeave: () => setDragOver(false),
+      onDrop: (_cellIndex: number, entityId: string) => {
+        setDragOver(false);
+        const entity = entitiesRef.current[entityId];
+        if (!entity || entity.kind === 'generator' || entity.kind === 'box') return;
+
+        const id = ++floatIdRef.current;
+        if (entity.kind === 'creature') {
+          const reward = getEntityReward(BALANCE, entity as CreatureEntity);
+          setFloats((prev) => [...prev, { id, text: `+${reward.exp} EXP`, color: '#4de2c2' }]);
+        } else if (entity.kind === 'rune') {
+          const rune = entity as RuneEntity;
+          const val = runeRedemptionValue(rune.runeType);
+          const label = rune.runeType.startsWith('Hard_') ? 'Gems' : rune.runeType.startsWith('Rune1_') ? 'Rune1' : 'Rune2';
+          setFloats((prev) => [...prev, { id, text: `+${val} ${label}`, color: '#c9a0ff' }]);
+        }
+        setTimeout(() => setFloats((prev) => prev.filter((f) => f.id !== id)), 900);
+
+        feedEntityRef.current(entityId);
+      },
+    });
+
+    return unregister;
+  }, [dragCtx]);
+
   // Tasks unlock at level 2
   if (krakenLevel < 2) {
     return (
-      <section className="panel task-panel">
+      <section ref={panelRef} className="panel task-panel">
         <p className="task-locked">Required: Kraken Lv.2</p>
       </section>
     );
@@ -103,7 +153,8 @@ export function TaskPanel() {
 
   return (
     <section
-      className="panel task-panel"
+      ref={panelRef}
+      className={`panel task-panel${dragOver ? ' task-drop-active' : ''}`}
       onClick={() => completeQuest()}
       style={{ cursor: 'pointer' }}
     >
@@ -177,6 +228,12 @@ export function TaskPanel() {
       ) : (
         <p className="task-empty">No task available (no generators on field)</p>
       )}
+      {dragOver && <div className="kraken-drop-hint">Drop to feed</div>}
+      {floats.map((f) => (
+        <div key={f.id} className="kraken-float" style={{ color: f.color }}>
+          {f.text}
+        </div>
+      ))}
     </section>
   );
 }
