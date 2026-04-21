@@ -5,7 +5,6 @@ import { TaskPanel } from '@ui/components/TaskPanel';
 import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
-import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { GeneratorsCollection } from '@ui/components/GeneratorsCollection';
 import { QuestPanel } from '@ui/components/QuestPanel';
 import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
@@ -54,7 +53,6 @@ function App() {
         <GridBoard />
         <div className="meat-bar-row">
           <div className="panel shop-buttons-panel">
-            <ManagerCollection />
             <GeneratorsCollection />
           </div>
         </div>
