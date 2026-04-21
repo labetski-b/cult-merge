@@ -1216,7 +1216,5 @@ body {
     padding: 6px;
   }
 
-  .quest-line-row { flex-wrap: wrap; }
-  .quest-line-row > .predator-progress-panel { flex: 1 1 100%; }
-  .quest-line-row > .line-upgrades-dock { flex: 1 1 100%; }
+  .quest-line-row { gap: 6px; }
 }
