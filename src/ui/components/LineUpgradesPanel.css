@@ -132,7 +132,7 @@
   height: 36px;
   object-fit: contain;
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(143, 193, 255, 0.18) 0%, rgba(143, 193, 255, 0.04) 70%, transparent 100%);
+  background: #fff;
   padding: 2px;
 }
 
@@ -140,7 +140,7 @@
   display: block;
   width: 36px;
   height: 36px;
-  background: rgba(143, 193, 255, 0.15);
+  background: #fff;
   border-radius: 50%;
 }
 

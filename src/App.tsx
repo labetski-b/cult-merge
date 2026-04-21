@@ -6,7 +6,7 @@ import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { GeneratorsCollection } from '@ui/components/GeneratorsCollection';
-import { QuestPanel } from '@ui/components/QuestPanel';
+import { ChapterQuestsButton } from '@ui/components/ChapterQuestsButton';
 import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
 import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
 import { useGameStore } from '@store/gameStore';
@@ -40,7 +40,6 @@ function App() {
       <div className="app-root">
         <HeaderBar />
 
-        <QuestPanel />
         <div className="quest-line-row">
           <PredatorProgress />
           <LineUpgradesDock onOpen={() => setLineUpgradesOpen(true)} />
@@ -52,9 +51,8 @@ function App() {
         </div>
         <GridBoard />
         <div className="meat-bar-row">
-          <div className="panel shop-buttons-panel">
-            <GeneratorsCollection />
-          </div>
+          <ChapterQuestsButton />
+          <GeneratorsCollection />
         </div>
         <div className="debug-row">
           <ControlsPanel />

@@ -411,6 +411,50 @@ body {
   background: rgba(170, 55, 55, 0.9);
 }
 
+.btn-shop {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  background: #c0392b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.btn-shop:hover {
+  background: #d14436;
+}
+.btn-shop:active {
+  background: #a93323;
+}
+
+.btn-chapter {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  background: #2d6fbf;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.btn-chapter:hover:not(:disabled) {
+  background: #3b81d2;
+}
+.btn-chapter:active:not(:disabled) {
+  background: #255da0;
+}
+.btn-chapter:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .button-row {
   display: flex;
   gap: 6px;
@@ -1081,7 +1125,8 @@ body {
 
 .meat-bar-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
