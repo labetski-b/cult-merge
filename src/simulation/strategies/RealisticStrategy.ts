@@ -2,7 +2,6 @@ import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEnti
 import { getFreeCellIndexes, getNeighborCellIndexes, findEntityCell } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
 import { getCurrentMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } from '@domain/tasks';
-import { isUpgradeAvailable } from '@domain/lineUpgrades';
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction, StrategyDecision } from './base';
@@ -45,25 +44,6 @@ export class RealisticStrategy implements AIStrategy {
   }
 
   decide(state: GameSnapshot, _rng: SeededRng): StrategyDecision {
-    // Highest priority: apply any available line upgrade immediately
-    for (const line of Object.keys(state.lineUpgrades)) {
-      if (isUpgradeAvailable(state, this.balance.lineUpgrades, line)) {
-        const lineState = state.lineUpgrades[line];
-        if (!lineState) continue;
-        return {
-          actions: [{
-            type: 'line_upgrade_applied',
-            tick: 0,
-            line,
-            fromAppliedUpgrades: lineState.appliedUpgrades,
-            toAppliedUpgrades: lineState.appliedUpgrades + 1,
-            mergeCountAtApply: lineState.mergeCount,
-          }],
-          done: false,
-        };
-      }
-    }
-
     // Early game (kraken < 2) — separate loop, no phases
     if (state.kraken.level < 2) {
       return this.earlyGameStep(state);
