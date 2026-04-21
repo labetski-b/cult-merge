@@ -279,8 +279,10 @@ body {
 }
 
 .cell-creature,
-.drag-clone {
-  background: rgba(255, 255, 255, 0.25);
+.drag-clone,
+.cell-generator,
+.cell-generator-charged {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .cell-creature .creature-image,
