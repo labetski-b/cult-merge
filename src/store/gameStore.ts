@@ -1785,6 +1785,10 @@ export function migrateGameStore(
     persistedState = { ...(persistedState as object), lineUpgrades: merged };
   }
 
+  if (persistedVersion < 17) {
+    persistedState = { ...(persistedState as object), meatDropQueue: [] };
+  }
+
   return persistedState;
 }
 

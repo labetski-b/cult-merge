@@ -136,6 +136,11 @@ export interface FedCreature {
   level: number;
 }
 
+export interface MeatDrop {
+  id: number;
+  amount: number;
+}
+
 export interface GameSnapshot {
   kraken: KrakenState;
   resources: Resources;
@@ -159,6 +164,7 @@ export interface GameSnapshot {
   cumulativeStats: CumulativeStats;
   questState: QuestState;
   lineUpgrades: Record<string, LineUpgradeState>;
+  meatDropQueue: MeatDrop[];
 }
 
 export enum QuestType {

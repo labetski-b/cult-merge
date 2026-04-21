@@ -55,5 +55,6 @@ export function createInitialSnapshot(
     cumulativeStats: createEmptyCumulativeStats(),
     questState: createEmptyQuestState(),
     lineUpgrades: initLineUpgrades(allLines),
+    meatDropQueue: [],
   };
 }
