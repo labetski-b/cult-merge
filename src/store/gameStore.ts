@@ -16,6 +16,7 @@ import {
   applyLineUpgrade,
   isUpgradeAvailable,
   recordMerge,
+  getSpawnCapLevel,
   type ApplyLineUpgradeResult,
 } from '@domain/lineUpgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
@@ -1688,7 +1689,21 @@ export const useGameStore = create<GameStore>()(
           const res = applyLineUpgrade(state, BALANCE.lineUpgrades, line);
           out = res;
           if (!res.ok) return state;
-          return res.state;
+          const cap = getSpawnCapLevel(BALANCE.lineUpgrades, line);
+          const entities: Record<string, Entity> = {};
+          for (const id in res.state.entities) {
+            const e = res.state.entities[id];
+            if (!e) continue;
+            if (e.kind !== 'generator') {
+              entities[id] = e;
+              continue;
+            }
+            const charges = e.charges.map((c) =>
+              c.creatureType === line ? { ...c, level: Math.min(c.level + 1, cap) } : c
+            );
+            entities[id] = { ...e, charges };
+          }
+          return { ...res.state, entities };
         });
         if (out.ok) {
           const successOut = out as Extract<ApplyLineUpgradeResult, { ok: true }>;
