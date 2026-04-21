@@ -476,8 +476,9 @@ body {
 
 .task-req {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 4px 0;
 }
 
@@ -543,8 +544,9 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: #ffcc66;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 

@@ -188,7 +188,7 @@ export function TaskPanel() {
             })}
           </div>
           <div className="task-reward">
-            Reward: {totalEyes}
+            {totalEyes}
             <img src={eyesIcon} alt="Eyes" className="task-reward-icon" />
           </div>
           {!task.id.startsWith('mandatory') && (
