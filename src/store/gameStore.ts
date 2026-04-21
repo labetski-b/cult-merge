@@ -1771,7 +1771,11 @@ export const useGameStore = create<GameStore>()(
       name: SAVE_KEY,
       version: SAVE_VERSION,
       migrate: (persistedState, persistedVersion) =>
-        migrateGameStore(persistedState, persistedVersion) as GameStore
+        migrateGameStore(persistedState, persistedVersion) as GameStore,
+      partialize: (state) => {
+        const { meatDropQueue: _omit, ...rest } = state;
+        return rest as GameStore;
+      }
     }
   )
 );
