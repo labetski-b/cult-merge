@@ -288,6 +288,15 @@ export const useGameStore = create<GameStore>()(
       },
 
       chargeGenerator: (generatorId) => {
+        const pre = get();
+        const entity = pre.entities[generatorId];
+        if (entity && entity.kind === 'generator' && entity.charges.length === 0) {
+          const { levelConfig } = getGeneratorConfig(BALANCE, entity.generatorId, entity.level);
+          while (get().resources.meat < levelConfig.chargeCost) {
+            get().getMeat();
+          }
+        }
+
         set((state) => {
           const rng = new SeededRng(state.rngState);
           const result = applyGeneratorCharge(state, generatorId, { balance: BALANCE, rng });
@@ -298,8 +307,6 @@ export const useGameStore = create<GameStore>()(
                 return { lastMessage: 'Generator not found.' };
               case 'generator_has_charges':
                 return { lastMessage: 'Generator still has charges. Tap to spawn.' };
-              case 'not_enough_meat':
-                return { lastMessage: 'Not enough meat.' };
               default:
                 return {};
             }
