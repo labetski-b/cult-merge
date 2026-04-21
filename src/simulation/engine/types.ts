@@ -18,15 +18,7 @@ export type SimulationAction =
   | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
   | { type: 'expand_board'; newRows: number; newCols: number }
   | { type: 'free_cells'; reason: string; freed: number }
-  | { type: 'tick_flowerpots'; spawned: number }
-  | {
-      type: 'line_upgrade_applied';
-      tick: number;
-      line: string;
-      fromAppliedUpgrades: number;
-      toAppliedUpgrades: number;
-      mergeCountAtApply: number;
-    };
+  | { type: 'tick_flowerpots'; spawned: number };
 
 export interface StrategyDecision {
   actions: SimulationAction[];
