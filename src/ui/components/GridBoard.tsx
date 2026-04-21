@@ -415,7 +415,7 @@ export function GridBoard() {
       <div
         ref={boardRef}
         className="grid-board"
-        style={{ gridTemplateColumns: `repeat(${grid.cols}, 100px)` }}
+        style={{ ['--grid-cols' as string]: grid.cols }}
       >
         {rows.flat().map((index) => {
           const entityId = grid.cells[index];

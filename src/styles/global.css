@@ -130,6 +130,7 @@ body {
 
 .grid-board {
   display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 7), 100px);
   gap: 3px;
   justify-content: center;
   touch-action: none;
@@ -1217,6 +1218,13 @@ body {
   }
   .task-debug-toggle,
   .task-debug-panel { display: none; }
+
+  .grid-board {
+    grid-template-columns: repeat(var(--grid-cols, 7), minmax(0, 1fr));
+    width: 100%;
+    gap: 2px;
+  }
+  .cell { padding: 2px; font-size: 0.55rem; }
 
   .quest-line-row { gap: 6px; }
 }
