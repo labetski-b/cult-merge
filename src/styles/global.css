@@ -195,38 +195,29 @@ body {
 }
 
 .cell-generator {
-  border-color: rgba(255, 180, 60, 0.5);
-  background: rgba(60, 45, 20, 0.7);
+  border-color: transparent;
+  background: linear-gradient(135deg, rgba(255, 180, 60, 0.22), rgba(90, 55, 20, 0.75));
   cursor: pointer;
 }
 
 .cell-generator:hover {
-  border-color: rgba(255, 200, 80, 0.8);
-  box-shadow: 0 0 8px rgba(255, 180, 60, 0.3);
+  background: linear-gradient(135deg, rgba(255, 200, 80, 0.32), rgba(110, 70, 25, 0.85));
 }
 
 .cell-generator-charged {
-  border-color: rgba(100, 255, 100, 0.6);
-  background: rgba(30, 60, 30, 0.7);
+  border-color: transparent;
+  background: linear-gradient(135deg, rgba(130, 255, 130, 0.28), rgba(30, 80, 30, 0.85));
   cursor: pointer;
-  animation: pulse-glow 1.5s ease-in-out infinite;
+  animation: pulse-bg 1.5s ease-in-out infinite;
 }
 
 .cell-generator-charged:hover {
-  border-color: rgba(130, 255, 130, 0.9);
-  box-shadow: 0 0 12px rgba(100, 255, 100, 0.4);
+  background: linear-gradient(135deg, rgba(160, 255, 160, 0.4), rgba(40, 100, 40, 0.9));
 }
 
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 4px rgba(100, 255, 100, 0.15);
-  }
-
-  50% {
-    box-shadow: 0 0 10px rgba(100, 255, 100, 0.35);
-  }
+@keyframes pulse-bg {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
 }
 
 .cell-creature {
@@ -1224,7 +1215,12 @@ body {
     width: 100%;
     gap: 2px;
   }
-  .cell { padding: 2px; font-size: 0.55rem; }
+  .cell {
+    padding: 2px;
+    font-size: 0.55rem;
+    overflow: hidden;
+    min-width: 0;
+  }
 
   .quest-line-row { gap: 6px; }
 }
