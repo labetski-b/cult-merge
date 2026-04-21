@@ -734,6 +734,7 @@ export const useGameStore = create<GameStore>()(
           let cqSpawns = 0;
           let cqRunesFed = 0;
           let cqTasksCompleted = 0;
+          const cqMergesByLine: Record<string, number> = {};
           const cqMaxCreature: Record<string, number> = { ...state.cumulativeStats.maxCreatureLevelByType };
           const cqMaxGenerator: Record<number, number> = { ...state.cumulativeStats.maxGeneratorLevelById };
 
@@ -946,6 +947,7 @@ export const useGameStore = create<GameStore>()(
                   removeFromGrid(b.id);
                   placeOnGrid(merged);
                   cqMerges += 1;
+                  cqMergesByLine[cType] = (cqMergesByLine[cType] ?? 0) + 1;
                   const prevMax = cqMaxCreature[cType] ?? 0;
                   if (merged.level > prevMax) cqMaxCreature[cType] = merged.level;
                   pairsAtLevel = Object.values(nextEntities).filter(
@@ -1156,6 +1158,7 @@ export const useGameStore = create<GameStore>()(
                   removeFromGrid(b.id);
                   placeOnGrid(merged);
                   cqMerges += 1;
+                  cqMergesByLine[req.type] = (cqMergesByLine[req.type] ?? 0) + 1;
                   const prevMax = cqMaxCreature[req.type] ?? 0;
                   if (merged.level > prevMax) cqMaxCreature[req.type] = merged.level;
 
@@ -1213,6 +1216,12 @@ export const useGameStore = create<GameStore>()(
             nextGrid.rows = resized.rows;
             nextGrid.cols = resized.cols;
             nextGrid.cells = resized.cells;
+          }
+
+          const nextLineUpgrades = { ...state.lineUpgrades };
+          for (const [line, count] of Object.entries(cqMergesByLine)) {
+            const cur = nextLineUpgrades[line] ?? { mergeCount: 0, appliedUpgrades: 0 };
+            nextLineUpgrades[line] = { ...cur, mergeCount: cur.mergeCount + count };
           }
 
           // Check task completion
@@ -1312,6 +1321,7 @@ export const useGameStore = create<GameStore>()(
               session,
               rngState: rng.getState(),
               cumulativeStats: completedCumStats,
+              lineUpgrades: nextLineUpgrades,
               lastMessage: `Quest complete! +${totalExp} EXP, +${totalEyes} Eyes.`
             };
           }
@@ -1343,6 +1353,7 @@ export const useGameStore = create<GameStore>()(
             session,
             rngState: rng.getState(),
             cumulativeStats: partialCumStats,
+            lineUpgrades: nextLineUpgrades,
             lastMessage: `Quest partially progressed (+${totalExp} EXP). Could not fully complete.`
           };
         });
