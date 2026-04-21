@@ -42,3 +42,16 @@
 .cur-value {
   font-variant-numeric: tabular-nums;
 }
+
+@media (max-width: 600px) {
+  .currency-bar { gap: 6px; }
+  .cur-pill {
+    padding: 4px 8px;
+    font-size: 12px;
+    gap: 5px;
+    min-width: 0;
+    border-radius: 10px;
+  }
+  .cur-icon { width: 16px; height: 16px; }
+  .cur-icon-text { font-size: 9px; }
+}

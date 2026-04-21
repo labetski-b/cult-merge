@@ -110,3 +110,10 @@
   color: rgba(245, 247, 250, 0.6);
   text-align: right;
 }
+
+@media (max-width: 600px) {
+  .quest-panel-header h2 { font-size: 12px; }
+  .quest-desc { font-size: 11px; }
+  .quest-progress-text { font-size: 10px; }
+  .quest-list { gap: 6px; }
+}
