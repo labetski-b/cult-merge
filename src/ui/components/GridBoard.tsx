@@ -56,7 +56,6 @@ function getCellIndexAtPoint(x: number, y: number): number | null {
 export function GridBoard() {
   const grid = useGameStore((state) => state.grid);
   const entities = useGameStore((state) => state.entities);
-  const resources = useGameStore((state) => state.resources);
   const interactCells = useGameStore((state) => state.interactCells);
   const chargeGenerator = useGameStore((state) => state.chargeGenerator);
   const tapGenerator = useGameStore((state) => state.tapGenerator);
@@ -377,8 +376,7 @@ export function GridBoard() {
       chargePopup.entity.generatorId,
       chargePopup.entity.level,
     );
-    const canAfford = resources.meat >= levelConfig.chargeCost;
-    return { levelConfig, canAfford };
+    return { levelConfig };
   };
 
   const chargeInfo = chargePopup ? getChargeInfo() : null;
@@ -578,13 +576,9 @@ export function GridBoard() {
             &nbsp;&bull;&nbsp;
             Spawns: {chargeInfo.levelConfig.numCreatures}
           </div>
-          {chargeInfo.canAfford ? (
-            <button className="btn popup-btn" onClick={handleCharge} type="button">
-              Charge ({chargeInfo.levelConfig.chargeCost} meat)
-            </button>
-          ) : (
-            <div className="popup-error">Not enough meat</div>
-          )}
+          <button className="btn popup-btn" onClick={handleCharge} type="button">
+            Charge ({chargeInfo.levelConfig.chargeCost} meat)
+          </button>
           <button
             className="popup-close"
             onClick={() => setChargePopup(null)}
