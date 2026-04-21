@@ -428,7 +428,6 @@ export function GridBoard() {
                 else cellRefs.current.delete(index);
               }}
               className={getCellClassName(index, entity)}
-              style={entity?.kind === 'generator' ? { backgroundColor: '#a0a0a0' } : undefined}
               onPointerDown={(e) => handlePointerDown(e, index)}
               onClick={(e) => handleCellClick(e, index)}
               onDoubleClick={() => handleCellDoubleClick(index)}
@@ -448,29 +447,27 @@ export function GridBoard() {
                       <>
                         <img src={img} alt={entityLabel(entity)} className="creature-image" draggable={false} />
                         <span className="cell-badge">{badge}</span>
-                        {chargeCount > 0 && (
-                          <span
-                            className="generator-charge-badge"
-                            style={{
-                              position: 'absolute',
-                              top: '4px',
-                              right: '4px',
-                              backgroundColor: '#4CAF50',
-                              color: 'white',
-                              borderRadius: '50%',
-                              width: '24px',
-                              height: '24px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '14px',
-                              fontWeight: 'bold',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                            }}
-                          >
-                            {chargeCount}
-                          </span>
-                        )}
+                        <span
+                          className="generator-charge-badge"
+                          style={{
+                            position: 'absolute',
+                            top: '4px',
+                            right: '4px',
+                            backgroundColor: chargeCount > 0 ? '#4CAF50' : '#777',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          {chargeCount}
+                        </span>
                       </>
                     );
                   } else if (entity.kind === 'rune') {

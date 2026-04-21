@@ -195,29 +195,23 @@ body {
 }
 
 .cell-generator {
-  border-color: transparent;
-  background: linear-gradient(135deg, rgba(255, 180, 60, 0.22), rgba(90, 55, 20, 0.75));
+  border-color: rgba(0, 0, 0, 0.2);
+  background: #7a7a82;
   cursor: pointer;
 }
 
 .cell-generator:hover {
-  background: linear-gradient(135deg, rgba(255, 200, 80, 0.32), rgba(110, 70, 25, 0.85));
+  background: #6b6b73;
 }
 
 .cell-generator-charged {
-  border-color: transparent;
-  background: linear-gradient(135deg, rgba(130, 255, 130, 0.28), rgba(30, 80, 30, 0.85));
+  border-color: rgba(0, 0, 0, 0.2);
+  background: #7a7a82;
   cursor: pointer;
-  animation: pulse-bg 1.5s ease-in-out infinite;
 }
 
 .cell-generator-charged:hover {
-  background: linear-gradient(135deg, rgba(160, 255, 160, 0.4), rgba(40, 100, 40, 0.9));
-}
-
-@keyframes pulse-bg {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.18); }
+  background: #6b6b73;
 }
 
 .cell-creature {
@@ -299,6 +293,11 @@ body {
 .cell-creature .creature-image,
 .drag-clone .creature-image {
   background: #ffffff;
+}
+
+.cell-generator .creature-image,
+.cell-generator-charged .creature-image {
+  background: #7a7a82;
 }
 
 .entity-label {
@@ -1177,6 +1176,10 @@ body {
   align-items: flex-start;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0.75;
 }
 .debug-row > .debug-panel {
   flex: 1;
