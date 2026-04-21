@@ -1,11 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getQuestCurrentValue, getFirstIncompleteChapterId, createEmptyCumulativeStats, QUEST_UNLOCK_LEVEL } from '@domain/quests';
 import '@styles/QuestPanel.css';
 
+const QUEST_COLLAPSED_KEY = 'questPanelCollapsed';
+
 export function QuestPanel() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(QUEST_COLLAPSED_KEY);
+      return v === null ? true : v === '1';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(QUEST_COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [collapsed]);
+
   const questState = useGameStore((s) => s.questState);
   const cumulativeStats = useGameStore((s) => s.cumulativeStats);
   const krakenLevel = useGameStore((s) => s.kraken.level);
