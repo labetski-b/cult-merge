@@ -195,23 +195,11 @@ body {
 }
 
 .cell-generator {
-  border-color: rgba(0, 0, 0, 0.2);
-  background: #7a7a82;
   cursor: pointer;
-}
-
-.cell-generator:hover {
-  background: #6b6b73;
 }
 
 .cell-generator-charged {
-  border-color: rgba(0, 0, 0, 0.2);
-  background: #7a7a82;
   cursor: pointer;
-}
-
-.cell-generator-charged:hover {
-  background: #6b6b73;
 }
 
 .cell-creature {
@@ -295,10 +283,6 @@ body {
   background: #ffffff;
 }
 
-.cell-generator .creature-image,
-.cell-generator-charged .creature-image {
-  background: #7a7a82;
-}
 
 .entity-label {
   font-size: 14px;
