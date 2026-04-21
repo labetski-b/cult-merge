@@ -860,9 +860,14 @@ body {
 
 /* ── Predator Progress panel ── */
 
-.predator-progress-panel { padding: 6px 10px; }
+.predator-progress-panel {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-.predator-progress-row {
+.predator-progress-head {
   display: flex;
   align-items: center;
   gap: 6px;
