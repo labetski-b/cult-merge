@@ -58,6 +58,7 @@ interface GameActions {
   speedUpFlowerPot: (entityId: string) => void;
   ensureAutoTask: () => void;
   getMeat: () => void;
+  consumeMeatDrop: (id: number) => void;
   resetGame: () => void;
   clearLastMessage: () => void;
   applyLineUpgradeAction: (line: string) => ApplyLineUpgradeResult;
@@ -114,6 +115,8 @@ function formatFeedMessage(
 
   return 'Cannot feed this entity.';
 }
+
+let meatDropIdSeq = 0;
 
 export const useGameStore = create<GameStore>()(
   persist(
@@ -1705,9 +1708,16 @@ export const useGameStore = create<GameStore>()(
             meatButtonPresses: newPressCount,
             session: newSession,
             resources: { ...state.resources, meat: state.resources.meat + meatAmount },
+            meatDropQueue: [...state.meatDropQueue, { id: ++meatDropIdSeq, amount: meatAmount }],
             lastMessage: `+${meatAmount} Meat (Chapter ${chapter.chapter}, Session ${newSession})`
           };
         });
+      },
+
+      consumeMeatDrop: (id) => {
+        set((state) => ({
+          meatDropQueue: state.meatDropQueue.filter((d) => d.id !== id)
+        }));
       },
 
       resetGame: () => {
