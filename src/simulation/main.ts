@@ -75,8 +75,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') fieldPopupOverlay.classList.remove('open');
 });
 
-// X-axis mode selector
-document.getElementById('x-axis-mode')?.addEventListener('change', updateChartsXAxis);
+// X-axis mode selector (button group)
+document.querySelectorAll<HTMLButtonElement>('#x-axis-mode .tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#x-axis-mode .tab-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateChartsXAxis();
+  });
+});
 
 // Action Log navigation
 logTickInput.addEventListener('change', () => renderActionLog(currentResults));
@@ -325,7 +331,8 @@ function showFieldPopup(entry: ActionLogEntry) {
 }
 
 function getCurrentXAxisMode(): XAxisMode {
-  return ((document.getElementById('x-axis-mode') as HTMLSelectElement | null)?.value ?? 'sessions') as XAxisMode;
+  const active = document.querySelector<HTMLButtonElement>('#x-axis-mode .tab-btn.active');
+  return (active?.dataset.value ?? 'sessions') as XAxisMode;
 }
 
 const X_AXIS_TITLES: Record<XAxisMode, string> = {
