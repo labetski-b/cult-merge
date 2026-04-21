@@ -1,0 +1,63 @@
+.line-upgrades-dock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(14, 25, 42, 0.82);
+  border: 1px solid rgba(143, 193, 255, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.line-upgrades-dock:hover {
+  border-color: rgba(143, 193, 255, 0.6);
+}
+
+.dock-circle {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dock-svg {
+  position: absolute;
+  inset: 0;
+}
+
+.dock-ring-bg {
+  fill: none;
+  stroke: rgba(143, 193, 255, 0.18);
+  stroke-width: 3;
+}
+
+.dock-ring-fg {
+  fill: none;
+  stroke: rgba(143, 193, 255, 0.85);
+  stroke-width: 3;
+  transition: stroke-dashoffset 0.25s ease, stroke 0.2s ease;
+}
+
+.dock-circle.ready .dock-ring-fg {
+  stroke: #ffd454;
+  filter: drop-shadow(0 0 3px rgba(255, 212, 84, 0.6));
+}
+
+.dock-circle.max .dock-ring-fg {
+  stroke: #6bcf7f;
+}
+
+.dock-circle-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.dock-circle-fallback {
+  font-size: 10px;
+  color: #aab;
+  text-transform: uppercase;
+}

@@ -4,6 +4,7 @@ import { BALANCE } from '@data/loadBalance';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureReward, applyTaskMultiplier } from '@domain/rewards';
 import { getCreatureImage } from '@ui/creatureImages';
+import eyesIcon from '@assets/resources/eyes.png';
 import type { ScoringTableEntry } from '@domain/types';
 
 function ScoringTable({ rows, picked, collapsed }: {
@@ -78,7 +79,6 @@ export function TaskPanel() {
   if (krakenLevel < 2) {
     return (
       <section className="panel task-panel">
-        <h2>Task</h2>
         <p className="task-locked">Required: Kraken Lv.2</p>
       </section>
     );
@@ -107,7 +107,9 @@ export function TaskPanel() {
       onClick={() => completeQuest()}
       style={{ cursor: 'pointer' }}
     >
-      <h2>Task {task ? <span className="task-source">({task.id.startsWith('mandatory') ? 'Mandatory' : `D${task.difficulty ?? '?'}`})</span> : ''}</h2>
+      {task?.id.startsWith('mandatory') && (
+        <span className="task-mandatory-corner" title="Mandatory task">m</span>
+      )}
       {task ? (
         <>
           <div className="task-requirements">
@@ -134,7 +136,10 @@ export function TaskPanel() {
               );
             })}
           </div>
-          <div className="task-reward">+{totalEyes} Eyes</div>
+          <div className="task-reward">
+            Reward: {totalEyes}
+            <img src={eyesIcon} alt="Eyes" className="task-reward-icon" />
+          </div>
           {!task.id.startsWith('mandatory') && (
             <>
               <div

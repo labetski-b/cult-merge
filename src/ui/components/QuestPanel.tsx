@@ -11,8 +11,13 @@ export function QuestPanel() {
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const snapshot = useGameStore((s) => s);
 
-  // Quests unlock at level 4
-  if (krakenLevel < QUEST_UNLOCK_LEVEL) return null;
+  if (krakenLevel < QUEST_UNLOCK_LEVEL) {
+    return (
+      <section className="panel quest-panel quest-panel-locked">
+        <p className="quest-locked-label">Unlocks at Kraken Lv.{QUEST_UNLOCK_LEVEL}</p>
+      </section>
+    );
+  }
 
   const chapters = BALANCE.quests.chapters;
   const currentChapterId = getFirstIncompleteChapterId(questState, BALANCE);

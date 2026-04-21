@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { BALANCE } from '@data/loadBalance';
-import { useGameStore, useLineUpgrades } from '@store/gameStore';
+import { useGameStore, useLineUpgrades, useUnlockedLines } from '@store/gameStore';
 import { isUpgradeAvailable, resolveLineConfig } from '@domain/lineUpgrades';
 import { getCreatureImage } from '@ui/creatureImages';
 import './LineUpgradesPanel.css';
@@ -9,15 +9,16 @@ type Props = { open: boolean; onClose: () => void };
 
 export function LineUpgradesPanel({ open, onClose }: Props) {
   const lineUpgrades = useLineUpgrades();
+  const maxByType = useUnlockedLines();
   const applyAction = useGameStore((s) => s.applyLineUpgradeAction);
 
-  const allLines = useMemo(
-    () => [...new Set(BALANCE.generators.generators.flatMap((g) => g.lines))],
-    []
-  );
+  const unlockedLines = useMemo(() => {
+    const all = [...new Set(BALANCE.generators.generators.flatMap((g) => g.lines))];
+    return all.filter((line) => (maxByType[line] ?? 0) > 0);
+  }, [maxByType]);
 
   const sortedLines = useMemo(() => {
-    return [...allLines].sort((a, b) => {
+    return [...unlockedLines].sort((a, b) => {
       const availA = isUpgradeAvailable({ lineUpgrades }, BALANCE.lineUpgrades, a) ? 1 : 0;
       const availB = isUpgradeAvailable({ lineUpgrades }, BALANCE.lineUpgrades, b) ? 1 : 0;
       if (availA !== availB) return availB - availA;
@@ -30,7 +31,7 @@ export function LineUpgradesPanel({ open, onClose }: Props) {
       if (progressA !== progressB) return progressB - progressA;
       return a.localeCompare(b);
     });
-  }, [lineUpgrades, allLines]);
+  }, [lineUpgrades, unlockedLines]);
 
   if (!open) return null;
 

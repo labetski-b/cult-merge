@@ -6,9 +6,10 @@ import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
+import { GeneratorsCollection } from '@ui/components/GeneratorsCollection';
 import { QuestPanel } from '@ui/components/QuestPanel';
 import { MeatButton } from '@ui/components/MeatButton';
-import { LineUpgradesButton } from '@ui/components/LineUpgradesButton';
+import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
 import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
 import { useGameStore } from '@store/gameStore';
 import { DragProvider } from '@ui/DragContext';
@@ -41,21 +42,27 @@ function App() {
       <div className="app-root">
         <HeaderBar />
 
-        <div className="top-panels">
+        <QuestPanel />
+        <div className="quest-line-row">
           <PredatorProgress />
-          <TaskPanel />
+          <LineUpgradesDock onOpen={() => setLineUpgradesOpen(true)} />
         </div>
 
-        <KrakenPanel />
+        <div className="kraken-row">
+          <KrakenPanel />
+          <TaskPanel />
+        </div>
         <GridBoard />
-        <MeatButton />
-        <QuestPanel />
-        <ManagerCollection />
-        <ControlsPanel />
-
-        <nav className="nav-bar">
-          <LineUpgradesButton onClick={() => setLineUpgradesOpen(true)} />
-        </nav>
+        <div className="meat-bar-row">
+          <div className="panel shop-buttons-panel">
+            <ManagerCollection />
+            <GeneratorsCollection />
+          </div>
+          <MeatButton />
+        </div>
+        <div className="debug-row">
+          <ControlsPanel />
+        </div>
 
         <LineUpgradesPanel open={lineUpgradesOpen} onClose={() => setLineUpgradesOpen(false)} />
 

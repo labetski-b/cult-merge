@@ -16,18 +16,20 @@ export function PredatorProgress() {
 
   return (
     <section className="panel predator-progress-panel">
-      <h3 className="panel-title">🐸 Next predator: {pred.id}</h3>
       {isLocked ? (
         <p className="predator-row-locked">
           Unlocks at Kraken Lv.{pred.krakenRequiredLevel}
         </p>
       ) : (
-        <div className="predator-merge-bar-wrap">
-          <div className="predator-merge-bar-track">
-            <div className="predator-merge-bar-fill" style={{ width: `${pct * 100}%` }} />
+        <>
+          <h3 className="panel-title">🐸 Next predator: {pred.id}</h3>
+          <div className="predator-merge-bar-wrap">
+            <div className="predator-merge-bar-track">
+              <div className="predator-merge-bar-fill" style={{ width: `${pct * 100}%` }} />
+            </div>
+            <span className="predator-merge-label">{count} / {pred.mergeCount} merges</span>
           </div>
-          <span className="predator-merge-label">{count} / {pred.mergeCount} merges</span>
-        </div>
+        </>
       )}
     </section>
   );

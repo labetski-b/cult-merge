@@ -45,6 +45,7 @@ interface GameActions {
   buyGeneratorOne: () => void;
   buyGeneratorTwo: () => void;
   buyGeneratorFour: () => void;
+  buyGenerator: (id: number) => void;
   addRune1: (amount: number) => void;
   addRune2: (amount: number) => void;
   spawnAll: () => void;
@@ -1442,6 +1443,42 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
+      buyGenerator: (id: number) => {
+        set((state) => {
+          const generator = BALANCE.generators.generators.find((entry) => entry.id === id);
+          if (!generator) return { lastMessage: `Generator ${id} config is missing.` };
+
+          if (state.kraken.level < generator.krakenRequired) {
+            return { lastMessage: `Generator ${id} requires Kraken Lv.${generator.krakenRequired}.` };
+          }
+
+          const currency = generator.purchaseCurrency;
+          if (state.resources[currency] < generator.purchaseCost) {
+            return { lastMessage: `Need ${generator.purchaseCost} ${currency} to buy Generator ${id}.` };
+          }
+
+          const freeSlots = getFreeCellIndexes(state.grid);
+          const targetCell = freeSlots[0];
+          if (targetCell === undefined) return { lastMessage: 'No free cell to place a new generator.' };
+
+          const rng = new SeededRng(state.rngState);
+          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
+          const nextEntities = { ...state.entities };
+          const newGenId = rng.nextId();
+
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, id, 1, BALANCE, state);
+          nextGrid.cells[targetCell] = newGenId;
+
+          return {
+            resources: { ...state.resources, [currency]: state.resources[currency] - generator.purchaseCost },
+            grid: nextGrid,
+            entities: nextEntities,
+            rngState: rng.getState(),
+            lastMessage: `Generator ${id} purchased (charged).`
+          };
+        });
+      },
+
       addRune1: (amount) => {
         set((state) => ({
           resources: { ...state.resources, rune1: state.resources.rune1 + amount }
@@ -1797,4 +1834,8 @@ export function useLineUpgrades() {
 
 export function useAvailableUpgradesCount() {
   return useGameStore(selectAvailableUpgradesCount);
+}
+
+export function useUnlockedLines() {
+  return useGameStore((s) => s.cumulativeStats.maxCreatureLevelByType);
 }
