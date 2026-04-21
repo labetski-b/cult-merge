@@ -45,8 +45,8 @@ export class RealisticStrategy implements AIStrategy {
   }
 
   decide(state: GameSnapshot, _rng: SeededRng): StrategyDecision {
-    // Runs before all phases so ready upgrades never queue behind quest/reward/invest work.
-    for (const line of Object.keys(state.lineUpgrades)) { // order: config insertion, deterministic
+    // Highest priority: apply any available line upgrade immediately
+    for (const line of Object.keys(state.lineUpgrades)) {
       if (isUpgradeAvailable(state, this.balance.lineUpgrades, line)) {
         const lineState = state.lineUpgrades[line];
         if (!lineState) continue;

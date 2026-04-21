@@ -248,7 +248,6 @@ export class SimulationEngine {
       case 'free_cells':
         break; // synthetic log-only event, no state mutation
       case 'line_upgrade_applied': {
-        action.tick = this.tick;
         const res = applyLineUpgrade(this.state, this.config.balance.lineUpgrades, action.line);
         if (res.ok) {
           this.state = res.state;

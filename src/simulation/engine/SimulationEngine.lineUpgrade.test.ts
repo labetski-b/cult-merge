@@ -65,9 +65,6 @@ describe('SimulationEngine line_upgrade_applied', () => {
     const entry = upgradeLogEntries[0]!;
     expect(entry.note).toBe('Creature1 applied #1 at 0 merges');
 
-    // Confirm the engine stamped action.tick with its internal tick counter at execution time
-    expect((entry.action as { tick: number }).tick).toBe(entry.tick);
-
     // Confirm state was actually mutated: appliedUpgrades incremented to 1, mergeCount reset to 0
     const finalUpgrade = result.finalState.lineUpgrades['Creature1'];
     expect(finalUpgrade).toBeDefined();
