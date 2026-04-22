@@ -47,3 +47,24 @@ export function canUpgradeGenerator(
 
   return { ok: true, row };
 }
+
+export function upgradeGenerator<
+  G extends { level: number; charges: unknown[] },
+  S extends { resources: Record<string, number> }
+>(
+  generator: G,
+  row: UpgradeRow,
+  snapshot: S
+): { generator: G; snapshot: S } {
+  const runeBalance = snapshot.resources[row.runeType] ?? 0;
+  return {
+    generator: { ...generator, level: generator.level + 1 },
+    snapshot: {
+      ...snapshot,
+      resources: {
+        ...snapshot.resources,
+        [row.runeType]: runeBalance - row.runeCost,
+      },
+    },
+  };
+}

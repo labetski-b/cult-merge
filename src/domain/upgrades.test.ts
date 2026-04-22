@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUpgradeCost, getGeneratorMergeProgress, canUpgradeGenerator } from './upgrades';
-import type { GeneratorUpgradesTable } from '../data/schemas';
+import { resolveUpgradeCost, getGeneratorMergeProgress, canUpgradeGenerator, upgradeGenerator } from './upgrades';
+import type { GeneratorUpgradesTable, UpgradeRow } from '../data/schemas';
 
 const baseTable: GeneratorUpgradesTable = {
   baseTable: [
@@ -103,5 +103,29 @@ describe('canUpgradeGenerator', () => {
     const snap = makeSnapshot({ resources: { rune1: 0, rune2: 0, meat: 0, eyes: 0, gems: 0 } });
     const result = canUpgradeGenerator(makeGenerator(1), snap, makeBalance());
     expect(result).toEqual({ ok: false, reason: 'runes' });
+  });
+});
+
+describe('upgradeGenerator', () => {
+  const row: UpgradeRow = { fromLevel: 1, mergesRequired: 20, runeCost: 3, runeType: 'rune1' };
+
+  it('increments level by one, deducts runes, preserves charges', () => {
+    const gen = { id: 'g1', kind: 'generator' as const, generatorId: 1, level: 1,
+                  charges: [{ creatureType: 'Creature1', level: 1 }] };
+    const snap = makeSnapshot({ resources: { rune1: 10, rune2: 0, meat: 0, eyes: 0, gems: 0 } });
+    const result = upgradeGenerator(gen, row, snap);
+
+    expect(result.generator.level).toBe(2);
+    expect(result.generator.charges).toEqual([{ creatureType: 'Creature1', level: 1 }]);
+    expect(result.snapshot.resources.rune1).toBe(7);
+  });
+
+  it('does not mutate inputs', () => {
+    const gen = { id: 'g1', kind: 'generator' as const, generatorId: 1, level: 1, charges: [] };
+    const snap = makeSnapshot();
+    const snapBefore = JSON.stringify(snap);
+    upgradeGenerator(gen, row, snap);
+    expect(JSON.stringify(snap)).toBe(snapBefore);
+    expect(gen.level).toBe(1);
   });
 });
