@@ -1,49 +1,76 @@
 # CULT.MERGE Web Prototype
 
-Начальная реализация MVP foundation + core vertical slice.
+Веб-прототип merge-игры CULT.MERGE. MVP foundation + core vertical slice на React/Vite/TS.
 
 Канонический словарь проекта: [docs/glossary/project-systems.md](docs/glossary/project-systems.md)
 
-## Системы проекта
-
-- `Balance profile` живёт в `src/data/*.json` и является текущим runtime source of truth.
-- `Kraken tasks` живут в `src/data/tasks.json` и `src/domain/tasks.ts`: это задачи, которые Kraken выдает игроку; mandatory + auto loop стартует с Kraken level 2.
-- `Kraken quests` живут в `src/data/quests.json` и `src/domain/quests.ts`: это unlockable quests внутри Kraken progression, сейчас они организованы по chapter'ам и открываются с Kraken level 4.
-- `Tycoon quests` как отдельный слой в текущем runtime еще не добавлены.
-- `Experiment overrides`, `session notes` и исторические материалы живут рядом в research-слое `src/data/experiments/` и не являются production source of truth.
-
-## Что уже есть
-
-- React + TypeScript + Vite каркас
-- Архитектурные слои: `domain`, `store`, `data`, `infra`, `ui`
-- `Balance profile` в `src/data/*.json`
-- Runtime-валидация конфигов через `zod`
-- Seeded RNG для воспроизводимых тестов
-- Zustand store с versioned persist (LocalStorage)
-- Игровые действия:
-  - зарядка генератора
-  - перемещение и merge сущностей
-  - выполнение `Kraken tasks` (mandatory + auto)
-  - прогрессия Kraken
-  - `Kraken quests`
-  - открытие сундуков
-  - merge/redeem рун
-  - покупка Generator 1
-- Минимальный UI для тестирования цикла
-
-## Запуск
+## Quick Start
 
 ```bash
 npm install
-npm run dev
+npm run dev           # http://localhost:5180/cult-merge/
 ```
 
-## Проверка типов
+## Основные команды
+
+| Команда | Назначение |
+|---|---|
+| `npm run dev` | Dev-сервер (порт 5180, fixed) |
+| `npm run build` | Production build (`dist/`) |
+| `npm run preview` | Локальный просмотр собранной версии |
+| `npm run typecheck` | TypeScript проверка без эмита |
+| `npm run test` | Vitest (run-once) |
+| `npm run test:watch` | Vitest в watch-режиме |
+| `npm run test:ui` | Vitest UI |
+| `npm run deploy` | Build + push в ветку `gh-pages` |
+| `npm run sim` | Симуляция баланса (`scripts/run-sim.ts`) |
+| `npm run experiment <name>` | Запуск эксперимента (`scripts/run-experiment.ts`) |
+
+Пример: `npm run sim -- 5000 Gen2` — 5000 тиков, фильтр по `Gen2`.
+
+## Структура проекта
+
+```
+src/
+├── domain/       Игровая логика (merge, kraken, tasks, quests, rewards…)
+├── store/        Zustand store + persist
+├── ui/           React-компоненты, drag-context
+├── data/         Balance JSON + experiments/
+├── infra/        RNG, storage, analytics
+├── simulation/   AI-симулятор (отдельная точка входа simulation.html)
+├── styles/       Глобальный CSS
+└── assets/       Картинки
+```
+
+Дополнительные каталоги:
+- `scripts/` — dev-инструменты (симулятор, analysis, verification)
+- `converters/` — экспорт TSV для Figma/дизайна
+- `analytics/` — research-отчёты (ClickHouse)
+- `docs/` — дизайн-доки, glossary, планы
+
+## Ключевые системы
+
+- **Balance profile** — `src/data/*.json`, runtime source of truth, валидация через `zod` (`src/data/schemas.ts`).
+- **Kraken tasks** — `src/data/tasks.json` + `src/domain/tasks.ts`. Mandatory + auto-loop с Kraken Lv2.
+- **Kraken quests** — `src/data/quests.json` + `src/domain/quests.ts`. Organized по chapter'ам, открываются с Kraken Lv4.
+- **Experiments** — `src/data/experiments/<name>/` с override JSON'ами. Запуск: `npm run experiment <name>`. Подробнее → `src/simulation/README.md`.
+
+## Точки входа
+
+- `index.html` — основное приложение (прототип игры)
+- `simulation.html` — dashboard симулятора с графиками (chart.js)
+
+## Документация
+
+- [Game Design (финальная версия)](GAME_DESIGN_FINAL.md)
+- [MVP Spec](GAME_SPEC_MVP.md)
+- [Glossary проекта](docs/glossary/project-systems.md)
+- [Симулятор — архитектура](src/simulation/README.md)
+
+## Деплой
 
 ```bash
-npm run typecheck
+npm run deploy
 ```
 
-## Важно
-
-В текущей среде сетевой доступ к `registry.npmjs.org` может быть ограничен. В этом случае `npm install` завершится ошибкой `ENOTFOUND`.
+GitHub Pages, ветка `gh-pages`. CI/CD нет — деплой ручной, требуется после каждого `git push` в `main`/`release-*`.
