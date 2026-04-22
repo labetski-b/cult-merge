@@ -7,9 +7,9 @@ describe('generator_upgrades.json', () => {
     expect(() => generatorUpgradesSchema.parse(upgradesJson)).not.toThrow();
   });
 
-  it('baseTable has entries for fromLevel 1..7', () => {
+  it('baseTable has entries for fromLevel 1..4', () => {
     const parsed = generatorUpgradesSchema.parse(upgradesJson);
     const fromLevels = parsed.baseTable.map((r) => r.fromLevel).sort();
-    expect(fromLevels).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(fromLevels).toEqual([1, 2, 3, 4]);
   });
 });

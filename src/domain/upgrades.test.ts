@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolveUpgradeCost, getGeneratorMergeProgress, canUpgradeGenerator, upgradeGenerator } from './upgrades';
 import type { GeneratorUpgradesTable, UpgradeRow } from '../data/schemas';
+import { BALANCE } from '../data/loadBalance';
 
 const baseTable: GeneratorUpgradesTable = {
   baseTable: [
@@ -127,5 +128,21 @@ describe('upgradeGenerator', () => {
     upgradeGenerator(gen, row, snap);
     expect(JSON.stringify(snap)).toBe(snapBefore);
     expect(gen.level).toBe(1);
+  });
+});
+
+describe('generator_upgrades.json <-> generators.json sync', () => {
+  it('has no upgrade path beyond the max level defined in generators.json', () => {
+    for (const gen of BALANCE.generators.generators) {
+      const maxLevelFromJson = gen.levels.reduce(
+        (max, lvl) => (lvl.level > max ? lvl.level : max),
+        0
+      );
+      const row = resolveUpgradeCost(gen.id, maxLevelFromJson, BALANCE.generatorUpgrades);
+      expect(
+        row,
+        `Generator ${gen.id} has an upgrade row at fromLevel=${maxLevelFromJson} but generators.json only defines levels up to ${maxLevelFromJson}. Upgrading past this level will crash in getGeneratorConfig. Either add a levels[] entry for level ${maxLevelFromJson + 1} or truncate generator_upgrades.json.`
+      ).toBeNull();
+    }
   });
 });
