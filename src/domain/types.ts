@@ -4,7 +4,7 @@ export interface KrakenState {
   currentExp: number;
 }
 
-export interface Resources {
+export interface Resources extends Record<string, number> {
   meat: number;
   eyes: number;
   rune1: number;
