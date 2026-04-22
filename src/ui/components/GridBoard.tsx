@@ -5,7 +5,7 @@ import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStor
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
 import { calcPendingSpawns } from '@domain/flowerpot';
-import { canMergeCreatures, canMergeFlowerPots, canMergeGenerators, canMergeRunes } from '@domain/merge';
+import { canMergeCreatures, canMergeFlowerPots, canMergeRunes } from '@domain/merge';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
@@ -146,7 +146,7 @@ export function GridBoard() {
         return canMergeCreatures(dragSourceEntity, targetEntity as CreatureEntity, creatureConfig?.maxLevel ?? 9);
       }
       if (dragSourceEntity.kind === 'generator' && targetEntity.kind === 'generator')
-        return canMergeGenerators(dragSourceEntity as GeneratorEntity, targetEntity as GeneratorEntity);
+        return false;
       if (dragSourceEntity.kind === 'rune' && targetEntity.kind === 'rune')
         return canMergeRunes(dragSourceEntity as RuneEntity, targetEntity as RuneEntity);
       if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator')
