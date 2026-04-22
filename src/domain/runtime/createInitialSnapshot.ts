@@ -1,4 +1,5 @@
 import type { BalanceConfig } from '@data/schemas';
+import { createChargedGenerator } from '@domain/generator';
 import { createGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { createEmptyCumulativeStats, createEmptyQuestState } from '@domain/quests';
@@ -18,7 +19,17 @@ export function createInitialSnapshot(
   const rng = new SeededRng(seed);
   const { rows, cols } = getGridSizeForLevel(balance, 1);
   const grid = createGrid(rows, cols);
-  const initialRewards: ProgressReward[] = [{ type: 'egg', value: 'gen_1_1' }];
+  const initialRewards: ProgressReward[] = [];
+
+  // Seed a Gen1 L1 generator on the first grid cell.
+  // Previously delivered as an initial `egg:gen_1_1` pending reward; now pre-placed
+  // because subsequent generators arrive as quest rewards via claimReward.
+  const gen1Id = rng.nextId();
+  const gen1Entity = createChargedGenerator(rng, gen1Id, 1, 1, balance);
+  grid.cells[0] = gen1Id;
+
+  const cumulativeStats = createEmptyCumulativeStats();
+  cumulativeStats.maxGeneratorLevelById[1] = 1;
 
   return {
     kraken: {
@@ -34,7 +45,7 @@ export function createInitialSnapshot(
       gems: 0
     },
     grid,
-    entities: {},
+    entities: { [gen1Id]: gen1Entity },
     taskProgress: {},
     currentTaskFed: [],
     pendingRewards: initialRewards,
@@ -51,7 +62,7 @@ export function createInitialSnapshot(
     autoTaskLastLevels: {},
     session: 1,
     meatButtonPresses: 0,
-    cumulativeStats: createEmptyCumulativeStats(),
+    cumulativeStats,
     questState: createEmptyQuestState(),
     meatDropQueue: [],
   };
