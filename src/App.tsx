@@ -6,7 +6,7 @@ import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
-import { GeneratorsCollection } from '@ui/components/GeneratorsCollection';
+import { GeneratorUpgradeModal } from '@ui/components/GeneratorUpgradeModal';
 import { QuestPanel } from '@ui/components/QuestPanel';
 import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
 import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
@@ -17,6 +17,7 @@ function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
   const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
   const [lineUpgradesOpen, setLineUpgradesOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     tickFlowerPots(Date.now());
@@ -55,13 +56,23 @@ function App() {
         <div className="meat-bar-row">
           <div className="panel shop-buttons-panel">
             <ManagerCollection />
-            <GeneratorsCollection />
+            <button
+              className="btn small"
+              type="button"
+              onClick={() => setUpgradeModalOpen(true)}
+            >
+              Generators
+            </button>
           </div>
         </div>
         <div className="debug-row">
           <ControlsPanel />
         </div>
 
+        <GeneratorUpgradeModal
+          isOpen={upgradeModalOpen}
+          onClose={() => setUpgradeModalOpen(false)}
+        />
         <LineUpgradesPanel open={lineUpgradesOpen} onClose={() => setLineUpgradesOpen(false)} />
 
         <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
