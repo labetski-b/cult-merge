@@ -273,6 +273,21 @@ export const lineUpgradesConfigSchema = z.object({
 
 export type LineUpgradesConfigData = z.infer<typeof lineUpgradesConfigSchema>;
 
+export const upgradeRowSchema = z.object({
+  fromLevel: z.number().int().positive(),
+  mergesRequired: z.number().int().nonnegative(),
+  runeCost: z.number().int().nonnegative(),
+  runeType: z.enum(['rune1', 'rune2']),
+});
+
+export const generatorUpgradesSchema = z.object({
+  baseTable: z.array(upgradeRowSchema),
+  overrides: z.record(z.string(), z.array(upgradeRowSchema)).default({}),
+});
+
+export type UpgradeRow = z.infer<typeof upgradeRowSchema>;
+export type GeneratorUpgradesTable = z.infer<typeof generatorUpgradesSchema>;
+
 export interface BalanceConfig {
   generators: GeneratorsData;
   creatures: CreaturesData;
@@ -287,4 +302,5 @@ export interface BalanceConfig {
   runes: RunesData;
   quests: QuestsData;
   lineUpgrades: LineUpgradesConfigData;
+  generatorUpgrades: GeneratorUpgradesTable;
 }
