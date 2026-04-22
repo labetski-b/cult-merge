@@ -76,4 +76,46 @@ describe('gameStore.interactCells records line-upgrade merges', () => {
     const state = useGameStore.getState();
     expect(state.mergeCountByLine).toEqual({});
   });
+
+  it('creature merge increments mergeCountByLine by 1 for that line', () => {
+    const state = useGameStore.getState();
+    const idA = 'test-merge-count-a';
+    const idB = 'test-merge-count-b';
+    const a: CreatureEntity = { id: idA, kind: 'creature', creatureType: 'Creature1', level: 1 };
+    const b: CreatureEntity = { id: idB, kind: 'creature', creatureType: 'Creature1', level: 1 };
+
+    const nextCells = [...state.grid.cells];
+    nextCells[0] = idA;
+    nextCells[1] = idB;
+
+    useGameStore.setState({
+      grid: { ...state.grid, cells: nextCells },
+      entities: { ...state.entities, [idA]: a, [idB]: b },
+    });
+
+    expect(useGameStore.getState().mergeCountByLine.Creature1 ?? 0).toBe(0);
+
+    useGameStore.getState().interactCells(0, 1);
+
+    expect(useGameStore.getState().mergeCountByLine.Creature1).toBe(1);
+  });
+
+  it('move operation does not increment mergeCountByLine', () => {
+    const state = useGameStore.getState();
+    const idA = 'test-move-lone';
+    const a: CreatureEntity = { id: idA, kind: 'creature', creatureType: 'Creature1', level: 1 };
+
+    const nextCells = [...state.grid.cells];
+    nextCells[0] = idA;
+    nextCells[1] = null;
+
+    useGameStore.setState({
+      grid: { ...state.grid, cells: nextCells },
+      entities: { ...state.entities, [idA]: a },
+    });
+
+    useGameStore.getState().interactCells(0, 1);
+
+    expect(useGameStore.getState().mergeCountByLine.Creature1 ?? 0).toBe(0);
+  });
 });

@@ -271,6 +271,15 @@ export const useGameStore = create<GameStore>()(
             nextLineUpgrades = bumped.lineUpgrades;
           }
 
+          let nextMergeCountByLine = state.mergeCountByLine;
+          if (merged.kind === 'creature' && source.kind === 'creature') {
+            const line = source.creatureType;
+            nextMergeCountByLine = {
+              ...state.mergeCountByLine,
+              [line]: (state.mergeCountByLine[line] ?? 0) + 1,
+            };
+          }
+
           return {
             grid: nextGrid,
             entities: nextEntities,
@@ -280,6 +289,7 @@ export const useGameStore = create<GameStore>()(
             rngState: rng.getState(),
             cumulativeStats: updatedCumStats,
             lineUpgrades: nextLineUpgrades,
+            mergeCountByLine: nextMergeCountByLine,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
         });
