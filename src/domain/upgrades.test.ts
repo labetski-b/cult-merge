@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUpgradeCost, getGeneratorMergeProgress } from './upgrades';
+import { resolveUpgradeCost, getGeneratorMergeProgress, canUpgradeGenerator } from './upgrades';
 import type { GeneratorUpgradesTable } from '../data/schemas';
 
 const baseTable: GeneratorUpgradesTable = {
@@ -54,5 +54,54 @@ describe('getGeneratorMergeProgress', () => {
 
   it('returns 0 when every line is missing', () => {
     expect(getGeneratorMergeProgress(genConfig, {})).toBe(0);
+  });
+});
+
+const makeBalance = () => ({
+  generators: { generators: [
+    { id: 1, name: 'Gen1', eggType: 'Egg_Creature1', purchaseCurrency: 'rune1',
+      purchaseCost: 5, krakenRequired: 1, lines: ['Creature1', 'Creature2'],
+      levels: [{ level: 1, chargeCost: 10, numCreatures: 1, outputs: [] },
+               { level: 2, chargeCost: 8, numCreatures: 1, outputs: [] }] },
+  ] },
+  generatorUpgrades: {
+    baseTable: [
+      { fromLevel: 1, mergesRequired: 20, runeCost: 3, runeType: 'rune1' as const },
+    ],
+    overrides: {},
+  },
+}) as any;
+
+const makeGenerator = (level: number) => ({
+  id: 'gen-a', kind: 'generator' as const, generatorId: 1, level, charges: [],
+});
+
+const makeSnapshot = (overrides: Partial<any> = {}): any => ({
+  resources: { rune1: 10, rune2: 0, meat: 0, eyes: 0, gems: 0 },
+  mergeCountByLine: { Creature1: 10, Creature2: 10 },
+  ...overrides,
+});
+
+describe('canUpgradeGenerator', () => {
+  it('returns ok with row when all conditions met', () => {
+    const result = canUpgradeGenerator(makeGenerator(1), makeSnapshot(), makeBalance());
+    expect(result).toEqual({ ok: true, row: expect.objectContaining({ fromLevel: 1 }) });
+  });
+
+  it("returns reason 'max' when no upgrade row exists", () => {
+    const result = canUpgradeGenerator(makeGenerator(99), makeSnapshot(), makeBalance());
+    expect(result).toEqual({ ok: false, reason: 'max' });
+  });
+
+  it("returns reason 'merges' when mergeCountByLine sum is below required", () => {
+    const snap = makeSnapshot({ mergeCountByLine: { Creature1: 1 } });
+    const result = canUpgradeGenerator(makeGenerator(1), snap, makeBalance());
+    expect(result).toEqual({ ok: false, reason: 'merges' });
+  });
+
+  it("returns reason 'runes' when merges sufficient but runes are not", () => {
+    const snap = makeSnapshot({ resources: { rune1: 0, rune2: 0, meat: 0, eyes: 0, gems: 0 } });
+    const result = canUpgradeGenerator(makeGenerator(1), snap, makeBalance());
+    expect(result).toEqual({ ok: false, reason: 'runes' });
   });
 });
