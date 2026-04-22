@@ -87,7 +87,7 @@ function GeneratorUpgradeCard({
 }) {
   const config = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
   const img = getGeneratorImage(gen.generatorId, gen.level);
-  const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE.generatorUpgrades);
+  const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE);
   const merges = config ? getGeneratorMergeProgress(config, mergeCountByLine) : 0;
   const currentLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level);
   const outputs = currentLevelConfig?.outputs ?? [];

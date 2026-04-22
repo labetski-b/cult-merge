@@ -1,9 +1,0 @@
-{
-  "baseTable": [
-    { "fromLevel": 1, "mergesRequired": 20, "runeCost": 3, "runeType": "rune1" },
-    { "fromLevel": 2, "mergesRequired": 50, "runeCost": 8, "runeType": "rune1" },
-    { "fromLevel": 3, "mergesRequired": 120, "runeCost": 15, "runeType": "rune1" },
-    { "fromLevel": 4, "mergesRequired": 250, "runeCost": 25, "runeType": "rune1" }
-  ],
-  "overrides": {}
-}

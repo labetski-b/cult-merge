@@ -6,11 +6,18 @@ const outputSchema = z.object({
   chance: z.number().min(0).max(1)
 });
 
+const generatorUpgradeSchema = z.object({
+  mergesRequired: z.number().int().nonnegative(),
+  runeCost: z.number().int().nonnegative(),
+  runeType: z.enum(['rune1', 'rune2']),
+});
+
 const generatorLevelSchema = z.object({
   level: z.number().int().min(1),
   chargeCost: z.number().int().min(0),
   numCreatures: z.number().int().positive(),
-  outputs: z.array(outputSchema).min(1)
+  outputs: z.array(outputSchema).min(1),
+  upgrade: generatorUpgradeSchema.optional()
 });
 
 const generatorSchema = z.object({
@@ -244,20 +251,7 @@ export const questsDataSchema = z.object({
 
 export type QuestsData = z.infer<typeof questsDataSchema>;
 
-export const upgradeRowSchema = z.object({
-  fromLevel: z.number().int().positive(),
-  mergesRequired: z.number().int().nonnegative(),
-  runeCost: z.number().int().nonnegative(),
-  runeType: z.enum(['rune1', 'rune2']),
-});
-
-export const generatorUpgradesSchema = z.object({
-  baseTable: z.array(upgradeRowSchema),
-  overrides: z.record(z.string(), z.array(upgradeRowSchema)).default({}),
-});
-
-export type UpgradeRow = z.infer<typeof upgradeRowSchema>;
-export type GeneratorUpgradesTable = z.infer<typeof generatorUpgradesSchema>;
+export type UpgradeRow = z.infer<typeof generatorUpgradeSchema>;
 
 export interface BalanceConfig {
   generators: GeneratorsData;
@@ -272,5 +266,4 @@ export interface BalanceConfig {
   chapters: ChaptersData;
   runes: RunesData;
   quests: QuestsData;
-  generatorUpgrades: GeneratorUpgradesTable;
 }

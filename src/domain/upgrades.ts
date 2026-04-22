@@ -1,14 +1,14 @@
-import type { GeneratorUpgradesTable, UpgradeRow } from '../data/schemas';
+import type { BalanceConfig, UpgradeRow } from '../data/schemas';
 
 export function resolveUpgradeCost(
   generatorId: number,
   fromLevel: number,
-  table: GeneratorUpgradesTable
+  balance: BalanceConfig
 ): UpgradeRow | null {
-  const overrides = table.overrides[String(generatorId)] ?? [];
-  const overrideRow = overrides.find((r) => r.fromLevel === fromLevel);
-  if (overrideRow) return overrideRow;
-  return table.baseTable.find((r) => r.fromLevel === fromLevel) ?? null;
+  const generator = balance.generators.generators.find((g) => g.id === generatorId);
+  if (!generator) return null;
+  const levelConfig = generator.levels.find((lvl) => lvl.level === fromLevel);
+  return levelConfig?.upgrade ?? null;
 }
 
 export function getGeneratorMergeProgress(
@@ -28,15 +28,12 @@ export type CanUpgradeResult =
 export function canUpgradeGenerator(
   generator: { generatorId: number; level: number },
   snapshot: { resources: Record<string, number>; mergeCountByLine: Record<string, number> },
-  balance: {
-    generators: { generators: Array<{ id: number; lines: string[] }> };
-    generatorUpgrades: GeneratorUpgradesTable;
-  }
+  balance: BalanceConfig
 ): CanUpgradeResult {
   const config = balance.generators.generators.find((g) => g.id === generator.generatorId);
   if (!config) return { ok: false, reason: 'max' };
 
-  const row = resolveUpgradeCost(generator.generatorId, generator.level, balance.generatorUpgrades);
+  const row = resolveUpgradeCost(generator.generatorId, generator.level, balance);
   if (!row) return { ok: false, reason: 'max' };
 
   const merges = getGeneratorMergeProgress(config, snapshot.mergeCountByLine);

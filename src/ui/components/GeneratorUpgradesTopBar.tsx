@@ -39,7 +39,7 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       const config = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
       if (!config) continue;
 
-      const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE.generatorUpgrades);
+      const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE);
       const mergesNow = getGeneratorMergeProgress(config, mergeCountByLine);
       const check = canUpgradeGenerator(
         gen,
