@@ -10,6 +10,7 @@ import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
 import type { GeneratorEntity } from '@domain/types';
 import rune1Icon from '@assets/resources/rune1.png';
 import rune2Icon from '@assets/resources/rune2.png';
+import meatIcon from '@assets/resources/meat.png';
 import './GeneratorUpgradeModal.css';
 
 type Props = {
@@ -91,6 +92,8 @@ function GeneratorUpgradeCard({
   const merges = config ? getGeneratorMergeProgress(config, mergeCountByLine) : 0;
   const currentLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level);
   const outputs = currentLevelConfig?.outputs ?? [];
+  const spawns = currentLevelConfig?.numCreatures ?? 0;
+  const chargeCost = currentLevelConfig?.chargeCost ?? 0;
 
   const handleUpgrade = () => {
     useGameStore.getState().upgradeGenerator(gen.id);
@@ -131,6 +134,17 @@ function GeneratorUpgradeCard({
         <div className="generator-upgrade-card-title">
           <div className="generator-upgrade-card-name">Gen {gen.generatorId}</div>
           <div className="generator-upgrade-card-level">Level {gen.level}</div>
+        </div>
+        <div className="generator-upgrade-stat">
+          <div className="generator-upgrade-stat-label">Spawns</div>
+          <div className="generator-upgrade-stat-value">{spawns}</div>
+        </div>
+        <div className="generator-upgrade-stat">
+          <div className="generator-upgrade-stat-label">Charge</div>
+          <div className="generator-upgrade-stat-value">
+            {chargeCost}
+            <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+          </div>
         </div>
         {outputs.length > 0 && (
           <div className="generator-upgrade-drops">
