@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { CreatureEntity, GeneratorEntity } from '@domain/types';
+import type { CreatureEntity, GeneratorEntity, TaskDefinition } from '@domain/types';
 import { useGameStore } from './gameStore';
 
 describe('gameStore.interactCells records per-line merges', () => {
@@ -75,6 +75,46 @@ describe('gameStore.interactCells records per-line merges', () => {
 
     expect(useGameStore.getState().mergeCountByLine.Creature1 ?? 0).toBe(0);
     expect(useGameStore.getState().mergeCountByLine.Creature2 ?? 0).toBe(0);
+  });
+
+  it('completeQuest quest-driven merges increment mergeCountByLine', () => {
+    const state = useGameStore.getState();
+
+    // Place two Creature1 L1 on the grid; completeQuest will auto-merge them
+    // into one L2 to satisfy the task requirement, and then feed that L2.
+    const idA = 'cq-merge-a';
+    const idB = 'cq-merge-b';
+    const a: CreatureEntity = { id: idA, kind: 'creature', creatureType: 'Creature1', level: 1 };
+    const b: CreatureEntity = { id: idB, kind: 'creature', creatureType: 'Creature1', level: 1 };
+
+    const nextCells = [...state.grid.cells];
+    nextCells[0] = idA;
+    nextCells[1] = idB;
+
+    // Auto-task requiring one Creature1 L2
+    const task: TaskDefinition = {
+      id: 'test-cq-merge-task',
+      creatures: [{ type: 'Creature1', level: 2, count: 1 }],
+      expMultiplier: 1,
+      resMultiplier: 1,
+      eyeReward: 0,
+    };
+
+    useGameStore.setState({
+      grid: { ...state.grid, cells: nextCells },
+      entities: { ...state.entities, [idA]: a, [idB]: b },
+      currentAutoTask: task,
+      currentTaskFed: [],
+      mergeCountByLine: {},
+    });
+
+    expect(useGameStore.getState().mergeCountByLine.Creature1 ?? 0).toBe(0);
+
+    useGameStore.getState().completeQuest();
+
+    // The two L1 creatures were merged once into an L2, which was then fed.
+    // mergeCountByLine for Creature1 must reflect that quest-driven merge.
+    expect(useGameStore.getState().mergeCountByLine.Creature1).toBe(1);
   });
 
   it('dropping a generator onto another generator is a no-op', () => {
