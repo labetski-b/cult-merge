@@ -67,7 +67,7 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
               key={gen.id}
               gen={gen}
               mergeCountByLine={mergeCountByLine}
-              resources={resources as unknown as Record<string, number>}
+              resources={resources}
             />
           ))}
         </div>

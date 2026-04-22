@@ -44,7 +44,7 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       const check = canUpgradeGenerator(
         gen,
         {
-          resources: resources as unknown as Record<string, number>,
+          resources,
           mergeCountByLine,
         },
         BALANCE
