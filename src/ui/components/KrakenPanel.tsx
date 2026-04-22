@@ -225,28 +225,31 @@ export function KrakenPanel() {
     >
       <div className="kraken-header" onClick={handleKrakenClick} style={{ cursor: hasReward ? 'pointer' : 'default' }}>
         <div className={`kraken-avatar-wrap${hasReward ? ' kraken-avatar-glow' : ''}`}>
-          <img src={krakenBoss} alt="Kraken" className="kraken-avatar" />
-          {hasReward && <div className="kraken-reward-badge">!</div>}
+          {hasReward ? (
+            <div className="kraken-reward-slot">
+              <RewardPreview reward={pendingRewards[0]!} />
+              {pendingRewards.length > 1 && (
+                <div className="kraken-queue-badge">×{pendingRewards.length}</div>
+              )}
+            </div>
+          ) : (
+            <img src={krakenBoss} alt="Kraken" className="kraken-avatar" />
+          )}
         </div>
         <div className="kraken-info">
-          <h2>Kraken Lv.{kraken.level}</h2>
-          <div className="kraken-exp">{earnedExp}/{totalExp} EXP</div>
+          {hasReward ? (
+            <>
+              <h2><RewardLabel reward={pendingRewards[0]!} /></h2>
+              <div className="kraken-claim-hint">Tap to claim</div>
+            </>
+          ) : (
+            <>
+              <h2>Kraken Lv.{kraken.level}</h2>
+              <div className="kraken-exp">{earnedExp}/{totalExp} EXP</div>
+            </>
+          )}
         </div>
       </div>
-
-      {hasReward && (
-        <div className="kraken-claim-section" onClick={handleKrakenClick}>
-          <div className="kraken-reward-preview">
-            <RewardPreview reward={pendingRewards[0]!} />
-            {pendingRewards.length > 1 && (
-              <div className="kraken-queue-badge">×{pendingRewards.length}</div>
-            )}
-          </div>
-          <div className="kraken-claim-hint">
-            Tap to claim: <RewardLabel reward={pendingRewards[0]!} />
-          </div>
-        </div>
-      )}
 
       <div className="step-bar-wrap">
         <div className="step-bar-track">

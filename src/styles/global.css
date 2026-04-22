@@ -746,34 +746,21 @@ body {
   border-color: rgba(255, 217, 102, 0.5);
 }
 
-.kraken-claim-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(255, 217, 102, 0.08);
-  border: 1px solid rgba(255, 217, 102, 0.25);
-  cursor: pointer;
-}
-
-.kraken-reward-preview {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
+.kraken-reward-slot {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 217, 102, 0.15);
+  border: 2px solid rgba(255, 217, 102, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 217, 102, 0.12);
-  border-radius: 8px;
 }
 
 .kraken-reward-preview-img,
 .kraken-reward-preview-svg {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
@@ -796,7 +783,7 @@ body {
 }
 
 .kraken-claim-hint {
-  font-size: 13px;
+  font-size: 12px;
   color: #ffd966;
   font-weight: 600;
   animation: fade-pulse 0.8s ease-in-out infinite;
