@@ -1,7 +1,7 @@
 .line-upgrades-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,7 +9,7 @@
 }
 
 .line-upgrades-panel {
-  background: rgba(14, 25, 42, 0.98);
+  background: #0e192a;
   color: #f5f7fa;
   border: 1px solid rgba(143, 193, 255, 0.3);
   border-radius: 10px;
@@ -19,6 +19,11 @@
   overflow-y: auto;
   padding: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.line-upgrades-panel button,
+.line-upgrades-backdrop button {
+  touch-action: manipulation;
 }
 
 .line-upgrades-panel header {
