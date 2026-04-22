@@ -5,7 +5,6 @@ import { TaskPanel } from '@ui/components/TaskPanel';
 import { GridBoard } from '@ui/components/GridBoard';
 import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
-import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { GeneratorUpgradeModal } from '@ui/components/GeneratorUpgradeModal';
 import { GeneratorUpgradesTopBar } from '@ui/components/GeneratorUpgradesTopBar';
 import { ChapterQuestsButton } from '@ui/components/ChapterQuestsButton';
@@ -52,9 +51,6 @@ function App() {
         <GridBoard />
         <div className="meat-bar-row">
           <ChapterQuestsButton />
-          <div className="panel shop-buttons-panel">
-            <ManagerCollection />
-          </div>
         </div>
         <div className="debug-row">
           <ControlsPanel />

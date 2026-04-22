@@ -7,6 +7,7 @@ import {
   createEmptyCumulativeStats,
   QUEST_UNLOCK_LEVEL,
 } from '@domain/quests';
+import { getGeneratorImage } from '@ui/creatureImages';
 import '@styles/QuestPanel.css';
 
 export function ChapterQuestsButton() {
@@ -41,7 +42,7 @@ export function ChapterQuestsButton() {
   return (
     <>
       <button className="btn-chapter" type="button" onClick={() => setOpen(true)}>
-        Глава {chapter.id} ({completedCount}/{chapter.quests.length})
+        Chapter {chapter.id} ({completedCount}/{chapter.quests.length})
       </button>
       {open && (
         <div className="line-upgrades-backdrop" onClick={() => setOpen(false)}>
@@ -51,12 +52,33 @@ export function ChapterQuestsButton() {
           >
             <header>
               <h2>
-                Глава {chapter.id}: {chapter.name}
+                Chapter {chapter.id}: {chapter.name}
               </h2>
               <button onClick={() => setOpen(false)} aria-label="Закрыть" type="button">
                 ×
               </button>
             </header>
+            {chapter.unlocksGenerator != null && (
+              <div className="chapter-reward">
+                {(() => {
+                  const rewardImg = getGeneratorImage(chapter.unlocksGenerator, 1);
+                  return rewardImg ? (
+                    <img
+                      src={rewardImg}
+                      alt={`Generator ${chapter.unlocksGenerator}`}
+                      className="chapter-reward-img"
+                    />
+                  ) : (
+                    <div className="chapter-reward-placeholder">
+                      G{chapter.unlocksGenerator}
+                    </div>
+                  );
+                })()}
+                <div className="chapter-reward-caption">
+                  Reward: Generator {chapter.unlocksGenerator}
+                </div>
+              </div>
+            )}
             <div className="quest-list">
               {chapter.quests.map((quest) => {
                 const completed = chapterProgress?.quests[quest.id]?.completed ?? false;

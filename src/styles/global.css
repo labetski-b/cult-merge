@@ -1104,15 +1104,6 @@ body {
   padding: 12px;
 }
 
-.shop-buttons-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px;
-}
-
 /* ── Nav Bar ── */
 
 .meat-bar-row {
@@ -1178,7 +1169,7 @@ body {
   opacity: 0.75;
 }
 
-/* Shared modal shell (used by TycoonPanel, ChapterQuestsButton, ManagerCollection, ControlsPanel cheats modal) */
+/* Shared modal shell (used by TycoonPanel, ChapterQuestsButton, ControlsPanel cheats modal) */
 .line-upgrades-backdrop {
   position: fixed;
   inset: 0;
