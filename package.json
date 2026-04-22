@@ -11,7 +11,9 @@
     "deploy": "npm run build && gh-pages -d dist",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "sim": "npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts",
+    "experiment": "npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
