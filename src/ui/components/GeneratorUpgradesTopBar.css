@@ -1,0 +1,103 @@
+.generator-upgrades-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(14, 25, 42, 0.82);
+  border: 1px solid rgba(143, 193, 255, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.generator-upgrades-top-bar:hover {
+  border-color: rgba(143, 193, 255, 0.6);
+}
+
+.generator-upgrade-widget {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.generator-upgrade-widget .widget-icon-wrap {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.generator-upgrade-widget .widget-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.generator-upgrade-widget .widget-icon-fallback {
+  font-size: 10px;
+  color: #aab;
+  text-transform: uppercase;
+}
+
+.generator-upgrade-widget .level {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffd454;
+  padding: 1px 4px;
+  border-radius: 6px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.generator-upgrade-widget .progress-bar {
+  position: relative;
+  width: 40px;
+  height: 5px;
+  background: rgba(143, 193, 255, 0.18);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.generator-upgrade-widget .progress-fill {
+  height: 100%;
+  background: rgba(143, 193, 255, 0.85);
+  transition: width 0.25s ease, background 0.2s ease;
+}
+
+.generator-upgrade-widget.ready .progress-fill {
+  background: #ffd454;
+  filter: drop-shadow(0 0 3px rgba(255, 212, 84, 0.6));
+}
+
+.generator-upgrade-widget.max .progress-fill {
+  width: 100%;
+  background: #6bcf7f;
+}
+
+.generator-upgrade-widget .badge {
+  font-size: 9px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.generator-upgrade-widget .badge.ready {
+  color: #0e192a;
+  background: #ffd454;
+}
+
+.generator-upgrade-widget .badge.max {
+  color: #0e192a;
+  background: #6bcf7f;
+}
