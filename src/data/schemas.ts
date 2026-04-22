@@ -7,7 +7,7 @@ const outputSchema = z.object({
 });
 
 const generatorLevelSchema = z.object({
-  level: z.number().int().min(1).max(5),
+  level: z.number().int().min(1),
   chargeCost: z.number().int().min(0),
   numCreatures: z.number().int().positive(),
   outputs: z.array(outputSchema).min(1)
