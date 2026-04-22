@@ -19,6 +19,7 @@ import {
   getSpawnCapLevel,
   type ApplyLineUpgradeResult,
 } from '@domain/lineUpgrades';
+import { canUpgradeGenerator, upgradeGenerator as upgradeGeneratorDomain } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -46,6 +47,7 @@ interface GameActions {
   buyGeneratorTwo: () => void;
   buyGeneratorFour: () => void;
   buyGenerator: (id: number) => void;
+  upgradeGenerator: (entityId: string) => void;
   addRune1: (amount: number) => void;
   addRune2: (amount: number) => void;
   spawnAll: () => void;
@@ -1508,6 +1510,36 @@ export const useGameStore = create<GameStore>()(
             lastMessage: `Generator ${id} purchased (charged).`
           };
         });
+      },
+
+      upgradeGenerator: (entityId: string) => {
+        set((state) => {
+          const entity = state.entities[entityId];
+          if (!entity || entity.kind !== 'generator') return {};
+
+          const check = canUpgradeGenerator(entity, state, BALANCE);
+          if (!check.ok) return {};
+
+          const { generator, snapshot } = upgradeGeneratorDomain(entity, check.row, state);
+
+          const prevMax = state.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
+          const nextMax = Math.max(prevMax, generator.level);
+
+          return {
+            resources: snapshot.resources,
+            entities: { ...state.entities, [entityId]: generator },
+            cumulativeStats: {
+              ...state.cumulativeStats,
+              maxGeneratorLevelById: {
+                ...state.cumulativeStats.maxGeneratorLevelById,
+                [entity.generatorId]: nextMax,
+              },
+            },
+            lastMessage: `Generator ${entity.generatorId} upgraded to L${generator.level}.`
+          };
+        });
+        const afterUpgrade = get();
+        set({ questState: evaluateAllQuests(BALANCE, afterUpgrade.cumulativeStats, afterUpgrade) });
       },
 
       addRune1: (amount) => {
