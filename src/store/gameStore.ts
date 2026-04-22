@@ -357,6 +357,17 @@ export const useGameStore = create<GameStore>()(
             if (parts) {
               const genId = Number(parts[1]);
               const genLevel = Number(parts[2]);
+              const alreadyOwned = Object.values(state.entities).some(
+                (e) => e.kind === 'generator' && e.generatorId === genId
+              );
+              if (alreadyOwned) {
+                // Discard reward: generator of this type already exists on the board.
+                console.warn(`[claimReward] duplicate generator ${genId} skipped`);
+                return {
+                  pendingRewards: restRewards,
+                  lastMessage: `Generator ${genId} уже есть на поле.`
+                };
+              }
               const freeSlots = getFreeCellIndexes(state.grid);
               if (freeSlots.length === 0) return { lastMessage: 'No free cell to place reward.' };
 
