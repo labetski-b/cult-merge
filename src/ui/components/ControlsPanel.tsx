@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BALANCE } from '@data/loadBalance';
 import { getTotalLevelExp } from '@domain/kraken';
 import { useGameStore } from '@store/gameStore';
+import { TycoonPanel } from '@ui/components/TycoonPanel';
 
 export function ControlsPanel() {
   const addMeat = useGameStore((state) => state.addMeat);
@@ -18,11 +19,15 @@ export function ControlsPanel() {
   const completeQuest = useGameStore((state) => state.completeQuest);
   const resetGame = useGameStore((state) => state.resetGame);
   const [open, setOpen] = useState(false);
+  const [tycoonOpen, setTycoonOpen] = useState(false);
 
   return (
     <>
       <button className="btn small" onClick={() => setOpen(true)} type="button">
         Cheats
+      </button>
+      <button className="btn small" onClick={() => setTycoonOpen(true)} type="button">
+        Tycoon
       </button>
       <button className="btn small danger" onClick={resetGame} type="button">
         Reset
@@ -76,6 +81,7 @@ export function ControlsPanel() {
           </div>
         </div>
       )}
+      <TycoonPanel open={tycoonOpen} onClose={() => setTycoonOpen(false)} />
     </>
   );
 }

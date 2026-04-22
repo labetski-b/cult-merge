@@ -5,6 +5,7 @@ import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureReward, applyTaskMultiplier, getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import { getCreatureImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
+import { formatCompact } from '@ui/formatCompact';
 import eyesIcon from '@assets/resources/eyes.png';
 import type { CreatureEntity, RuneEntity, ScoringTableEntry } from '@domain/types';
 
@@ -187,8 +188,8 @@ export function TaskPanel() {
               );
             })}
           </div>
-          <div className="task-reward">
-            {totalEyes}
+          <div className="task-reward" title={`${totalEyes} Eyes`}>
+            {formatCompact(totalEyes)}
             <img src={eyesIcon} alt="Eyes" className="task-reward-icon" />
           </div>
           {!task.id.startsWith('mandatory') && (

@@ -5,15 +5,16 @@ import eyesIcon from '@assets/resources/eyes.png';
 import rune1Icon from '@assets/resources/rune1.png';
 import rune2Icon from '@assets/resources/rune2.png';
 import gemsIcon from '@assets/resources/gems.png';
+import { formatCompact } from '@ui/formatCompact';
 import './CurrencyBar.css';
 
-type PillProps = { value: number | string; icon: React.ReactNode; label: string; children?: React.ReactNode };
+type PillProps = { value: number; icon: React.ReactNode; label: string; children?: React.ReactNode };
 
 function Pill({ value, icon, label, children }: PillProps) {
   return (
-    <div className="cur-pill" title={label}>
+    <div className="cur-pill" title={`${label}: ${value}`}>
       {icon}
-      <span className="cur-value">{value}</span>
+      <span className="cur-value">{formatCompact(value)}</span>
       {children}
     </div>
   );

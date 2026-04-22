@@ -8,7 +8,7 @@ import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { GeneratorUpgradeModal } from '@ui/components/GeneratorUpgradeModal';
 import { GeneratorUpgradesTopBar } from '@ui/components/GeneratorUpgradesTopBar';
-import { QuestPanel } from '@ui/components/QuestPanel';
+import { ChapterQuestsButton } from '@ui/components/ChapterQuestsButton';
 import { useGameStore } from '@store/gameStore';
 import { DragProvider } from '@ui/DragContext';
 
@@ -40,7 +40,6 @@ function App() {
       <div className="app-root">
         <HeaderBar />
 
-        <QuestPanel />
         <div className="quest-line-row">
           <PredatorProgress />
           <GeneratorUpgradesTopBar onOpenModal={() => setUpgradeModalOpen(true)} />
@@ -52,6 +51,7 @@ function App() {
         </div>
         <GridBoard />
         <div className="meat-bar-row">
+          <ChapterQuestsButton />
           <div className="panel shop-buttons-panel">
             <ManagerCollection />
           </div>
