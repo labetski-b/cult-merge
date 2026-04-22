@@ -132,6 +132,38 @@ function GeneratorUpgradeCard({
           <div className="generator-upgrade-card-name">Gen {gen.generatorId}</div>
           <div className="generator-upgrade-card-level">Level {gen.level}</div>
         </div>
+        {outputs.length > 0 && (
+          <div className="generator-upgrade-drops">
+            <div className="generator-upgrade-drops-grid">
+              {outputs.map((out, idx) => {
+                const sprite = getCreatureImage(out.creatureType, out.level);
+                const pct = out.chance <= 1 ? out.chance * 100 : out.chance;
+                const pctLabel = `${Math.round(pct)}%`;
+                return (
+                  <div
+                    key={`${out.creatureType}-${out.level}-${idx}`}
+                    className="generator-upgrade-drop-cell"
+                  >
+                    <div className="generator-upgrade-drop-frame">
+                      {sprite ? (
+                        <img
+                          src={sprite}
+                          alt={`${out.creatureType} L${out.level}`}
+                          className="generator-upgrade-drop-img"
+                        />
+                      ) : (
+                        <div className="generator-upgrade-drop-placeholder">
+                          {out.creatureType}
+                        </div>
+                      )}
+                    </div>
+                    <div className="generator-upgrade-drop-pct">{pctLabel}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {isMax ? (
@@ -147,40 +179,6 @@ function GeneratorUpgradeCard({
               style={{ width: `${percent}%` }}
             />
           </div>
-          {outputs.length > 0 && (
-            <div className="generator-upgrade-drops">
-              <div className="generator-upgrade-drops-label">Drops</div>
-              <div className="generator-upgrade-drops-grid">
-                {outputs.map((out, idx) => {
-                  const sprite = getCreatureImage(out.creatureType, out.level);
-                  const pct =
-                    out.chance <= 1 ? out.chance * 100 : out.chance;
-                  const pctLabel = `${Math.round(pct)}%`;
-                  return (
-                    <div
-                      key={`${out.creatureType}-${out.level}-${idx}`}
-                      className="generator-upgrade-drop-cell"
-                    >
-                      <div className="generator-upgrade-drop-frame">
-                        {sprite ? (
-                          <img
-                            src={sprite}
-                            alt={`${out.creatureType} L${out.level}`}
-                            className="generator-upgrade-drop-img"
-                          />
-                        ) : (
-                          <div className="generator-upgrade-drop-placeholder">
-                            {out.creatureType}
-                          </div>
-                        )}
-                      </div>
-                      <div className="generator-upgrade-drop-pct">{pctLabel}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
           {row && (
             <div className="generator-upgrade-cost">
               <span>Cost:</span>
