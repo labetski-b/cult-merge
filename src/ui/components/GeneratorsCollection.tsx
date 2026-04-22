@@ -13,7 +13,6 @@ const currencyIcons: Record<'rune1' | 'rune2', string> = {
 export function GeneratorsCollection() {
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const resources = useGameStore((s) => s.resources);
-  const buyGenerator = useGameStore((s) => s.buyGenerator);
   const [open, setOpen] = useState(false);
 
   const unlocked = BALANCE.generators.generators.filter((g) => krakenLevel >= g.krakenRequired);
@@ -58,7 +57,10 @@ export function GeneratorsCollection() {
                       className="btn small"
                       type="button"
                       disabled={!canAfford}
-                      onClick={() => buyGenerator(gen.id)}
+                      onClick={() => {
+                        // TODO(T16): replace this component with GeneratorUpgradeModal.
+                        // Generators are no longer purchased — first is seeded, rest arrive as quest rewards.
+                      }}
                     >
                       Buy
                     </button>
