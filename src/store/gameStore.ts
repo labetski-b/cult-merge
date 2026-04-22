@@ -12,13 +12,6 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import {
-  applyLineUpgrade,
-  isUpgradeAvailable,
-  recordMerge,
-  getSpawnCapLevel,
-  type ApplyLineUpgradeResult,
-} from '@domain/lineUpgrades';
 import { canUpgradeGenerator, upgradeGenerator as upgradeGeneratorDomain } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
@@ -33,7 +26,6 @@ import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@do
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
-import { trackLineUpgradeApplied } from '@infra/analytics';
 
 interface GameActions {
   addMeat: (amount: number) => void;
@@ -62,7 +54,6 @@ interface GameActions {
   consumeMeatDrop: (id: number) => void;
   resetGame: () => void;
   clearLastMessage: () => void;
-  applyLineUpgradeAction: (line: string) => ApplyLineUpgradeResult;
 }
 
 export type GameStore = GameSnapshot & GameActions;
@@ -259,12 +250,6 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          let nextLineUpgrades = state.lineUpgrades;
-          if (merged.kind === 'creature' && source.kind === 'creature') {
-            const bumped = recordMerge({ ...state, lineUpgrades: state.lineUpgrades }, source.creatureType);
-            nextLineUpgrades = bumped.lineUpgrades;
-          }
-
           let nextMergeCountByLine = state.mergeCountByLine;
           if (merged.kind === 'creature' && source.kind === 'creature') {
             const line = source.creatureType;
@@ -282,7 +267,6 @@ export const useGameStore = create<GameStore>()(
             predatorsSpawnedOnce: newSpawnedOnce,
             rngState: rng.getState(),
             cumulativeStats: updatedCumStats,
-            lineUpgrades: nextLineUpgrades,
             mergeCountByLine: nextMergeCountByLine,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
@@ -381,7 +365,7 @@ export const useGameStore = create<GameStore>()(
               const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
               const nextEntities = { ...state.entities };
 
-              nextEntities[newGenId] = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE, state);
+              nextEntities[newGenId] = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
               nextGrid.cells[targetCell] = newGenId;
 
               result = {
@@ -555,7 +539,7 @@ export const useGameStore = create<GameStore>()(
               const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
               if (nextMeat >= levelConfig.chargeCost) {
                 nextMeat -= levelConfig.chargeCost;
-                const spawns = rollGeneratorSpawn(rng, gen, BALANCE, state);
+                const spawns = rollGeneratorSpawn(rng, gen, BALANCE);
                 gen = { ...gen, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
               }
             }
@@ -748,7 +732,6 @@ export const useGameStore = create<GameStore>()(
           let cqSpawns = 0;
           let cqRunesFed = 0;
           let cqTasksCompleted = 0;
-          const cqMergesByLine: Record<string, number> = {};
           const cqMaxCreature: Record<string, number> = { ...state.cumulativeStats.maxCreatureLevelByType };
           const cqMaxGenerator: Record<number, number> = { ...state.cumulativeStats.maxGeneratorLevelById };
 
@@ -810,7 +793,7 @@ export const useGameStore = create<GameStore>()(
                 const genId = Number(parts[1]);
                 const genLevel = Number(parts[2]);
                 const newGenId = rng.nextId();
-                const gen = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE, state);
+                const gen = createChargedGenerator(rng, newGenId, genId, genLevel, BALANCE);
                 if (!placeOnGrid(gen)) {
                   makeSpace();
                   placeOnGrid(gen);
@@ -961,7 +944,6 @@ export const useGameStore = create<GameStore>()(
                   removeFromGrid(b.id);
                   placeOnGrid(merged);
                   cqMerges += 1;
-                  cqMergesByLine[cType] = (cqMergesByLine[cType] ?? 0) + 1;
                   const prevMax = cqMaxCreature[cType] ?? 0;
                   if (merged.level > prevMax) cqMaxCreature[cType] = merged.level;
                   pairsAtLevel = Object.values(nextEntities).filter(
@@ -1104,7 +1086,7 @@ export const useGameStore = create<GameStore>()(
                       if (nextResources.meat < levelConfig.chargeCost) break;
 
                       nextResources = { ...nextResources, meat: nextResources.meat - levelConfig.chargeCost };
-                      const spawns = rollGeneratorSpawn(rng, currentGen, BALANCE, state);
+                      const spawns = rollGeneratorSpawn(rng, currentGen, BALANCE);
                       currentGen = {
                         ...currentGen,
                         charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level }))
@@ -1172,7 +1154,6 @@ export const useGameStore = create<GameStore>()(
                   removeFromGrid(b.id);
                   placeOnGrid(merged);
                   cqMerges += 1;
-                  cqMergesByLine[req.type] = (cqMergesByLine[req.type] ?? 0) + 1;
                   const prevMax = cqMaxCreature[req.type] ?? 0;
                   if (merged.level > prevMax) cqMaxCreature[req.type] = merged.level;
 
@@ -1230,12 +1211,6 @@ export const useGameStore = create<GameStore>()(
             nextGrid.rows = resized.rows;
             nextGrid.cols = resized.cols;
             nextGrid.cells = resized.cells;
-          }
-
-          const nextLineUpgrades = { ...state.lineUpgrades };
-          for (const [line, count] of Object.entries(cqMergesByLine)) {
-            const cur = nextLineUpgrades[line] ?? { mergeCount: 0, appliedUpgrades: 0 };
-            nextLineUpgrades[line] = { ...cur, mergeCount: cur.mergeCount + count };
           }
 
           // Check task completion
@@ -1335,7 +1310,6 @@ export const useGameStore = create<GameStore>()(
               session,
               rngState: rng.getState(),
               cumulativeStats: completedCumStats,
-              lineUpgrades: nextLineUpgrades,
               lastMessage: `Quest complete! +${totalExp} EXP, +${totalEyes} Eyes.`
             };
           }
@@ -1367,7 +1341,6 @@ export const useGameStore = create<GameStore>()(
             session,
             rngState: rng.getState(),
             cumulativeStats: partialCumStats,
-            lineUpgrades: nextLineUpgrades,
             lastMessage: `Quest partially progressed (+${totalExp} EXP). Could not fully complete.`
           };
         });
@@ -1393,7 +1366,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 1, 1, BALANCE, state);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 1, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -1424,7 +1397,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 2, 1, BALANCE, state);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 2, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -1455,7 +1428,7 @@ export const useGameStore = create<GameStore>()(
           const nextEntities = { ...state.entities };
           const newGenId = rng.nextId();
 
-          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 4, 1, BALANCE, state);
+          nextEntities[newGenId] = createChargedGenerator(rng, newGenId, 4, 1, BALANCE);
           nextGrid.cells[targetCell] = newGenId;
 
           return {
@@ -1742,38 +1715,6 @@ export const useGameStore = create<GameStore>()(
 
       clearLastMessage: () => {
         set({ lastMessage: null });
-      },
-
-      applyLineUpgradeAction: (line: string): ApplyLineUpgradeResult => {
-        let out: ApplyLineUpgradeResult = { ok: false, reason: 'not_ready' };
-        let prevMergeCount = 0;
-        set((state) => {
-          prevMergeCount = state.lineUpgrades[line]?.mergeCount ?? 0;
-          const res = applyLineUpgrade(state, BALANCE.lineUpgrades, line);
-          out = res;
-          if (!res.ok) return state;
-          const cap = getSpawnCapLevel(BALANCE.lineUpgrades, line);
-          const entities: Record<string, Entity> = {};
-          for (const id in res.state.entities) {
-            const e = res.state.entities[id];
-            if (!e) continue;
-            if (e.kind !== 'generator') {
-              entities[id] = e;
-              continue;
-            }
-            const charges = e.charges.map((c) =>
-              c.creatureType === line ? { ...c, level: Math.min(c.level + 1, cap) } : c
-            );
-            entities[id] = { ...e, charges };
-          }
-          return { ...res.state, entities };
-        });
-        if (out.ok) {
-          const successOut = out as Extract<ApplyLineUpgradeResult, { ok: true }>;
-          const applied = successOut.state.lineUpgrades[line]?.appliedUpgrades ?? 0;
-          trackLineUpgradeApplied(line, applied, prevMergeCount);
-        }
-        return out;
       }
     }),
     {
@@ -1795,24 +1736,6 @@ export function migrateGameStore(
 ): unknown {
   if (!persistedState || persistedVersion < 15) {
     return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
-  }
-
-  if (persistedVersion < 16) {
-    const allLines = BALANCE.generators.generators.flatMap((g) => g.lines);
-    const existing =
-      (persistedState as { lineUpgrades?: Record<string, unknown> })?.lineUpgrades ?? {};
-    const merged: Record<string, { mergeCount: number; appliedUpgrades: number }> = {};
-    for (const line of allLines) {
-      const prev = existing[line];
-      merged[line] =
-        typeof prev === 'object' &&
-        prev !== null &&
-        'mergeCount' in prev &&
-        'appliedUpgrades' in prev
-          ? (prev as { mergeCount: number; appliedUpgrades: number })
-          : { mergeCount: 0, appliedUpgrades: 0 };
-    }
-    persistedState = { ...(persistedState as object), lineUpgrades: merged };
   }
 
   if (persistedVersion < 17) {
@@ -1852,22 +1775,6 @@ export function useEarnedLevelExp() {
 
 export function useCurrentChapter() {
   return useGameStore((state) => getCurrentChapter(BALANCE, state.resources.eyes));
-}
-
-export const selectLineUpgrades = (s: Pick<GameStore, 'lineUpgrades'>) => s.lineUpgrades;
-
-export const selectAvailableUpgradesCount = (s: Pick<GameStore, 'lineUpgrades'>): number => {
-  return Object.keys(s.lineUpgrades).reduce((acc, line) => {
-    return acc + (isUpgradeAvailable(s, BALANCE.lineUpgrades, line) ? 1 : 0);
-  }, 0);
-};
-
-export function useLineUpgrades() {
-  return useGameStore(selectLineUpgrades);
-}
-
-export function useAvailableUpgradesCount() {
-  return useGameStore(selectAvailableUpgradesCount);
 }
 
 export function useUnlockedLines() {

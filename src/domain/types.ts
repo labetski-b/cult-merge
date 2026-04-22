@@ -164,7 +164,6 @@ export interface GameSnapshot {
   meatButtonPresses: number;
   cumulativeStats: CumulativeStats;
   questState: QuestState;
-  lineUpgrades: Record<string, LineUpgradeState>;
   meatDropQueue: MeatDrop[];
 }
 
@@ -203,24 +202,4 @@ export interface ChapterProgress {
 export interface QuestState {
   chapters: Record<number, ChapterProgress>;
   chapterBaselines: Record<number, CumulativeStats>;
-}
-
-export interface LineUpgradeState {
-  mergeCount: number;
-  appliedUpgrades: number;
-}
-
-export type LineUpgradeCost =
-  | null
-  | { resource: 'meat' | 'rune1' | 'rune2' | 'gems'; amount: number };
-
-export interface LineUpgradeLineConfig {
-  thresholds: number[];
-  costs: LineUpgradeCost[];
-  spawnCapLevel: number;
-}
-
-export interface LineUpgradesConfig {
-  default: LineUpgradeLineConfig;
-  overrides: Record<string, Partial<LineUpgradeLineConfig>>;
 }

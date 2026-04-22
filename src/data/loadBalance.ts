@@ -10,7 +10,6 @@ import flowerpotsRaw from '@data/flowerpots.json';
 import chaptersRaw from '@data/chapters_data_analytics.json';
 import runesRaw from '@data/runes.json';
 import questsRaw from '@data/quests.json';
-import lineUpgradesRaw from '@data/line_upgrades.json';
 import generatorUpgradesRaw from '@data/generator_upgrades.json';
 import {
   creaturesDataSchema,
@@ -25,7 +24,6 @@ import {
   chaptersDataSchema,
   runesDataSchema,
   questsDataSchema,
-  lineUpgradesConfigSchema,
   generatorUpgradesSchema,
   type BalanceConfig
 } from '@data/schemas';
@@ -74,7 +72,6 @@ export function loadBalanceConfig(): BalanceConfig {
     chapters: chaptersDataSchema.parse(chaptersRaw),
     runes: runesDataSchema.parse(runesRaw),
     quests: questsDataSchema.parse(questsRaw),
-    lineUpgrades: lineUpgradesConfigSchema.parse(lineUpgradesRaw),
     generatorUpgrades: generatorUpgradesSchema.parse(generatorUpgradesRaw),
   };
 

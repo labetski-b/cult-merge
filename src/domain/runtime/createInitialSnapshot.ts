@@ -1,7 +1,6 @@
 import type { BalanceConfig } from '@data/schemas';
 import { createGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
-import { initLineUpgrades } from '@domain/lineUpgrades';
 import { createEmptyCumulativeStats, createEmptyQuestState } from '@domain/quests';
 import type { GameSnapshot, ProgressReward } from '@domain/types';
 import { SeededRng, randomSeed } from '@infra/rng';
@@ -20,7 +19,6 @@ export function createInitialSnapshot(
   const { rows, cols } = getGridSizeForLevel(balance, 1);
   const grid = createGrid(rows, cols);
   const initialRewards: ProgressReward[] = [{ type: 'egg', value: 'gen_1_1' }];
-  const allLines = balance.generators.generators.flatMap((g) => g.lines);
 
   return {
     kraken: {
@@ -55,7 +53,6 @@ export function createInitialSnapshot(
     meatButtonPresses: 0,
     cumulativeStats: createEmptyCumulativeStats(),
     questState: createEmptyQuestState(),
-    lineUpgrades: initLineUpgrades(allLines),
     meatDropQueue: [],
   };
 }

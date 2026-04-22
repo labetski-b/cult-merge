@@ -52,7 +52,7 @@ export function chargeGenerator(
     return { snapshot, changed: false, events: [], reason: 'not_enough_meat' };
   }
 
-  const spawns = rollGeneratorSpawn(ctx.rng, generator, ctx.balance, snapshot);
+  const spawns = rollGeneratorSpawn(ctx.rng, generator, ctx.balance);
   const nextGenerator: GeneratorEntity = {
     ...generator,
     charges: spawns.map((spawn) => ({
