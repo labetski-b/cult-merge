@@ -190,21 +190,14 @@ export const useGameStore = create<GameStore>()(
             return { lastMessage: 'These entities cannot merge.' };
           }
 
-          // If merged result is a generator, create it pre-charged (with second-line guarantee)
-          let finalMerged = merged;
-          if (merged.kind === 'generator') {
-            const gen = merged as GeneratorEntity;
-            finalMerged = createChargedGenerator(rng, gen.id, gen.generatorId, gen.level, BALANCE, state);
-          }
-
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
           nextGrid.cells[sourceIndex] = null;
-          nextGrid.cells[targetIndex] = finalMerged.id;
+          nextGrid.cells[targetIndex] = merged.id;
 
           const nextEntities = { ...state.entities };
           delete nextEntities[sourceId];
           delete nextEntities[targetId];
-          nextEntities[finalMerged.id] = finalMerged;
+          nextEntities[merged.id] = merged;
 
           // Increment merge count for the current queued predator
           const newMergeCounts = { ...state.predatorMergeCounts };
