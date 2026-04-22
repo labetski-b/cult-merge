@@ -179,25 +179,24 @@ function GeneratorUpgradeCard({
               style={{ width: `${percent}%` }}
             />
           </div>
-          {row && (
-            <div className="generator-upgrade-cost">
-              <span>Cost:</span>
-              <span className="generator-upgrade-cost-value">{row.runeCost}</span>
-              <img
-                src={runeIcons[row.runeType]}
-                alt={row.runeType}
-                className="generator-upgrade-cost-icon"
-              />
-            </div>
-          )}
           <button
             type="button"
             className="generator-upgrade-button"
+            aria-label="Upgrade"
             disabled={!canUpgrade}
             title={disabledReason ?? undefined}
             onClick={handleUpgrade}
           >
-            УЛУЧШИТЬ
+            {row && (
+              <>
+                <span className="generator-upgrade-button-cost">{row.runeCost}</span>
+                <img
+                  src={runeIcons[row.runeType]}
+                  alt={row.runeType}
+                  className="generator-upgrade-button-icon"
+                />
+              </>
+            )}
           </button>
           {disabledReason && (
             <div className="generator-upgrade-reason">{disabledReason}</div>
