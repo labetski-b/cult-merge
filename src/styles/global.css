@@ -195,29 +195,11 @@ body {
 }
 
 .cell-generator {
-  border-color: transparent;
-  background: linear-gradient(135deg, rgba(255, 180, 60, 0.22), rgba(90, 55, 20, 0.75));
   cursor: pointer;
-}
-
-.cell-generator:hover {
-  background: linear-gradient(135deg, rgba(255, 200, 80, 0.32), rgba(110, 70, 25, 0.85));
 }
 
 .cell-generator-charged {
-  border-color: transparent;
-  background: linear-gradient(135deg, rgba(130, 255, 130, 0.28), rgba(30, 80, 30, 0.85));
   cursor: pointer;
-  animation: pulse-bg 1.5s ease-in-out infinite;
-}
-
-.cell-generator-charged:hover {
-  background: linear-gradient(135deg, rgba(160, 255, 160, 0.4), rgba(40, 100, 40, 0.9));
-}
-
-@keyframes pulse-bg {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.18); }
 }
 
 .cell-creature {
@@ -296,10 +278,19 @@ body {
   pointer-events: none;
 }
 
+.cell-creature,
+.drag-clone,
+.cell-generator,
+.cell-generator-charged {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .cell-creature .creature-image,
 .drag-clone .creature-image {
-  background: #ffffff;
+  width: 75%;
+  height: 75%;
 }
+
 
 .entity-label {
   font-size: 14px;
@@ -409,6 +400,50 @@ body {
 
 .btn.danger {
   background: rgba(170, 55, 55, 0.9);
+}
+
+.btn-shop {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  background: #c0392b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.btn-shop:hover {
+  background: #d14436;
+}
+.btn-shop:active {
+  background: #a93323;
+}
+
+.btn-chapter {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  background: #2d6fbf;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.btn-chapter:hover:not(:disabled) {
+  background: #3b81d2;
+}
+.btn-chapter:active:not(:disabled) {
+  background: #255da0;
+}
+.btn-chapter:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .button-row {
@@ -1081,7 +1116,8 @@ body {
 
 .meat-bar-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -1132,6 +1168,10 @@ body {
   align-items: flex-start;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0.75;
 }
 .debug-row > .debug-panel {
   flex: 1;

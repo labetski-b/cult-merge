@@ -21,11 +21,11 @@ export function GeneratorsCollection() {
   return (
     <>
       <button
-        className="btn small"
+        className="btn-shop"
         type="button"
         onClick={() => setOpen(true)}
       >
-        Generators ({unlocked.length})
+        Buy Generators ({unlocked.length})
       </button>
       {open && (
         <div className="line-upgrades-backdrop" onClick={() => setOpen(false)}>
