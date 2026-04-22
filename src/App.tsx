@@ -7,16 +7,14 @@ import { ControlsPanel } from '@ui/components/ControlsPanel';
 import { PredatorProgress } from '@ui/components/PredatorProgress';
 import { ManagerCollection } from '@ui/components/ManagerCollection';
 import { GeneratorUpgradeModal } from '@ui/components/GeneratorUpgradeModal';
+import { GeneratorUpgradesTopBar } from '@ui/components/GeneratorUpgradesTopBar';
 import { QuestPanel } from '@ui/components/QuestPanel';
-import { LineUpgradesDock } from '@ui/components/LineUpgradesDock';
-import { LineUpgradesPanel } from '@ui/components/LineUpgradesPanel';
 import { useGameStore } from '@store/gameStore';
 import { DragProvider } from '@ui/DragContext';
 
 function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
   const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
-  const [lineUpgradesOpen, setLineUpgradesOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
@@ -45,7 +43,7 @@ function App() {
         <QuestPanel />
         <div className="quest-line-row">
           <PredatorProgress />
-          <LineUpgradesDock onOpen={() => setLineUpgradesOpen(true)} />
+          <GeneratorUpgradesTopBar onOpenModal={() => setUpgradeModalOpen(true)} />
         </div>
 
         <div className="kraken-row">
@@ -56,13 +54,6 @@ function App() {
         <div className="meat-bar-row">
           <div className="panel shop-buttons-panel">
             <ManagerCollection />
-            <button
-              className="btn small"
-              type="button"
-              onClick={() => setUpgradeModalOpen(true)}
-            >
-              Generators
-            </button>
           </div>
         </div>
         <div className="debug-row">
@@ -73,7 +64,6 @@ function App() {
           isOpen={upgradeModalOpen}
           onClose={() => setUpgradeModalOpen(false)}
         />
-        <LineUpgradesPanel open={lineUpgradesOpen} onClose={() => setLineUpgradesOpen(false)} />
 
         <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
       </div>
