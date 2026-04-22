@@ -3,7 +3,7 @@ import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import {
   getQuestCurrentValue,
-  getFirstIncompleteChapterId,
+  getVisibleChapterId,
   createEmptyCumulativeStats,
   QUEST_UNLOCK_LEVEL,
 } from '@domain/quests';
@@ -13,6 +13,7 @@ import '@styles/QuestPanel.css';
 export function ChapterQuestsButton() {
   const [open, setOpen] = useState(false);
   const questState = useGameStore((s) => s.questState);
+  const chapterClaimed = useGameStore((s) => s.chapterClaimed);
   const cumulativeStats = useGameStore((s) => s.cumulativeStats);
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const snapshot = useGameStore((s) => s);
@@ -20,7 +21,7 @@ export function ChapterQuestsButton() {
   if (krakenLevel < QUEST_UNLOCK_LEVEL) return null;
 
   const chapters = BALANCE.quests.chapters;
-  const currentChapterId = getFirstIncompleteChapterId(questState, BALANCE);
+  const currentChapterId = getVisibleChapterId(questState, chapterClaimed, BALANCE);
 
   if (currentChapterId === null) {
     return (
@@ -38,6 +39,16 @@ export function ChapterQuestsButton() {
   const completedCount = chapter.quests.filter(
     (q) => chapterProgress?.quests[q.id]?.completed
   ).length;
+
+  const chapterCompleted = chapterProgress?.completed ?? false;
+  const claimed = chapterClaimed[chapter.id] ?? false;
+  const canClaim =
+    chapterCompleted && !claimed && chapter.unlocksGenerator != null;
+
+  const handleClaim = () => {
+    useGameStore.getState().claimChapterReward(chapter.id);
+    setOpen(false);
+  };
 
   return (
     <>
@@ -77,6 +88,15 @@ export function ChapterQuestsButton() {
                 <div className="chapter-reward-caption">
                   Reward: Generator {chapter.unlocksGenerator}
                 </div>
+                {canClaim && (
+                  <button
+                    type="button"
+                    className="chapter-claim-btn"
+                    onClick={handleClaim}
+                  >
+                    Claim Reward
+                  </button>
+                )}
               </div>
             )}
             <div className="quest-list">

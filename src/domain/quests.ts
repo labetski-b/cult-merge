@@ -112,6 +112,30 @@ export function getFirstIncompleteChapterId(questState: QuestState, config: Bala
   return null;
 }
 
+/**
+ * Returns the chapter id that the UI should display right now.
+ *
+ * Walks chapters in order and returns the first one that is either:
+ *  - not yet completed, or
+ *  - completed but whose reward has not been claimed yet.
+ *
+ * This keeps the UI anchored on a completed chapter until the player
+ * explicitly claims its reward, rather than auto-advancing to the next.
+ * Returns null only when every chapter is both completed and claimed.
+ */
+export function getVisibleChapterId(
+  questState: QuestState,
+  chapterClaimed: Record<number, boolean>,
+  config: BalanceConfig
+): number | null {
+  for (const chapter of config.quests.chapters) {
+    const completed = isChapterCompleted(questState, chapter.id);
+    if (!completed) return chapter.id;
+    if (!chapterClaimed[chapter.id]) return chapter.id;
+  }
+  return null;
+}
+
 export function createEmptyCumulativeStats(): CumulativeStats {
   return {
     totalMerges: 0,

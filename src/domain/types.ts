@@ -165,6 +165,7 @@ export interface GameSnapshot {
   cumulativeStats: CumulativeStats;
   questState: QuestState;
   meatDropQueue: MeatDrop[];
+  chapterClaimed: Record<number, boolean>;
 }
 
 export enum QuestType {

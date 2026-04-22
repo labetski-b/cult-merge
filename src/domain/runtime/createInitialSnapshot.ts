@@ -65,5 +65,6 @@ export function createInitialSnapshot(
     cumulativeStats,
     questState: createEmptyQuestState(),
     meatDropQueue: [],
+    chapterClaimed: {},
   };
 }

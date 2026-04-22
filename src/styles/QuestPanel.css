@@ -82,6 +82,30 @@
   color: rgba(245, 247, 250, 0.75);
 }
 
+.chapter-claim-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 204, 102, 0.4);
+  border-radius: 6px;
+  background: linear-gradient(90deg, #4de2c2, #8fc1ff);
+  color: #0a1626;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 100ms ease, transform 100ms ease;
+}
+
+.chapter-claim-btn:hover {
+  filter: brightness(1.08);
+}
+
+.chapter-claim-btn:active {
+  transform: translateY(1px);
+}
+
 .quest-list {
   display: flex;
   flex-direction: column;

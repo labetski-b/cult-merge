@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
-import { getQuestCurrentValue, getFirstIncompleteChapterId, createEmptyCumulativeStats, QUEST_UNLOCK_LEVEL } from '@domain/quests';
+import { getQuestCurrentValue, getVisibleChapterId, createEmptyCumulativeStats, QUEST_UNLOCK_LEVEL } from '@domain/quests';
 import '@styles/QuestPanel.css';
 
 const QUEST_COLLAPSED_KEY = 'questPanelCollapsed';
@@ -25,6 +25,7 @@ export function QuestPanel() {
   }, [collapsed]);
 
   const questState = useGameStore((s) => s.questState);
+  const chapterClaimed = useGameStore((s) => s.chapterClaimed);
   const cumulativeStats = useGameStore((s) => s.cumulativeStats);
   const krakenLevel = useGameStore((s) => s.kraken.level);
   const snapshot = useGameStore((s) => s);
@@ -38,7 +39,7 @@ export function QuestPanel() {
   }
 
   const chapters = BALANCE.quests.chapters;
-  const currentChapterId = getFirstIncompleteChapterId(questState, BALANCE);
+  const currentChapterId = getVisibleChapterId(questState, chapterClaimed, BALANCE);
 
   if (currentChapterId === null) {
     return (

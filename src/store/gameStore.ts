@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
@@ -34,6 +34,7 @@ interface GameActions {
   chargeGenerator: (generatorId: string) => void;
   tapGenerator: (generatorId: string) => void;
   claimReward: () => void;
+  claimChapterReward: (chapterId: number) => void;
   tapBox: (boxId: string) => void;
   buyGeneratorOne: () => void;
   buyGeneratorTwo: () => void;
@@ -481,6 +482,35 @@ export const useGameStore = create<GameStore>()(
           }
 
           return result;
+        });
+      },
+
+      claimChapterReward: (chapterId: number) => {
+        set((state) => {
+          const chapter = BALANCE.quests.chapters.find((c) => c.id === chapterId);
+          if (!chapter) return {};
+
+          const chapterProgress = state.questState.chapters[chapterId];
+          if (!chapterProgress?.completed) return {};
+
+          if (state.chapterClaimed[chapterId]) return {};
+
+          const nextClaimed = { ...state.chapterClaimed, [chapterId]: true };
+
+          const genId = chapter.unlocksGenerator;
+          if (genId == null) {
+            return {
+              chapterClaimed: nextClaimed,
+              lastMessage: `Chapter ${chapterId} claimed`
+            };
+          }
+
+          const reward: ProgressReward = { type: 'egg', value: `gen_${genId}_1` };
+          return {
+            chapterClaimed: nextClaimed,
+            pendingRewards: [...state.pendingRewards, reward],
+            lastMessage: `Chapter ${chapterId} claimed`
+          };
         });
       },
 
@@ -1766,6 +1796,10 @@ export function migrateGameStore(
 
   if (persistedVersion < 17) {
     persistedState = { ...(persistedState as object), meatDropQueue: [] };
+  }
+
+  if (persistedVersion < 19) {
+    persistedState = { ...(persistedState as object), chapterClaimed: {} };
   }
 
   return persistedState;
