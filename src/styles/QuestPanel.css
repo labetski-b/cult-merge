@@ -86,24 +86,30 @@
   margin-top: 8px;
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid rgba(255, 204, 102, 0.4);
+  border: 1px solid rgba(255, 107, 107, 0.7);
   border-radius: 6px;
-  background: linear-gradient(90deg, #4de2c2, #8fc1ff);
-  color: #0a1626;
+  background: linear-gradient(90deg, #ff5a5a, #ff3b3b);
+  color: #fff;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
   transition: filter 100ms ease, transform 100ms ease;
+  animation: chapter-claim-pulse 1.4s ease-in-out infinite;
 }
 
 .chapter-claim-btn:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.1);
 }
 
 .chapter-claim-btn:active {
   transform: translateY(1px);
+}
+
+@keyframes chapter-claim-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 90, 90, 0.35); }
+  50% { box-shadow: 0 0 14px rgba(255, 90, 90, 0.75); }
 }
 
 .quest-list {

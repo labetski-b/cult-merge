@@ -746,11 +746,59 @@ body {
   border-color: rgba(255, 217, 102, 0.5);
 }
 
+.kraken-claim-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 217, 102, 0.08);
+  border: 1px solid rgba(255, 217, 102, 0.25);
+  cursor: pointer;
+}
+
+.kraken-reward-preview {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 217, 102, 0.12);
+  border-radius: 8px;
+}
+
+.kraken-reward-preview-img,
+.kraken-reward-preview-svg {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.kraken-queue-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: #ff5a5a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 .kraken-claim-hint {
   font-size: 13px;
   color: #ffd966;
   font-weight: 600;
-  margin-top: 4px;
   animation: fade-pulse 0.8s ease-in-out infinite;
 }
 

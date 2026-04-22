@@ -76,6 +76,42 @@ function RewardDot({ reward, completed }: { reward: ProgressReward; completed: b
   return null;
 }
 
+function RewardPreview({ reward }: { reward: ProgressReward }) {
+  if (reward.type === 'egg' && typeof reward.value === 'string') {
+    const parts = reward.value.match(/^gen_(\d+)_(\d+)$/);
+    if (parts) {
+      const img = getGeneratorImage(Number(parts[1]), Number(parts[2]));
+      if (img) {
+        return <img src={img} alt="Generator" className="kraken-reward-preview-img" />;
+      }
+    }
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="kraken-reward-preview-svg">
+        <rect x="4" y="8" width="16" height="12" rx="2" fill="#ffb43c" />
+        <path d="M12 4l3 4H9l3-4z" fill="#ffb43c" />
+      </svg>
+    );
+  }
+  if (reward.type === 'res_box') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="kraken-reward-preview-svg">
+        <rect x="3" y="8" width="18" height="13" rx="2" fill="#a47cff" />
+        <rect x="3" y="8" width="18" height="4" rx="1" fill="#c9a0ff" />
+        <rect x="10" y="6" width="4" height="8" rx="1" fill="#ffd966" />
+      </svg>
+    );
+  }
+  if (reward.type === 'grid') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="kraken-reward-preview-svg">
+        <circle cx="12" cy="12" r="10" fill="#66cc99" />
+        <text x="12" y="16" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#1a1a2e">F</text>
+      </svg>
+    );
+  }
+  return null;
+}
+
 function RewardLabel({ reward }: { reward: ProgressReward }) {
   if (reward.type === 'egg' && typeof reward.value === 'string') {
     const parts = reward.value.match(/^gen_(\d+)_(\d+)$/);
@@ -199,8 +235,16 @@ export function KrakenPanel() {
       </div>
 
       {hasReward && (
-        <div className="kraken-claim-hint">
-          Tap to claim: <RewardLabel reward={pendingRewards[0]!} />
+        <div className="kraken-claim-section" onClick={handleKrakenClick}>
+          <div className="kraken-reward-preview">
+            <RewardPreview reward={pendingRewards[0]!} />
+            {pendingRewards.length > 1 && (
+              <div className="kraken-queue-badge">×{pendingRewards.length}</div>
+            )}
+          </div>
+          <div className="kraken-claim-hint">
+            Tap to claim: <RewardLabel reward={pendingRewards[0]!} />
+          </div>
         </div>
       )}
 
