@@ -10,3 +10,13 @@ export function resolveUpgradeCost(
   if (overrideRow) return overrideRow;
   return table.baseTable.find((r) => r.fromLevel === fromLevel) ?? null;
 }
+
+export function getGeneratorMergeProgress(
+  generatorConfig: { lines: string[] },
+  mergeCountByLine: Record<string, number>
+): number {
+  return generatorConfig.lines.reduce(
+    (sum, line) => sum + (mergeCountByLine[line] ?? 0),
+    0
+  );
+}

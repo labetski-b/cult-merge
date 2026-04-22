@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUpgradeCost } from './upgrades';
+import { resolveUpgradeCost, getGeneratorMergeProgress } from './upgrades';
 import type { GeneratorUpgradesTable } from '../data/schemas';
 
 const baseTable: GeneratorUpgradesTable = {
@@ -36,5 +36,23 @@ describe('resolveUpgradeCost', () => {
 
   it('returns null for missing generator id with no base row', () => {
     expect(resolveUpgradeCost(99, 99, baseTable)).toBeNull();
+  });
+});
+
+describe('getGeneratorMergeProgress', () => {
+  const genConfig = { id: 1, name: 'Gen1', lines: ['Creature1', 'Creature2'] } as any;
+
+  it('sums counts across the generator lines', () => {
+    const counts = { Creature1: 5, Creature2: 7, Creature3: 100 };
+    expect(getGeneratorMergeProgress(genConfig, counts)).toBe(12);
+  });
+
+  it('treats missing lines as zero', () => {
+    const counts = { Creature1: 5 };
+    expect(getGeneratorMergeProgress(genConfig, counts)).toBe(5);
+  });
+
+  it('returns 0 when every line is missing', () => {
+    expect(getGeneratorMergeProgress(genConfig, {})).toBe(0);
   });
 });
