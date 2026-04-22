@@ -182,3 +182,59 @@
   font-weight: 600;
   text-align: center;
 }
+
+.generator-upgrade-drops {
+  margin-top: 8px;
+}
+
+.generator-upgrade-drops-label {
+  font-size: 11px;
+  color: rgba(245, 247, 250, 0.6);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.generator-upgrade-drops-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.generator-upgrade-drop-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.generator-upgrade-drop-frame {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(143, 193, 255, 0.1);
+  border: 1px solid rgba(143, 193, 255, 0.2);
+  border-radius: 6px;
+}
+
+.generator-upgrade-drop-img {
+  width: 75%;
+  height: 75%;
+  object-fit: contain;
+}
+
+.generator-upgrade-drop-placeholder {
+  font-size: 9px;
+  color: rgba(245, 247, 250, 0.55);
+  text-align: center;
+  padding: 2px;
+}
+
+.generator-upgrade-drop-pct {
+  font-size: 11px;
+  color: rgba(245, 247, 250, 0.85);
+  font-weight: 600;
+  text-align: center;
+}

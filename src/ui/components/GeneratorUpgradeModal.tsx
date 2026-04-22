@@ -6,7 +6,7 @@ import {
   getGeneratorMergeProgress,
   resolveUpgradeCost,
 } from '@domain/upgrades';
-import { getGeneratorImage } from '@ui/creatureImages';
+import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
 import type { GeneratorEntity } from '@domain/types';
 import rune1Icon from '@assets/resources/rune1.png';
 import rune2Icon from '@assets/resources/rune2.png';
@@ -89,6 +89,8 @@ function GeneratorUpgradeCard({
   const img = getGeneratorImage(gen.generatorId, gen.level);
   const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE.generatorUpgrades);
   const merges = config ? getGeneratorMergeProgress(config, mergeCountByLine) : 0;
+  const currentLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level);
+  const outputs = currentLevelConfig?.outputs ?? [];
 
   const handleUpgrade = () => {
     useGameStore.getState().upgradeGenerator(gen.id);
@@ -145,6 +147,40 @@ function GeneratorUpgradeCard({
               style={{ width: `${percent}%` }}
             />
           </div>
+          {outputs.length > 0 && (
+            <div className="generator-upgrade-drops">
+              <div className="generator-upgrade-drops-label">Drops</div>
+              <div className="generator-upgrade-drops-grid">
+                {outputs.map((out, idx) => {
+                  const sprite = getCreatureImage(out.creatureType, out.level);
+                  const pct =
+                    out.chance <= 1 ? out.chance * 100 : out.chance;
+                  const pctLabel = `${Math.round(pct)}%`;
+                  return (
+                    <div
+                      key={`${out.creatureType}-${out.level}-${idx}`}
+                      className="generator-upgrade-drop-cell"
+                    >
+                      <div className="generator-upgrade-drop-frame">
+                        {sprite ? (
+                          <img
+                            src={sprite}
+                            alt={`${out.creatureType} L${out.level}`}
+                            className="generator-upgrade-drop-img"
+                          />
+                        ) : (
+                          <div className="generator-upgrade-drop-placeholder">
+                            {out.creatureType}
+                          </div>
+                        )}
+                      </div>
+                      <div className="generator-upgrade-drop-pct">{pctLabel}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {row && (
             <div className="generator-upgrade-cost">
               <span>Cost:</span>
