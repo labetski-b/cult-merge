@@ -16,7 +16,7 @@
           "outputs": [
             { "creatureType": "Creature1", "level": 1, "chance": 1.0 }
           ],
-          "upgrade": { "mergesRequired": 20, "runeType": "rune1", "runeCost": 3 }
+          "upgrade": { "mergesRequired": 20, "runeType": "rune1", "runeCost": 2 }
         },
         {
           "level": 2,
@@ -26,7 +26,7 @@
             { "creatureType": "Creature1", "level": 1, "chance": 0.6 },
             { "creatureType": "Creature1", "level": 2, "chance": 0.4 }
           ],
-          "upgrade": { "mergesRequired": 50, "runeType": "rune1", "runeCost": 8 }
+          "upgrade": { "mergesRequired": 50, "runeType": "rune1", "runeCost": 3 }
         },
         {
           "level": 3,
@@ -37,7 +37,7 @@
             { "creatureType": "Creature1", "level": 2, "chance": 0.36 },
             { "creatureType": "Creature2", "level": 1, "chance": 0.1 }
           ],
-          "upgrade": { "mergesRequired": 120, "runeType": "rune1", "runeCost": 15 }
+          "upgrade": { "mergesRequired": 120, "runeType": "rune1", "runeCost": 10 }
         },
         {
           "level": 4,
@@ -49,7 +49,7 @@
             { "creatureType": "Creature1", "level": 3, "chance": 0.1 },
             { "creatureType": "Creature2", "level": 1, "chance": 0.1 }
           ],
-          "upgrade": { "mergesRequired": 250, "runeType": "rune1", "runeCost": 25 }
+          "upgrade": { "mergesRequired": 250, "runeType": "rune1", "runeCost": 20 }
         },
         {
           "level": 5,

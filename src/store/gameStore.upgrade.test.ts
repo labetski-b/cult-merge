@@ -41,7 +41,7 @@ describe('upgradeGenerator action', () => {
     expect(gen.kind).toBe('generator');
     expect(gen.level).toBe(2);
     expect(gen.charges).toEqual([{ creatureType: 'Creature1', level: 1 }]);
-    expect(state.resources.rune1).toBe(97);
+    expect(state.resources.rune1).toBe(98);
     expect(state.cumulativeStats.maxGeneratorLevelById[1] ?? 0).toBeGreaterThanOrEqual(2);
   });
 
