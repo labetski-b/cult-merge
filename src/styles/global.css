@@ -308,12 +308,13 @@ body {
 .popup-backdrop {
   position: fixed;
   inset: 0;
+  background: rgba(0, 0, 0, 0.75);
   z-index: 90;
 }
 
 .generator-popup {
   z-index: 100;
-  background: rgba(14, 25, 42, 0.95);
+  background: #0e192a;
   border: 1px solid rgba(255, 180, 60, 0.5);
   border-radius: 10px;
   padding: 12px 16px;
@@ -1171,6 +1172,9 @@ body {
   margin-top: 20px;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.debug-row > button {
   opacity: 0.75;
 }
 .debug-row > .debug-panel {
