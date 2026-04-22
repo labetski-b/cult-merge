@@ -152,6 +152,7 @@ export interface GameSnapshot {
   rngState: number;
   lastMessage: string | null;
   predatorMergeCounts: Record<string, number>;
+  mergeCountByLine: Record<string, number>;
   predatorQueueIndex: number;
   predatorsSpawnedOnce: string[];
   managerCards: string[];

@@ -70,4 +70,10 @@ describe('gameStore.interactCells records line-upgrade merges', () => {
     expect(useGameStore.getState().lineUpgrades.Creature1?.mergeCount).toBe(0);
     expect(useGameStore.getState().lineUpgrades.Creature2?.mergeCount).toBe(0);
   });
+
+  it('initial snapshot has empty mergeCountByLine', () => {
+    useGameStore.getState().resetGame();
+    const state = useGameStore.getState();
+    expect(state.mergeCountByLine).toEqual({});
+  });
 });

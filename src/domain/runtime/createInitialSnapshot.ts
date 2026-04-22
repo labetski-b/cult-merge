@@ -43,6 +43,7 @@ export function createInitialSnapshot(
     rngState: rng.getState(),
     lastMessage: options.lastMessage ?? null,
     predatorMergeCounts: {},
+    mergeCountByLine: {},
     predatorQueueIndex: 0,
     predatorsSpawnedOnce: [],
     managerCards: [],
