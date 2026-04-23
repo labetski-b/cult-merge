@@ -11,6 +11,9 @@ export function resolveUpgradeCost(
   return levelConfig?.upgrade ?? null;
 }
 
+/**
+ * Cumulative merges across the generator's lines (raw counter).
+ */
 export function getGeneratorMergeProgress(
   generatorConfig: { lines: string[] },
   mergeCountByLine: Record<string, number>
@@ -21,13 +24,31 @@ export function getGeneratorMergeProgress(
   );
 }
 
+/**
+ * Merges available for the NEXT upgrade of this generator =
+ * raw mergeCountByLine sum minus merges already spent on prior upgrades of this generator.
+ */
+export function getGeneratorMergesAvailable(
+  generatorConfig: { id: number; lines: string[] },
+  mergeCountByLine: Record<string, number>,
+  mergesSpentByGen: Record<number, number> | undefined
+): number {
+  const raw = getGeneratorMergeProgress(generatorConfig, mergeCountByLine);
+  const spent = mergesSpentByGen?.[generatorConfig.id] ?? 0;
+  return Math.max(0, raw - spent);
+}
+
 export type CanUpgradeResult =
   | { ok: true; row: UpgradeRow }
   | { ok: false; reason: 'max' | 'merges' | 'runes' };
 
 export function canUpgradeGenerator(
   generator: { generatorId: number; level: number },
-  snapshot: { resources: Record<string, number>; mergeCountByLine: Record<string, number> },
+  snapshot: {
+    resources: Record<string, number>;
+    mergeCountByLine: Record<string, number>;
+    mergesSpentByGen?: Record<number, number>;
+  },
   balance: BalanceConfig
 ): CanUpgradeResult {
   const config = balance.generators.generators.find((g) => g.id === generator.generatorId);
@@ -36,7 +57,7 @@ export function canUpgradeGenerator(
   const row = resolveUpgradeCost(generator.generatorId, generator.level, balance);
   if (!row) return { ok: false, reason: 'max' };
 
-  const merges = getGeneratorMergeProgress(config, snapshot.mergeCountByLine);
+  const merges = getGeneratorMergesAvailable(config, snapshot.mergeCountByLine, snapshot.mergesSpentByGen);
   if (merges < row.mergesRequired) return { ok: false, reason: 'merges' };
 
   const runeBalance = snapshot.resources[row.runeType] ?? 0;

@@ -78,7 +78,7 @@ describe('GeneratorUpgradeModal', () => {
     expect(btn.disabled).toBe(true);
   });
 
-  it('UPGRADE button is enabled when conditions are met and clicking calls upgradeGenerator', () => {
+  it('UPGRADE button is enabled when conditions are met and clicking starts an async upgrade', () => {
     replaceEntities({
       'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 1, charges: [] },
     });
@@ -93,14 +93,18 @@ describe('GeneratorUpgradeModal', () => {
 
     fireEvent.click(btn);
 
-    const gen = useGameStore.getState().entities['gen-a'] as GeneratorEntity;
-    expect(gen.level).toBe(2);
+    const state = useGameStore.getState();
+    // Upgrade now starts a timer; the level does NOT change until collect.
+    const gen = state.entities['gen-a'] as GeneratorEntity;
+    expect(gen.level).toBe(1);
+    expect(state.activeUpgrade).not.toBeNull();
+    expect(state.activeUpgrade?.entityId).toBe('gen-a');
   });
 
   it('shows MAX LEVEL when the generator is past the upgrade table', () => {
-    // baseTable stops at fromLevel: 7 — so a level-8 gen is at max.
+    // generators.json goes up to level 10 with upgrades at L1..L9 — L10 has no upgrade row.
     replaceEntities({
-      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 8, charges: [] },
+      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 10, charges: [] },
     });
     render(<GeneratorUpgradeModal isOpen={true} onClose={() => {}} />);
     expect(screen.getByText(/max level|макс/i)).toBeTruthy();

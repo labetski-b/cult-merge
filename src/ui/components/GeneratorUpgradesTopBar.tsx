@@ -1,12 +1,12 @@
-import { useMemo } from 'react';
 import { BALANCE } from '@data/loadBalance';
 import { useGameStore } from '@store/gameStore';
 import {
   canUpgradeGenerator,
-  getGeneratorMergeProgress,
+  getGeneratorMergesAvailable,
   resolveUpgradeCost,
 } from '@domain/upgrades';
 import { getGeneratorImage } from '@ui/creatureImages';
+import { useSecondTicker } from '@ui/hooks/useSecondTicker';
 import type { GeneratorEntity } from '@domain/types';
 import './GeneratorUpgradesTopBar.css';
 
@@ -23,14 +23,35 @@ interface Widget {
   mergesNow: number;
   ready: boolean;
   img: string;
+  upgradeState: 'none' | 'upgrading' | 'ready-to-collect';
+  remainingSec: number;
+  timerPercent: number;
+}
+
+function formatDuration(sec: number): string {
+  if (sec <= 0) return '0s';
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
   const entities = useGameStore((s) => s.entities);
   const mergeCountByLine = useGameStore((s) => s.mergeCountByLine);
+  const mergesSpentByGen = useGameStore((s) => s.mergesSpentByGen);
   const resources = useGameStore((s) => s.resources);
+  const activeUpgrade = useGameStore((s) => s.activeUpgrade);
 
-  const widgets = useMemo<Widget[]>(() => {
+  // Re-render every second so the visible timer advances and the
+  // "ГОТОВО" badge appears as soon as Date.now() >= finishesAt, even when
+  // the upgrade modal is closed and only the top bar is mounted.
+  useSecondTicker(true);
+
+  // Not memoized on purpose: `widgets` depends on Date.now(), so it must be
+  // recomputed every render. The 1s ticker above is what drives those renders.
+  const widgets: Widget[] = (() => {
+    const now = Date.now();
     const result: Widget[] = [];
     for (const id in entities) {
       const e = entities[id];
@@ -40,15 +61,34 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       if (!config) continue;
 
       const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE);
-      const mergesNow = getGeneratorMergeProgress(config, mergeCountByLine);
+      const mergesNow = getGeneratorMergesAvailable(config, mergeCountByLine, mergesSpentByGen);
       const check = canUpgradeGenerator(
         gen,
         {
           resources,
           mergeCountByLine,
+          mergesSpentByGen,
         },
         BALANCE
       );
+
+      const isThis = activeUpgrade?.entityId === gen.id;
+      let upgradeState: Widget['upgradeState'] = 'none';
+      let remainingSec = 0;
+      let timerPercent = 0;
+      if (isThis && activeUpgrade) {
+        if (now >= activeUpgrade.finishesAt) {
+          upgradeState = 'ready-to-collect';
+          timerPercent = 100;
+        } else {
+          upgradeState = 'upgrading';
+          remainingSec = Math.max(0, Math.ceil((activeUpgrade.finishesAt - now) / 1000));
+          const total = activeUpgrade.finishesAt - activeUpgrade.startedAt;
+          timerPercent = total > 0
+            ? Math.max(0, Math.min(100, ((now - activeUpgrade.startedAt) / total) * 100))
+            : 100;
+        }
+      }
 
       result.push({
         id: gen.id,
@@ -57,8 +97,11 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
         isMax: row === null,
         mergesRequired: row?.mergesRequired ?? null,
         mergesNow,
-        ready: check.ok,
+        ready: check.ok && activeUpgrade === null,
         img: getGeneratorImage(gen.generatorId, gen.level),
+        upgradeState,
+        remainingSec,
+        timerPercent,
       });
     }
     // Stable order: by generatorId, then entity id.
@@ -67,7 +110,7 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       return a.id.localeCompare(b.id);
     });
     return result;
-  }, [entities, mergeCountByLine, resources]);
+  })();
 
   if (widgets.length === 0) return null;
 
@@ -81,13 +124,17 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       {widgets.map((w) => {
         const percent = w.isMax
           ? 100
-          : w.mergesRequired && w.mergesRequired > 0
-            ? Math.min(100, (w.mergesNow / w.mergesRequired) * 100)
-            : 0;
+          : w.upgradeState === 'upgrading' || w.upgradeState === 'ready-to-collect'
+            ? w.timerPercent
+            : w.mergesRequired && w.mergesRequired > 0
+              ? Math.min(100, (w.mergesNow / w.mergesRequired) * 100)
+              : 0;
         const widgetClass =
           'generator-upgrade-widget' +
           (w.ready ? ' ready' : '') +
-          (w.isMax ? ' max' : '');
+          (w.isMax ? ' max' : '') +
+          (w.upgradeState === 'upgrading' ? ' upgrading' : '') +
+          (w.upgradeState === 'ready-to-collect' ? ' collect' : '');
         return (
           <div key={w.id} className={widgetClass} title={`Generator ${w.generatorId} L${w.level}`}>
             <div className="widget-icon-wrap">
@@ -104,7 +151,11 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
                 style={{ width: `${percent}%` }}
               />
             </div>
-            {w.isMax ? (
+            {w.upgradeState === 'ready-to-collect' ? (
+              <span className="badge collect">ГОТОВО</span>
+            ) : w.upgradeState === 'upgrading' ? (
+              <span className="badge upgrading">{formatDuration(w.remainingSec)}</span>
+            ) : w.isMax ? (
               <span className="badge max">MAX</span>
             ) : w.ready ? (
               <span className="badge ready">READY</span>
@@ -115,3 +166,4 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
     </button>
   );
 }
+

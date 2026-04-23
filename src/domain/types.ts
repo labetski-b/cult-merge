@@ -141,6 +141,13 @@ export interface MeatDrop {
   amount: number;
 }
 
+export interface ActiveUpgrade {
+  entityId: string;
+  generatorId: number;
+  startedAt: number; // Date.now() ms
+  finishesAt: number; // startedAt + durationSec*1000
+}
+
 export interface GameSnapshot {
   kraken: KrakenState;
   resources: Resources;
@@ -166,6 +173,8 @@ export interface GameSnapshot {
   questState: QuestState;
   meatDropQueue: MeatDrop[];
   chapterClaimed: Record<number, boolean>;
+  mergesSpentByGen: Record<number, number>;
+  activeUpgrade: ActiveUpgrade | null;
 }
 
 export enum QuestType {

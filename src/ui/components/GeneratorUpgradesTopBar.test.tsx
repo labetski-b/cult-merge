@@ -68,9 +68,9 @@ describe('GeneratorUpgradesTopBar', () => {
   });
 
   it('shows MAX when generator is at max level', () => {
-    // baseTable has fromLevel entries up to 7; level 8 has no upgrade row.
+    // generators.json goes up to level 10 with upgrades at L1..L9 — L10 has no upgrade row.
     replaceEntities({
-      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 8, charges: [] },
+      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 10, charges: [] },
     });
 
     render(<GeneratorUpgradesTopBar />);

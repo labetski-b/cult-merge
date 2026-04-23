@@ -12,7 +12,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import { canUpgradeGenerator, upgradeGenerator as upgradeGeneratorDomain } from '@domain/upgrades';
+import { canUpgradeGenerator } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -39,7 +39,8 @@ interface GameActions {
   buyGeneratorOne: () => void;
   buyGeneratorTwo: () => void;
   buyGeneratorFour: () => void;
-  upgradeGenerator: (entityId: string) => void;
+  startGeneratorUpgrade: (entityId: string) => void;
+  collectGeneratorUpgrade: () => void;
   addRune1: (amount: number) => void;
   addRune2: (amount: number) => void;
   spawnAll: () => void;
@@ -1497,22 +1498,61 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
-      upgradeGenerator: (entityId: string) => {
+      startGeneratorUpgrade: (entityId: string) => {
         set((state) => {
+          if (state.activeUpgrade !== null) return {};
+
           const entity = state.entities[entityId];
           if (!entity || entity.kind !== 'generator') return {};
 
           const check = canUpgradeGenerator(entity, state, BALANCE);
           if (!check.ok) return {};
 
-          const { generator, snapshot } = upgradeGeneratorDomain(entity, check.row, state);
+          const row = check.row;
+          const runeBalance = state.resources[row.runeType] ?? 0;
+          const durationSec = row.upgradeDurationSec ?? 0;
+          const now = Date.now();
 
-          const prevMax = state.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
-          const nextMax = Math.max(prevMax, generator.level);
+          const prevSpent = state.mergesSpentByGen[entity.generatorId] ?? 0;
 
           return {
-            resources: snapshot.resources,
-            entities: { ...state.entities, [entityId]: generator },
+            resources: {
+              ...state.resources,
+              [row.runeType]: runeBalance - row.runeCost,
+            },
+            mergesSpentByGen: {
+              ...state.mergesSpentByGen,
+              [entity.generatorId]: prevSpent + row.mergesRequired,
+            },
+            activeUpgrade: {
+              entityId,
+              generatorId: entity.generatorId,
+              startedAt: now,
+              finishesAt: now + durationSec * 1000,
+            },
+            lastMessage: `Upgrade started for Generator ${entity.generatorId} (${durationSec}s).`,
+          };
+        });
+      },
+
+      collectGeneratorUpgrade: () => {
+        set((state) => {
+          const active = state.activeUpgrade;
+          if (!active) return {};
+          if (Date.now() < active.finishesAt) return {};
+
+          const entity = state.entities[active.entityId];
+          if (!entity || entity.kind !== 'generator') {
+            // Entity is gone — clear the slot to avoid permanent lock.
+            return { activeUpgrade: null };
+          }
+
+          const upgraded = { ...entity, level: entity.level + 1 };
+          const prevMax = state.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
+          const nextMax = Math.max(prevMax, upgraded.level);
+
+          return {
+            entities: { ...state.entities, [entity.id]: upgraded },
             cumulativeStats: {
               ...state.cumulativeStats,
               maxGeneratorLevelById: {
@@ -1520,7 +1560,8 @@ export const useGameStore = create<GameStore>()(
                 [entity.generatorId]: nextMax,
               },
             },
-            lastMessage: `Generator ${entity.generatorId} upgraded to L${generator.level}.`
+            activeUpgrade: null,
+            lastMessage: `Generator ${entity.generatorId} upgraded to L${upgraded.level}.`,
           };
         });
         const afterUpgrade = get();
@@ -1800,6 +1841,14 @@ export function migrateGameStore(
 
   if (persistedVersion < 19) {
     persistedState = { ...(persistedState as object), chapterClaimed: {} };
+  }
+
+  if (persistedVersion < 21) {
+    persistedState = {
+      ...(persistedState as object),
+      mergesSpentByGen: {},
+      activeUpgrade: null,
+    };
   }
 
   return persistedState;

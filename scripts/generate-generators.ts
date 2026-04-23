@@ -42,6 +42,15 @@ const DESIGN = {
   // spawns по уровням прокачки (одинаково для всех генераторов).
   spawnsByL: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33],
 
+  // Требование мерджей для апгрейда L → L+1 (индекс = L-1).
+  // Формула: стартовое 20 мерджей, рост ×2 на ранних, ×1.7 на поздних уровнях.
+  // На L10 (max) апгрейда нет — значение игнорируется.
+  mergesRequiredByL: [20, 45, 95, 180, 340, 600, 1000, 1700, 2800, 0],
+
+  // Длительность апгрейда L → L+1 в секундах (индекс = L-1).
+  // На L10 (max) апгрейда нет.
+  upgradeDurationSecByL: [3, 6, 12, 24, 48, 96, 192, 384, 768, 0],
+
   mSacCurve: [
     { krakenL: 1, mSac: 1 },
     { krakenL: 7, mSac: 3 },
@@ -275,7 +284,7 @@ interface GenLevel {
   chargeCost: number;
   numCreatures: number;
   outputs: Output[];
-  upgrade?: { mergesRequired: number; runeType: 'rune1' | 'rune2'; runeCost: number };
+  upgrade?: { mergesRequired: number; runeType: 'rune1' | 'rune2'; runeCost: number; upgradeDurationSec: number };
 }
 
 interface Gen {
@@ -388,9 +397,10 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
       // В lvl1 рунах: 1 rune = 2 units → rune count = ceil(units / 2)
       const runeCost = Math.ceil(unitsCost / 2);
       lvl.upgrade = {
-        mergesRequired: 0, // не используем в новой модели — merge quest отдельно
+        mergesRequired: DESIGN.mergesRequiredByL[L - 1],
         runeType: GEN_UPGRADE_RUNE[genIdx],
         runeCost,
+        upgradeDurationSec: DESIGN.upgradeDurationSecByL[L - 1],
       };
     }
 

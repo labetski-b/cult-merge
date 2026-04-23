@@ -66,5 +66,7 @@ export function createInitialSnapshot(
     questState: createEmptyQuestState(),
     meatDropQueue: [],
     chapterClaimed: {},
+    mergesSpentByGen: {},
+    activeUpgrade: null,
   };
 }

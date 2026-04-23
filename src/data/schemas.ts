@@ -10,11 +10,12 @@ const generatorUpgradeSchema = z.object({
   mergesRequired: z.number().int().nonnegative(),
   runeCost: z.number().int().nonnegative(),
   runeType: z.enum(['rune1', 'rune2']),
+  upgradeDurationSec: z.number().nonnegative().optional(),
 });
 
 const generatorLevelSchema = z.object({
   level: z.number().int().min(1),
-  chargeCost: z.number().int().min(0),
+  chargeCost: z.number().min(0),
   numCreatures: z.number().int().positive(),
   outputs: z.array(outputSchema).min(1),
   upgrade: generatorUpgradeSchema.optional()
