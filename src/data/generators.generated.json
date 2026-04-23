@@ -1,0 +1,3541 @@
+{
+  "generators": [
+    {
+      "id": 1,
+      "name": "Generator 1",
+      "eggType": "Egg_Creature1",
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 5,
+      "krakenRequired": 1,
+      "lines": [
+        "Creature1",
+        "Creature2"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 0.5,
+          "numCreatures": 15,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 2
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 0.75,
+          "numCreatures": 17,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 4
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 1,
+          "numCreatures": 19,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.76
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 6
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 1.5,
+          "numCreatures": 21,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.75
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.02
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 9
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 2,
+          "numCreatures": 23,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.39
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 3,
+              "chance": 0.05
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 14
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 4,
+          "numCreatures": 25,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 5,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.4
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 21
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 8,
+          "numCreatures": 27,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 6,
+              "chance": 0.3
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.28
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 4,
+              "chance": 0.01
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 34
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 11,
+          "numCreatures": 29,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 6,
+              "chance": 0.27
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.38
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.02
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 54
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 15,
+          "numCreatures": 31,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 5,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 6,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 7,
+              "chance": 0.21
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 5,
+              "chance": 0.11
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 86
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 20,
+          "numCreatures": 33,
+          "outputs": [
+            {
+              "creatureType": "Creature1",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 5,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 7,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature1",
+              "level": 8,
+              "chance": 0.21
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature2",
+              "level": 5,
+              "chance": 0.17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Generator 2",
+      "eggType": "Egg_Creature2",
+      "purchaseCurrency": "rune2",
+      "purchaseCost": 8,
+      "krakenRequired": 7,
+      "lines": [
+        "Creature3",
+        "Creature4"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 1.5,
+          "numCreatures": 16,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 3
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 2.25,
+          "numCreatures": 18,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 5
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 3,
+          "numCreatures": 20,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 8
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 4.5,
+          "numCreatures": 22,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 1,
+              "chance": 0.17
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.03
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 13
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 6,
+          "numCreatures": 24,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.64
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 3,
+              "chance": 0.26
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 20
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 12,
+          "numCreatures": 26,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 5,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 3,
+              "chance": 0.39
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 32
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 24,
+          "numCreatures": 28,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 6,
+              "chance": 0.26
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 1,
+              "chance": 0.21
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 4,
+              "chance": 0.03
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 51
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 33,
+          "numCreatures": 30,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 6,
+              "chance": 0.25
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 1,
+              "chance": 0.24
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 4,
+              "chance": 0.02
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 81
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 45,
+          "numCreatures": 32,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 6,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 7,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 5,
+              "chance": 0.36
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 129
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 60,
+          "numCreatures": 34,
+          "outputs": [
+            {
+              "creatureType": "Creature3",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 5,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 7,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature3",
+              "level": 8,
+              "chance": 0.21
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 1,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 2,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature4",
+              "level": 5,
+              "chance": 0.09
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Generator 3",
+      "eggType": "Egg_Creature3",
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 10,
+      "krakenRequired": 10,
+      "lines": [
+        "Creature5",
+        "Creature6"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 2.25,
+          "numCreatures": 17,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 4
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 3.38,
+          "numCreatures": 19,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 7
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 4.5,
+          "numCreatures": 21,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.82
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 11
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 6.75,
+          "numCreatures": 23,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 17
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 9,
+          "numCreatures": 25,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.54
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.14
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 27
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 18,
+          "numCreatures": 27,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.2
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 2,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.08
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 42
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 36,
+          "numCreatures": 29,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 6,
+              "chance": 0.27
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.38
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 2,
+              "chance": 0.02
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 68
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 49.5,
+          "numCreatures": 31,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 6,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 4,
+              "chance": 0.06
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 108
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 67.5,
+          "numCreatures": 33,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 6,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 7,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 1,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 5,
+              "chance": 0.14
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 172
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 90,
+          "numCreatures": 35,
+          "outputs": [
+            {
+              "creatureType": "Creature5",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 8,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 5,
+              "chance": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Generator 4",
+      "eggType": "Egg_Creature4",
+      "purchaseCurrency": "rune2",
+      "purchaseCost": 13,
+      "krakenRequired": 13,
+      "lines": [
+        "Creature7",
+        "Creature8"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 3,
+          "numCreatures": 18,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 5
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 4.5,
+          "numCreatures": 20,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 8
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 6,
+          "numCreatures": 22,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.88
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 13
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 9,
+          "numCreatures": 24,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 21
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 12,
+          "numCreatures": 26,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.39
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.29
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.01
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 33
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 24,
+          "numCreatures": 28,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 5,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 3,
+              "chance": 0.25
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 53
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 48,
+          "numCreatures": 30,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 6,
+              "chance": 0.25
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.24
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 4,
+              "chance": 0.02
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 84
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 66,
+          "numCreatures": 32,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 5,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 6,
+              "chance": 0.17
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 3,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 4,
+              "chance": 0.25
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 135
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 90,
+          "numCreatures": 34,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 6,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 7,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 5,
+              "chance": 0.23
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 215
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 120,
+          "numCreatures": 36,
+          "outputs": [
+            {
+              "creatureType": "Creature7",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 4,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature7",
+              "level": 8,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature8",
+              "level": 5,
+              "chance": 0.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Generator 5",
+      "eggType": "Egg_Creature5",
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 15,
+      "krakenRequired": 18,
+      "lines": [
+        "Creature9",
+        "Creature10"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 5,
+          "numCreatures": 19,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 6
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 7.5,
+          "numCreatures": 21,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 10
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 10,
+          "numCreatures": 23,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.9
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 16
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 15,
+          "numCreatures": 25,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 25
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 20,
+          "numCreatures": 27,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.69
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 2,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 3,
+              "chance": 0.19
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 40
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 40,
+          "numCreatures": 29,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 3,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 4,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.19
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 2,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 3,
+              "chance": 0.08
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 63
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 80,
+          "numCreatures": 31,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 6,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 4,
+              "chance": 0.06
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 101
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 110,
+          "numCreatures": 33,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 6,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.36
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 2,
+              "chance": 0.04
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 162
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 150,
+          "numCreatures": 35,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 3,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 6,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 4,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 5,
+              "chance": 0.36
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 258
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 200,
+          "numCreatures": 37,
+          "outputs": [
+            {
+              "creatureType": "Creature9",
+              "level": 1,
+              "chance": 0
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 4,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature9",
+              "level": 8,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature10",
+              "level": 5,
+              "chance": 0.12
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Generator 6",
+      "eggType": "Egg_Creature6",
+      "purchaseCurrency": "rune2",
+      "purchaseCost": 20,
+      "krakenRequired": 23,
+      "lines": [
+        "Creature11",
+        "Creature12"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 6.43,
+          "numCreatures": 20,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 8
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 9.64,
+          "numCreatures": 22,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 13
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 12.86,
+          "numCreatures": 24,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.9
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 21
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 19.29,
+          "numCreatures": 26,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 33
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 25.71,
+          "numCreatures": 28,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.54
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 1,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 2,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 3,
+              "chance": 0.09
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 53
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 51.43,
+          "numCreatures": 30,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.21
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 5,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 3,
+              "chance": 0.37
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 84
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 102.86,
+          "numCreatures": 32,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 5,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 6,
+              "chance": 0.17
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 3,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 4,
+              "chance": 0.25
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 135
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 141.43,
+          "numCreatures": 34,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 5,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 6,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 4,
+              "chance": 0.29
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 215
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 192.86,
+          "numCreatures": 36,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 6,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 3,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 5,
+              "chance": 0.3
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 344
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 257.14,
+          "numCreatures": 38,
+          "outputs": [
+            {
+              "creatureType": "Creature11",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 4,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 7,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature11",
+              "level": 8,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature12",
+              "level": 5,
+              "chance": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Generator 7",
+      "eggType": "Egg_Creature7",
+      "purchaseCurrency": "rune1",
+      "purchaseCost": 25,
+      "krakenRequired": 28,
+      "lines": [
+        "Creature13",
+        "Creature14"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 7.75,
+          "numCreatures": 21,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 10
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 11.63,
+          "numCreatures": 23,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 16
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 15.5,
+          "numCreatures": 25,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.9
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 26
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 23.25,
+          "numCreatures": 27,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 41
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 31,
+          "numCreatures": 29,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.69
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 3,
+              "chance": 0.15
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 66
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 62,
+          "numCreatures": 31,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.2
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 3,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 5,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 3,
+              "chance": 0.31
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 105
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 124,
+          "numCreatures": 33,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 5,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 6,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.36
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.04
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 168
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 170.5,
+          "numCreatures": 35,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 3,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 5,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 6,
+              "chance": 0.19
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.27
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 4,
+              "chance": 0.01
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 269
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 232.5,
+          "numCreatures": 37,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 4,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 6,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 7,
+              "chance": 0.16
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 4,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 5,
+              "chance": 0.11
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune1",
+            "runeCost": 430
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 310,
+          "numCreatures": 39,
+          "outputs": [
+            {
+              "creatureType": "Creature13",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 2,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 3,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 4,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 7,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature13",
+              "level": 8,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 1,
+              "chance": 0.19
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 2,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 3,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 4,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature14",
+              "level": 5,
+              "chance": 0.02
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Generator 8",
+      "eggType": "Egg_Creature8",
+      "purchaseCurrency": "rune2",
+      "purchaseCost": 30,
+      "krakenRequired": 33,
+      "lines": [
+        "Creature15",
+        "Creature16"
+      ],
+      "levels": [
+        {
+          "level": 1,
+          "chargeCost": 9,
+          "numCreatures": 22,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 12
+          }
+        },
+        {
+          "level": 2,
+          "chargeCost": 13.5,
+          "numCreatures": 24,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 20
+          }
+        },
+        {
+          "level": 3,
+          "chargeCost": 18,
+          "numCreatures": 26,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.9
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.1
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 31
+          }
+        },
+        {
+          "level": 4,
+          "chargeCost": 27,
+          "numCreatures": 28,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.8
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.2
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 50
+          }
+        },
+        {
+          "level": 5,
+          "chargeCost": 36,
+          "numCreatures": 30,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.53
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.03
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.17
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.04
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 79
+          }
+        },
+        {
+          "level": 6,
+          "chargeCost": 72,
+          "numCreatures": 32,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.24
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 5,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.37
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 126
+          }
+        },
+        {
+          "level": 7,
+          "chargeCost": 144,
+          "numCreatures": 34,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 5,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 6,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 4,
+              "chance": 0.29
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 202
+          }
+        },
+        {
+          "level": 8,
+          "chargeCost": 198,
+          "numCreatures": 36,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.08
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 5,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 6,
+              "chance": 0.17
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.14
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 4,
+              "chance": 0.07
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 323
+          }
+        },
+        {
+          "level": 9,
+          "chargeCost": 270,
+          "numCreatures": 38,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 5,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 6,
+              "chance": 0.13
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 7,
+              "chance": 0.18
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.32
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.01
+            }
+          ],
+          "upgrade": {
+            "mergesRequired": 0,
+            "runeType": "rune2",
+            "runeCost": 516
+          }
+        },
+        {
+          "level": 10,
+          "chargeCost": 360,
+          "numCreatures": 40,
+          "outputs": [
+            {
+              "creatureType": "Creature15",
+              "level": 1,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 2,
+              "chance": 0.04
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 4,
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 5,
+              "chance": 0.07
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 6,
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 7,
+              "chance": 0.12
+            },
+            {
+              "creatureType": "Creature15",
+              "level": 8,
+              "chance": 0.15
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 1,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 2,
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 3,
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 4,
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature16",
+              "level": 5,
+              "chance": 0.22
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
