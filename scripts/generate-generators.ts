@@ -32,7 +32,15 @@ const DESIGN = {
   sessionSacrifices: 5,
   targetCreaturesPerSession: 175,
 
-  targetMaxLvlAt2Sac: [5, 6, 7, 7, 8, 9, 10, 10, 11, 12],
+  targetMaxLvlAt2Sac: [6, 7, 7, 7, 8, 9, 10, 10, 11, 12],
+
+  // charges per sacrifice по уровням прокачки L (индекс = L-1).
+  // Определяет, сколько раз генератор запускается за одно жертвоприношение.
+  // cCost выводится как mSac / chargesPerSacByL[L-1].
+  chargesPerSacByL: [2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.0, 1.0, 1.0, 1.0],
+
+  // spawns по уровням прокачки (одинаково для всех генераторов).
+  spawnsByL: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33],
 
   mSacCurve: [
     { krakenL: 1, mSac: 1 },
@@ -62,12 +70,6 @@ const GEN_KRAKEN_REQUIRED = [1, 7, 10, 13, 18, 23, 28, 33];
 
 // Gen1 m/sac кривая (спец §7)
 const GEN1_M_SAC = [1, 1.5, 2, 3, 4, 6, 8, 11, 15, 20];
-
-// Gen1 chargeCost (спец §7)
-const GEN1_CHARGE_COST = [0.5, 0.75, 1, 1.5, 2, 4, 8, 11, 15, 20];
-
-// Gen1 spawns: 15..33 шаг 2
-const GEN1_SPAWNS = [15, 17, 19, 21, 23, 25, 27, 29, 31, 33];
 
 // direct_top: максимальный уровень существа (primary/secondary) в spawn на каждом L
 // Из таблицы §7: 1/—, 2/—, 3/1, 3/2, 4/3, 5/3, 6/4, 6/4, 7/5, 8/5
@@ -317,11 +319,11 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
   const mSacScale = mSacAtUnlock / GEN1_M_SAC[0];
   const mSacRow = GEN1_M_SAC.map(v => v * mSacScale);
 
-  // chargeCost масштабируется так же
-  const cCostRow = GEN1_CHARGE_COST.map(v => v * mSacScale);
+  // chargeCost выводится из chargesPerSacByL: cCost = mSac / chargesPerSacByL[L-1].
+  const cCostRow = mSacRow.map((m, i) => m / DESIGN.chargesPerSacByL[i]);
 
-  // spawns = Gen1_spawns + (N - 1)
-  const spawnsRow = GEN1_SPAWNS.map(v => v + (N - 1));
+  // spawns одинаковы для всех генераторов (без оффсета по N).
+  const spawnsRow = DESIGN.spawnsByL.slice();
 
   const levels: GenLevel[] = [];
   const perLevelMaxLvl2Sac: number[] = [];
