@@ -290,6 +290,7 @@ function pickWithFPGate(
   }
   const nonFP = table.filter((e) => !isFPGenerator(e.genId, config));
   const pool = nonFP.length > 0 ? nonFP : table;
+  // `pool[0]!` is safe: early return above guarantees `table.length > 0`, and `pool` is either `nonFP` (non-empty) or `table`.
   return pool.reduce((a, b) => (a.targetLevel >= b.targetLevel ? a : b), pool[0]!);
 }
 
@@ -446,17 +447,18 @@ export function generateAutoTask(
       if (mainTable.length === 0) break;
       const mainPick = pickWithFPGate(mainTable, rng, state, config, fieldL1Map);
       if (!mainPick) break;
-      // If the main pick still violates the gate (only possible via last-resort
-      // fallback when the whole table is FP and gate rejects), abort dual and
-      // fall through to single — the single-quest path will pick non-FP cleanly.
+      // `pickWithFPGate` can return an FP entry only when its fallback branch fires on an
+      // all-FP table (no non-FP candidates). In that case, fall through to the single-quest
+      // path — it still has access to the full scoring table and non-FP fallback.
       if (!passesFPGate(mainPick, state, config, fieldL1Map)) break;
 
       const fillerPool = fillerTable.filter(e => e.creatureType !== mainPick.creatureType);
       if (fillerPool.length === 0) break;
       const fillerPick = pickWithFPGate(fillerPool, rng, state, config, fieldL1Map);
       if (!fillerPick) break;
-      // Same guard for filler: if the only remaining filler option is a gated-FP,
-      // break so the single-quest path can produce a clean non-FP task.
+      // Same rationale as the main-pick guard above: an FP filler here means the filler
+      // table was all-FP and `pickWithFPGate` fell back. Abort dual so the single-quest
+      // path can pick cleanly.
       if (!passesFPGate(fillerPick, state, config, fieldL1Map)) break;
 
       const isDuplicate =
@@ -547,6 +549,7 @@ export function generateAutoTask(
   }
 
   const finalReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+  // pickedGenId intentionally omitted — fallback is always non-FP, so isFPTask returns false.
   return {
     id: makeTaskId(rng),
     creatures: [{ type: 'Creature1', level: 1, count: 1 }],

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { BalanceConfig } from '../data/schemas';
-import type { CreatureEntity, GameSnapshot, GeneratorEntity } from './types';
+import type { CreatureEntity, GameSnapshot, GeneratorEntity, TaskDefinition } from './types';
 import { BALANCE } from '../data/loadBalance';
 import { createGrid } from './grid';
 import { createEmptyCumulativeStats, createEmptyQuestState } from './quests';
 import { SeededRng } from '../infra/rng';
-import { generateAutoTask } from './tasks';
+import { generateAutoTask, isFPTask } from './tasks';
 
 /**
  * Test balance based on real BALANCE, but with a trimmed generator list:
@@ -380,5 +380,29 @@ describe('generateAutoTask — FP eligibility gate', () => {
     for (const req of task.creatures) {
       expect(isFp(req.type)).toBe(false);
     }
+  });
+});
+
+describe('isFPTask', () => {
+  const config = makeBalanceWithTimerGen(); // Gen1+Gen2 sacrifice, Gen3 timer
+
+  const makeTask = (pickedGenId?: number): TaskDefinition => ({
+    id: 't',
+    creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+    expMultiplier: 1,
+    resMultiplier: 1,
+    pickedGenId,
+  });
+
+  it('returns true when pickedGenId points at a timer generator', () => {
+    expect(isFPTask(makeTask(3), config)).toBe(true);
+  });
+
+  it('returns false when pickedGenId points at a sacrifice generator', () => {
+    expect(isFPTask(makeTask(1), config)).toBe(false);
+  });
+
+  it('returns false when pickedGenId is undefined', () => {
+    expect(isFPTask(makeTask(undefined), config)).toBe(false);
   });
 });
