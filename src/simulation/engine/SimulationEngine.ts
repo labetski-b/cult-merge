@@ -49,11 +49,9 @@ export class SimulationEngine {
   private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
   private totalActions = 0;
   private currentGameTimeMs = 0;
-  // Tracks whether a skip_timer_generator action fired during the current quest
-  // (a new quest resets it on `new_quest` / `quest_completed`).
-  // Used as a proxy for questsClosedViaGen3Skip.
-  // TODO: this may overcount slightly if skip happened in same tick but not
-  // specifically for the completed quest's creature requirement.
+  // Tracks whether a skip_timer_generator action fired during the current quest.
+  // Resets on quest_completed. Proxy for questsClosedViaGen3Skip.
+  // TODO: may overcount if skip targeted a generator unrelated to the completed quest.
   private currentQuestUsedSkipTimer = false;
   // Tracks whether a collect_upgrade action changed state this tick (used for idleUpgradeTicks)
   private tickHadCollectUpgrade = false;
