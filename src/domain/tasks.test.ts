@@ -140,3 +140,48 @@ describe('generateAutoTask — scoring table sources', () => {
     expect(genIds.has(2)).toBe(false); // Gen2 must NOT appear as a phantom purchase
   });
 });
+
+describe('generateAutoTask — phantom +1 upgrade gating', () => {
+  it('uses scoringLevel = factLvl + 1 when upgrade is affordable (runes + merges OK)', () => {
+    const config = makeBalanceWithTwoGens();
+    const state = makeSnapshotWithGen1OnField();
+    // Gen1.L1 upgrade row: mergesRequired=15, runeType='rune1', runeCost=2
+    state.resources.rune1 = 100;             // plenty of runes
+    state.mergeCountByLine = { Creature1: 20 }; // plenty of merges
+    const rng = new SeededRng(1);
+
+    const task = generateAutoTask(config, state, rng);
+
+    const gen1Row = task.debugScoringTable!.find((e) => e.genId === 1);
+    expect(gen1Row).toBeDefined();
+    expect(gen1Row!.genLevel).toBe(2); // phantom upgrade to L2
+  });
+
+  it('uses scoringLevel = factLvl when runes are insufficient', () => {
+    const config = makeBalanceWithTwoGens();
+    const state = makeSnapshotWithGen1OnField();
+    state.resources.rune1 = 0;                  // not enough (need 2)
+    state.mergeCountByLine = { Creature1: 20 };
+    const rng = new SeededRng(1);
+
+    const task = generateAutoTask(config, state, rng);
+
+    const gen1Row = task.debugScoringTable!.find((e) => e.genId === 1);
+    expect(gen1Row).toBeDefined();
+    expect(gen1Row!.genLevel).toBe(1); // upgrade blocked → stays at L1
+  });
+
+  it('uses scoringLevel = factLvl when merges are insufficient', () => {
+    const config = makeBalanceWithTwoGens();
+    const state = makeSnapshotWithGen1OnField();
+    state.resources.rune1 = 100;
+    state.mergeCountByLine = { Creature1: 0 };  // not enough (need 15)
+    const rng = new SeededRng(1);
+
+    const task = generateAutoTask(config, state, rng);
+
+    const gen1Row = task.debugScoringTable!.find((e) => e.genId === 1);
+    expect(gen1Row).toBeDefined();
+    expect(gen1Row!.genLevel).toBe(1);
+  });
+});
