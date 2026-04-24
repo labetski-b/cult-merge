@@ -34,6 +34,20 @@ describe('Engine handles start_upgrade / collect_upgrade', () => {
   });
 });
 
+describe('Strategy emits async upgrades', () => {
+  it('after 500 ticks, at least one generator reached level 2 via start/collect', () => {
+    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 500 } });
+    const result = engine.run();
+    const actions = result.actionLog.map(e => e.action.type);
+    expect(actions).toContain('start_upgrade');
+    expect(actions).toContain('collect_upgrade');
+    const hasLevel2 = Object.values(result.finalState.entities).some(
+      (e) => e.kind === 'generator' && (e as GeneratorEntity).level >= 2
+    );
+    expect(hasLevel2).toBe(true);
+  });
+});
+
 describe('Engine handles skip_timer_generator', () => {
   it('skip_timer_generator ticks the timer generator and spawns a creature', () => {
     // Gen3 (Flower Pot) has spawnMode: 'timer', tickIntervalSec: 1800

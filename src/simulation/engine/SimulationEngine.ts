@@ -15,9 +15,13 @@ import { calculateMeatDrop, calculateSession } from '@domain/chapters';
 import { applyStartUpgrade, applyCollectUpgrade } from '@domain/runtime/upgradeRuntime';
 import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { SeededRng } from '@infra/rng';
+import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
+import { RealisticStrategy } from '../strategies/RealisticStrategy';
 import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
+
+type SimulationConfigInput = Pick<SimulationConfig, 'seed' | 'stopCondition'> & Partial<SimulationConfig>;
 
 const MAX_TOTAL_ACTIONS = 500_000;
 
@@ -46,10 +50,20 @@ export class SimulationEngine {
   private totalActions = 0;
   private currentGameTimeMs = 0;
 
-  constructor(config: SimulationConfig) {
-    this.config = config;
-    this.state = createInitialSnapshot(config.balance, { seed: config.seed });
-    this.rng = new SeededRng(config.seed);
+  constructor(input: SimulationConfigInput) {
+    const balance = input.balance ?? DEFAULT_BALANCE;
+    const strategy = input.strategy ?? new RealisticStrategy(balance);
+    const stopValue = input.stopCondition.value;
+    this.config = {
+      seed: input.seed,
+      stopCondition: input.stopCondition,
+      maxTicks: input.maxTicks ?? stopValue,
+      tickInterval: input.tickInterval ?? 1000,
+      strategy,
+      balance,
+    };
+    this.state = createInitialSnapshot(this.config.balance, { seed: this.config.seed });
+    this.rng = new SeededRng(this.config.seed);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
@@ -149,7 +163,9 @@ export class SimulationEngine {
           throw error;
         }
         // Only log if the action actually changed state (or is a synthetic log-only event)
-        if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells') {
+        // collect_upgrade always advances time even if a no-op (timer still running),
+        // so that currentGameTimeMs eventually crosses finishesAt without infinite loop.
+        if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells' || action.type === 'collect_upgrade') {
           // Advance both time counters together so they never drift
           this.currentGameTimeMs += getActionTimeSec(action) * 1000;
           const dt = this.addActionTime(action);

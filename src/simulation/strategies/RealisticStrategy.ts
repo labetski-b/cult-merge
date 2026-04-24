@@ -5,6 +5,7 @@ import { getCurrentMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } f
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import type { AIStrategy, SimulationAction, StrategyDecision } from './base';
+import { pickUpgradeCandidate } from './pickUpgradeCandidate';
 
 
 /**
@@ -663,13 +664,16 @@ export class RealisticStrategy implements AIStrategy {
 
   /**
    * Step 3: Find ONE upgrade opportunity and emit upgrade actions.
-   * Temporary stub — returns empty array.
-   * TODO: wire up async start_upgrade/collect_upgrade in Task 7.
+   * If an upgrade is already in flight, attempt to collect it.
+   * Otherwise, pick the best candidate and start a new upgrade.
    */
-  private investOneStep(_state: GameSnapshot, _usedIds: Set<string>, _task: TaskDefinition | null): SimulationAction[] {
-    // Intentionally empty — Task 5 checkpoint.
-    // buy_generator / merge_cascade removed; start_upgrade/collect_upgrade wired in Task 7.
-    return [];
+  private investOneStep(state: GameSnapshot, _usedIds: Set<string>, _task: TaskDefinition | null): SimulationAction[] {
+    if (state.activeUpgrade !== null) {
+      return [{ type: 'collect_upgrade' }];
+    }
+    const cand = pickUpgradeCandidate(state, this.balance);
+    if (!cand) return [];
+    return [{ type: 'start_upgrade', entityId: cand.entityId }];
   }
 
   // ---------- Generators: spawn / charge ----------
