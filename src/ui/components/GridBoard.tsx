@@ -23,6 +23,22 @@ function computeTimerProgress(
   return elapsed / interval;
 }
 
+function computeTimerLabel(
+  gen: GeneratorEntity,
+  intervalSec: number | undefined,
+): string {
+  if (gen.pendingDrop !== null) return '⏸';
+  const interval = (intervalSec ?? 0) * 1000;
+  if (interval <= 0) return '';
+  const last = gen.lastTickTimestamp ?? Date.now();
+  const remainingSec = Math.max(0, Math.ceil((interval - (Date.now() - last)) / 1000));
+  if (remainingSec === 0) return '💥';
+  if (remainingSec < 60) return `${remainingSec}s`;
+  const m = Math.floor(remainingSec / 60);
+  const s = remainingSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function CircularTimerProgress({ progress }: { progress: number }) {
   const radius = 10;
   const circumference = 2 * Math.PI * radius;
@@ -487,9 +503,14 @@ export function GridBoard() {
                         <img src={img} alt={entityLabel(entity)} className="creature-image" draggable={false} />
                         <span className="cell-badge">{badge}</span>
                         {isTimerMode ? (
-                          <CircularTimerProgress
-                            progress={computeTimerProgress(entity, genConfig?.tickIntervalSec)}
-                          />
+                          <>
+                            <CircularTimerProgress
+                              progress={computeTimerProgress(entity, genConfig?.tickIntervalSec)}
+                            />
+                            <span className="gen-timer-label">
+                              {computeTimerLabel(entity, genConfig?.tickIntervalSec)}
+                            </span>
+                          </>
                         ) : (
                           <span
                             className="generator-charge-badge"

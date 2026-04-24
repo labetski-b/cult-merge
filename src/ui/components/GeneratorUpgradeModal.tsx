@@ -9,14 +9,10 @@ import {
 import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
 import { useSecondTicker } from '@ui/hooks/useSecondTicker';
 import type { ActiveUpgrade, GeneratorEntity } from '@domain/types';
-import type { z } from 'zod';
-import type { generatorSchema } from '@data/schemas';
 import rune1Icon from '@assets/resources/rune1.png';
 import rune2Icon from '@assets/resources/rune2.png';
 import meatIcon from '@assets/resources/meat.png';
 import './GeneratorUpgradeModal.css';
-
-type GeneratorConfig = z.infer<typeof generatorSchema>;
 
 type Props = {
   isOpen: boolean;
@@ -57,15 +53,7 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
     return list;
   }, [entities]);
 
-  const hasTimerMode = useMemo(
-    () => owned.some((gen) => {
-      const cfg = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
-      return cfg?.spawnMode === 'timer';
-    }),
-    [owned]
-  );
-
-  useSecondTicker(isOpen && (activeUpgrade !== null || hasTimerMode));
+  useSecondTicker(isOpen && activeUpgrade !== null);
 
   if (!isOpen) return null;
 
@@ -100,32 +88,6 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-function TimerModeSection({ entity, config }: {
-  entity: GeneratorEntity;
-  config: GeneratorConfig;
-}) {
-  const intervalMs = (config.tickIntervalSec ?? 0) * 1000;
-  const lastTick = entity.lastTickTimestamp ?? Date.now();
-  const elapsed = Date.now() - lastTick;
-  const remaining = Math.max(0, intervalMs - elapsed);
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-
-  const status = entity.pendingDrop
-    ? 'pending'
-    : remaining === 0
-      ? 'ready'
-      : 'ticking';
-
-  return (
-    <div className="flower-pot-timer">
-      {status === 'ticking' && <span>⏱ {minutes}:{String(seconds).padStart(2, '0')}</span>}
-      {status === 'ready' && <span>💥 Дроп...</span>}
-      {status === 'pending' && <span>⏸ Поле занято</span>}
     </div>
   );
 }
@@ -202,8 +164,6 @@ function GeneratorUpgradeCard({
   const canStart = check?.ok === true;
   const durationSec = row?.upgradeDurationSec ?? 0;
 
-  const isTimerMode = config?.spawnMode === 'timer';
-
   return (
     <div className="generator-upgrade-card">
       <div className="generator-upgrade-card-header">
@@ -260,10 +220,6 @@ function GeneratorUpgradeCard({
           </div>
         )}
       </div>
-
-      {isTimerMode && config && (
-        <TimerModeSection entity={gen} config={config} />
-      )}
 
       {isMax ? (
         <div className="generator-upgrade-max">MAX LEVEL</div>
