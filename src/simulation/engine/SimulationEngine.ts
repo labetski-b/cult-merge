@@ -1,10 +1,9 @@
 import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
 import { openBox } from '@domain/boxes';
-import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
+import { findEntityCell, getFreeCellIndexes } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepRewards } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
-import { recordMerge } from '@domain/lineUpgrades';
 import { applyFPCounterUpdate, generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -13,6 +12,8 @@ import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@do
 import { rollGeneratorSpawn } from '@domain/generator';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { calculateMeatDrop, calculateSession } from '@domain/chapters';
+import { applyStartUpgrade, applyCollectUpgrade } from '@domain/runtime/upgradeRuntime';
+import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { SeededRng } from '@infra/rng';
 import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
@@ -43,6 +44,7 @@ export class SimulationEngine {
   private taskNumber = 0;
   private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
   private totalActions = 0;
+  private currentGameTimeMs = 0;
 
   constructor(config: SimulationConfig) {
     this.config = config;
@@ -220,18 +222,33 @@ export class SimulationEngine {
       case 'spawn_generator':
         this.tapGenerator(action.generatorId);
         break;
-      case 'buy_generator':
-        this.buyGenerator(action.generatorId);
+      case 'start_upgrade': {
+        this.state = applyStartUpgrade(this.state, this.config.balance, action.entityId, this.currentGameTimeMs);
         break;
+      }
+      case 'collect_upgrade': {
+        this.state = applyCollectUpgrade(this.state, this.currentGameTimeMs);
+        break;
+      }
+      case 'skip_timer_generator': {
+        const entity = this.state.entities[action.entityId];
+        if (!entity || entity.kind !== 'generator') break;
+        const cfg = this.config.balance.generators.generators.find(g => g.id === entity.generatorId);
+        if (!cfg || cfg.spawnMode !== 'timer') break;
+        const intervalMs = (cfg.tickIntervalSec ?? 0) * 1000;
+        const withBackdate: GameSnapshot = {
+          ...this.state,
+          entities: { ...this.state.entities, [action.entityId]: { ...entity, lastTickTimestamp: this.currentGameTimeMs - intervalMs } },
+        };
+        this.state = tickTimerGenerators(withBackdate, this.currentGameTimeMs, this.config.balance);
+        break;
+      }
       case 'quest_completed':
         break; // synthetic log-only event, no state mutation
       case 'new_quest':
         break; // synthetic log-only event, no state mutation
       case 'expand_board':
         break; // synthetic log-only event, no state mutation
-      case 'merge_cascade':
-        this.mergeCascade(action.generatorId, action.targetLevel);
-        break;
       case 'buy_runes':
         this.state.resources[action.runeType] += action.amount;
         if (action.runeType === 'rune1') this.cumulative.rune1Purchased += action.amount;
@@ -403,7 +420,9 @@ export class SimulationEngine {
       if (c.level > prev) this.cumulative.maxCreatureLevelByType[c.creatureType] = c.level;
 
       if (source.kind === 'creature') {
-        this.state = recordMerge(this.state, source.creatureType);
+        const line = source.creatureType;
+        const prev = this.state.mergeCountByLine[line] ?? 0;
+        this.state = { ...this.state, mergeCountByLine: { ...this.state.mergeCountByLine, [line]: prev + 1 } };
       }
     }
   }
@@ -683,18 +702,27 @@ export class SimulationEngine {
         const charge = g.charges[0];
         return charge ? `${charge.creatureType} Lv${charge.level} from Gen${g.generatorId}` : '';
       }
-      case 'buy_generator': {
-        const genCfg = this.config.balance.generators.generators.find(g => g.id === action.generatorId);
-        if (!genCfg) return '';
-        const curr = genCfg.purchaseCurrency as keyof typeof this.state.resources;
-        return `Gen${action.generatorId} lv1, cost ${genCfg.purchaseCost} ${genCfg.purchaseCurrency} (have: ${this.state.resources[curr]})`;
+      case 'start_upgrade': {
+        const e = this.state.entities[action.entityId];
+        if (!e || e.kind !== 'generator') return '';
+        return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} → upgrade started`;
+      }
+      case 'collect_upgrade': {
+        const active = this.state.activeUpgrade;
+        if (!active) return '';
+        const e = this.state.entities[active.entityId];
+        if (!e || e.kind !== 'generator') return '';
+        return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} → collected`;
+      }
+      case 'skip_timer_generator': {
+        const e = this.state.entities[action.entityId];
+        if (!e || e.kind !== 'generator') return '';
+        return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} timer skip`;
       }
       case 'quest_completed':
         return action.taskLabel;
       case 'new_quest':
         return action.taskLabel;
-      case 'merge_cascade':
-        return `Gen${action.generatorId} → Lv${action.targetLevel}`;
       case 'buy_runes':
         return `buy ${action.runeType} x${action.amount}`;
       case 'gather_meat':
@@ -703,62 +731,7 @@ export class SimulationEngine {
         return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
       case 'free_cells':
         return `${action.reason}: freed ${action.freed}`;
-      case 'buy_and_merge':
-        return `Gen${action.generatorId} ×${action.count} → Lv${action.targetLevel}`;
     }
   }
 
-  private buyGenerator(generatorId: number) {
-    const generator = this.config.balance.generators.generators.find(g => g.id === generatorId);
-    if (!generator) return;
-
-    const currency = generator.purchaseCurrency as keyof typeof this.state.resources;
-    if ((this.state.resources[currency] as number) < generator.purchaseCost) return;
-
-    const freeSlots = getFreeCellIndexes(this.state.grid);
-    if (freeSlots.length === 0) return;
-
-    const targetCell = freeSlots[0]!;
-    const newGenId = this.rng.nextId();
-
-    this.state.entities[newGenId] = {
-      id: newGenId,
-      kind: 'generator',
-      generatorId,
-      level: 1,
-      charges: []
-    };
-    this.state.grid.cells[targetCell] = newGenId;
-    (this.state.resources[currency] as number) -= generator.purchaseCost;
-    if (currency === 'rune1') this.cumulative.totalRune1Spent += generator.purchaseCost;
-    else if (currency === 'rune2') this.cumulative.totalRune2Spent += generator.purchaseCost;
-
-    // In the real game, generators come pre-charged on purchase (free first charge)
-    const newGen = this.state.entities[newGenId] as GeneratorEntity;
-    const spawns = rollGeneratorSpawn(this.rng, newGen, this.config.balance, this.state);
-    newGen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
-  }
-
-  /**
-   * Cascade-merge all generators of a given family (generatorId) from bottom up
-   * until one reaches targetLevel (or as high as possible).
-   */
-  private mergeCascade(generatorId: number, targetLevel: number) {
-    for (let lv = 1; lv < targetLevel; lv++) {
-      // Find all generators of this family at this level
-      const atLevel = Object.values(this.state.entities).filter(
-        (e): e is GeneratorEntity =>
-          e.kind === 'generator' && (e as GeneratorEntity).generatorId === generatorId && (e as GeneratorEntity).level === lv
-      );
-
-      // Merge pairs at this level
-      for (let i = 0; i + 1 < atLevel.length; i += 2) {
-        const source = atLevel[i]!;
-        const target = atLevel[i + 1]!;
-        // Verify both still exist (previous merges in this loop could theoretically remove them)
-        if (!this.state.entities[source.id] || !this.state.entities[target.id]) continue;
-        this.mergeEntities(source.id, target.id);
-      }
-    }
-  }
 }

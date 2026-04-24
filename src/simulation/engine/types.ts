@@ -9,9 +9,9 @@ export type SimulationAction =
   | { type: 'feed'; entityId: string }
   | { type: 'charge_generator'; generatorId: string }
   | { type: 'spawn_generator'; generatorId: string }
-  | { type: 'buy_generator'; generatorId: number }
-  | { type: 'buy_and_merge'; generatorId: number; count: number; targetLevel: number }
-  | { type: 'merge_cascade'; generatorId: number; targetLevel: number }
+  | { type: 'start_upgrade'; entityId: string }
+  | { type: 'collect_upgrade' }
+  | { type: 'skip_timer_generator'; entityId: string }
   | { type: 'quest_completed'; taskLabel: string; eyesGained: number; creatures: { type: string; level: number; count: number }[] }
   | { type: 'new_quest'; taskLabel: string }
   | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
