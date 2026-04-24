@@ -589,28 +589,6 @@ export class RealisticStrategy implements AIStrategy {
   }
 
   /**
-   * Calculates how many gen-level-1 units need to be purchased to reach `targetLevel`.
-   * `avail[i]` = count of generators at level (i+1). Mutates `avail`.
-   */
-  private calcGensNeeded(targetLevel: number, avail: number[]): number {
-    const need = (lv: number): number => {
-      if (lv === 1) return 1;
-      const idx = lv - 2;
-      const have = avail[idx] ?? 0;
-      if (have >= 2) {
-        avail[idx] = (avail[idx] ?? 0) - 2;
-        return 0;
-      }
-      const missing = 2 - have;
-      avail[idx] = 0;
-      let total = 0;
-      for (let i = 0; i < missing; i++) total += need(lv - 1);
-      return total;
-    };
-    return need(targetLevel);
-  }
-
-  /**
    * Step 1: Add missing creature types from quest to creatureGenMap.
    * When adding a new creature type, if its generator family is NEW (not on field
    * and no sibling creature already mapped to it), add ALL lines of that generator.
@@ -684,106 +662,14 @@ export class RealisticStrategy implements AIStrategy {
   }
 
   /**
-   * Step 3: Find ONE candidate for buy/upgrade, execute ONE operation, return actions.
-   * Iterates creatures newest→oldest. Returns empty array when nothing to do.
+   * Step 3: Find ONE upgrade opportunity and emit upgrade actions.
+   * Temporary stub — returns empty array.
+   * TODO: wire up async start_upgrade/collect_upgrade in Task 7.
    */
-  private investOneStep(state: GameSnapshot, usedIds: Set<string>, task: TaskDefinition | null): SimulationAction[] {
-    const actions: SimulationAction[] = [];
-    const creatureNum = (ct: string) => parseInt(ct.replace('Creature', ''), 10);
-    const sortedEntries = Array.from(this.creatureGenMap.entries())
-      .sort((a, b) => creatureNum(b[0]) - creatureNum(a[0]));
-
-    for (const [ct] of sortedEntries) {
-      const genConfig = this.balance.generators.generators.find(gc =>
-        gc.lines.includes(ct) && state.kraken.level >= gc.krakenRequired
-      );
-      if (!genConfig) continue;
-
-      // Find all generators of this family on the ACTUAL field
-      const familyGens = Object.values(state.entities)
-        .filter((e): e is GeneratorEntity => e.kind === 'generator' && e.generatorId === genConfig.id);
-
-      // Find the best (highest level) generator of this family on field
-      const bestFieldGen = familyGens.reduce<GeneratorEntity | null>(
-        (best, g) => !best || g.level > best.level ? g : best, null
-      );
-
-      const currency = genConfig.purchaseCurrency as 'rune1' | 'rune2';
-      const budget = currency === 'rune1' ? state.resources.rune1 : state.resources.rune2;
-
-      if (!bestFieldGen) {
-        // ── No generator of this family on field — buy Lv1 ──
-        const deficit = genConfig.purchaseCost - budget;
-        if (deficit > 0) {
-          actions.push({ type: 'buy_runes', runeType: currency, amount: deficit });
-        }
-        if (getFreeCellIndexes(state.grid).length === 0) {
-          const freeActions = this.freeCells(state, task, usedIds);
-          if (freeActions.length === 0) continue; // can't free space, try next creature
-          freeActions.push({ type: 'free_cells', reason: 'invest:buy_single', freed: freeActions.length });
-          actions.push(...freeActions);
-        }
-        actions.push({ type: 'buy_generator', generatorId: genConfig.id });
-        return actions;
-      }
-
-      // ── Generator EXISTS on field — evaluate upgrade to nextLevel ──
-      const currentLevel = bestFieldGen.level;
-      const maxGenLevel = Math.max(...genConfig.levels.map(l => l.level));
-      const nextLevel = currentLevel + 1;
-
-      const currentL1pm = this.computeL1PerMeat(genConfig.id, currentLevel, ct);
-
-      // Check if upgrade is viable
-      if (nextLevel <= maxGenLevel) {
-        const nextL1pm = this.computeL1PerMeat(genConfig.id, nextLevel, ct);
-        if (nextL1pm > currentL1pm) {
-          // Compute cost using actual field generators
-          const avail = Array.from({ length: maxGenLevel }, (_, i) =>
-            familyGens.filter(g => g.level === i + 1).length
-          );
-          const gensToBuy = this.calcGensNeeded(nextLevel, [...avail]);
-          const cost = gensToBuy * genConfig.purchaseCost;
-
-          if (cost <= budget) {
-            // Buy N generators + merge_cascade
-            for (let i = 0; i < gensToBuy; i++) {
-              if (getFreeCellIndexes(state.grid).length === 0) {
-                const freeActions = this.freeCells(state, task, usedIds);
-                if (freeActions.length === 0) break;
-                freeActions.push({ type: 'free_cells', reason: 'invest:upgrade', freed: freeActions.length });
-                actions.push(...freeActions);
-              }
-              actions.push({ type: 'buy_generator', generatorId: genConfig.id });
-            }
-            actions.push({ type: 'merge_cascade', generatorId: genConfig.id, targetLevel: nextLevel });
-            return actions;
-          }
-        }
-      }
-
-      // Upgrade not viable — check if fresh Lv1 copy is better for THIS creature
-      // Use creatureGenMap (what reassign picked), not bestFieldGen
-      const mapEntry = this.creatureGenMap.get(ct);
-      const assignedLevel = mapEntry?.genLevel ?? currentLevel;
-      const assignedL1pm = mapEntry?.l1PerMeat ?? currentL1pm;
-      if (assignedLevel > 1) {
-        const freshL1pm = this.computeL1PerMeat(genConfig.id, 1, ct);
-        if (freshL1pm > assignedL1pm && budget >= genConfig.purchaseCost) {
-          if (getFreeCellIndexes(state.grid).length === 0) {
-            const freeActions = this.freeCells(state, task, usedIds);
-            if (freeActions.length === 0) continue;
-            freeActions.push({ type: 'free_cells', reason: 'invest:buy_fresh_l1', freed: freeActions.length });
-            actions.push(...freeActions);
-          }
-          actions.push({ type: 'buy_generator', generatorId: genConfig.id });
-          return actions;
-        }
-      }
-    }
-
-    // No candidate found
-    return actions;
+  private investOneStep(_state: GameSnapshot, _usedIds: Set<string>, _task: TaskDefinition | null): SimulationAction[] {
+    // Intentionally empty — Task 5 checkpoint.
+    // buy_generator / merge_cascade removed; start_upgrade/collect_upgrade wired in Task 7.
+    return [];
   }
 
   // ---------- Generators: spawn / charge ----------
