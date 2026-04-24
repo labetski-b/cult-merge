@@ -116,6 +116,8 @@ interface ScoringResult {
   raw: ScoringEntry[];
 }
 
+const FP_TICKS_WINDOW = 8;
+
 function buildScoringTable(
   config: BalanceConfig,
   state: GameSnapshot,
@@ -161,15 +163,18 @@ function buildScoringTable(
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
     if (!levelConfig) continue;
 
+    const isTimer = genConfig.spawnMode === 'timer';
     const types = new Set(levelConfig.outputs.map(o => o.creatureType));
     for (const ct of types) {
       const l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
       if (l1pc <= 0) continue;
 
-      const l1PerMeat = levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc;
+      const l1PerMeat = isTimer
+        ? 0
+        : (levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc);
 
       const fieldL1 = fieldL1Map.get(ct) ?? 0;
-      const spawnL1 = meatBudget * l1PerMeat;
+      const spawnL1 = isTimer ? FP_TICKS_WINDOW * l1pc : meatBudget * l1PerMeat;
       const totalL1 = spawnL1 + fieldL1;
 
       const creature = config.creatures.creatures.find(c => c.type === ct);
@@ -192,7 +197,7 @@ function buildScoringTable(
     const existing = bestByCreature.get(c.creatureType);
     if (!existing
       || c.targetLevel > existing.targetLevel
-      || (c.targetLevel === existing.targetLevel && c.l1PerMeat > existing.l1PerMeat)) {
+      || (c.targetLevel === existing.targetLevel && c.genLevel > existing.genLevel)) {
       bestByCreature.set(c.creatureType, c);
     }
   }
