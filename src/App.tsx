@@ -13,18 +13,18 @@ import { DragProvider } from '@ui/DragContext';
 
 function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
-  const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
+  const tickTimerGenerators = useGameStore((state) => state.tickTimerGenerators);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
-    tickFlowerPots(Date.now());
+    tickTimerGenerators(Date.now());
 
     const interval = setInterval(() => {
-      tickFlowerPots(Date.now());
-    }, 1_000);
+      tickTimerGenerators(Date.now());
+    }, 5_000);
 
     const handleVisibility = () => {
-      if (!document.hidden) tickFlowerPots(Date.now());
+      if (!document.hidden) tickTimerGenerators(Date.now());
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
@@ -32,7 +32,7 @@ function App() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [tickFlowerPots]);
+  }, [tickTimerGenerators]);
 
   return (
     <DragProvider>
