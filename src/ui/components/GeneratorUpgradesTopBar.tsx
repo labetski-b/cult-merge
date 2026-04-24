@@ -26,6 +26,9 @@ interface Widget {
   upgradeState: 'none' | 'upgrading' | 'ready-to-collect';
   remainingSec: number;
   timerPercent: number;
+  // spawn-timer fields (only populated when spawnMode === 'timer')
+  timerStatus: 'ticking' | 'ready' | 'paused' | null;
+  timerLabel: string | null;
 }
 
 function formatDuration(sec: number): string {
@@ -90,6 +93,29 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
         }
       }
 
+      // Spawn-timer badge (spawnMode === 'timer' generators only, e.g. Gen3)
+      let timerStatus: Widget['timerStatus'] = null;
+      let timerLabel: string | null = null;
+      if (config.spawnMode === 'timer') {
+        const intervalMs = (config.tickIntervalSec ?? 0) * 1000;
+        const lastTick = gen.lastTickTimestamp ?? now;
+        const elapsed = now - lastTick;
+        const remaining = Math.max(0, intervalMs - elapsed);
+
+        if (gen.pendingDrop) {
+          timerStatus = 'paused';
+          timerLabel = '⏸';
+        } else if (remaining === 0) {
+          timerStatus = 'ready';
+          timerLabel = 'ГОТОВ';
+        } else {
+          timerStatus = 'ticking';
+          const mm = Math.floor(remaining / 60000);
+          const ss = Math.floor((remaining % 60000) / 1000);
+          timerLabel = `⏱${mm}:${String(ss).padStart(2, '0')}`;
+        }
+      }
+
       result.push({
         id: gen.id,
         generatorId: gen.generatorId,
@@ -102,6 +128,8 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
         upgradeState,
         remainingSec,
         timerPercent,
+        timerStatus,
+        timerLabel,
       });
     }
     // Stable order: by generatorId, then entity id.
@@ -160,6 +188,9 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
             ) : w.ready ? (
               <span className="badge ready">READY</span>
             ) : null}
+            {w.timerStatus !== null && w.timerLabel !== null && (
+              <span className={`timer-badge ${w.timerStatus}`}>{w.timerLabel}</span>
+            )}
           </div>
         );
       })}
