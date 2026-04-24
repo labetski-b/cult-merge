@@ -5,7 +5,8 @@ import { BALANCE } from '../data/loadBalance';
 import { createGrid } from './grid';
 import { createEmptyCumulativeStats, createEmptyQuestState } from './quests';
 import { SeededRng } from '../infra/rng';
-import { applyFPCounterUpdate, generateAutoTask, isFPTask } from './tasks';
+import { applyFPCounterUpdate, computeCravingWeight, FIELD_L1_WEIGHT_ALPHA, generateAutoTask, isFPTask, pickWeightedByRecency } from './tasks';
+import type { ScoringTableEntry } from './types';
 
 /**
  * Test balance based on real BALANCE, but with a trimmed generator list:
@@ -470,5 +471,94 @@ describe('applyFPCounterUpdate', () => {
 
     expect(update).not.toBeNull();
     expect(update!.fpQuestsByKrakenLevel).toEqual({ 5: 1 });
+  });
+});
+
+// ─── pickWeightedByRecency with fieldL1 boost ──────────────────────────────
+
+/**
+ * Minimal scoring entry factory. Only `creatureType` and `fieldL1` are
+ * load-bearing for the weight formula; everything else is filler.
+ */
+function makeScoringEntry(partial: Partial<ScoringTableEntry> & Pick<ScoringTableEntry, 'creatureType'>): ScoringTableEntry {
+  return {
+    genId: 1,
+    genLevel: 1,
+    l1PerCharge: 1,
+    l1PerMeat: 1,
+    meatBudget: 0,
+    spawnL1: 0,
+    fieldL1: 0,
+    totalL1: 0,
+    targetLevel: 1,
+    ...partial,
+  };
+}
+
+describe('pickWeightedByRecency with fieldL1 boost', () => {
+  it('baseline without fieldL1: newer (higher creatureId) wins more often than older', () => {
+    // All entries have fieldL1 = 0, so fieldBonus = 0 → weight = baseWeight (rank).
+    // With ranks [1, 2, 3] for Creature1/3/5, the highest creatureId (5) should
+    // dominate the distribution: frequency(C5) > frequency(C3) > frequency(C1).
+    const table = [
+      makeScoringEntry({ creatureType: 'Creature1', fieldL1: 0 }),
+      makeScoringEntry({ creatureType: 'Creature3', fieldL1: 0 }),
+      makeScoringEntry({ creatureType: 'Creature5', fieldL1: 0 }),
+    ];
+
+    const counts: Record<string, number> = { Creature1: 0, Creature3: 0, Creature5: 0 };
+    const rng = new SeededRng(42);
+    for (let i = 0; i < 1000; i++) {
+      const pick = pickWeightedByRecency(table, rng);
+      counts[pick.creatureType] = (counts[pick.creatureType] ?? 0) + 1;
+    }
+
+    // Recency-weighted: C5 (rank 3) > C3 (rank 2) > C1 (rank 1).
+    expect(counts.Creature5!).toBeGreaterThan(counts.Creature3!);
+    expect(counts.Creature3!).toBeGreaterThan(counts.Creature1!);
+  });
+
+  it('fieldL1 boost lifts a low-recency creature above a high-recency one', () => {
+    // Without boost: C1 (rank 1) vs C5 (rank 2). Base ratio = 1 : 2 → C5 wins ~67%.
+    // With fieldL1(C1) = 63: log2(64) = 6, fieldBonus = 6 × 0.4 = 2.4, so
+    // weight(C1) = 1 × (1 + 2.4) = 3.4; weight(C5) = 2 × (1 + 0) = 2.
+    // Expected ratio: C1 wins ~3.4 / 5.4 ≈ 63% of the time.
+    const table = [
+      makeScoringEntry({ creatureType: 'Creature1', fieldL1: 63 }),
+      makeScoringEntry({ creatureType: 'Creature5', fieldL1: 0 }),
+    ];
+
+    const counts = { Creature1: 0, Creature5: 0 };
+    const rng = new SeededRng(7);
+    const samples = 1000;
+    for (let i = 0; i < samples; i++) {
+      const pick = pickWeightedByRecency(table, rng);
+      counts[pick.creatureType as 'Creature1' | 'Creature5'] += 1;
+    }
+
+    // Without the boost C5 would win ~66% (rank 2 vs rank 1). With boost it
+    // should flip — C1 should now win more often than C5.
+    expect(counts.Creature1).toBeGreaterThan(counts.Creature5);
+    // And sanity: C1 should be substantially ahead, not a coin flip.
+    expect(counts.Creature1 / samples).toBeGreaterThan(0.55);
+  });
+
+  it('computeCravingWeight matches the formula: baseWeight × (1 + log2(1 + fieldL1) × α)', () => {
+    // α = 0.4 sanity.
+    expect(FIELD_L1_WEIGHT_ALPHA).toBe(0.4);
+
+    // fieldL1 = 15 → log2(16) = 4 → fieldBonus = 4 × 0.4 = 1.6 → multiplier = 2.6.
+    const row = makeScoringEntry({ creatureType: 'Creature3', fieldL1: 15 });
+    // Rank of Creature3 with just itself in table is 1.
+    const w = computeCravingWeight(row, 1);
+    expect(w).toBeCloseTo(1 * 2.6, 10);
+
+    // Verify for a different baseWeight (rank 2).
+    const w2 = computeCravingWeight(row, 2);
+    expect(w2).toBeCloseTo(2 * 2.6, 10);
+
+    // fieldL1 = 0 → bonus = 0 → weight = baseWeight.
+    const rowZero = makeScoringEntry({ creatureType: 'Creature7', fieldL1: 0 });
+    expect(computeCravingWeight(rowZero, 3)).toBeCloseTo(3, 10);
   });
 });
