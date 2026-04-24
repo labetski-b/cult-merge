@@ -12,7 +12,12 @@ interface GeneratorLevel {
   chargeCost: number;
   numCreatures: number;
   outputs: GeneratorOutput[];
-  upgrade?: Record<string, unknown>;
+  upgrade?: {
+    mergesRequired: number;
+    runeCost: number;
+    runeType: 'rune1' | 'rune2';
+    upgradeDurationSec?: number;
+  };
 }
 
 function makeLevel(outputs: GeneratorOutput[]): GeneratorLevel {

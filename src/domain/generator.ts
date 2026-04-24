@@ -118,6 +118,6 @@ export function rollSingleOutput(
       return { creatureType: output.creatureType, level: output.level };
     }
   }
-  const last = level.outputs[level.outputs.length - 1];
+  const last = level.outputs[level.outputs.length - 1]!;
   return { creatureType: last.creatureType, level: last.level };
 }
