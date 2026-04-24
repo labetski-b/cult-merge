@@ -148,6 +148,8 @@ export class SimulationEngine {
           console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
           throw error;
         }
+        // Accumulate simulated game time for every action executed
+        this.currentGameTimeMs += getActionTimeSec(action) * 1000;
         // Only log if the action actually changed state (or is a synthetic log-only event)
         if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells') {
           const dt = this.addActionTime(action);
@@ -189,6 +191,9 @@ export class SimulationEngine {
         break;
       }
     }
+
+    // Passive tick: advance timer-mode generators (e.g. Gen3) based on accumulated game time
+    this.state = tickTimerGenerators(this.state, this.currentGameTimeMs, this.config.balance);
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
@@ -305,13 +310,20 @@ export class SimulationEngine {
         const targetCell = freeSlots[0]!;
         const newGenId = this.rng.nextId();
 
-        this.state.entities[newGenId] = {
+        const newGen: GeneratorEntity = {
           id: newGenId,
           kind: 'generator',
           generatorId: genId,
           level: genLevel,
           charges: []
         };
+        // For timer-mode generators, init lastTickTimestamp so the first spawn
+        // happens tickIntervalSec later, not immediately at time 0.
+        const genCfg = this.config.balance.generators.generators.find(g => g.id === genId);
+        if (genCfg?.spawnMode === 'timer') {
+          newGen.lastTickTimestamp = this.currentGameTimeMs;
+        }
+        this.state.entities[newGenId] = newGen;
         this.state.grid.cells[targetCell] = newGenId;
       }
     } else if (reward.type === 'res_box' && typeof reward.value === 'number') {
