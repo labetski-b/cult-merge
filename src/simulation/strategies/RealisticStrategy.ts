@@ -210,11 +210,18 @@ export class RealisticStrategy implements AIStrategy {
       }
     }
 
-    // e. Generator has no charges — check if we need meat
+    // Cheat: timer-mode generators spawn passively; force an immediate spawn via skip_timer_generator
+    // when there's a missing type this gen can produce. On subsequent ticks the spawned creature will
+    // satisfy step (b) merge/feed and this branch won't re-fire (missingTypes will be empty).
     const bestGen = workGenerators[0]!;
+    const bestGenConfig = this.balance.generators.generators.find(g => g.id === bestGen.generatorId);
+    if (missingTypes.size > 0 && bestGenConfig?.spawnMode === 'timer') {
+      return { actions: [{ type: 'skip_timer_generator', entityId: bestGen.id }], done: false };
+    }
+
+    // e. Generator has no charges — check if we need meat
     if (bestGen.charges.length === 0 && missingTypes.size > 0) {
-      const genConfig = this.balance.generators.generators.find(g => g.id === bestGen.generatorId);
-      const levelConfig = genConfig?.levels.find(l => l.level === bestGen.level);
+      const levelConfig = bestGenConfig?.levels.find(l => l.level === bestGen.level);
       const chargeCost = levelConfig?.chargeCost ?? 0;
 
       if (state.resources.meat < chargeCost) {

@@ -65,3 +65,45 @@ describe('Passive Gen3 tick during simulation', () => {
     expect(finalGen3?.lastTickTimestamp).toBeGreaterThan(0);
   });
 });
+
+describe('Quest-driven skip_timer_generator cheat', () => {
+  it('when active task requires a timer-mode generator creature, strategy emits skip_timer', () => {
+    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 5 } });
+    const state = (engine as unknown as { state: GameSnapshot }).state;
+
+    // Bootstrap to kraken level 2 so questStep is reachable
+    state.kraken.level = 2;
+    // Advance past all mandatory tasks for level 2 so currentAutoTask is picked up
+    const mandatoryCount = BALANCE.tasks.mandatory['2']?.length ?? 0;
+    state.taskProgress['2'] = mandatoryCount;
+
+    // Find an actual timer-mode generator from balance to avoid hardcoding genId
+    const timerGen = BALANCE.generators.generators.find(g => g.spawnMode === 'timer');
+    expect(timerGen).toBeDefined();
+    const firstLevel = timerGen!.levels[0]!;
+    const outputCreatureType = firstLevel.outputs[0]!.creatureType;
+    const intervalMs = (timerGen!.tickIntervalSec ?? 1) * 1000;
+
+    // Place gen on grid + entities, with stale timer so skip produces a spawn immediately
+    const now = Date.now();
+    state.entities['gtimer'] = {
+      id: 'gtimer', kind: 'generator', generatorId: timerGen!.id,
+      level: 1, charges: [], lastTickTimestamp: now - intervalMs * 2,
+    };
+    const freeIdx = state.grid.cells.findIndex(c => c === null);
+    expect(freeIdx).toBeGreaterThanOrEqual(0);
+    state.grid.cells[freeIdx] = 'gtimer';
+
+    // Seed a proper TaskDefinition as currentAutoTask (matches domain TaskDefinition shape)
+    state.currentAutoTask = {
+      id: 'test-timer-quest',
+      creatures: [{ type: outputCreatureType, level: 1, count: 1 }],
+      expMultiplier: 1,
+      resMultiplier: 1,
+    };
+
+    const result = engine.run();
+    const skipCount = result.actionLog.filter(e => e.action.type === 'skip_timer_generator').length;
+    expect(skipCount).toBeGreaterThan(0);
+  });
+});
