@@ -1761,6 +1761,34 @@ export function migrateGameStore(
     };
   }
 
+  if (persistedVersion < 22) {
+    const state = persistedState as {
+      entities?: Record<string, { kind?: string }>;
+      grid?: { cells?: (string | null)[] };
+    };
+    if (state.entities && state.grid?.cells) {
+      const newEntities: Record<string, unknown> = {};
+      const removedIds = new Set<string>();
+      for (const [id, entity] of Object.entries(state.entities)) {
+        if (entity.kind === 'flowerpot') {
+          removedIds.add(id);
+        } else {
+          newEntities[id] = entity;
+        }
+      }
+      persistedState = {
+        ...(persistedState as object),
+        entities: newEntities,
+        grid: {
+          ...state.grid,
+          cells: state.grid.cells.map((cell) =>
+            cell !== null && removedIds.has(cell) ? null : cell,
+          ),
+        },
+      };
+    }
+  }
+
   return persistedState;
 }
 
