@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BalanceConfig } from '../data/schemas';
-import type { GameSnapshot, GeneratorEntity } from './types';
+import type { CreatureEntity, GameSnapshot, GeneratorEntity } from './types';
 import { BALANCE } from '../data/loadBalance';
 import { createGrid } from './grid';
 import { createEmptyCumulativeStats, createEmptyQuestState } from './quests';
@@ -267,5 +267,118 @@ describe('generateAutoTask — Flower Pot scoring', () => {
     const creatures = new Set(timerRows.map((e) => e.creatureType));
     expect(creatures.has('Creature5')).toBe(true);
     expect(creatures.has('Creature7')).toBe(true);
+  });
+});
+
+/**
+ * FP eligibility gate tests (Task 7 — TDD red step for Task 8).
+ *
+ * The gate (implemented in Task 8) rejects Flower Pot (timer-mode) creatures
+ * from auto-task scoring UNLESS:
+ *   (a) the FP creature is already on the board (fieldL1 > 0), OR
+ *   (b) sacrificesSinceLastFP >= 5 (meatButtonPresses - meatPressesAtLastFP)
+ *       AND fpQuestsByKrakenLevel[kraken.level] < 2.
+ *
+ * Setup: Gen1 (non-FP fallback) + Gen3 (FP) on field. Probe showed seed 1
+ * reliably lands on Creature7 under dual selection in current (ungated) code,
+ * so rejection tests will fail until the gate is in place.
+ */
+describe('generateAutoTask — FP eligibility gate', () => {
+  const FP_TYPES = new Set(['Creature5', 'Creature7']);
+
+  function isFp(type: string): boolean {
+    return FP_TYPES.has(type);
+  }
+
+  it('accepts FP quest when FP creature is already on the board', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    // Place a Creature5 entity on the board so fieldL1(Creature5) > 0.
+    const c5Id = 'c5_onboard';
+    const c5: CreatureEntity = {
+      id: c5Id,
+      kind: 'creature',
+      creatureType: 'Creature5',
+      level: 1,
+    };
+    state.entities[c5Id] = c5;
+    state.grid.cells[2] = c5Id;
+
+    // Both counters zeroed — off-board branch would reject, but on-board bypasses.
+    state.meatButtonPresses = 0;
+    state.meatPressesAtLastFP = 0;
+    state.fpQuestsByKrakenLevel = {};
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    // Task must still have creatures (gate didn't strip everything).
+    expect(task.creatures.length).toBeGreaterThan(0);
+    // With C5 on-board the gate must not forbid FP picks; seed 1 historically
+    // lands on an FP creature in the dual pick, so expect at least one here.
+    const pickedTypes = task.creatures.map((c) => c.type);
+    expect(pickedTypes.some(isFp)).toBe(true);
+  });
+
+  it('rejects FP quest when off-board and <5 sacrifices since last FP', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    // No FP creatures on board.
+    // sacrificesSinceLastFP = 3 - 0 = 3, below threshold of 5.
+    state.meatButtonPresses = 3;
+    state.meatPressesAtLastFP = 0;
+    state.fpQuestsByKrakenLevel = {};
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    // Gate must reject FP creatures — fallback picks non-FP (Creature1 from Gen1).
+    expect(task.creatures.length).toBeGreaterThan(0);
+    for (const req of task.creatures) {
+      expect(isFp(req.type)).toBe(false);
+    }
+  });
+
+  it('accepts FP quest when off-board, sacrifices>=5, and fpCount<2 for this KL', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    // No FP creatures on board.
+    // sacrificesSinceLastFP = 10 - 0 = 10, meets/exceeds threshold of 5.
+    // fpQuestsByKrakenLevel[1] = 1, under limit of 2.
+    state.meatButtonPresses = 10;
+    state.meatPressesAtLastFP = 0;
+    state.fpQuestsByKrakenLevel = { 1: 1 };
+    state.kraken.level = 1;
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    // Gate must accept — task should have creatures.
+    expect(task.creatures.length).toBeGreaterThan(0);
+  });
+
+  it('rejects FP quest when fpCount>=2 for this kraken level', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    // No FP creatures on board.
+    // sacrificesSinceLastFP = 100, way above threshold.
+    // fpQuestsByKrakenLevel[1] = 2, at limit.
+    state.meatButtonPresses = 100;
+    state.meatPressesAtLastFP = 0;
+    state.fpQuestsByKrakenLevel = { 1: 2 };
+    state.kraken.level = 1;
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    // Gate must reject — fallback picks non-FP.
+    expect(task.creatures.length).toBeGreaterThan(0);
+    for (const req of task.creatures) {
+      expect(isFp(req.type)).toBe(false);
+    }
   });
 });
