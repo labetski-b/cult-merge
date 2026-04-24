@@ -17,8 +17,14 @@ export function ControlsPanel() {
   const kraken = useGameStore((state) => state.kraken);
   const completeQuest = useGameStore((state) => state.completeQuest);
   const resetGame = useGameStore((state) => state.resetGame);
+  const debugSkipTimerGenerator = useGameStore((state) => state.debugSkipTimerGenerator);
+  const entities = useGameStore((state) => state.entities);
   const [open, setOpen] = useState(false);
   const [tycoonOpen, setTycoonOpen] = useState(false);
+
+  const gen3Entity = Object.values(entities).find(
+    (e) => e && e.kind === 'generator' && e.generatorId === 3
+  );
 
   return (
     <>
@@ -72,6 +78,17 @@ export function ControlsPanel() {
               </button>
               <button className="btn small" onClick={completeQuest} type="button">
                 Complete Quest
+              </button>
+              <button
+                className="btn small"
+                onClick={() => {
+                  if (gen3Entity) debugSkipTimerGenerator(gen3Entity.id);
+                }}
+                disabled={!gen3Entity}
+                title={gen3Entity ? 'Skip flower tick (Gen3)' : 'Gen3 не куплен'}
+                type="button"
+              >
+                ⏩ Skip 30min (Gen3)
               </button>
             </div>
           </div>
