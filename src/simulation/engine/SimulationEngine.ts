@@ -148,10 +148,10 @@ export class SimulationEngine {
           console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
           throw error;
         }
-        // Accumulate simulated game time for every action executed
-        this.currentGameTimeMs += getActionTimeSec(action) * 1000;
         // Only log if the action actually changed state (or is a synthetic log-only event)
         if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells') {
+          // Advance both time counters together so they never drift
+          this.currentGameTimeMs += getActionTimeSec(action) * 1000;
           const dt = this.addActionTime(action);
           const logState = this.captureCompactState(dt);
           logState.currentTask = taskBefore; // show task active at the time of action, not after

@@ -3,6 +3,29 @@ import { SimulationEngine } from '../engine/SimulationEngine';
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import { BALANCE } from '@data/loadBalance';
 
+describe('currentGameTimeMs accumulation', () => {
+  it('advances currentGameTimeMs only when an action produces a state change', () => {
+    // Strategy emits one gather_meat (targetCost=100) then done.
+    // gather_meat presses the meat button until resources.meat >= 100, so state changes.
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'ticks', value: 1 },
+      maxTicks: 1,
+      tickInterval: 1000,
+      strategy: {
+        name: 'gather-once',
+        description: '',
+        decide: () => ({ actions: [{ type: 'gather_meat', targetCost: 100 }], done: true }),
+      },
+      balance: BALANCE,
+    });
+    engine.run();
+    const eng = engine as unknown as { currentGameTimeMs: number };
+    // gather_meat pressed the button N times → currentGameTimeMs > 0
+    expect(eng.currentGameTimeMs).toBeGreaterThan(0);
+  });
+});
+
 describe('Passive Gen3 tick during simulation', () => {
   it('Gen3 spawns creatures as game time accumulates', () => {
     // Gen3 (Flower Pot) has tickIntervalSec: 1800. We seed currentGameTimeMs to intervalMs so
