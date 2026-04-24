@@ -1,6 +1,8 @@
-import type { BalanceConfig } from '@data/schemas';
+import type { BalanceConfig, GeneratorsData } from '@data/schemas';
 import type { GeneratorEntity } from '@domain/types';
 import { SeededRng } from '@infra/rng';
+
+type GeneratorLevel = GeneratorsData['generators'][number]['levels'][number];
 
 export function getGeneratorConfig(config: BalanceConfig, generatorId: number, level: number) {
   const generator = config.generators.generators.find((value) => value.id === generatorId);
@@ -101,4 +103,21 @@ export function createChargedGenerator(
   }
 
   return { ...entity, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
+}
+
+export function rollSingleOutput(
+  level: GeneratorLevel,
+  rng: () => number
+): { creatureType: string; level: number } {
+  const totalWeight = level.outputs.reduce((sum, o) => sum + o.chance, 0);
+  const r = rng() * totalWeight;
+  let acc = 0;
+  for (const output of level.outputs) {
+    acc += output.chance;
+    if (r <= acc) {
+      return { creatureType: output.creatureType, level: output.level };
+    }
+  }
+  const last = level.outputs[level.outputs.length - 1];
+  return { creatureType: last.creatureType, level: last.level };
 }
