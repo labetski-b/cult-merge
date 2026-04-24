@@ -328,7 +328,11 @@ export function GridBoard() {
 
     if (entity.kind === 'generator') {
       const gen = entity as GeneratorEntity;
-      if (gen.charges.length > 0) {
+      const genConfig = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
+      // Timer-mode generators (Gen3 Flower Pot) do not respond to taps — they tick passively.
+      if (genConfig?.spawnMode === 'timer') {
+        setChargePopup(null);
+      } else if (gen.charges.length > 0) {
         tapGenerator(gen.id);
         setChargePopup(null);
       } else {

@@ -559,6 +559,10 @@ export const useGameStore = create<GameStore>()(
             if (entity.kind !== 'generator') continue;
             let gen = entity as GeneratorEntity;
 
+            // Timer-mode generators (Gen3 Flower Pot) are handled by tickTimerGenerators.
+            const { generator: genCfg } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
+            if (genCfg.spawnMode === 'timer') continue;
+
             // Charge if empty and can afford
             if (gen.charges.length === 0) {
               const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);

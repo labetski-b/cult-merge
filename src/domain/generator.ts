@@ -84,7 +84,10 @@ export function rollGeneratorSpawn(
 }
 
 /** Create a generator entity that is already charged (pre-rolled spawns).
- *  First creature is guaranteed from the second line L1 (if available at this level). */
+ *  First creature is guaranteed from the second line L1 (if available at this level).
+ *
+ *  For timer-mode generators (e.g. Gen3 Flower Pot): charges stay empty and timer state
+ *  is initialised — the generator ticks passively via tickTimerGenerators. */
 export function createChargedGenerator(
   rng: SeededRng,
   id: string,
@@ -92,11 +95,25 @@ export function createChargedGenerator(
   level: number,
   config: BalanceConfig
 ): GeneratorEntity {
+  const { generator, levelConfig } = getGeneratorConfig(config, generatorId, level);
+
+  // Timer-mode: return an un-charged generator with its timer started now.
+  if (generator.spawnMode === 'timer') {
+    return {
+      id,
+      kind: 'generator',
+      generatorId,
+      level,
+      charges: [],
+      lastTickTimestamp: Date.now(),
+      pendingDrop: null,
+    };
+  }
+
   const entity: GeneratorEntity = { id, kind: 'generator', generatorId, level, charges: [] };
   const spawns = rollGeneratorSpawn(rng, entity, config);
 
   // Guarantee first creature from second line L1 (once per generator lifetime)
-  const { generator, levelConfig } = getGeneratorConfig(config, generatorId, level);
   const secondLine = generator.lines[1];
   if (secondLine && levelConfig.outputs.some((o) => o.creatureType === secondLine)) {
     spawns[0] = { creatureType: secondLine, level: 1 };
