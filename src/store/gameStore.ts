@@ -11,7 +11,6 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import { canUpgradeGenerator } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
@@ -22,6 +21,7 @@ import {
   type FeedRuntimeReason
 } from '@domain/runtime/feed';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { applyStartUpgrade, applyCollectUpgrade } from '@domain/runtime/upgradeRuntime';
 import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
@@ -1532,72 +1532,34 @@ export const useGameStore = create<GameStore>()(
 
       startGeneratorUpgrade: (entityId: string) => {
         set((state) => {
-          if (state.activeUpgrade !== null) return {};
-
-          const entity = state.entities[entityId];
-          if (!entity || entity.kind !== 'generator') return {};
-
-          const check = canUpgradeGenerator(entity, state, BALANCE);
-          if (!check.ok) return {};
-
-          const row = check.row;
-          const runeBalance = state.resources[row.runeType] ?? 0;
-          const durationSec = row.upgradeDurationSec ?? 0;
-          const now = Date.now();
-
-          const prevSpent = state.mergesSpentByGen[entity.generatorId] ?? 0;
-
-          return {
-            resources: {
-              ...state.resources,
-              [row.runeType]: runeBalance - row.runeCost,
-            },
-            mergesSpentByGen: {
-              ...state.mergesSpentByGen,
-              [entity.generatorId]: prevSpent + row.mergesRequired,
-            },
-            activeUpgrade: {
-              entityId,
-              generatorId: entity.generatorId,
-              startedAt: now,
-              finishesAt: now + durationSec * 1000,
-            },
-            lastMessage: `Upgrade started for Generator ${entity.generatorId} (${durationSec}s).`,
-          };
+          const next = applyStartUpgrade(state, BALANCE, entityId, Date.now());
+          if (next === state) return {};
+          const entity = next.entities[entityId];
+          const durationSec = entity && entity.kind === 'generator' && next.activeUpgrade
+            ? (next.activeUpgrade.finishesAt - next.activeUpgrade.startedAt) / 1000
+            : 0;
+          const genId = next.activeUpgrade?.generatorId ?? 0;
+          return { ...next, lastMessage: `Upgrade started for Generator ${genId} (${durationSec}s).` };
         });
       },
 
       collectGeneratorUpgrade: () => {
         set((state) => {
-          const active = state.activeUpgrade;
-          if (!active) return {};
-          if (Date.now() < active.finishesAt) return {};
-
-          const entity = state.entities[active.entityId];
-          if (!entity || entity.kind !== 'generator') {
-            // Entity is gone — clear the slot to avoid permanent lock.
-            return { activeUpgrade: null };
+          const next = applyCollectUpgrade(state, Date.now());
+          if (next === state) return {};
+          // Determine the upgraded generator for the lastMessage
+          const prevActive = state.activeUpgrade;
+          let msg = 'Generator upgraded.';
+          if (prevActive) {
+            const entity = next.entities[prevActive.entityId];
+            if (entity && entity.kind === 'generator') {
+              msg = `Generator ${entity.generatorId} upgraded to L${entity.level}.`;
+            }
           }
-
-          const upgraded = { ...entity, level: entity.level + 1 };
-          const prevMax = state.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
-          const nextMax = Math.max(prevMax, upgraded.level);
-
-          return {
-            entities: { ...state.entities, [entity.id]: upgraded },
-            cumulativeStats: {
-              ...state.cumulativeStats,
-              maxGeneratorLevelById: {
-                ...state.cumulativeStats.maxGeneratorLevelById,
-                [entity.generatorId]: nextMax,
-              },
-            },
-            activeUpgrade: null,
-            lastMessage: `Generator ${entity.generatorId} upgraded to L${upgraded.level}.`,
-          };
+          return { ...next, lastMessage: msg };
         });
-        const afterUpgrade = get();
-        set({ questState: evaluateAllQuests(BALANCE, afterUpgrade.cumulativeStats, afterUpgrade) });
+        const after = get();
+        set({ questState: evaluateAllQuests(BALANCE, after.cumulativeStats, after) });
       },
 
       addRune1: (amount) => {
