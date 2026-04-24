@@ -3,6 +3,7 @@
     {
       "id": 1,
       "name": "Generator 1",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature1",
       "purchaseCurrency": "rune1",
       "purchaseCost": 5,
@@ -476,6 +477,7 @@
     {
       "id": 2,
       "name": "Generator 2",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature2",
       "purchaseCurrency": "rune2",
       "purchaseCost": 8,
@@ -1389,6 +1391,7 @@
     {
       "id": 4,
       "name": "Generator 4",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature4",
       "purchaseCurrency": "rune2",
       "purchaseCost": 13,
@@ -1862,6 +1865,7 @@
     {
       "id": 5,
       "name": "Generator 5",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature5",
       "purchaseCurrency": "rune1",
       "purchaseCost": 15,
@@ -2335,6 +2339,7 @@
     {
       "id": 6,
       "name": "Generator 6",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature6",
       "purchaseCurrency": "rune2",
       "purchaseCost": 20,
@@ -2808,6 +2813,7 @@
     {
       "id": 7,
       "name": "Generator 7",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature7",
       "purchaseCurrency": "rune1",
       "purchaseCost": 25,
@@ -3281,6 +3287,7 @@
     {
       "id": 8,
       "name": "Generator 8",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature8",
       "purchaseCurrency": "rune2",
       "purchaseCost": 30,

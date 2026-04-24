@@ -422,7 +422,7 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
   const gen: Gen = {
     id: genId,
     name: isFlowerPot ? 'Flower Pot' : `Generator ${genId}`,
-    ...(isFlowerPot && { spawnMode: 'timer' as const }),
+    spawnMode: isFlowerPot ? 'timer' : 'sacrifice',
     ...(isFlowerPot && { tickIntervalSec: DESIGN.tickIntervalSecFP }),
     eggType: `Egg_Creature${genId}`,
     purchaseCurrency: GEN_UPGRADE_RUNE[genIdx],
