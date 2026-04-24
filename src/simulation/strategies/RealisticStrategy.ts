@@ -1,4 +1,4 @@
-import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition, FlowerPotEntity } from '@domain/types';
+import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition } from '@domain/types';
 import { getFreeCellIndexes, getNeighborCellIndexes, findEntityCell } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
 import { getCurrentMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } from '@domain/tasks';
@@ -61,12 +61,6 @@ export class RealisticStrategy implements AIStrategy {
       let task: TaskDefinition | null =
         getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
         ?? state.currentAutoTask;
-
-      // If mandatory task requires flowerpot creatures but no flowerpots exist yet,
-      // fall back to auto-task to earn EXP and eventually unlock the flowerpot reward
-      if (task && this.shouldSkipMandatoryForFlowerpot(state, task)) {
-        task = state.currentAutoTask;
-      }
 
       if (task) {
         const result = this.questStep(state, task);
@@ -184,19 +178,6 @@ export class RealisticStrategy implements AIStrategy {
 
     // a. No generator can produce needed type
     if (!canProduce) {
-      // Flowerpot creatures — merge + feed what's available, ensure pots have space
-      const isFlowerpotType = this.balance.flowerpots.flowerpot.lines.includes(focusType);
-      if (!isFlowerpotType) {
-        return { actions: [], done: true };
-      }
-
-      const mergeActions = this.mergeForTask(state, task, usedIds, neededTypes);
-      const feedActions = this.feedPartialTask(state, task, usedIds);
-      const ensureActions = this.ensureFlowerpotSpace(state, usedIds);
-      if (mergeActions.length > 0 || feedActions.length > 0 || ensureActions.length > 0) {
-        return { actions: [...mergeActions, ...feedActions, ...ensureActions], done: false };
-      }
-      // Nothing to merge/feed — let tick end, flowerpots will spawn more creatures next tick
       return { actions: [], done: true };
     }
 
@@ -325,35 +306,12 @@ export class RealisticStrategy implements AIStrategy {
       return { actions, done: false };
     }
 
-    // Step 4: Merge flowerpots
-    const potMerges = this.mergeFlowerpots(state, usedIds);
-    if (potMerges.length > 0) {
-      return { actions: potMerges, done: false };
-    }
-
     return { actions: [], done: true };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   //  PRIVATE HELPERS
   // ═══════════════════════════════════════════════════════════════════════
-
-  /**
-   * Check if a mandatory task should be skipped because it requires flowerpot creatures
-   * but no flowerpots exist on the field yet (and no creatures of that type exist either).
-   */
-  private shouldSkipMandatoryForFlowerpot(state: GameSnapshot, task: TaskDefinition): boolean {
-    const flowerLines = this.balance.flowerpots.flowerpot.lines;
-    const needsFlowerpotCreature = task.creatures.some(req => flowerLines.includes(req.type));
-    if (!needsFlowerpotCreature) return false;
-
-    const hasFlowerpot = Object.values(state.entities).some(e => e.kind === 'flowerpot');
-    const hasFlowerpotCreature = Object.values(state.entities).some(
-      e => e.kind === 'creature' && flowerLines.includes((e as CreatureEntity).creatureType)
-    );
-
-    return !hasFlowerpot && !hasFlowerpotCreature;
-  }
 
   /** Pick the creature type to focus on in a dual quest. Prioritizes the type closest to completion. */
   private pickFocusType(task: TaskDefinition, state: GameSnapshot): string {
@@ -666,13 +624,6 @@ export class RealisticStrategy implements AIStrategy {
     for (const ct of questCreatureTypes) {
       if (this.creatureGenMap.has(ct)) continue;
 
-      // Flowerpot creatures have no generators — mark as passive source
-      const isFlowerpotCreature = this.balance.flowerpots.flowerpot.lines.includes(ct);
-      if (isFlowerpotCreature) {
-        this.creatureGenMap.set(ct, { entityId: '', genId: -1, genLevel: 0, l1PerMeat: 0 });
-        continue;
-      }
-
       const genConfig = this.balance.generators.generators.find(gc =>
         gc.lines.includes(ct) && state.kraken.level >= gc.krakenRequired
       );
@@ -743,10 +694,6 @@ export class RealisticStrategy implements AIStrategy {
       .sort((a, b) => creatureNum(b[0]) - creatureNum(a[0]));
 
     for (const [ct] of sortedEntries) {
-      // Skip flowerpot creatures — they don't have generators
-      const flowerCheck = this.creatureGenMap.get(ct);
-      if (flowerCheck && flowerCheck.genId === -1) continue;
-
       const genConfig = this.balance.generators.generators.find(gc =>
         gc.lines.includes(ct) && state.kraken.level >= gc.krakenRequired
       );
@@ -836,78 +783,6 @@ export class RealisticStrategy implements AIStrategy {
     }
 
     // No candidate found
-    return actions;
-  }
-
-  // ---------- Flowerpots ----------
-
-  /**
-   * Ensure flowerpots have at least one free neighbor cell for spawning.
-   * If a pot is surrounded, try to swap it with a cell that has free neighbors.
-   */
-  private ensureFlowerpotSpace(state: GameSnapshot, usedIds: Set<string>): SimulationAction[] {
-    const pots = Object.values(state.entities).filter(
-      (e): e is FlowerPotEntity => e.kind === 'flowerpot' && !usedIds.has(e.id)
-    );
-
-    const actions: SimulationAction[] = [];
-    for (const pot of pots) {
-      const potCell = findEntityCell(state.grid, pot.id);
-      if (potCell < 0) continue;
-
-      const freeNeighbors = getNeighborCellIndexes(state.grid, potCell).filter(
-        (idx) => state.grid.cells[idx] === null
-      );
-      if (freeNeighbors.length > 0) continue; // already has space
-
-      // Pot is surrounded — feed cheapest adjacent non-task creature to free a cell
-      const neighbors = getNeighborCellIndexes(state.grid, potCell);
-      const adjacentCreatures: CreatureEntity[] = [];
-      for (const idx of neighbors) {
-        const entityId = state.grid.cells[idx];
-        if (!entityId || usedIds.has(entityId)) continue;
-        const entity = state.entities[entityId];
-        if (entity?.kind === 'creature') {
-          adjacentCreatures.push(entity as CreatureEntity);
-        }
-      }
-
-      if (adjacentCreatures.length > 0) {
-        // Feed the lowest-level adjacent creature
-        adjacentCreatures.sort((a, b) => a.level - b.level);
-        const victim = adjacentCreatures[0]!;
-        actions.push({ type: 'feed', entityId: victim.id });
-        usedIds.add(victim.id);
-        break; // free one cell per iteration
-      }
-    }
-
-    return actions;
-  }
-
-  private mergeFlowerpots(state: GameSnapshot, usedIds: Set<string>): SimulationAction[] {
-    const pots = Object.values(state.entities).filter(
-      (e): e is FlowerPotEntity => e.kind === 'flowerpot' && !usedIds.has(e.id)
-    );
-
-    const grouped = new Map<number, FlowerPotEntity[]>();
-    for (const pot of pots) {
-      if (!grouped.has(pot.potLevel)) grouped.set(pot.potLevel, []);
-      grouped.get(pot.potLevel)!.push(pot);
-    }
-
-    const actions: SimulationAction[] = [];
-    for (const [level, group] of grouped) {
-      if (level >= 5) continue; // max level
-      for (let i = 0; i + 1 < group.length; i += 2) {
-        const a = group[i]!;
-        const b = group[i + 1]!;
-        if (usedIds.has(a.id) || usedIds.has(b.id)) continue;
-        actions.push({ type: 'merge', sourceId: a.id, targetId: b.id });
-        usedIds.add(a.id);
-        usedIds.add(b.id);
-      }
-    }
     return actions;
   }
 

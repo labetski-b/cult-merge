@@ -21,7 +21,7 @@ const generatorLevelSchema = z.object({
   upgrade: generatorUpgradeSchema.optional()
 });
 
-const generatorSchema = z.object({
+export const generatorSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().min(1),
   eggType: z.string().min(1),
@@ -29,7 +29,9 @@ const generatorSchema = z.object({
   purchaseCost: z.number().int().min(0),
   krakenRequired: z.number().int().min(1),
   lines: z.array(z.string().min(1)).length(2),
-  levels: z.array(generatorLevelSchema).min(1)
+  levels: z.array(generatorLevelSchema).min(1),
+  spawnMode: z.enum(['sacrifice', 'timer']).optional(),
+  tickIntervalSec: z.number().positive().optional(),
 });
 
 export const generatorsDataSchema = z.object({
@@ -87,21 +89,13 @@ const taskSchema = z.object({
   eyeReward: z.number().min(0).optional()
 });
 
-const maxCountByOffsetEntrySchema = z.object({
-  offset: z.number().int().min(0),
-  maxCount: z.number().int().min(1),
-});
-
 export const autoConfigSchema = z.object({
   difficultyFlow: z.array(z.number().int().positive()).optional(),
   difficultySacMap: z.array(z.number().min(0)).optional(),
-  budgetAnchors: z.array(z.tuple([z.number(), z.number()])).optional(),
   // Legacy field name kept for JSON compatibility: controls dual-requirement
   // auto tasks inside the Kraken-task loop, not Kraken quests.
   dualQuestProbability: z.number().min(0).max(1).optional(),
   dualBudgetSplit: z.tuple([z.number(), z.number()]).optional(),
-  maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
-  maxSpawns: z.number().optional(),
   eyeRewardByChapter: z.array(z.tuple([z.number().int(), z.number()])).optional(),
   difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
   eyePerMeat: z.array(z.tuple([z.number().int(), z.number()])).optional(),
@@ -115,7 +109,7 @@ export const tasksDataSchema = z.object({
 });
 
 const progressionRewardSchema = z.object({
-  type: z.enum(['res_box', 'egg', 'mechanic', 'grid', 'flowerpot']),
+  type: z.enum(['res_box', 'egg', 'mechanic', 'grid']),
   value: z.union([z.string(), z.number()])
 });
 
@@ -187,25 +181,6 @@ export const managersDataSchema = z.object({
 export type PredatorsData = z.infer<typeof predatorsDataSchema>;
 export type ManagersData = z.infer<typeof managersDataSchema>;
 
-const flowerpotLevelSchema = z.object({
-  level: z.number().int().min(1).max(5),
-  outputs: z.array(outputSchema).min(1)
-});
-
-const flowerpotConfigSchema = z.object({
-  purchaseCurrency: z.enum(['rune1', 'rune2']),
-  purchaseCost: z.number().int().min(0),
-  spawnIntervalMs: z.number().int().positive(),
-  lines: z.array(z.string().min(1)).length(2),
-  levels: z.array(flowerpotLevelSchema).min(1)
-});
-
-export const flowerpotsDataSchema = z.object({
-  flowerpot: flowerpotConfigSchema
-});
-
-export type FlowerpotsData = z.infer<typeof flowerpotsDataSchema>;
-
 const chapterDataEntrySchema = z.object({
   chapter: z.number().int().min(2),
   merge_resource: z.number().int().min(0),
@@ -263,7 +238,6 @@ export interface BalanceConfig {
   gridSizes: GridSizesData;
   predators: PredatorsData;
   managers: ManagersData;
-  flowerpots: FlowerpotsData;
   chapters: ChaptersData;
   runes: RunesData;
   quests: QuestsData;

@@ -1,9 +1,9 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RuneEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
+import type { CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
-import { runeRedemptionValue } from '@domain/rewards';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
+import { canUpgradeGenerator } from '@domain/upgrades';
 
 // This module owns Kraken tasks from tasks.json (mandatory + auto).
 // Kraken quests live in quests.ts and are the unlockable quest layer.
@@ -86,31 +86,6 @@ const DEFAULT_AUTO_CONFIG = {
   eyePerMeat: null as [number, number][] | null,
 };
 
-/** Count all rune currency: wallet + rune entities on field + box contents. */
-function countAvailableRunes(state: GameSnapshot): { rune1: number; rune2: number } {
-  let rune1 = state.resources.rune1;
-  let rune2 = state.resources.rune2;
-
-  for (const entity of Object.values(state.entities)) {
-    if (entity.kind === 'rune') {
-      const rune = entity as RuneEntity;
-      if (rune.runeType.startsWith('Rune1')) {
-        rune1 += runeRedemptionValue(rune.runeType);
-      } else if (rune.runeType.startsWith('Rune2')) {
-        rune2 += runeRedemptionValue(rune.runeType);
-      }
-    } else if (entity.kind === 'box') {
-      const box = entity as BoxEntity;
-      for (const item of box.contents) {
-        if (item.startsWith('Rune1')) rune1 += runeRedemptionValue(item);
-        else if (item.startsWith('Rune2')) rune2 += runeRedemptionValue(item);
-      }
-    }
-  }
-
-  return { rune1, rune2 };
-}
-
 /** How many L1-equivalents of `creatureType` a generator produces per charge. */
 export function getExpectedL1PerCharge(
   config: BalanceConfig,
@@ -135,25 +110,19 @@ export function getExpectedL1PerCharge(
 /** Scoring table entry: best generator for a creature at given budget. */
 type ScoringEntry = ScoringTableEntry;
 
-/**
- * Compute upgrade cost from currentLevel to targetLevel for a generator.
- * Generators merge like creatures: need 2^(targetLevel-1) L1 copies total,
- * already have 2^(currentLevel-1), buy the difference.
- */
-function generatorUpgradeCost(currentLevel: number, targetLevel: number, purchaseCost: number): number {
-  if (targetLevel <= currentLevel) return 0;
-  const needToBuy = Math.pow(2, targetLevel - 1) - Math.pow(2, currentLevel - 1);
-  return needToBuy * purchaseCost;
-}
-
-/**
- * Build scoring table: for each creature, find best generator by targetLevel.
- * Considers real generators, phantom purchases, and phantom upgrades.
- */
 interface ScoringResult {
   collapsed: ScoringEntry[];
   raw: ScoringEntry[];
 }
+
+/** Projection window for timer-mode (Flower Pot) scoring: 8 × tick interval (≈ 4h of drops). */
+const FP_TICKS_WINDOW = 8;
+
+/**
+ * Build scoring table over on-field generators. `scoringLevel = factLvl + 1` if the next upgrade
+ * is currently affordable (runes + merges), else `factLvl`. Sacrifice generators project by meat
+ * budget; timer generators (Flower Pot) project by an 8-tick window.
+ */
 
 function buildScoringTable(
   config: BalanceConfig,
@@ -162,42 +131,56 @@ function buildScoringTable(
   gridCap: number,
   fieldL1Map: Map<string, number>,
 ): ScoringResult {
-  const fieldGenerators = Object.values(state.entities).filter(
-    (e): e is GeneratorEntity => e.kind === 'generator'
-  );
+  // Collect ONLY generators on the field.
+  // For each, compute scoringLevel = factLvl + 1 if the next upgrade is affordable, else factLvl.
+  interface Candidate { genId: number; scoringLevel: number; }
+  const rawCandidates: Candidate[] = [];
 
-  // Collect ALL unique levels per generator on field (not just best)
-  const fieldGenLevels = new Map<number, Set<number>>();
-  for (const gen of fieldGenerators) {
-    let levels = fieldGenLevels.get(gen.generatorId);
-    if (!levels) { levels = new Set(); fieldGenLevels.set(gen.generatorId, levels); }
-    levels.add(gen.level);
+  for (const entity of Object.values(state.entities)) {
+    if (entity.kind !== 'generator') continue;
+    const gen = entity as GeneratorEntity;
+    const factLvl = gen.level;
+
+    const upgradeCheck = canUpgradeGenerator(
+      { generatorId: gen.generatorId, level: factLvl },
+      state,
+      config,
+    );
+    const scoringLevel = upgradeCheck.ok ? factLvl + 1 : factLvl;
+
+    rawCandidates.push({ genId: gen.generatorId, scoringLevel });
   }
 
-  const { rune1: availRune1, rune2: availRune2 } = countAvailableRunes(state);
+  // Dedupe (defensive; same generator on field should only appear once, but guard anyway).
+  const seen = new Set<string>();
+  const uniqueCandidates = rawCandidates.filter((c) => {
+    const k = `${c.genId}:${c.scoringLevel}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
   const candidates: ScoringEntry[] = [];
-  const addedKeys = new Set<string>(); // prevent duplicates: "genId:genLevel"
 
-  const addCandidatesForLevel = (genId: number, genLevel: number) => {
-    const key = `${genId}:${genLevel}`;
-    if (addedKeys.has(key)) return;
-    addedKeys.add(key);
-
+  for (const candidate of uniqueCandidates) {
+    const { genId, scoringLevel: genLevel } = candidate;
     const genConfig = config.generators.generators.find(g => g.id === genId);
-    if (!genConfig) return;
+    if (!genConfig) continue;
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
-    if (!levelConfig) return;
+    if (!levelConfig) continue;
 
+    const isTimer = genConfig.spawnMode === 'timer';
     const types = new Set(levelConfig.outputs.map(o => o.creatureType));
     for (const ct of types) {
       const l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
       if (l1pc <= 0) continue;
 
-      const l1PerMeat = levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc;
+      const l1PerMeat = isTimer
+        ? 0
+        : (levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc);
 
       const fieldL1 = fieldL1Map.get(ct) ?? 0;
-      const spawnL1 = meatBudget * l1PerMeat;
+      const spawnL1 = isTimer ? FP_TICKS_WINDOW * l1pc : meatBudget * l1PerMeat;
       const totalL1 = spawnL1 + fieldL1;
 
       const creature = config.creatures.creatures.find(c => c.type === ct);
@@ -212,48 +195,6 @@ function buildScoringTable(
         meatBudget, spawnL1, fieldL1, totalL1, targetLevel,
       });
     }
-  };
-
-  for (const genConfig of config.generators.generators) {
-    if (state.kraken.level < genConfig.krakenRequired) continue;
-
-    const fieldLevels = fieldGenLevels.get(genConfig.id);
-    const availRunes = genConfig.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
-
-    const maxGenLevel = genConfig.levels.length > 0
-      ? Math.max(...genConfig.levels.map(l => l.level))
-      : 1;
-
-    if (fieldLevels != null && fieldLevels.size > 0) {
-      // Add ALL levels present on field + phantom upgrades from each
-      for (const baseLv of fieldLevels) {
-        addCandidatesForLevel(genConfig.id, baseLv);
-
-        for (let lv = baseLv + 1; lv <= maxGenLevel; lv++) {
-          const cost = generatorUpgradeCost(baseLv, lv, genConfig.purchaseCost);
-          if (cost > availRunes) break;
-          addCandidatesForLevel(genConfig.id, lv);
-        }
-      }
-
-      // Phantom lower-level copy: buying a fresh L1 while higher already exists
-      const bestLevel = Math.max(...fieldLevels);
-      if (bestLevel > 1 && availRunes >= genConfig.purchaseCost) {
-        addCandidatesForLevel(genConfig.id, 1);
-      }
-    } else {
-      if (availRunes >= genConfig.purchaseCost) {
-        addCandidatesForLevel(genConfig.id, 1);
-
-        // Phantom upgrades of the phantom purchase
-        for (let lv = 2; lv <= maxGenLevel; lv++) {
-          const upgradeCost = generatorUpgradeCost(1, lv, genConfig.purchaseCost);
-          const totalCost = genConfig.purchaseCost + upgradeCost;
-          if (totalCost > availRunes) break;
-          addCandidatesForLevel(genConfig.id, lv);
-        }
-      }
-    }
   }
 
   // Collapse: per creature, keep best by targetLevel (tiebreak: higher l1PerMeat)
@@ -262,7 +203,7 @@ function buildScoringTable(
     const existing = bestByCreature.get(c.creatureType);
     if (!existing
       || c.targetLevel > existing.targetLevel
-      || (c.targetLevel === existing.targetLevel && c.l1PerMeat > existing.l1PerMeat)) {
+      || (c.targetLevel === existing.targetLevel && c.genLevel > existing.genLevel)) {
       bestByCreature.set(c.creatureType, c);
     }
   }
@@ -301,6 +242,87 @@ function pickWeightedByRecency(table: ScoringEntry[], rng: SeededRng): ScoringEn
   return table[table.length - 1]!;
 }
 
+// ─── FP eligibility gate ───────────────────────────────────────────────────
+
+const FP_SACRIFICES_REQUIRED = 5;
+const FP_QUESTS_PER_KL_LIMIT = 2;
+
+function isFPGenerator(genId: number, config: BalanceConfig): boolean {
+  const g = config.generators.generators.find((x) => x.id === genId);
+  return g?.spawnMode === 'timer';
+}
+
+function passesFPGate(
+  entry: ScoringEntry,
+  state: GameSnapshot,
+  config: BalanceConfig,
+  fieldL1Map: Map<string, number>,
+): boolean {
+  if (!isFPGenerator(entry.genId, config)) return true;
+
+  const onBoard = (fieldL1Map.get(entry.creatureType) ?? 0) > 0;
+  if (onBoard) return true;
+
+  const sacrificesSinceLastFP = state.meatButtonPresses - state.meatPressesAtLastFP;
+  if (sacrificesSinceLastFP < FP_SACRIFICES_REQUIRED) return false;
+
+  const fpCount = state.fpQuestsByKrakenLevel[state.kraken.level] ?? 0;
+  if (fpCount >= FP_QUESTS_PER_KL_LIMIT) return false;
+
+  return true;
+}
+
+function pickWithFPGate(
+  table: ScoringEntry[],
+  rng: SeededRng,
+  state: GameSnapshot,
+  config: BalanceConfig,
+  fieldL1Map: Map<string, number>,
+): ScoringEntry | null {
+  if (table.length === 0) return null;
+  let remaining = [...table];
+  while (remaining.length > 0) {
+    const picked = pickWeightedByRecency(remaining, rng);
+    if (passesFPGate(picked, state, config, fieldL1Map)) return picked;
+    remaining = remaining.filter(
+      (e) => !(e.genId === picked.genId && e.creatureType === picked.creatureType),
+    );
+  }
+  const nonFP = table.filter((e) => !isFPGenerator(e.genId, config));
+  const pool = nonFP.length > 0 ? nonFP : table;
+  // `pool[0]!` is safe: early return above guarantees `table.length > 0`, and `pool` is either `nonFP` (non-empty) or `table`.
+  return pool.reduce((a, b) => (a.targetLevel >= b.targetLevel ? a : b), pool[0]!);
+}
+
+export function isFPTask(task: TaskDefinition, config: BalanceConfig): boolean {
+  return task.pickedGenId !== undefined && isFPGenerator(task.pickedGenId, config);
+}
+
+/**
+ * If `task` is an FP quest, returns the partial state update needed to record it:
+ *  - `meatPressesAtLastFP` resets the "sacrifices since last FP" delta.
+ *  - `fpQuestsByKrakenLevel[state.kraken.level]` increments by 1.
+ *
+ * Callers spread the return value into the next state object they're building
+ * (Zustand `set`, SimulationEngine mutations, functional feed snapshot, etc).
+ *
+ * Returns `null` for non-FP tasks — caller spreads `{}` / skips.
+ */
+export function applyFPCounterUpdate(
+  task: TaskDefinition,
+  state: GameSnapshot,
+  config: BalanceConfig,
+): Pick<GameSnapshot, 'meatPressesAtLastFP' | 'fpQuestsByKrakenLevel'> | null {
+  if (!isFPTask(task, config)) return null;
+  return {
+    meatPressesAtLastFP: state.meatButtonPresses,
+    fpQuestsByKrakenLevel: {
+      ...state.fpQuestsByKrakenLevel,
+      [state.kraken.level]: (state.fpQuestsByKrakenLevel[state.kraken.level] ?? 0) + 1,
+    },
+  };
+}
+
 export function generateAutoTask(
   config: BalanceConfig,
   state: GameSnapshot,
@@ -329,7 +351,8 @@ export function generateAutoTask(
     let totalMeatCost = 0;
     for (const req of creatures) {
       const entry = scoringTable.find(e => e.creatureType === req.type);
-      const l1pm = entry?.l1PerMeat ?? 1;
+      // `||` (not `??`) so timer rows with l1PerMeat=0 fall back to 1 and don't blow up to Infinity.
+      const l1pm = entry?.l1PerMeat || 1;
       const l1Spawns = Math.pow(2, req.level - 1);
       totalMeatCost += (l1Spawns / l1pm) * req.count;
     }
@@ -361,56 +384,14 @@ export function generateAutoTask(
   const totalCompleted = Object.values(state.autoTaskLineCompletions).reduce((a, b) => a + b, 0);
 
   const diffIdx = totalCompleted % difficultyFlow.length;
-  let difficulty = difficultyFlow[diffIdx]!;
-  let sacBudget = difficultySacMap[difficulty] ?? 0;
-  let meatBudget = sacBudget * meatDrop;
+  const difficulty = difficultyFlow[diffIdx]!;
+  const sacBudget = difficultySacMap[difficulty] ?? 0;
+  const meatBudget = sacBudget * meatDrop;
 
   const prev = state.currentAutoTask;
 
-  // Minimal scoring table for l1PerMeat lookup (used by diff1)
+  // Minimal scoring table for l1PerMeat lookup (used by empty-table fallback)
   const { collapsed: l1PerMeatLookup } = buildScoringTable(config, state, 0, gridCap, fieldL1Map);
-
-  // ─── DIFFICULTY = 1 (special case) ─────────────────────────────────────
-
-  if (difficulty === 1) {
-    const highLevelCreatures = Object.values(state.entities).filter(
-      (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 6
-    );
-    if (highLevelCreatures.length > 0) {
-      const prevType = prev?.creatures[0]?.type;
-      const prevLevel = prev?.creatures[0]?.level;
-      const filtered = prevType
-        ? highLevelCreatures.filter(e => e.creatureType !== prevType || e.level !== prevLevel)
-        : highLevelCreatures;
-      const pool = filtered.length > 0 ? filtered : highLevelCreatures;
-      const pick = pool[Math.floor(rng.next() * pool.length)]!;
-      let pickLevel = Math.min(pick.level, gridCap);
-      // Ladder guard: never skip more than +1 level vs last quest for this creature
-      const d1LastLevel = state.autoTaskLastLevels[pick.creatureType];
-      if (d1LastLevel !== undefined && pickLevel > d1LastLevel + 1) {
-        pickLevel = d1LastLevel + 1;
-      }
-      // Level-repeat guard: avoid same creature+level as last completed task
-      if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
-        pickLevel = Math.max(1, pickLevel - 1);
-      }
-      const d1Reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
-      return {
-        id: makeTaskId(rng),
-        creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
-        expMultiplier: 0,
-        resMultiplier: 2,
-        eyeReward: d1Reward?.eyeReward,
-        difficulty: 1,
-        debugMeatBudget: meatBudget,
-        debugMeatCost: d1Reward?.meatCost,
-        debugScoringTable: [],
-      };
-    }
-    difficulty = 2;
-    sacBudget = difficultySacMap[2] ?? 0.5;
-    meatBudget = sacBudget * meatDrop;
-  }
 
   // ─── PHASE 2: SCORING TABLE ──────────────────────────────────────────────
 
@@ -431,6 +412,49 @@ export function generateAutoTask(
     };
   }
 
+  // ─── DIFFICULTY = 1 (weighted pick from scoring table) ─────────────────
+
+  if (difficulty === 1) {
+    const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
+    if (!pick) {
+      // Defensive: scoringTable.length > 0 was just checked, so this shouldn't happen.
+      const fallbackReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+      return {
+        id: makeTaskId(rng),
+        creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+        expMultiplier: 0,
+        resMultiplier: 2,
+        eyeReward: fallbackReward?.eyeReward,
+        difficulty: 1,
+        debugMeatBudget: meatBudget,
+        debugMeatCost: fallbackReward?.meatCost,
+        debugScoringTable: [],
+      };
+    }
+
+    let pickLevel = pick.targetLevel;
+    const lastLevel = state.autoTaskLastLevels[pick.creatureType];
+    // Ladder guard: never skip more than +1 level vs last quest for this creature
+    if (lastLevel !== undefined && pickLevel > lastLevel + 1) pickLevel = lastLevel + 1;
+    // Level-repeat guard: avoid same creature+level as last completed task
+    if (lastLevel === pickLevel) pickLevel = Math.max(1, pickLevel - 1);
+
+    const reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
+    return {
+      id: makeTaskId(rng),
+      creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
+      expMultiplier: 0,
+      resMultiplier: 2,
+      eyeReward: reward?.eyeReward,
+      difficulty: 1,
+      debugMeatBudget: meatBudget,
+      debugMeatCost: reward?.meatCost,
+      debugScoringTable: scoringRaw,
+      debugCollapsed: scoringTable,
+      pickedGenId: pick.genId,
+    };
+  }
+
   // ─── SINGLE vs DUAL DECISION ───────────────────────────────────────────
 
   const isDual = difficulty >= 2 && rng.next() < dualQuestProbability;
@@ -447,11 +471,21 @@ export function generateAutoTask(
 
     for (let attempt = 0; attempt < 10; attempt++) {
       if (mainTable.length === 0) break;
-      const mainPick = pickWeightedByRecency(mainTable, rng);
+      const mainPick = pickWithFPGate(mainTable, rng, state, config, fieldL1Map);
+      if (!mainPick) break;
+      // `pickWithFPGate` can return an FP entry only when its fallback branch fires on an
+      // all-FP table (no non-FP candidates). In that case, fall through to the single-quest
+      // path — it still has access to the full scoring table and non-FP fallback.
+      if (!passesFPGate(mainPick, state, config, fieldL1Map)) break;
 
       const fillerPool = fillerTable.filter(e => e.creatureType !== mainPick.creatureType);
       if (fillerPool.length === 0) break;
-      const fillerPick = pickWeightedByRecency(fillerPool, rng);
+      const fillerPick = pickWithFPGate(fillerPool, rng, state, config, fieldL1Map);
+      if (!fillerPick) break;
+      // Same rationale as the main-pick guard above: an FP filler here means the filler
+      // table was all-FP and `pickWithFPGate` fell back. Abort dual so the single-quest
+      // path can pick cleanly.
+      if (!passesFPGate(fillerPick, state, config, fieldL1Map)) break;
 
       const isDuplicate =
         prevKeys.has(`${mainPick.creatureType}:${mainPick.targetLevel}`) ||
@@ -498,6 +532,7 @@ export function generateAutoTask(
           debugMainCollapsed: mainTable,
           debugFillerScoringTable: fillerRaw,
           debugFillerCollapsed: fillerTable,
+          pickedGenId: mainPick.genId,
         };
       }
     }
@@ -506,7 +541,8 @@ export function generateAutoTask(
 
   // ── SINGLE QUEST ──
   for (let attempt = 0; attempt < 10; attempt++) {
-    const pick = pickWeightedByRecency(scoringTable, rng);
+    const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
+    if (!pick) break;
 
     const isDuplicate = prevKeys.has(`${pick.creatureType}:${pick.targetLevel}`);
 
@@ -533,11 +569,13 @@ export function generateAutoTask(
         debugMeatCost: singleReward?.meatCost,
         debugScoringTable: scoringRaw,
         debugCollapsed: scoringTable,
+        pickedGenId: pick.genId,
       };
     }
   }
 
   const finalReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+  // pickedGenId intentionally omitted — fallback is always non-FP, so isFPTask returns false.
   return {
     id: makeTaskId(rng),
     creatures: [{ type: 'Creature1', level: 1, count: 1 }],

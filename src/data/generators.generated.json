@@ -3,6 +3,7 @@
     {
       "id": 1,
       "name": "Generator 1",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature1",
       "purchaseCurrency": "rune1",
       "purchaseCost": 5,
@@ -476,6 +477,7 @@
     {
       "id": 2,
       "name": "Generator 2",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature2",
       "purchaseCurrency": "rune2",
       "purchaseCost": 8,
@@ -948,7 +950,9 @@
     },
     {
       "id": 3,
-      "name": "Generator 3",
+      "name": "Flower Pot",
+      "spawnMode": "timer",
+      "tickIntervalSec": 1800,
       "eggType": "Egg_Creature3",
       "purchaseCurrency": "rune1",
       "purchaseCost": 10,
@@ -1040,27 +1044,32 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.56
+              "chance": 0.58
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.18
+              "chance": 0.16
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.06
+              "chance": 0.05
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 4,
+              "chance": 0.01
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.11
+              "chance": 0.16
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.09
+              "chance": 0.04
             }
           ],
           "upgrade": {
@@ -1078,32 +1087,42 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.21
+              "chance": 0.33
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.19
+              "chance": 0.18
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.16
+              "chance": 0.1
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.14
+              "chance": 0.06
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 5,
+              "chance": 0.03
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.29
+              "chance": 0.16
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.01
+              "chance": 0.09
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 3,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1121,32 +1140,42 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.08
+              "chance": 0.32
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.1
+              "chance": 0.15
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.12
+              "chance": 0.07
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.14
+              "chance": 0.03
             },
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.16
+              "chance": 0.02
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 6,
+              "chance": 0.01
             },
             {
               "creatureType": "Creature6",
-              "level": 1,
-              "chance": 0.4
+              "level": 3,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature6",
+              "level": 4,
+              "chance": 0.39
             }
           ],
           "upgrade": {
@@ -1164,17 +1193,17 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0
+              "chance": 0.07
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.02
+              "chance": 0.07
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.04
+              "chance": 0.08
             },
             {
               "creatureType": "Creature5",
@@ -1184,17 +1213,22 @@
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.15
+              "chance": 0.09
             },
             {
               "creatureType": "Creature5",
               "level": 6,
-              "chance": 0.3
+              "chance": 0.1
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 7,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.28
+              "chance": 0.27
             },
             {
               "creatureType": "Creature6",
@@ -1227,42 +1261,27 @@
             {
               "creatureType": "Creature5",
               "level": 1,
+              "chance": 0.58
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 2,
               "chance": 0.01
             },
             {
-              "creatureType": "Creature5",
-              "level": 2,
-              "chance": 0.03
+              "creatureType": "Creature6",
+              "level": 4,
+              "chance": 0.01
             },
             {
-              "creatureType": "Creature5",
-              "level": 3,
+              "creatureType": "Creature6",
+              "level": 5,
               "chance": 0.05
             },
             {
-              "creatureType": "Creature5",
-              "level": 4,
-              "chance": 0.09
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 5,
-              "chance": 0.15
-            },
-            {
-              "creatureType": "Creature5",
+              "creatureType": "Creature6",
               "level": 6,
-              "chance": 0.27
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 1,
-              "chance": 0.38
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 2,
-              "chance": 0.02
+              "chance": 0.35
             }
           ],
           "upgrade": {
@@ -1280,62 +1299,37 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.02
+              "chance": 0.45
             },
             {
               "creatureType": "Creature5",
               "level": 2,
+              "chance": 0.11
+            },
+            {
+              "creatureType": "Creature5",
+              "level": 3,
               "chance": 0.03
             },
             {
               "creatureType": "Creature5",
-              "level": 3,
-              "chance": 0.04
-            },
-            {
-              "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.06
+              "chance": 0.01
             },
             {
-              "creatureType": "Creature5",
+              "creatureType": "Creature6",
               "level": 5,
-              "chance": 0.09
+              "chance": 0.02
             },
             {
-              "creatureType": "Creature5",
+              "creatureType": "Creature6",
               "level": 6,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 7,
-              "chance": 0.21
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 1,
-              "chance": 0.06
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 2,
               "chance": 0.07
             },
             {
               "creatureType": "Creature6",
-              "level": 3,
-              "chance": 0.08
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 4,
-              "chance": 0.09
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 5,
-              "chance": 0.11
+              "level": 7,
+              "chance": 0.31
             }
           ],
           "upgrade": {
@@ -1353,67 +1347,42 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.02
+              "chance": 0.42
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.02
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.03
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 4,
               "chance": 0.04
             },
             {
               "creatureType": "Creature5",
-              "level": 5,
-              "chance": 0.06
+              "level": 4,
+              "chance": 0.01
             },
             {
-              "creatureType": "Creature5",
+              "creatureType": "Creature6",
+              "level": 5,
+              "chance": 0.01
+            },
+            {
+              "creatureType": "Creature6",
               "level": 6,
-              "chance": 0.09
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 7,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 8,
-              "chance": 0.21
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 1,
               "chance": 0.02
             },
             {
               "creatureType": "Creature6",
-              "level": 2,
-              "chance": 0.04
+              "level": 7,
+              "chance": 0.08
             },
             {
               "creatureType": "Creature6",
-              "level": 3,
-              "chance": 0.06
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 4,
-              "chance": 0.1
-            },
-            {
-              "creatureType": "Creature6",
-              "level": 5,
-              "chance": 0.17
+              "level": 8,
+              "chance": 0.29
             }
           ]
         }
@@ -1422,6 +1391,7 @@
     {
       "id": 4,
       "name": "Generator 4",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature4",
       "purchaseCurrency": "rune2",
       "purchaseCost": 13,
@@ -1895,6 +1865,7 @@
     {
       "id": 5,
       "name": "Generator 5",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature5",
       "purchaseCurrency": "rune1",
       "purchaseCost": 15,
@@ -2368,6 +2339,7 @@
     {
       "id": 6,
       "name": "Generator 6",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature6",
       "purchaseCurrency": "rune2",
       "purchaseCost": 20,
@@ -2841,6 +2813,7 @@
     {
       "id": 7,
       "name": "Generator 7",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature7",
       "purchaseCurrency": "rune1",
       "purchaseCost": 25,
@@ -3314,6 +3287,7 @@
     {
       "id": 8,
       "name": "Generator 8",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature8",
       "purchaseCurrency": "rune2",
       "purchaseCost": 30,

@@ -39,8 +39,6 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
   const resources = useGameStore((s) => s.resources);
   const activeUpgrade = useGameStore((s) => s.activeUpgrade);
 
-  useSecondTicker(isOpen && activeUpgrade !== null);
-
   const owned = useMemo<GeneratorEntity[]>(() => {
     const list: GeneratorEntity[] = [];
     for (const id in entities) {
@@ -54,6 +52,8 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
     });
     return list;
   }, [entities]);
+
+  useSecondTicker(isOpen && activeUpgrade !== null);
 
   if (!isOpen) return null;
 

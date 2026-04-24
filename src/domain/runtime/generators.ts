@@ -8,7 +8,8 @@ export type GeneratorRuntimeReason =
   | 'generator_has_charges'
   | 'not_enough_meat'
   | 'generator_empty'
-  | 'no_free_cell';
+  | 'no_free_cell'
+  | 'generator_timer_mode';
 
 export type GeneratorRuntimeEvent =
   | {
@@ -43,11 +44,21 @@ export function chargeGenerator(
     return { snapshot, changed: false, events: [], reason: 'generator_not_found' };
   }
 
+  const { generator: genConfig, levelConfig } = getGeneratorConfig(
+    ctx.balance,
+    generator.generatorId,
+    generator.level
+  );
+
+  // Timer-mode generators (e.g. Gen3 Flower Pot) do NOT accept meat feeding.
+  // They tick passively via tickTimerGenerators.
+  if (genConfig.spawnMode === 'timer') {
+    return { snapshot, changed: false, events: [], reason: 'generator_timer_mode' };
+  }
+
   if (generator.charges.length > 0) {
     return { snapshot, changed: false, events: [], reason: 'generator_has_charges' };
   }
-
-  const { levelConfig } = getGeneratorConfig(ctx.balance, generator.generatorId, generator.level);
   if (snapshot.resources.meat < levelConfig.chargeCost) {
     return { snapshot, changed: false, events: [], reason: 'not_enough_meat' };
   }
@@ -94,6 +105,17 @@ export function spawnFromGenerator(
   const generator = getGenerator(snapshot, generatorId);
   if (!generator) {
     return { snapshot, changed: false, events: [], reason: 'generator_not_found' };
+  }
+
+  // Timer-mode generators (e.g. Gen3 Flower Pot) do NOT spawn via tap.
+  // Creatures are placed automatically by tickTimerGenerators.
+  const { generator: genConfig } = getGeneratorConfig(
+    ctx.balance,
+    generator.generatorId,
+    generator.level
+  );
+  if (genConfig.spawnMode === 'timer') {
+    return { snapshot, changed: false, events: [], reason: 'generator_timer_mode' };
   }
 
   if (generator.charges.length === 0) {

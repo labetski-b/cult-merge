@@ -51,7 +51,7 @@
 
     { "level": 9, "step": 0, "expRequired": 560, "rewards": [{"type":"res_box","value":2}] },
     { "level": 9, "step": 1, "expRequired": 560, "rewards": [{"type":"res_box","value":2}] },
-    { "level": 9, "step": 2, "expRequired": 560, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 9, "step": 2, "expRequired": 560, "rewards": [{"type":"res_box","value":2}] },
 
     { "level": 10, "step": 0, "expRequired": 590, "rewards": [{"type":"res_box","value":4}] },
     { "level": 10, "step": 1, "expRequired": 590, "rewards": [{"type":"res_box","value":6}] },
@@ -59,7 +59,7 @@
 
     { "level": 11, "step": 0, "expRequired": 620, "rewards": [{"type":"res_box","value":2}] },
     { "level": 11, "step": 1, "expRequired": 620, "rewards": [{"type":"res_box","value":6}] },
-    { "level": 11, "step": 2, "expRequired": 620, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 11, "step": 2, "expRequired": 620, "rewards": [{"type":"res_box","value":2}] },
 
     { "level": 12, "step": 0, "expRequired": 650, "rewards": [{"type":"res_box","value":4}] },
     { "level": 12, "step": 1, "expRequired": 650, "rewards": [{"type":"res_box","value":2}] },
@@ -71,7 +71,7 @@
 
     { "level": 14, "step": 0, "expRequired": 710, "rewards": [{"type":"res_box","value":4}] },
     { "level": 14, "step": 1, "expRequired": 710, "rewards": [{"type":"res_box","value":4}] },
-    { "level": 14, "step": 2, "expRequired": 710, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 14, "step": 2, "expRequired": 710, "rewards": [{"type":"res_box","value":4}] },
 
     { "level": 15, "step": 0, "expRequired": 740, "rewards": [{"type":"res_box","value":6}] },
     { "level": 15, "step": 1, "expRequired": 740, "rewards": [{"type":"res_box","value":6}] },
@@ -95,11 +95,11 @@
 
     { "level": 20, "step": 0, "expRequired": 890, "rewards": [{"type":"res_box","value":7}] },
     { "level": 20, "step": 1, "expRequired": 890, "rewards": [{"type":"res_box","value":3}] },
-    { "level": 20, "step": 2, "expRequired": 890, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 20, "step": 2, "expRequired": 890, "rewards": [{"type":"res_box","value":7}] },
 
     { "level": 21, "step": 0, "expRequired": 920, "rewards": [{"type":"res_box","value":2}] },
     { "level": 21, "step": 1, "expRequired": 920, "rewards": [{"type":"res_box","value":6}] },
-    { "level": 21, "step": 2, "expRequired": 920, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 21, "step": 2, "expRequired": 920, "rewards": [{"type":"res_box","value":6}] },
 
     { "level": 22, "step": 0, "expRequired": 950, "rewards": [{"type":"res_box","value":2}] },
     { "level": 22, "step": 1, "expRequired": 950, "rewards": [{"type":"res_box","value":5}] },
@@ -115,7 +115,7 @@
 
     { "level": 25, "step": 0, "expRequired": 1040, "rewards": [{"type":"res_box","value":7}] },
     { "level": 25, "step": 1, "expRequired": 1040, "rewards": [{"type":"res_box","value":7}] },
-    { "level": 25, "step": 2, "expRequired": 1040, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 25, "step": 2, "expRequired": 1040, "rewards": [{"type":"res_box","value":7}] },
 
     { "level": 26, "step": 0, "expRequired": 1070, "rewards": [{"type":"res_box","value":3}] },
     { "level": 26, "step": 1, "expRequired": 1070, "rewards": [{"type":"res_box","value":7}] },
@@ -135,7 +135,7 @@
 
     { "level": 30, "step": 0, "expRequired": 1190, "rewards": [{"type":"res_box","value":7}] },
     { "level": 30, "step": 1, "expRequired": 1190, "rewards": [{"type":"res_box","value":3}] },
-    { "level": 30, "step": 2, "expRequired": 1190, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 30, "step": 2, "expRequired": 1190, "rewards": [{"type":"res_box","value":7}] },
 
     { "level": 31, "step": 0, "expRequired": 1220, "rewards": [{"type":"res_box","value":5}] },
     { "level": 31, "step": 1, "expRequired": 1220, "rewards": [{"type":"res_box","value":7}] },
@@ -155,7 +155,7 @@
 
     { "level": 35, "step": 0, "expRequired": 1340, "rewards": [{"type":"res_box","value":7}] },
     { "level": 35, "step": 1, "expRequired": 1340, "rewards": [{"type":"res_box","value":1}] },
-    { "level": 35, "step": 2, "expRequired": 1340, "rewards": [{"type":"flowerpot","value":1}] },
+    { "level": 35, "step": 2, "expRequired": 1340, "rewards": [{"type":"res_box","value":7}] },
 
     { "level": 36, "step": 0, "expRequired": 1370, "rewards": [{"type":"res_box","value":7}] },
     { "level": 36, "step": 1, "expRequired": 1370, "rewards": [{"type":"res_box","value":5}] },

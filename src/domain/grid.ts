@@ -49,6 +49,16 @@ export function getNeighborCellIndexes(grid: GridState, cellIndex: number): numb
   return neighbors;
 }
 
+export function findFreeNeighbor(grid: GridState, cellIndex: number): number | null {
+  const neighbors = getNeighborCellIndexes(grid, cellIndex);
+  for (const idx of neighbors) {
+    if (grid.cells[idx] === null) {
+      return idx;
+    }
+  }
+  return null;
+}
+
 export function resizeGrid(grid: GridState, nextRows: number, nextCols: number): GridState {
   const nextCells = Array.from({ length: nextRows * nextCols }, () => null as string | null);
 

@@ -36,6 +36,8 @@ export interface GeneratorEntity {
   generatorId: number;
   level: number;
   charges: GeneratorSpawn[];
+  lastTickTimestamp?: number;  // only for spawnMode='timer'
+  pendingDrop?: GeneratorSpawn | null;  // only for spawnMode='timer'
 }
 
 export interface RuneEntity {
@@ -60,14 +62,7 @@ export interface PredatorEntity {
   preferredCreatureType: string;
 }
 
-export interface FlowerPotEntity {
-  id: string;
-  kind: 'flowerpot';
-  potLevel: number;
-  lastSpawnTimestamp: number;
-}
-
-export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity | FlowerPotEntity;
+export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity;
 
 export interface TaskRequirement {
   type: string;
@@ -92,6 +87,8 @@ export interface TaskDefinition {
   debugMainCollapsed?: ScoringTableEntry[];
   debugFillerScoringTable?: ScoringTableEntry[];
   debugFillerCollapsed?: ScoringTableEntry[];
+  /** Generator id the picked creature came from (for FP counter bookkeeping). */
+  pickedGenId?: number;
 }
 
 export interface ScoringTableEntry {
@@ -107,7 +104,7 @@ export interface ScoringTableEntry {
   targetLevel: number;
 }
 
-export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid' | 'flowerpot';
+export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
 
 export interface ProgressReward {
   type: RewardType;
@@ -169,6 +166,8 @@ export interface GameSnapshot {
   autoTaskLastLevels: Record<string, number>;
   session: number;
   meatButtonPresses: number;
+  meatPressesAtLastFP: number;
+  fpQuestsByKrakenLevel: Record<number, number>;
   cumulativeStats: CumulativeStats;
   questState: QuestState;
   meatDropQueue: MeatDrop[];

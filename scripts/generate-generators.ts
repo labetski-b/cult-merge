@@ -27,6 +27,11 @@ const DESIGN = {
   genMultipliers: [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0],
   genPurchaseCost: [10, 15, 20, 25, 30, 40, 50, 60],
 
+  // Flower-pot (Gen3) specific direct_top curves (higher ladder since low volume)
+  directTopPrimaryFP: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  directTopSecondaryFP: [0, 0, 1, 2, 3, 4, 5, 6, 7, 8], // 0 = line not yet active
+  tickIntervalSecFP: 1800,
+
   runeRedemption: [2, 5, 12],
 
   sessionSacrifices: 5,
@@ -290,6 +295,8 @@ interface GenLevel {
 interface Gen {
   id: number;
   name: string;
+  spawnMode?: 'sacrifice' | 'timer';
+  tickIntervalSec?: number;
   eggType: string;
   purchaseCurrency: 'rune1' | 'rune2';
   purchaseCost: number;
@@ -315,6 +322,8 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
   const genId = N;
   const krakenReq = GEN_KRAKEN_REQUIRED[genIdx];
   const mSacAtUnlock = interpolateMSac(krakenReq);
+
+  const isFlowerPot = genIdx === 2; // Gen3 (0-indexed)
 
   // primary/secondary creature names (Gen_N → Cr_{2N-1} + Cr_{2N})
   const primaryName = `Creature${2 * N - 1}`;
@@ -362,10 +371,13 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
     const targetEMV = target_tMV_per_sac / (spawns * chargesPerSac);
 
     // Strictly следуем direct_top таблице, но для Gen_N > 1 может потребоваться чуть больше room.
-    // Для начала используем те же direct_top что у Gen1.
-    const primaryTop = DIRECT_TOP_PRIMARY[idx];
-    let secondaryTop = DIRECT_TOP_SECONDARY[idx];
-    if (L < DESIGN.secondaryActivatesAtL) secondaryTop = 0;
+    // Для Gen3 (flower-pot) используем специальную лестницу с более высоким потолком.
+    const dirTopPrimary = isFlowerPot ? DESIGN.directTopPrimaryFP : DIRECT_TOP_PRIMARY;
+    const dirTopSecondary = isFlowerPot ? DESIGN.directTopSecondaryFP : DIRECT_TOP_SECONDARY;
+    const primaryTop = dirTopPrimary[idx];
+    let secondaryTop = dirTopSecondary[idx];
+    // Gate: secondary only active when value > 0 (handles both flower-pot and standard paths)
+    if (secondaryTop <= 0 || L < DESIGN.secondaryActivatesAtL) secondaryTop = 0;
 
     const probs = buildOutputs(L, primaryTop, secondaryTop, targetEMV, primaryName, secondaryName);
 
@@ -409,7 +421,9 @@ function generateGen(genIdx: number): { gen: Gen; stats: GenStat } {
 
   const gen: Gen = {
     id: genId,
-    name: `Generator ${genId}`,
+    name: isFlowerPot ? 'Flower Pot' : `Generator ${genId}`,
+    spawnMode: isFlowerPot ? 'timer' : 'sacrifice',
+    ...(isFlowerPot && { tickIntervalSec: DESIGN.tickIntervalSecFP }),
     eggType: `Egg_Creature${genId}`,
     purchaseCurrency: GEN_UPGRADE_RUNE[genIdx],
     purchaseCost: Math.ceil(DESIGN.genPurchaseCost[genIdx] / 2), // units → rune count

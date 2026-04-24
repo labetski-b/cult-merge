@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
-import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
@@ -14,7 +13,7 @@ import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/
 import { mergeEntities } from '@domain/merge';
 import { canUpgradeGenerator } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
-import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
+import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import {
   feedEntity as applyFeedEntity,
@@ -23,6 +22,7 @@ import {
   type FeedRuntimeReason
 } from '@domain/runtime/feed';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
@@ -48,9 +48,8 @@ interface GameActions {
   completeQuest: () => void;
   feedPredator: (predatorId: string, creatureId: string) => void;
   addKrakenExp: (amount: number) => void;
-  tickFlowerPots: (now: number) => void;
-  buyFlowerPot: () => void;
-  speedUpFlowerPot: (entityId: string) => void;
+  tickTimerGenerators: (now: number) => void;
+  debugSkipTimerGenerator: (entityId: string) => void;
   ensureAutoTask: () => void;
   getMeat: () => void;
   consumeMeatDrop: (id: number) => void;
@@ -261,7 +260,7 @@ export const useGameStore = create<GameStore>()(
             };
           }
 
-          return {
+          const mergedPartial = {
             grid: nextGrid,
             entities: nextEntities,
             predatorMergeCounts: newMergeCounts,
@@ -272,6 +271,14 @@ export const useGameStore = create<GameStore>()(
             mergeCountByLine: nextMergeCountByLine,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
+
+          // After merge a cell becomes free — give timer generators a chance to spawn
+          const intermediateSnapshot = { ...state, ...mergedPartial };
+          const tickedSnapshot = tickTimerGenerators(intermediateSnapshot, Date.now(), BALANCE);
+          if (tickedSnapshot !== intermediateSnapshot) {
+            return { ...mergedPartial, entities: tickedSnapshot.entities, grid: tickedSnapshot.grid, rngState: tickedSnapshot.rngState, cumulativeStats: tickedSnapshot.cumulativeStats };
+          }
+          return mergedPartial;
         });
         const afterMerge = get();
         set({ questState: evaluateAllQuests(BALANCE, afterMerge.cumulativeStats, afterMerge) });
@@ -436,30 +443,6 @@ export const useGameStore = create<GameStore>()(
               grid: resizedGrid,
               lastMessage: `Field expanded to ${nextGridSize.rows}×${nextGridSize.cols}!`
             };
-          } else if (reward.type === 'flowerpot' && typeof reward.value === 'number') {
-            const freeSlots = getFreeCellIndexes(result.grid ?? state.grid);
-            if (freeSlots.length === 0) return { lastMessage: 'No free cell to place FlowerPot.' };
-
-            const targetCell = freeSlots[0]!;
-            const potId = rng.nextId();
-            const nextGrid = { ...(result.grid ?? state.grid), cells: [...(result.grid ?? state.grid).cells] };
-            const nextEntities = { ...(result.entities ?? state.entities) };
-
-            nextEntities[potId] = {
-              id: potId,
-              kind: 'flowerpot' as const,
-              potLevel: reward.value,
-              lastSpawnTimestamp: Date.now()
-            };
-            nextGrid.cells[targetCell] = potId;
-
-            result = {
-              ...result,
-              grid: nextGrid,
-              entities: nextEntities,
-              rngState: rng.getState(),
-              lastMessage: `FlowerPot Lv${reward.value} placed!`
-            };
           }
 
           // After claiming last reward, advance kraken past any 0-exp steps
@@ -576,6 +559,10 @@ export const useGameStore = create<GameStore>()(
             if (entity.kind !== 'generator') continue;
             let gen = entity as GeneratorEntity;
 
+            // Timer-mode generators (Gen3 Flower Pot) are handled by tickTimerGenerators.
+            const { generator: genCfg } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
+            if (genCfg.spawnMode === 'timer') continue;
+
             // Charge if empty and can afford
             if (gen.charges.length === 0) {
               const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
@@ -631,6 +618,8 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let nextMeatPressesAtLastFP = state.meatPressesAtLastFP;
+          let nextFpQuestsByKrakenLevel = state.fpQuestsByKrakenLevel;
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -697,8 +686,13 @@ export const useGameStore = create<GameStore>()(
                   // If this was the last mandatory task, generate first auto task
                   const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
                   if (nextMandatory === null) {
-                    const snapForGen = { ...state, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels };
+                    const snapForGen = { ...state, kraken: krakenState, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
                     nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                    const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                    if (fpUpdate) {
+                      nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                      nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                    }
                   }
                 } else {
                   // Auto task → generate next
@@ -709,8 +703,13 @@ export const useGameStore = create<GameStore>()(
                     nextAutoTaskLastLevels[cr.type] = cr.level;
                   }
                   const completedLine = task.creatures[0]?.type ?? null;
-                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels };
+                  const snapForGen = { ...state, kraken: krakenState, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
                   nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                  const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                  if (fpUpdate) {
+                    nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                    nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                  }
                   nextAutoTaskLine = completedLine;
                 }
               }
@@ -738,6 +737,8 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
+            meatPressesAtLastFP: nextMeatPressesAtLastFP,
+            fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
             rngState: rng.getState(),
             cumulativeStats: {
               ...state.cumulativeStats,
@@ -768,6 +769,8 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let nextMeatPressesAtLastFP = state.meatPressesAtLastFP;
+          let nextFpQuestsByKrakenLevel = state.fpQuestsByKrakenLevel;
           let meatButtonPresses = state.meatButtonPresses;
           let session = state.session;
           let cqMerges = 0;
@@ -916,7 +919,13 @@ export const useGameStore = create<GameStore>()(
             ?? nextAutoTask;
 
           if (!task) {
-            nextAutoTask = generateAutoTask(BALANCE, { ...state, kraken: krakenState, resources: nextResources, entities: nextEntities, taskProgress: nextTaskProgress }, rng);
+            const snapForGen = { ...state, kraken: krakenState, resources: nextResources, entities: nextEntities, taskProgress: nextTaskProgress, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel, meatButtonPresses };
+            nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+            const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+            if (fpUpdate) {
+              nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+              nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+            }
             task = nextAutoTask;
           }
 
@@ -933,6 +942,8 @@ export const useGameStore = create<GameStore>()(
               lastAutoTaskLine: nextAutoTaskLine,
               autoTaskLineCompletions: nextAutoTaskLineCompletions,
               autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatPressesAtLastFP: nextMeatPressesAtLastFP,
+              fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
               meatButtonPresses,
               session,
               rngState: rng.getState(),
@@ -1301,9 +1312,17 @@ export const useGameStore = create<GameStore>()(
                   lastAutoTaskLine: null as string | null,
                   resources: nextResources,
                   entities: nextEntities,
-                  autoTaskLastLevels: nextAutoTaskLastLevels
+                  autoTaskLastLevels: nextAutoTaskLastLevels,
+                  meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                  fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                  meatButtonPresses
                 };
                 nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                if (fpUpdate) {
+                  nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                  nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                }
               }
             } else {
               for (const cr of currentTask.creatures) {
@@ -1316,14 +1335,23 @@ export const useGameStore = create<GameStore>()(
               const completedLine = currentTask.creatures[0]?.type ?? null;
               const snapForGen = {
                 ...state,
+                kraken: krakenState,
                 lastAutoTaskLine: completedLine,
                 currentAutoTask: currentTask,
                 resources: nextResources,
                 entities: nextEntities,
                 autoTaskLineCompletions: nextAutoTaskLineCompletions,
-                autoTaskLastLevels: nextAutoTaskLastLevels
+                autoTaskLastLevels: nextAutoTaskLastLevels,
+                meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                meatButtonPresses
               };
               nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+              const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+              if (fpUpdate) {
+                nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+              }
               nextAutoTaskLine = completedLine;
             }
 
@@ -1356,6 +1384,8 @@ export const useGameStore = create<GameStore>()(
               lastAutoTaskLine: nextAutoTaskLine,
               autoTaskLineCompletions: nextAutoTaskLineCompletions,
               autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatPressesAtLastFP: nextMeatPressesAtLastFP,
+              fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
               meatButtonPresses,
               session,
               rngState: rng.getState(),
@@ -1393,6 +1423,8 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
+            meatPressesAtLastFP: nextMeatPressesAtLastFP,
+            fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
             meatButtonPresses,
             session,
             rngState: rng.getState(),
@@ -1650,114 +1682,41 @@ export const useGameStore = create<GameStore>()(
         set({ questState: evaluateAllQuests(BALANCE, afterExp.cumulativeStats, afterExp) });
       },
 
-      tickFlowerPots: (now) => {
+      tickTimerGenerators: (now) => {
         set((state) => {
-          const pots = Object.values(state.entities).filter(
-            (e): e is FlowerPotEntity => e.kind === 'flowerpot'
-          );
-          if (pots.length === 0) return {};
-
-          const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
-          const rng = new SeededRng(state.rngState);
-          const nextEntities = { ...state.entities };
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          let totalSpawned = 0;
-
-          for (const pot of pots) {
-            const pending = calcPendingSpawns(pot, now, intervalMs);
-            if (pending === 0) continue;
-
-            const potCell = findEntityCell(nextGrid, pot.id);
-            if (potCell < 0) continue;
-
-            let spawned = 0;
-            for (let i = 0; i < pending; i += 1) {
-              const freeNeighbors = getNeighborCellIndexes(nextGrid, potCell).filter(
-                (idx) => nextGrid.cells[idx] === null
-              );
-              if (freeNeighbors.length === 0) break;
-
-              const targetIdx = freeNeighbors[Math.floor(rng.next() * freeNeighbors.length)]!;
-              const spawn = rollFlowerPotSpawn(rng, BALANCE, pot.potLevel);
-              const creatureId = rng.nextId();
-
-              nextGrid.cells[targetIdx] = creatureId;
-              nextEntities[creatureId] = {
-                id: creatureId,
-                kind: 'creature',
-                creatureType: spawn.creatureType,
-                level: spawn.level
-              };
-              spawned += 1;
-            }
-
-            // Always reset timer to now after a spawn cycle
-            nextEntities[pot.id] = {
-              ...pot,
-              lastSpawnTimestamp: now
-            };
-            totalSpawned += spawned;
-          }
-
-          if (totalSpawned === 0 && pots.every((p) => calcPendingSpawns(p, now, intervalMs) === 0)) {
-            return {};
-          }
-
+          const ticked = tickTimerGenerators(state, now, BALANCE);
+          if (ticked === state) return {};
           return {
-            entities: nextEntities,
-            grid: nextGrid,
-            rngState: rng.getState(),
-            ...(totalSpawned > 0 && { lastMessage: `FlowerPot spawned ${totalSpawned} creature(s)!` })
+            entities: ticked.entities,
+            grid: ticked.grid,
+            rngState: ticked.rngState,
+            cumulativeStats: ticked.cumulativeStats,
           };
         });
       },
 
-      buyFlowerPot: () => {
-        set((state) => {
-          const config = BALANCE.flowerpots.flowerpot;
-          const cost = config.purchaseCost;
-
-          if (state.resources.rune1 < cost) {
-            return { lastMessage: `Need ${cost} Rune1 to buy FlowerPot.` };
-          }
-
-          const freeSlots = getFreeCellIndexes(state.grid);
-          const targetCell = freeSlots[0];
-          if (targetCell === undefined) return { lastMessage: 'No free cell to place FlowerPot.' };
-
-          const rng = new SeededRng(state.rngState);
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          const nextEntities = { ...state.entities };
-          const potId = rng.nextId();
-
-          nextEntities[potId] = {
-            id: potId,
-            kind: 'flowerpot',
-            potLevel: 1,
-            lastSpawnTimestamp: Date.now()
-          };
-          nextGrid.cells[targetCell] = potId;
-
-          return {
-            resources: { ...state.resources, rune1: state.resources.rune1 - cost },
-            grid: nextGrid,
-            entities: nextEntities,
-            rngState: rng.getState(),
-            lastMessage: 'FlowerPot purchased!'
-          };
-        });
-      },
-
-      speedUpFlowerPot: (entityId) => {
+      debugSkipTimerGenerator: (entityId) => {
         set((state) => {
           const entity = state.entities[entityId];
-          if (!entity || entity.kind !== 'flowerpot') return {};
-          const pot = entity as FlowerPotEntity;
+          if (!entity || entity.kind !== 'generator') return {};
+          const gen = entity as GeneratorEntity;
+          const config = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+          if (!config || config.spawnMode !== 'timer') return {};
+          const intervalMs = (config.tickIntervalSec ?? 0) * 1000;
+          const updatedEntity: GeneratorEntity = {
+            ...gen,
+            lastTickTimestamp: Date.now() - intervalMs,
+          };
+          const intermediateSnapshot = {
+            ...state,
+            entities: { ...state.entities, [entityId]: updatedEntity },
+          };
+          const ticked = tickTimerGenerators(intermediateSnapshot, Date.now(), BALANCE);
           return {
-            entities: {
-              ...state.entities,
-              [entityId]: { ...pot, lastSpawnTimestamp: Math.max(1, pot.lastSpawnTimestamp - 600_000) }
-            }
+            entities: ticked.entities,
+            grid: ticked.grid,
+            rngState: ticked.rngState,
+            cumulativeStats: ticked.cumulativeStats,
           };
         });
       },
@@ -1768,9 +1727,11 @@ export const useGameStore = create<GameStore>()(
 
           const rng = new SeededRng(state.rngState);
           const autoTask = generateAutoTask(BALANCE, state, rng);
+          const fpUpdate = applyFPCounterUpdate(autoTask, state, BALANCE);
           return {
             currentAutoTask: autoTask,
-            rngState: rng.getState()
+            rngState: rng.getState(),
+            ...(fpUpdate ?? {})
           };
         });
       },
@@ -1849,6 +1810,34 @@ export function migrateGameStore(
       mergesSpentByGen: {},
       activeUpgrade: null,
     };
+  }
+
+  if (persistedVersion < 22) {
+    const state = persistedState as {
+      entities?: Record<string, { kind?: string }>;
+      grid?: { cells?: (string | null)[] };
+    };
+    if (state.entities && state.grid?.cells) {
+      const newEntities: Record<string, unknown> = {};
+      const removedIds = new Set<string>();
+      for (const [id, entity] of Object.entries(state.entities)) {
+        if (entity.kind === 'flowerpot') {
+          removedIds.add(id);
+        } else {
+          newEntities[id] = entity;
+        }
+      }
+      persistedState = {
+        ...(persistedState as object),
+        entities: newEntities,
+        grid: {
+          ...state.grid,
+          cells: state.grid.cells.map((cell) =>
+            cell !== null && removedIds.has(cell) ? null : cell,
+          ),
+        },
+      };
+    }
   }
 
   return persistedState;

@@ -76,6 +76,7 @@ export function TaskPanel() {
   const feedEntity = useGameStore((s) => s.feedEntity);
   const ensureAutoTask = useGameStore((s) => s.ensureAutoTask);
   const completeQuest = useGameStore((s) => s.completeQuest);
+  const debugSkipTimerGenerator = useGameStore((s) => s.debugSkipTimerGenerator);
   const [showDebug, setShowDebug] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [floats, setFloats] = useState<FloatingText[]>([]);
@@ -206,6 +207,17 @@ export function TaskPanel() {
                     Difficulty: {task.difficulty ?? '?'} | Meat budget: {task.debugMeatBudget != null ? task.debugMeatBudget.toFixed(1) : '?'}
                     {task.debugMainScoringTable && ` | Split: 70%/30%`}
                   </div>
+                  <button
+                    onClick={() => {
+                      const gen3 = Object.values(entities).find(
+                        (e) => e && e.kind === 'generator' && e.generatorId === 3
+                      );
+                      if (gen3) debugSkipTimerGenerator(gen3.id);
+                    }}
+                    style={{ marginTop: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                  >
+                    Skip 30min (Gen3)
+                  </button>
                   {task.debugMainScoringTable && task.debugMainScoringTable.length > 0 && (
                     <>
                       <div className="task-debug-label">Main table (70% budget)</div>

@@ -52,7 +52,11 @@ export function ChapterQuestsButton() {
 
   return (
     <>
-      <button className="btn-chapter" type="button" onClick={() => setOpen(true)}>
+      <button
+        className={`btn-chapter${canClaim ? ' btn-chapter--claimable' : ''}`}
+        type="button"
+        onClick={() => setOpen(true)}
+      >
         Chapter {chapter.id} ({completedCount}/{chapter.quests.length})
       </button>
       {open && (

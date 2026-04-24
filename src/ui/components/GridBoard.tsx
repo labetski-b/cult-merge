@@ -1,21 +1,82 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import type { CreatureEntity, Entity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
-import { calcPendingSpawns } from '@domain/flowerpot';
-import { canMergeCreatures, canMergeFlowerPots, canMergeRunes } from '@domain/merge';
+import { canMergeCreatures, canMergeRunes } from '@domain/merge';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
+
+function computeTimerProgress(
+  gen: GeneratorEntity,
+  intervalSec: number | undefined,
+): number {
+  if (gen.pendingDrop) return 1;
+  const interval = (intervalSec ?? 0) * 1000;
+  if (interval <= 0) return 0;
+  const last = gen.lastTickTimestamp ?? Date.now();
+  const elapsed = Date.now() - last;
+  if (elapsed <= 0) return 0;
+  if (elapsed >= interval) return 1;
+  return elapsed / interval;
+}
+
+function computeTimerLabel(
+  gen: GeneratorEntity,
+  intervalSec: number | undefined,
+): string {
+  if (gen.pendingDrop !== null) return '⏸';
+  const interval = (intervalSec ?? 0) * 1000;
+  if (interval <= 0) return '';
+  const last = gen.lastTickTimestamp ?? Date.now();
+  const remainingSec = Math.max(0, Math.ceil((interval - (Date.now() - last)) / 1000));
+  if (remainingSec === 0) return '💥';
+  if (remainingSec < 60) return `${remainingSec}s`;
+  const m = Math.floor(remainingSec / 60);
+  const s = remainingSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function CircularTimerProgress({ progress }: { progress: number }) {
+  const radius = 10;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.max(0, Math.min(1, progress)));
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      className="gen-timer-progress"
+      style={{
+        position: 'absolute',
+        top: '4px',
+        right: '4px',
+        borderRadius: '50%',
+        background: 'rgba(0,0,0,0.55)',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+      }}
+    >
+      <circle cx="12" cy="12" r={radius} className="gen-timer-track" />
+      <circle
+        cx="12"
+        cy="12"
+        r={radius}
+        className="gen-timer-fill"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform="rotate(-90 12 12)"
+      />
+    </svg>
+  );
+}
 
 function entityLabel(entity: Entity): string {
   if (entity.kind === 'generator') return `G${entity.generatorId}`;
   if (entity.kind === 'rune') return entity.runeType;
   if (entity.kind === 'box') return `Box#${entity.boxId}`;
   if (entity.kind === 'predator') return `P${entity.predatorId}`;
-  if (entity.kind === 'flowerpot') return '🌸';
   return entity.creatureType.replace('Creature', 'C');
 }
 
@@ -26,7 +87,6 @@ function entitySublabel(entity: Entity): string {
   if (entity.kind === 'rune') return '';
   if (entity.kind === 'box') return '';
   if (entity.kind === 'predator') return `${entity.currentExp}/${entity.requiredExp}`;
-  if (entity.kind === 'flowerpot') return `L${entity.potLevel}`;
   return `L${entity.level}`;
 }
 
@@ -61,9 +121,6 @@ export function GridBoard() {
   const tapGenerator = useGameStore((state) => state.tapGenerator);
   const tapBox = useGameStore((state) => state.tapBox);
   const feedPredator = useGameStore((state) => state.feedPredator);
-  const speedUpFlowerPot = useGameStore((state) => state.speedUpFlowerPot);
-  const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
-
   const currentTask = useCurrentTask();
   const currentTaskFed = useCurrentTaskFed();
 
@@ -151,8 +208,6 @@ export function GridBoard() {
         return canMergeRunes(dragSourceEntity as RuneEntity, targetEntity as RuneEntity);
       if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator')
         return true;
-      if (dragSourceEntity.kind === 'flowerpot' && targetEntity.kind === 'flowerpot')
-        return canMergeFlowerPots(dragSourceEntity as FlowerPotEntity, targetEntity as FlowerPotEntity);
       return false;
     },
     [dragSource, dragSourceEntity, grid.cells, entities]
@@ -336,7 +391,11 @@ export function GridBoard() {
 
     if (entity.kind === 'generator') {
       const gen = entity as GeneratorEntity;
-      if (gen.charges.length > 0) {
+      const genConfig = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
+      // Timer-mode generators (Gen3 Flower Pot) do not respond to taps — they tick passively.
+      if (genConfig?.spawnMode === 'timer') {
+        setChargePopup(null);
+      } else if (gen.charges.length > 0) {
         tapGenerator(gen.id);
         setChargePopup(null);
       } else {
@@ -357,10 +416,6 @@ export function GridBoard() {
     const entityId = grid.cells[index];
     if (!entityId) return;
     const entity = entities[entityId];
-    if (entity?.kind === 'flowerpot') {
-      speedUpFlowerPot(entityId);
-      tickFlowerPots(Date.now());
-    }
   };
 
   const handleCharge = () => {
@@ -393,8 +448,6 @@ export function GridBoard() {
         classes.push('cell-box');
       } else if (entity.kind === 'predator') {
         classes.push('cell-predator');
-      } else if (entity.kind === 'flowerpot') {
-        classes.push('cell-flowerpot');
       } else {
         classes.push('cell-creature');
       }
@@ -442,32 +495,45 @@ export function GridBoard() {
                   } else if (entity.kind === 'generator') {
                     img = getGeneratorImage(entity.generatorId, entity.level);
                     badge = `L${entity.level}`;
+                    const genConfig = BALANCE.generators.generators.find((g) => g.id === entity.generatorId);
+                    const isTimerMode = genConfig?.spawnMode === 'timer';
                     const chargeCount = entity.charges.length;
                     return (
                       <>
                         <img src={img} alt={entityLabel(entity)} className="creature-image" draggable={false} />
                         <span className="cell-badge">{badge}</span>
-                        <span
-                          className="generator-charge-badge"
-                          style={{
-                            position: 'absolute',
-                            top: '4px',
-                            right: '4px',
-                            backgroundColor: chargeCount > 0 ? '#4CAF50' : '#777',
-                            color: 'white',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                          }}
-                        >
-                          {chargeCount}
-                        </span>
+                        {isTimerMode ? (
+                          <>
+                            <CircularTimerProgress
+                              progress={computeTimerProgress(entity, genConfig?.tickIntervalSec)}
+                            />
+                            <span className="gen-timer-label">
+                              {computeTimerLabel(entity, genConfig?.tickIntervalSec)}
+                            </span>
+                          </>
+                        ) : (
+                          <span
+                            className="generator-charge-badge"
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: chargeCount > 0 ? '#4CAF50' : '#777',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                            }}
+                          >
+                            {chargeCount}
+                          </span>
+                        )}
                       </>
                     );
                   } else if (entity.kind === 'rune') {
@@ -484,26 +550,6 @@ export function GridBoard() {
                           <div className="predator-bar-fill" style={{ width: `${pct * 100}%` }} />
                         </div>
                         <span className="cell-badge">{pred.currentExp}/{pred.requiredExp}</span>
-                      </>
-                    );
-                  } else if (entity.kind === 'flowerpot') {
-                    const pot = entity as FlowerPotEntity;
-                    const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
-                    const pending = calcPendingSpawns(pot, Date.now(), intervalMs);
-                    const elapsed = pot.lastSpawnTimestamp > 0 ? Date.now() - pot.lastSpawnTimestamp : 0;
-                    const msUntilNext = intervalMs - (elapsed % intervalMs);
-                    const totalSec = Math.max(0, Math.ceil(msUntilNext / 1000));
-                    const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
-                    const ss = String(totalSec % 60).padStart(2, '0');
-                    return (
-                      <>
-                        <span className="entity-label">🌸</span>
-                        <span className="entity-level">L{pot.potLevel}</span>
-                        {pending > 0 ? (
-                          <span className="cell-badge pot-ready">Ready!</span>
-                        ) : (
-                          <span className="cell-badge">{mm}:{ss}</span>
-                        )}
                       </>
                     );
                   } else if (entity.kind === 'box') {
