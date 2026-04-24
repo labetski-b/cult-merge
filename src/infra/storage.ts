@@ -1,5 +1,5 @@
 export const SAVE_KEY = 'cult_merge_save_v1';
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 
 export function migrateSave(raw: {
   version: number;
@@ -32,6 +32,19 @@ export function migrateSave(raw: {
         ...snapshot,
         entities: newEntities,
         grid: { ...snapshot.grid, cells: newCells },
+      },
+    };
+  }
+
+  if (current.version < 23) {
+    const snapshot = current.snapshot;
+    current = {
+      ...current,
+      version: 23,
+      snapshot: {
+        ...snapshot,
+        meatPressesAtLastFP: 0,
+        fpQuestsByKrakenLevel: {},
       },
     };
   }

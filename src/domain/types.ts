@@ -164,6 +164,8 @@ export interface GameSnapshot {
   autoTaskLastLevels: Record<string, number>;
   session: number;
   meatButtonPresses: number;
+  meatPressesAtLastFP: number;
+  fpQuestsByKrakenLevel: Record<number, number>;
   cumulativeStats: CumulativeStats;
   questState: QuestState;
   meatDropQueue: MeatDrop[];

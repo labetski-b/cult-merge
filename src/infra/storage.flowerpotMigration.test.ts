@@ -14,7 +14,7 @@ describe('save migration v21 → v22', () => {
       },
     };
     const result = migrateSave(oldSave);
-    expect(result.version).toBe(22);
+    expect(result.version).toBe(23);
     expect(result.snapshot.entities['pot-1']).toBeUndefined();
     expect(result.snapshot.entities['gen1-1']).toBeDefined();
     expect(result.snapshot.grid.cells[4]).toBeNull();

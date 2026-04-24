@@ -62,6 +62,8 @@ export function createInitialSnapshot(
     autoTaskLastLevels: {},
     session: 1,
     meatButtonPresses: 0,
+    meatPressesAtLastFP: 0,
+    fpQuestsByKrakenLevel: {},
     cumulativeStats,
     questState: createEmptyQuestState(),
     meatDropQueue: [],
