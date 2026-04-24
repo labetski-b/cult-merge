@@ -89,21 +89,13 @@ const taskSchema = z.object({
   eyeReward: z.number().min(0).optional()
 });
 
-const maxCountByOffsetEntrySchema = z.object({
-  offset: z.number().int().min(0),
-  maxCount: z.number().int().min(1),
-});
-
 export const autoConfigSchema = z.object({
   difficultyFlow: z.array(z.number().int().positive()).optional(),
   difficultySacMap: z.array(z.number().min(0)).optional(),
-  budgetAnchors: z.array(z.tuple([z.number(), z.number()])).optional(),
   // Legacy field name kept for JSON compatibility: controls dual-requirement
   // auto tasks inside the Kraken-task loop, not Kraken quests.
   dualQuestProbability: z.number().min(0).max(1).optional(),
   dualBudgetSplit: z.tuple([z.number(), z.number()]).optional(),
-  maxCountByOffset: z.array(maxCountByOffsetEntrySchema).optional(),
-  maxSpawns: z.number().optional(),
   eyeRewardByChapter: z.array(z.tuple([z.number().int(), z.number()])).optional(),
   difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
   eyePerMeat: z.array(z.tuple([z.number().int(), z.number()])).optional(),
