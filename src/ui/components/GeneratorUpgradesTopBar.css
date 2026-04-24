@@ -101,27 +101,3 @@
   color: #0e192a;
   background: #6bcf7f;
 }
-
-/* Spawn-timer status badge (spawnMode='timer' generators, e.g. Gen3) */
-.generator-upgrade-widget .timer-badge {
-  font-size: 9px;
-  line-height: 1;
-  padding: 1px 4px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.generator-upgrade-widget .timer-badge.ticking {
-  color: #8fc1ff;
-  background: rgba(143, 193, 255, 0.15);
-}
-
-.generator-upgrade-widget .timer-badge.ready {
-  color: #0e192a;
-  background: #6bcf7f;
-}
-
-.generator-upgrade-widget .timer-badge.paused {
-  color: #ffd454;
-  background: rgba(255, 212, 84, 0.18);
-}
