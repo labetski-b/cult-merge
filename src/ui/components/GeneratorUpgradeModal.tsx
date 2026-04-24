@@ -43,16 +43,6 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
   const resources = useGameStore((s) => s.resources);
   const activeUpgrade = useGameStore((s) => s.activeUpgrade);
 
-  const hasTimerMode = useMemo(
-    () => owned.some((gen) => {
-      const cfg = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
-      return cfg?.spawnMode === 'timer';
-    }),
-    [owned]
-  );
-
-  useSecondTicker(isOpen && (activeUpgrade !== null || hasTimerMode));
-
   const owned = useMemo<GeneratorEntity[]>(() => {
     const list: GeneratorEntity[] = [];
     for (const id in entities) {
@@ -66,6 +56,16 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
     });
     return list;
   }, [entities]);
+
+  const hasTimerMode = useMemo(
+    () => owned.some((gen) => {
+      const cfg = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
+      return cfg?.spawnMode === 'timer';
+    }),
+    [owned]
+  );
+
+  useSecondTicker(isOpen && (activeUpgrade !== null || hasTimerMode));
 
   if (!isOpen) return null;
 
