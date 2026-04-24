@@ -73,4 +73,15 @@ describe('applyCollectUpgrade', () => {
     const occupied = { ...base, activeUpgrade: { entityId: 'x', generatorId: 1, startedAt: 0, finishesAt: 5000 } };
     expect(applyCollectUpgrade(occupied, 1000)).toBe(occupied);
   });
+
+  it('clears slot if entity vanished while upgrade was active', () => {
+    const base = createInitialSnapshot(BALANCE, { seed: 42 });
+    const ghostUpgrade = {
+      ...base,
+      activeUpgrade: { entityId: 'does-not-exist', generatorId: 1, startedAt: 0, finishesAt: 1000 },
+    };
+    const result = applyCollectUpgrade(ghostUpgrade, 2000);
+    expect(result.activeUpgrade).toBeNull();
+    expect(result).not.toBe(ghostUpgrade);
+  });
 });
