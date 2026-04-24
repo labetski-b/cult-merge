@@ -36,6 +36,8 @@ export interface GeneratorEntity {
   generatorId: number;
   level: number;
   charges: GeneratorSpawn[];
+  lastTickTimestamp?: number;  // only for spawnMode='timer'
+  pendingDrop?: GeneratorSpawn | null;  // only for spawnMode='timer'
 }
 
 export interface RuneEntity {
