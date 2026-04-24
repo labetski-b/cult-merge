@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       // Supplement tsconfigPaths for files in src/simulation/ (excluded from tsconfig.app.json)
-      '@simulation': path.resolve(__dirname, './src/simulation'),
       '@domain': path.resolve(__dirname, './src/domain'),
       '@data': path.resolve(__dirname, './src/data'),
       '@infra': path.resolve(__dirname, './src/infra'),

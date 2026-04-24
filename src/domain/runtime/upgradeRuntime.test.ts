@@ -22,7 +22,9 @@ describe('applyStartUpgrade', () => {
     const result = applyStartUpgrade(prepared, BALANCE, entityId, 1_000_000);
     expect(result.activeUpgrade).not.toBeNull();
     expect(result.activeUpgrade!.entityId).toBe(entityId);
-    const gen1Upgrade = BALANCE.generators.generators.find(g => g.id === 1)!.levels[0].upgrade!;
+    const gen1Def = BALANCE.generators.generators.find(g => g.id === 1);
+    const gen1Upgrade = gen1Def?.levels[0]?.upgrade;
+    if (!gen1Upgrade) throw new Error('Test precondition: gen1 level[0].upgrade must be defined');
     expect(result.resources[gen1Upgrade.runeType]).toBe(100 - gen1Upgrade.runeCost);
     expect(result.mergesSpentByGen[1]).toBe(gen1Upgrade.mergesRequired);
   });
