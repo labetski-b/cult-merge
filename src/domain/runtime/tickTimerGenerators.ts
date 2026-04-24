@@ -25,6 +25,10 @@ export function tickTimerGenerators(
   let grid = snapshot.grid;
   let rngState = snapshot.rngState;
   let changed = false;
+  let totalSpawnsPlaced = 0;
+
+  // Single SeededRng instance for the entire call; getState() called once at exit
+  const rng = new SeededRng(rngState);
 
   for (const [entityId, entity] of Object.entries(entities)) {
     if (entity.kind !== 'generator') continue;
@@ -47,9 +51,7 @@ export function tickTimerGenerators(
     if (pendingDrop !== null) {
       const freeIdx = findFreeNeighbor(grid, genCellIndex);
       if (freeIdx !== null) {
-        const rng = new SeededRng(rngState);
         const creatureId = rng.nextId();
-        rngState = rng.getState();
 
         const creature: CreatureEntity = {
           id: creatureId,
@@ -66,6 +68,7 @@ export function tickTimerGenerators(
         pendingDrop = null;
         genChanged = true;
         changed = true;
+        totalSpawnsPlaced += 1;
       }
     }
 
@@ -74,17 +77,12 @@ export function tickTimerGenerators(
       const levelConfig = config.levels.find(l => l.level === gen.level);
       if (!levelConfig) break;
 
-      const rng = new SeededRng(rngState);
       const randValue = rng.next();
-      rngState = rng.getState();
-
       const spawn = rollSingleOutput(levelConfig, () => randValue);
 
       const freeIdx = findFreeNeighbor(grid, genCellIndex);
       if (freeIdx !== null) {
-        const idRng = new SeededRng(rngState);
-        const creatureId = idRng.nextId();
-        rngState = idRng.getState();
+        const creatureId = rng.nextId();
 
         const creature: CreatureEntity = {
           id: creatureId,
@@ -101,6 +99,7 @@ export function tickTimerGenerators(
         lastTick += intervalMs;
         genChanged = true;
         changed = true;
+        totalSpawnsPlaced += 1;
       } else {
         // Model α: timer does NOT advance when neighbors are full
         pendingDrop = spawn;
@@ -111,7 +110,7 @@ export function tickTimerGenerators(
     }
 
     // Update the generator entity if anything changed
-    if (genChanged || lastTick !== gen.lastTickTimestamp || pendingDrop !== (gen.pendingDrop ?? null)) {
+    if (genChanged) {
       entities = {
         ...entities,
         [entityId]: {
@@ -127,5 +126,16 @@ export function tickTimerGenerators(
     return snapshot;
   }
 
-  return { ...snapshot, entities, grid, rngState };
+  rngState = rng.getState();
+
+  return {
+    ...snapshot,
+    entities,
+    grid,
+    rngState,
+    cumulativeStats: {
+      ...snapshot.cumulativeStats,
+      totalSpawns: snapshot.cumulativeStats.totalSpawns + totalSpawnsPlaced,
+    },
+  };
 }

@@ -87,7 +87,7 @@ function makeBaseSnapshot(grid: GridState): GameSnapshot {
   };
 }
 
-function makeTimerGen(id: string, cellIndex: number): GeneratorEntity {
+function makeTimerGen(id: string): GeneratorEntity {
   return {
     id,
     kind: 'generator',
@@ -122,7 +122,7 @@ describe('tickTimerGenerators', () => {
     const t0 = 1_000_000;
     const now = t0 + intervalMs; // exactly one interval elapsed
 
-    const gen = makeTimerGen(genId, 4);
+    const gen = makeTimerGen(genId);
     gen.lastTickTimestamp = t0;
 
     const snapshot = makeBaseSnapshot(grid);
@@ -155,7 +155,7 @@ describe('tickTimerGenerators', () => {
     const t0 = 1_000_000;
     const now = t0 + intervalMs;
 
-    const gen = makeTimerGen(genId, 4);
+    const gen = makeTimerGen(genId);
     gen.lastTickTimestamp = t0;
 
     const snapshot = makeBaseSnapshot(grid);
@@ -187,7 +187,7 @@ describe('tickTimerGenerators', () => {
     const t0 = 1_000_000;
     const now = t0 + elapsed;
 
-    const gen = makeTimerGen(genId, 4);
+    const gen = makeTimerGen(genId);
     gen.lastTickTimestamp = t0;
 
     const snapshot = makeBaseSnapshot(grid);
@@ -222,7 +222,7 @@ describe('tickTimerGenerators', () => {
     const t0 = 1_000_000;
     const now = t0 + elapsed;
 
-    const gen = makeTimerGen(genId, 4);
+    const gen = makeTimerGen(genId);
     gen.lastTickTimestamp = t0;
 
     const snapshot = makeBaseSnapshot(grid);
@@ -243,6 +243,35 @@ describe('tickTimerGenerators', () => {
     expect(updatedGen.lastTickTimestamp).toBe(t0 + 3 * intervalMs);
     // pendingDrop set for the 4th creature that couldn't be placed
     expect(updatedGen.pendingDrop).not.toBeNull();
+  });
+
+  it('Test 6: cumulativeStats.totalSpawns incremented by creatures actually placed', () => {
+    const balance = makeTestBalance();
+    const intervalMs = 1800 * 1000; // 30 min
+    const elapsed = 2 * intervalMs; // 2 intervals elapsed → 2 creatures should be placed
+
+    // 3x3 grid, generator at center (index 4), 2 free neighbors
+    const grid = createGrid(3, 3);
+    const genId = 'gen001';
+    grid.cells[4] = genId;
+
+    const t0 = 1_000_000;
+    const now = t0 + elapsed;
+
+    const gen = makeTimerGen(genId);
+    gen.lastTickTimestamp = t0;
+
+    const snapshot = makeBaseSnapshot(grid);
+    snapshot.entities = { [genId]: gen };
+    // totalSpawns starts at 0 (from createEmptyCumulativeStats)
+    expect(snapshot.cumulativeStats.totalSpawns).toBe(0);
+
+    const result = tickTimerGenerators(snapshot, now, balance);
+
+    const newCreatures = Object.values(result.entities).filter(e => e.kind === 'creature');
+    expect(newCreatures).toHaveLength(2);
+    // totalSpawns must equal the number of creatures actually placed
+    expect(result.cumulativeStats.totalSpawns).toBe(2);
   });
 
   it('Test 5: no-op for sacrifice-mode — sacrifice generator is untouched', () => {
