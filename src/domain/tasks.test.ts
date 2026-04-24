@@ -185,3 +185,87 @@ describe('generateAutoTask — phantom +1 upgrade gating', () => {
     expect(gen1Row!.genLevel).toBe(1);
   });
 });
+
+/**
+ * Timer-mode generator (Flower Pot / Gen3) scoring tests.
+ *
+ * Unlike sacrifice-mode generators — where scoring is driven by the meat budget
+ * and chargeCost — timer-mode generators drop creatures on a fixed interval
+ * regardless of meat. The scoring model uses an 8-tick "window" of free drops
+ * rather than the meat budget.
+ */
+function makeBalanceWithTimerGen(): BalanceConfig {
+  const base = makeBalanceWithTwoGens();
+  const gen3 = {
+    id: 3,
+    name: 'FlowerPot',
+    spawnMode: 'timer' as const,
+    eggType: 'Egg3',
+    purchaseCurrency: 'rune1' as const,
+    purchaseCost: 0,
+    krakenRequired: 1,
+    tickIntervalSec: 1800,
+    lines: ['Creature5', 'Creature7'] as [string, string],
+    levels: [
+      {
+        level: 1,
+        chargeCost: 0,
+        numCreatures: 3,
+        outputs: [
+          { creatureType: 'Creature5', level: 1, chance: 0.6 },
+          { creatureType: 'Creature7', level: 1, chance: 0.4 },
+        ],
+      },
+    ],
+  };
+  return {
+    ...base,
+    generators: {
+      ...base.generators,
+      generators: [...base.generators.generators, gen3],
+    },
+  };
+}
+
+function addTimerGenOnField(state: GameSnapshot): void {
+  const id = 'fp1';
+  state.grid.cells[1] = id; // place on cell 1 (cell 0 is occupied by gen1)
+  state.entities[id] = {
+    id,
+    kind: 'generator',
+    generatorId: 3,
+    level: 1,
+    charges: [],
+  } satisfies GeneratorEntity;
+}
+
+describe('generateAutoTask — Flower Pot scoring', () => {
+  it('scores timer-mode generator with 8-tick window formula', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    const fpRowC5 = task.debugScoringTable!.find(
+      (e) => e.genId === 3 && e.creatureType === 'Creature5'
+    );
+    expect(fpRowC5).toBeDefined();
+    // spawnsInWindow = 8 × numCreatures(3) = 24
+    // spawnL1[C5] = 24 × (0.6 × 2^0) = 14.4
+    expect(fpRowC5!.spawnL1).toBeCloseTo(14.4, 2);
+  });
+
+  it('produces one row per creature line for timer gen', () => {
+    const config = makeBalanceWithTimerGen();
+    const state = makeSnapshotWithGen1OnField();
+    addTimerGenOnField(state);
+
+    const task = generateAutoTask(config, state, new SeededRng(1));
+
+    const timerRows = task.debugScoringTable!.filter((e) => e.genId === 3);
+    const creatures = new Set(timerRows.map((e) => e.creatureType));
+    expect(creatures.has('Creature5')).toBe(true);
+    expect(creatures.has('Creature7')).toBe(true);
+  });
+});
