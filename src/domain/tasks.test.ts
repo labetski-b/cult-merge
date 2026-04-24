@@ -310,6 +310,11 @@ describe('generateAutoTask — FP eligibility gate', () => {
     state.meatButtonPresses = 0;
     state.meatPressesAtLastFP = 0;
     state.fpQuestsByKrakenLevel = {};
+    // Force difficulty >= 2 (dual-pick territory). Task 10 made diff=1 a single
+    // weighted pick over the scoring table, which can legitimately miss FP under
+    // seed 1; the FP-gate semantics this test exercises are about scoring-table
+    // behavior, not diff=1 flow, so advance the difficulty cursor.
+    state.autoTaskLineCompletions = { Creature1: 2 };
 
     const task = generateAutoTask(config, state, new SeededRng(1));
 

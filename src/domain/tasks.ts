@@ -384,56 +384,14 @@ export function generateAutoTask(
   const totalCompleted = Object.values(state.autoTaskLineCompletions).reduce((a, b) => a + b, 0);
 
   const diffIdx = totalCompleted % difficultyFlow.length;
-  let difficulty = difficultyFlow[diffIdx]!;
-  let sacBudget = difficultySacMap[difficulty] ?? 0;
-  let meatBudget = sacBudget * meatDrop;
+  const difficulty = difficultyFlow[diffIdx]!;
+  const sacBudget = difficultySacMap[difficulty] ?? 0;
+  const meatBudget = sacBudget * meatDrop;
 
   const prev = state.currentAutoTask;
 
-  // Minimal scoring table for l1PerMeat lookup (used by diff1)
+  // Minimal scoring table for l1PerMeat lookup (used by empty-table fallback)
   const { collapsed: l1PerMeatLookup } = buildScoringTable(config, state, 0, gridCap, fieldL1Map);
-
-  // ─── DIFFICULTY = 1 (special case) ─────────────────────────────────────
-
-  if (difficulty === 1) {
-    const highLevelCreatures = Object.values(state.entities).filter(
-      (e): e is CreatureEntity => e.kind === 'creature' && e.level >= 6
-    );
-    if (highLevelCreatures.length > 0) {
-      const prevType = prev?.creatures[0]?.type;
-      const prevLevel = prev?.creatures[0]?.level;
-      const filtered = prevType
-        ? highLevelCreatures.filter(e => e.creatureType !== prevType || e.level !== prevLevel)
-        : highLevelCreatures;
-      const pool = filtered.length > 0 ? filtered : highLevelCreatures;
-      const pick = pool[Math.floor(rng.next() * pool.length)]!;
-      let pickLevel = Math.min(pick.level, gridCap);
-      // Ladder guard: never skip more than +1 level vs last quest for this creature
-      const d1LastLevel = state.autoTaskLastLevels[pick.creatureType];
-      if (d1LastLevel !== undefined && pickLevel > d1LastLevel + 1) {
-        pickLevel = d1LastLevel + 1;
-      }
-      // Level-repeat guard: avoid same creature+level as last completed task
-      if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
-        pickLevel = Math.max(1, pickLevel - 1);
-      }
-      const d1Reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
-      return {
-        id: makeTaskId(rng),
-        creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
-        expMultiplier: 0,
-        resMultiplier: 2,
-        eyeReward: d1Reward?.eyeReward,
-        difficulty: 1,
-        debugMeatBudget: meatBudget,
-        debugMeatCost: d1Reward?.meatCost,
-        debugScoringTable: [],
-      };
-    }
-    difficulty = 2;
-    sacBudget = difficultySacMap[2] ?? 0.5;
-    meatBudget = sacBudget * meatDrop;
-  }
 
   // ─── PHASE 2: SCORING TABLE ──────────────────────────────────────────────
 
@@ -451,6 +409,49 @@ export function generateAutoTask(
       debugMeatBudget: meatBudget,
       debugMeatCost: fallbackReward?.meatCost,
       debugScoringTable: [],
+    };
+  }
+
+  // ─── DIFFICULTY = 1 (weighted pick from scoring table) ─────────────────
+
+  if (difficulty === 1) {
+    const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
+    if (!pick) {
+      // Defensive: scoringTable.length > 0 was just checked, so this shouldn't happen.
+      const fallbackReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+      return {
+        id: makeTaskId(rng),
+        creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+        expMultiplier: 0,
+        resMultiplier: 2,
+        eyeReward: fallbackReward?.eyeReward,
+        difficulty: 1,
+        debugMeatBudget: meatBudget,
+        debugMeatCost: fallbackReward?.meatCost,
+        debugScoringTable: [],
+      };
+    }
+
+    let pickLevel = pick.targetLevel;
+    const lastLevel = state.autoTaskLastLevels[pick.creatureType];
+    // Ladder guard: never skip more than +1 level vs last quest for this creature
+    if (lastLevel !== undefined && pickLevel > lastLevel + 1) pickLevel = lastLevel + 1;
+    // Level-repeat guard: avoid same creature+level as last completed task
+    if (lastLevel === pickLevel) pickLevel = Math.max(1, pickLevel - 1);
+
+    const reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
+    return {
+      id: makeTaskId(rng),
+      creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
+      expMultiplier: 0,
+      resMultiplier: 2,
+      eyeReward: reward?.eyeReward,
+      difficulty: 1,
+      debugMeatBudget: meatBudget,
+      debugMeatCost: reward?.meatCost,
+      debugScoringTable: scoringRaw,
+      debugCollapsed: scoringTable,
+      pickedGenId: pick.genId,
     };
   }
 
