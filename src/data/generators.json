@@ -481,7 +481,7 @@
       "eggType": "Egg_Creature2",
       "purchaseCurrency": "rune2",
       "purchaseCost": 8,
-      "krakenRequired": 7,
+      "krakenRequired": 6,
       "lines": [
         "Creature3",
         "Creature4"
@@ -955,7 +955,7 @@
       "tickIntervalSec": 1800,
       "eggType": "Egg_Creature3",
       "purchaseCurrency": "rune1",
-      "purchaseCost": 10,
+      "purchaseCost": 0,
       "krakenRequired": 10,
       "lines": [
         "Creature5",
