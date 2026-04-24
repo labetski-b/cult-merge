@@ -162,16 +162,20 @@ export class SimulationEngine {
           console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
           throw error;
         }
-        // Only log if the action actually changed state (or is a synthetic log-only event)
-        // collect_upgrade always advances time even if a no-op (timer still running),
-        // so that currentGameTimeMs eventually crosses finishesAt without infinite loop.
-        if (JSON.stringify(this.state) !== stateBefore || action.type === 'free_cells' || action.type === 'collect_upgrade') {
-          // Advance both time counters together so they never drift
+        const stateChanged = JSON.stringify(this.state) !== stateBefore;
+        // Advance both time counters together so they never drift.
+        // collect_upgrade always advances time even when no-op (timer still running),
+        // so currentGameTimeMs eventually crosses finishesAt without infinite loop.
+        if (stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade') {
           this.currentGameTimeMs += getActionTimeSec(action) * 1000;
           const dt = this.addActionTime(action);
-          const logState = this.captureCompactState(dt);
-          logState.currentTask = taskBefore; // show task active at the time of action, not after
-          this.pushLog(action, logState, note);
+          // Only log actions that actually changed state (or are synthetic log-only events).
+          // No-op collect_upgrade advances time but produces no log noise.
+          if (stateChanged || action.type === 'free_cells') {
+            const logState = this.captureCompactState(dt);
+            logState.currentTask = taskBefore;
+            this.pushLog(action, logState, note);
+          }
         }
         // Flush event logs (quest_completed, new_quest, expand_board) after the action's own log
         for (const pending of this.pendingEventLogs) {
