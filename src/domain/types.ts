@@ -87,6 +87,8 @@ export interface TaskDefinition {
   debugMainCollapsed?: ScoringTableEntry[];
   debugFillerScoringTable?: ScoringTableEntry[];
   debugFillerCollapsed?: ScoringTableEntry[];
+  /** Generator id the picked creature came from (for FP counter bookkeeping). */
+  pickedGenId?: number;
 }
 
 export interface ScoringTableEntry {

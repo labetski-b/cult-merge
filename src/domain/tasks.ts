@@ -242,6 +242,61 @@ function pickWeightedByRecency(table: ScoringEntry[], rng: SeededRng): ScoringEn
   return table[table.length - 1]!;
 }
 
+// ─── FP eligibility gate ───────────────────────────────────────────────────
+
+const FP_SACRIFICES_REQUIRED = 5;
+const FP_QUESTS_PER_KL_LIMIT = 2;
+
+function isFPGenerator(genId: number, config: BalanceConfig): boolean {
+  const g = config.generators.generators.find((x) => x.id === genId);
+  return g?.spawnMode === 'timer';
+}
+
+function passesFPGate(
+  entry: ScoringEntry,
+  state: GameSnapshot,
+  config: BalanceConfig,
+  fieldL1Map: Map<string, number>,
+): boolean {
+  if (!isFPGenerator(entry.genId, config)) return true;
+
+  const onBoard = (fieldL1Map.get(entry.creatureType) ?? 0) > 0;
+  if (onBoard) return true;
+
+  const sacrificesSinceLastFP = state.meatButtonPresses - state.meatPressesAtLastFP;
+  if (sacrificesSinceLastFP < FP_SACRIFICES_REQUIRED) return false;
+
+  const fpCount = state.fpQuestsByKrakenLevel[state.kraken.level] ?? 0;
+  if (fpCount >= FP_QUESTS_PER_KL_LIMIT) return false;
+
+  return true;
+}
+
+function pickWithFPGate(
+  table: ScoringEntry[],
+  rng: SeededRng,
+  state: GameSnapshot,
+  config: BalanceConfig,
+  fieldL1Map: Map<string, number>,
+): ScoringEntry | null {
+  if (table.length === 0) return null;
+  let remaining = [...table];
+  while (remaining.length > 0) {
+    const picked = pickWeightedByRecency(remaining, rng);
+    if (passesFPGate(picked, state, config, fieldL1Map)) return picked;
+    remaining = remaining.filter(
+      (e) => !(e.genId === picked.genId && e.creatureType === picked.creatureType),
+    );
+  }
+  const nonFP = table.filter((e) => !isFPGenerator(e.genId, config));
+  const pool = nonFP.length > 0 ? nonFP : table;
+  return pool.reduce((a, b) => (a.targetLevel >= b.targetLevel ? a : b), pool[0]!);
+}
+
+export function isFPTask(task: TaskDefinition, config: BalanceConfig): boolean {
+  return task.pickedGenId !== undefined && isFPGenerator(task.pickedGenId, config);
+}
+
 export function generateAutoTask(
   config: BalanceConfig,
   state: GameSnapshot,
@@ -270,7 +325,8 @@ export function generateAutoTask(
     let totalMeatCost = 0;
     for (const req of creatures) {
       const entry = scoringTable.find(e => e.creatureType === req.type);
-      const l1pm = entry?.l1PerMeat ?? 1;
+      // `||` (not `??`) so timer rows with l1PerMeat=0 fall back to 1 and don't blow up to Infinity.
+      const l1pm = entry?.l1PerMeat || 1;
       const l1Spawns = Math.pow(2, req.level - 1);
       totalMeatCost += (l1Spawns / l1pm) * req.count;
     }
@@ -388,11 +444,20 @@ export function generateAutoTask(
 
     for (let attempt = 0; attempt < 10; attempt++) {
       if (mainTable.length === 0) break;
-      const mainPick = pickWeightedByRecency(mainTable, rng);
+      const mainPick = pickWithFPGate(mainTable, rng, state, config, fieldL1Map);
+      if (!mainPick) break;
+      // If the main pick still violates the gate (only possible via last-resort
+      // fallback when the whole table is FP and gate rejects), abort dual and
+      // fall through to single — the single-quest path will pick non-FP cleanly.
+      if (!passesFPGate(mainPick, state, config, fieldL1Map)) break;
 
       const fillerPool = fillerTable.filter(e => e.creatureType !== mainPick.creatureType);
       if (fillerPool.length === 0) break;
-      const fillerPick = pickWeightedByRecency(fillerPool, rng);
+      const fillerPick = pickWithFPGate(fillerPool, rng, state, config, fieldL1Map);
+      if (!fillerPick) break;
+      // Same guard for filler: if the only remaining filler option is a gated-FP,
+      // break so the single-quest path can produce a clean non-FP task.
+      if (!passesFPGate(fillerPick, state, config, fieldL1Map)) break;
 
       const isDuplicate =
         prevKeys.has(`${mainPick.creatureType}:${mainPick.targetLevel}`) ||
@@ -439,6 +504,7 @@ export function generateAutoTask(
           debugMainCollapsed: mainTable,
           debugFillerScoringTable: fillerRaw,
           debugFillerCollapsed: fillerTable,
+          pickedGenId: mainPick.genId,
         };
       }
     }
@@ -447,7 +513,8 @@ export function generateAutoTask(
 
   // ── SINGLE QUEST ──
   for (let attempt = 0; attempt < 10; attempt++) {
-    const pick = pickWeightedByRecency(scoringTable, rng);
+    const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
+    if (!pick) break;
 
     const isDuplicate = prevKeys.has(`${pick.creatureType}:${pick.targetLevel}`);
 
@@ -474,6 +541,7 @@ export function generateAutoTask(
         debugMeatCost: singleReward?.meatCost,
         debugScoringTable: scoringRaw,
         debugCollapsed: scoringTable,
+        pickedGenId: pick.genId,
       };
     }
   }
