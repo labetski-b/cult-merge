@@ -4,6 +4,7 @@ import type { SeededRng } from '@infra/rng';
 import { runeRedemptionValue } from '@domain/rewards';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
+import { canUpgradeGenerator } from '@domain/upgrades';
 
 // This module owns Kraken tasks from tasks.json (mandatory + auto).
 // Kraken quests live in quests.ts and are the unlockable quest layer.
@@ -162,32 +163,43 @@ function buildScoringTable(
   gridCap: number,
   fieldL1Map: Map<string, number>,
 ): ScoringResult {
-  const fieldGenerators = Object.values(state.entities).filter(
-    (e): e is GeneratorEntity => e.kind === 'generator'
-  );
+  // Collect ONLY generators on the field.
+  // For each, compute scoringLevel = factLvl + 1 if the next upgrade is affordable, else factLvl.
+  interface Candidate { genId: number; scoringLevel: number; }
+  const rawCandidates: Candidate[] = [];
 
-  // Collect ALL unique levels per generator on field (not just best)
-  const fieldGenLevels = new Map<number, Set<number>>();
-  for (const gen of fieldGenerators) {
-    let levels = fieldGenLevels.get(gen.generatorId);
-    if (!levels) { levels = new Set(); fieldGenLevels.set(gen.generatorId, levels); }
-    levels.add(gen.level);
+  for (const entity of Object.values(state.entities)) {
+    if (entity.kind !== 'generator') continue;
+    const gen = entity as GeneratorEntity;
+    const factLvl = gen.level;
+
+    const upgradeCheck = canUpgradeGenerator(
+      { generatorId: gen.generatorId, level: factLvl },
+      state,
+      config,
+    );
+    const scoringLevel = upgradeCheck.ok ? factLvl + 1 : factLvl;
+
+    rawCandidates.push({ genId: gen.generatorId, scoringLevel });
   }
 
-  const { rune1: availRune1, rune2: availRune2 } = countAvailableRunes(state);
+  // Dedupe (defensive; same generator on field should only appear once, but guard anyway).
+  const seen = new Set<string>();
+  const uniqueCandidates = rawCandidates.filter((c) => {
+    const k = `${c.genId}:${c.scoringLevel}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
   const candidates: ScoringEntry[] = [];
-  const addedKeys = new Set<string>(); // prevent duplicates: "genId:genLevel"
 
-  const addCandidatesForLevel = (genId: number, genLevel: number) => {
-    const key = `${genId}:${genLevel}`;
-    if (addedKeys.has(key)) return;
-    addedKeys.add(key);
-
+  for (const candidate of uniqueCandidates) {
+    const { genId, scoringLevel: genLevel } = candidate;
     const genConfig = config.generators.generators.find(g => g.id === genId);
-    if (!genConfig) return;
+    if (!genConfig) continue;
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
-    if (!levelConfig) return;
+    if (!levelConfig) continue;
 
     const types = new Set(levelConfig.outputs.map(o => o.creatureType));
     for (const ct of types) {
@@ -211,48 +223,6 @@ function buildScoringTable(
         l1PerCharge: l1pc, l1PerMeat,
         meatBudget, spawnL1, fieldL1, totalL1, targetLevel,
       });
-    }
-  };
-
-  for (const genConfig of config.generators.generators) {
-    if (state.kraken.level < genConfig.krakenRequired) continue;
-
-    const fieldLevels = fieldGenLevels.get(genConfig.id);
-    const availRunes = genConfig.purchaseCurrency === 'rune1' ? availRune1 : availRune2;
-
-    const maxGenLevel = genConfig.levels.length > 0
-      ? Math.max(...genConfig.levels.map(l => l.level))
-      : 1;
-
-    if (fieldLevels != null && fieldLevels.size > 0) {
-      // Add ALL levels present on field + phantom upgrades from each
-      for (const baseLv of fieldLevels) {
-        addCandidatesForLevel(genConfig.id, baseLv);
-
-        for (let lv = baseLv + 1; lv <= maxGenLevel; lv++) {
-          const cost = generatorUpgradeCost(baseLv, lv, genConfig.purchaseCost);
-          if (cost > availRunes) break;
-          addCandidatesForLevel(genConfig.id, lv);
-        }
-      }
-
-      // Phantom lower-level copy: buying a fresh L1 while higher already exists
-      const bestLevel = Math.max(...fieldLevels);
-      if (bestLevel > 1 && availRunes >= genConfig.purchaseCost) {
-        addCandidatesForLevel(genConfig.id, 1);
-      }
-    } else {
-      if (availRunes >= genConfig.purchaseCost) {
-        addCandidatesForLevel(genConfig.id, 1);
-
-        // Phantom upgrades of the phantom purchase
-        for (let lv = 2; lv <= maxGenLevel; lv++) {
-          const upgradeCost = generatorUpgradeCost(1, lv, genConfig.purchaseCost);
-          const totalCost = genConfig.purchaseCost + upgradeCost;
-          if (totalCost > availRunes) break;
-          addCandidatesForLevel(genConfig.id, lv);
-        }
-      }
     }
   }
 
