@@ -1,7 +1,6 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { BoxEntity, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RuneEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
+import type { CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
-import { runeRedemptionValue } from '@domain/rewards';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import { canUpgradeGenerator } from '@domain/upgrades';
@@ -87,31 +86,6 @@ const DEFAULT_AUTO_CONFIG = {
   eyePerMeat: null as [number, number][] | null,
 };
 
-/** Count all rune currency: wallet + rune entities on field + box contents. */
-function countAvailableRunes(state: GameSnapshot): { rune1: number; rune2: number } {
-  let rune1 = state.resources.rune1;
-  let rune2 = state.resources.rune2;
-
-  for (const entity of Object.values(state.entities)) {
-    if (entity.kind === 'rune') {
-      const rune = entity as RuneEntity;
-      if (rune.runeType.startsWith('Rune1')) {
-        rune1 += runeRedemptionValue(rune.runeType);
-      } else if (rune.runeType.startsWith('Rune2')) {
-        rune2 += runeRedemptionValue(rune.runeType);
-      }
-    } else if (entity.kind === 'box') {
-      const box = entity as BoxEntity;
-      for (const item of box.contents) {
-        if (item.startsWith('Rune1')) rune1 += runeRedemptionValue(item);
-        else if (item.startsWith('Rune2')) rune2 += runeRedemptionValue(item);
-      }
-    }
-  }
-
-  return { rune1, rune2 };
-}
-
 /** How many L1-equivalents of `creatureType` a generator produces per charge. */
 export function getExpectedL1PerCharge(
   config: BalanceConfig,
@@ -136,21 +110,7 @@ export function getExpectedL1PerCharge(
 /** Scoring table entry: best generator for a creature at given budget. */
 type ScoringEntry = ScoringTableEntry;
 
-/**
- * Compute upgrade cost from currentLevel to targetLevel for a generator.
- * Generators merge like creatures: need 2^(targetLevel-1) L1 copies total,
- * already have 2^(currentLevel-1), buy the difference.
- */
-function generatorUpgradeCost(currentLevel: number, targetLevel: number, purchaseCost: number): number {
-  if (targetLevel <= currentLevel) return 0;
-  const needToBuy = Math.pow(2, targetLevel - 1) - Math.pow(2, currentLevel - 1);
-  return needToBuy * purchaseCost;
-}
-
-/**
- * Build scoring table: for each creature, find best generator by targetLevel.
- * Considers real generators, phantom purchases, and phantom upgrades.
- */
+/** Build scoring table over on-field generators, applying a phantom +1 level when the next upgrade is affordable. */
 interface ScoringResult {
   collapsed: ScoringEntry[];
   raw: ScoringEntry[];

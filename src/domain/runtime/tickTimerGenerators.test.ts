@@ -78,6 +78,8 @@ function makeBaseSnapshot(grid: GridState): GameSnapshot {
     autoTaskLastLevels: {},
     session: 1,
     meatButtonPresses: 0,
+    meatPressesAtLastFP: 0,
+    fpQuestsByKrakenLevel: {},
     cumulativeStats: createEmptyCumulativeStats(),
     questState: createEmptyQuestState(),
     meatDropQueue: [],
