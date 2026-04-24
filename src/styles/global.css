@@ -501,6 +501,24 @@ body {
   background: linear-gradient(90deg, #4de2c2 0%, #67c6ff 100%);
 }
 
+/* ── Timer-mode generator circular progress (Gen3 flower pot etc.) ── */
+
+.gen-timer-progress {
+  pointer-events: none;
+}
+.gen-timer-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 3;
+}
+.gen-timer-fill {
+  fill: none;
+  stroke: #4de2c2;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+
 /* ── Task ── */
 
 .task-panel h2 {
