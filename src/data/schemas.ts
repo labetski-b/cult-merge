@@ -21,7 +21,7 @@ const generatorLevelSchema = z.object({
   upgrade: generatorUpgradeSchema.optional()
 });
 
-const generatorSchema = z.object({
+export const generatorSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().min(1),
   eggType: z.string().min(1),
@@ -29,7 +29,9 @@ const generatorSchema = z.object({
   purchaseCost: z.number().int().min(0),
   krakenRequired: z.number().int().min(1),
   lines: z.array(z.string().min(1)).length(2),
-  levels: z.array(generatorLevelSchema).min(1)
+  levels: z.array(generatorLevelSchema).min(1),
+  spawnMode: z.enum(['sacrifice', 'timer']).optional(),
+  tickIntervalSec: z.number().positive().optional(),
 });
 
 export const generatorsDataSchema = z.object({
