@@ -62,14 +62,7 @@ export interface PredatorEntity {
   preferredCreatureType: string;
 }
 
-export interface FlowerPotEntity {
-  id: string;
-  kind: 'flowerpot';
-  potLevel: number;
-  lastSpawnTimestamp: number;
-}
-
-export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity | FlowerPotEntity;
+export type Entity = CreatureEntity | GeneratorEntity | RuneEntity | BoxEntity | PredatorEntity;
 
 export interface TaskRequirement {
   type: string;
@@ -109,7 +102,7 @@ export interface ScoringTableEntry {
   targetLevel: number;
 }
 
-export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid' | 'flowerpot';
+export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
 
 export interface ProgressReward {
   type: RewardType;

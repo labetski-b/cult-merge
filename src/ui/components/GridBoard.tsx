@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CreatureEntity, Entity, FlowerPotEntity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
+import type { CreatureEntity, Entity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorConfig } from '@domain/generator';
-import { calcPendingSpawns } from '@domain/flowerpot';
-import { canMergeCreatures, canMergeFlowerPots, canMergeRunes } from '@domain/merge';
+import { canMergeCreatures, canMergeRunes } from '@domain/merge';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
@@ -15,7 +14,6 @@ function entityLabel(entity: Entity): string {
   if (entity.kind === 'rune') return entity.runeType;
   if (entity.kind === 'box') return `Box#${entity.boxId}`;
   if (entity.kind === 'predator') return `P${entity.predatorId}`;
-  if (entity.kind === 'flowerpot') return '🌸';
   return entity.creatureType.replace('Creature', 'C');
 }
 
@@ -26,7 +24,6 @@ function entitySublabel(entity: Entity): string {
   if (entity.kind === 'rune') return '';
   if (entity.kind === 'box') return '';
   if (entity.kind === 'predator') return `${entity.currentExp}/${entity.requiredExp}`;
-  if (entity.kind === 'flowerpot') return `L${entity.potLevel}`;
   return `L${entity.level}`;
 }
 
@@ -61,9 +58,6 @@ export function GridBoard() {
   const tapGenerator = useGameStore((state) => state.tapGenerator);
   const tapBox = useGameStore((state) => state.tapBox);
   const feedPredator = useGameStore((state) => state.feedPredator);
-  const speedUpFlowerPot = useGameStore((state) => state.speedUpFlowerPot);
-  const tickFlowerPots = useGameStore((state) => state.tickFlowerPots);
-
   const currentTask = useCurrentTask();
   const currentTaskFed = useCurrentTaskFed();
 
@@ -151,8 +145,6 @@ export function GridBoard() {
         return canMergeRunes(dragSourceEntity as RuneEntity, targetEntity as RuneEntity);
       if (dragSourceEntity.kind === 'creature' && targetEntity.kind === 'predator')
         return true;
-      if (dragSourceEntity.kind === 'flowerpot' && targetEntity.kind === 'flowerpot')
-        return canMergeFlowerPots(dragSourceEntity as FlowerPotEntity, targetEntity as FlowerPotEntity);
       return false;
     },
     [dragSource, dragSourceEntity, grid.cells, entities]
@@ -357,10 +349,6 @@ export function GridBoard() {
     const entityId = grid.cells[index];
     if (!entityId) return;
     const entity = entities[entityId];
-    if (entity?.kind === 'flowerpot') {
-      speedUpFlowerPot(entityId);
-      tickFlowerPots(Date.now());
-    }
   };
 
   const handleCharge = () => {
@@ -393,8 +381,6 @@ export function GridBoard() {
         classes.push('cell-box');
       } else if (entity.kind === 'predator') {
         classes.push('cell-predator');
-      } else if (entity.kind === 'flowerpot') {
-        classes.push('cell-flowerpot');
       } else {
         classes.push('cell-creature');
       }
@@ -484,26 +470,6 @@ export function GridBoard() {
                           <div className="predator-bar-fill" style={{ width: `${pct * 100}%` }} />
                         </div>
                         <span className="cell-badge">{pred.currentExp}/{pred.requiredExp}</span>
-                      </>
-                    );
-                  } else if (entity.kind === 'flowerpot') {
-                    const pot = entity as FlowerPotEntity;
-                    const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
-                    const pending = calcPendingSpawns(pot, Date.now(), intervalMs);
-                    const elapsed = pot.lastSpawnTimestamp > 0 ? Date.now() - pot.lastSpawnTimestamp : 0;
-                    const msUntilNext = intervalMs - (elapsed % intervalMs);
-                    const totalSec = Math.max(0, Math.ceil(msUntilNext / 1000));
-                    const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
-                    const ss = String(totalSec % 60).padStart(2, '0');
-                    return (
-                      <>
-                        <span className="entity-label">🌸</span>
-                        <span className="entity-level">L{pot.potLevel}</span>
-                        {pending > 0 ? (
-                          <span className="cell-badge pot-ready">Ready!</span>
-                        ) : (
-                          <span className="cell-badge">{mm}:{ss}</span>
-                        )}
                       </>
                     );
                   } else if (entity.kind === 'box') {

@@ -15,7 +15,6 @@ export function ControlsPanel() {
   const feedAll = useGameStore((state) => state.feedAll);
   const addKrakenExp = useGameStore((state) => state.addKrakenExp);
   const kraken = useGameStore((state) => state.kraken);
-  const buyFlowerPot = useGameStore((state) => state.buyFlowerPot);
   const completeQuest = useGameStore((state) => state.completeQuest);
   const resetGame = useGameStore((state) => state.resetGame);
   const [open, setOpen] = useState(false);
@@ -70,9 +69,6 @@ export function ControlsPanel() {
                 type="button"
               >
                 +50% EXP
-              </button>
-              <button className="btn small" onClick={buyFlowerPot} type="button">
-                Buy Pot
               </button>
               <button className="btn small" onClick={completeQuest} type="button">
                 Complete Quest

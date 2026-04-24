@@ -117,7 +117,7 @@ export const tasksDataSchema = z.object({
 });
 
 const progressionRewardSchema = z.object({
-  type: z.enum(['res_box', 'egg', 'mechanic', 'grid', 'flowerpot']),
+  type: z.enum(['res_box', 'egg', 'mechanic', 'grid']),
   value: z.union([z.string(), z.number()])
 });
 
@@ -189,25 +189,6 @@ export const managersDataSchema = z.object({
 export type PredatorsData = z.infer<typeof predatorsDataSchema>;
 export type ManagersData = z.infer<typeof managersDataSchema>;
 
-const flowerpotLevelSchema = z.object({
-  level: z.number().int().min(1).max(5),
-  outputs: z.array(outputSchema).min(1)
-});
-
-const flowerpotConfigSchema = z.object({
-  purchaseCurrency: z.enum(['rune1', 'rune2']),
-  purchaseCost: z.number().int().min(0),
-  spawnIntervalMs: z.number().int().positive(),
-  lines: z.array(z.string().min(1)).length(2),
-  levels: z.array(flowerpotLevelSchema).min(1)
-});
-
-export const flowerpotsDataSchema = z.object({
-  flowerpot: flowerpotConfigSchema
-});
-
-export type FlowerpotsData = z.infer<typeof flowerpotsDataSchema>;
-
 const chapterDataEntrySchema = z.object({
   chapter: z.number().int().min(2),
   merge_resource: z.number().int().min(0),
@@ -265,7 +246,6 @@ export interface BalanceConfig {
   gridSizes: GridSizesData;
   predators: PredatorsData;
   managers: ManagersData;
-  flowerpots: FlowerpotsData;
   chapters: ChaptersData;
   runes: RunesData;
   quests: QuestsData;

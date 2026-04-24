@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { BALANCE } from '@data/loadBalance';
-import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, FlowerPotEntity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
+import type { BoxEntity, CreatureEntity, CumulativeStats, Entity, GameSnapshot, GeneratorEntity, PredatorEntity, ProgressReward, RuneEntity, RuneItemKey } from '@domain/types';
 import { evaluateAllQuests } from '@domain/quests';
 import { calcPredatorFeedExp, drawManagerCards } from '@domain/predator';
 import { openBox } from '@domain/boxes';
 import { rollGeneratorSpawn, getGeneratorConfig, createChargedGenerator } from '@domain/generator';
-import { calcPendingSpawns, rollFlowerPotSpawn } from '@domain/flowerpot';
 import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
@@ -49,11 +48,8 @@ interface GameActions {
   completeQuest: () => void;
   feedPredator: (predatorId: string, creatureId: string) => void;
   addKrakenExp: (amount: number) => void;
-  tickFlowerPots: (now: number) => void;
   tickTimerGenerators: (now: number) => void;
   debugSkipTimerGenerator: (entityId: string) => void;
-  buyFlowerPot: () => void;
-  speedUpFlowerPot: (entityId: string) => void;
   ensureAutoTask: () => void;
   getMeat: () => void;
   consumeMeatDrop: (id: number) => void;
@@ -446,30 +442,6 @@ export const useGameStore = create<GameStore>()(
               ...result,
               grid: resizedGrid,
               lastMessage: `Field expanded to ${nextGridSize.rows}×${nextGridSize.cols}!`
-            };
-          } else if (reward.type === 'flowerpot' && typeof reward.value === 'number') {
-            const freeSlots = getFreeCellIndexes(result.grid ?? state.grid);
-            if (freeSlots.length === 0) return { lastMessage: 'No free cell to place FlowerPot.' };
-
-            const targetCell = freeSlots[0]!;
-            const potId = rng.nextId();
-            const nextGrid = { ...(result.grid ?? state.grid), cells: [...(result.grid ?? state.grid).cells] };
-            const nextEntities = { ...(result.entities ?? state.entities) };
-
-            nextEntities[potId] = {
-              id: potId,
-              kind: 'flowerpot' as const,
-              potLevel: reward.value,
-              lastSpawnTimestamp: Date.now()
-            };
-            nextGrid.cells[targetCell] = potId;
-
-            result = {
-              ...result,
-              grid: nextGrid,
-              entities: nextEntities,
-              rngState: rng.getState(),
-              lastMessage: `FlowerPot Lv${reward.value} placed!`
             };
           }
 
@@ -1661,68 +1633,6 @@ export const useGameStore = create<GameStore>()(
         set({ questState: evaluateAllQuests(BALANCE, afterExp.cumulativeStats, afterExp) });
       },
 
-      tickFlowerPots: (now) => {
-        set((state) => {
-          const pots = Object.values(state.entities).filter(
-            (e): e is FlowerPotEntity => e.kind === 'flowerpot'
-          );
-          if (pots.length === 0) return {};
-
-          const intervalMs = BALANCE.flowerpots.flowerpot.spawnIntervalMs;
-          const rng = new SeededRng(state.rngState);
-          const nextEntities = { ...state.entities };
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          let totalSpawned = 0;
-
-          for (const pot of pots) {
-            const pending = calcPendingSpawns(pot, now, intervalMs);
-            if (pending === 0) continue;
-
-            const potCell = findEntityCell(nextGrid, pot.id);
-            if (potCell < 0) continue;
-
-            let spawned = 0;
-            for (let i = 0; i < pending; i += 1) {
-              const freeNeighbors = getNeighborCellIndexes(nextGrid, potCell).filter(
-                (idx) => nextGrid.cells[idx] === null
-              );
-              if (freeNeighbors.length === 0) break;
-
-              const targetIdx = freeNeighbors[Math.floor(rng.next() * freeNeighbors.length)]!;
-              const spawn = rollFlowerPotSpawn(rng, BALANCE, pot.potLevel);
-              const creatureId = rng.nextId();
-
-              nextGrid.cells[targetIdx] = creatureId;
-              nextEntities[creatureId] = {
-                id: creatureId,
-                kind: 'creature',
-                creatureType: spawn.creatureType,
-                level: spawn.level
-              };
-              spawned += 1;
-            }
-
-            // Always reset timer to now after a spawn cycle
-            nextEntities[pot.id] = {
-              ...pot,
-              lastSpawnTimestamp: now
-            };
-            totalSpawned += spawned;
-          }
-
-          if (totalSpawned === 0 && pots.every((p) => calcPendingSpawns(p, now, intervalMs) === 0)) {
-            return {};
-          }
-
-          return {
-            entities: nextEntities,
-            grid: nextGrid,
-            rngState: rng.getState(),
-            ...(totalSpawned > 0 && { lastMessage: `FlowerPot spawned ${totalSpawned} creature(s)!` })
-          };
-        });
-      },
-
       tickTimerGenerators: (now) => {
         set((state) => {
           const ticked = tickTimerGenerators(state, now, BALANCE);
@@ -1758,56 +1668,6 @@ export const useGameStore = create<GameStore>()(
             grid: ticked.grid,
             rngState: ticked.rngState,
             cumulativeStats: ticked.cumulativeStats,
-          };
-        });
-      },
-
-      buyFlowerPot: () => {
-        set((state) => {
-          const config = BALANCE.flowerpots.flowerpot;
-          const cost = config.purchaseCost;
-
-          if (state.resources.rune1 < cost) {
-            return { lastMessage: `Need ${cost} Rune1 to buy FlowerPot.` };
-          }
-
-          const freeSlots = getFreeCellIndexes(state.grid);
-          const targetCell = freeSlots[0];
-          if (targetCell === undefined) return { lastMessage: 'No free cell to place FlowerPot.' };
-
-          const rng = new SeededRng(state.rngState);
-          const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
-          const nextEntities = { ...state.entities };
-          const potId = rng.nextId();
-
-          nextEntities[potId] = {
-            id: potId,
-            kind: 'flowerpot',
-            potLevel: 1,
-            lastSpawnTimestamp: Date.now()
-          };
-          nextGrid.cells[targetCell] = potId;
-
-          return {
-            resources: { ...state.resources, rune1: state.resources.rune1 - cost },
-            grid: nextGrid,
-            entities: nextEntities,
-            rngState: rng.getState(),
-            lastMessage: 'FlowerPot purchased!'
-          };
-        });
-      },
-
-      speedUpFlowerPot: (entityId) => {
-        set((state) => {
-          const entity = state.entities[entityId];
-          if (!entity || entity.kind !== 'flowerpot') return {};
-          const pot = entity as FlowerPotEntity;
-          return {
-            entities: {
-              ...state.entities,
-              [entityId]: { ...pot, lastSpawnTimestamp: Math.max(1, pot.lastSpawnTimestamp - 600_000) }
-            }
           };
         });
       },
