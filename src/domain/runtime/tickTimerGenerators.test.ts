@@ -138,7 +138,7 @@ describe('tickTimerGenerators', () => {
     expect(updatedGen.pendingDrop).toBeNull();
   });
 
-  it('Test 2: pause α — all 8 neighbors occupied → lastTickTimestamp unchanged, pendingDrop set', () => {
+  it('Test 2: pause α — all 8 neighbors occupied → lastTickTimestamp advanced by ONE interval, pendingDrop set', () => {
     const balance = makeTestBalance();
     const intervalMs = 1800 * 1000;
 
@@ -167,8 +167,9 @@ describe('tickTimerGenerators', () => {
     const result = tickTimerGenerators(snapshot, now, balance);
 
     const updatedGen = result.entities[genId] as GeneratorEntity;
-    // Timer must NOT advance when neighbors are full (model α)
-    expect(updatedGen.lastTickTimestamp).toBe(t0);
+    // Model α (fixed): one interval of time was spent producing the pending drop,
+    // so lastTick advances by exactly one interval. The frozen pause begins AFTER.
+    expect(updatedGen.lastTickTimestamp).toBe(t0 + intervalMs);
     // pendingDrop must be set
     expect(updatedGen.pendingDrop).not.toBeNull();
     expect(updatedGen.pendingDrop?.creatureType).toBe('Creature1');
@@ -239,8 +240,8 @@ describe('tickTimerGenerators', () => {
     expect(newCreatures).toHaveLength(3);
 
     const updatedGen = result.entities[genId] as GeneratorEntity;
-    // Timer advanced by 3 intervals, then paused
-    expect(updatedGen.lastTickTimestamp).toBe(t0 + 3 * intervalMs);
+    // Timer advanced by 3 placements + 1 interval for the pending drop = 4 intervals total
+    expect(updatedGen.lastTickTimestamp).toBe(t0 + 4 * intervalMs);
     // pendingDrop set for the 4th creature that couldn't be placed
     expect(updatedGen.pendingDrop).not.toBeNull();
   });
@@ -272,6 +273,112 @@ describe('tickTimerGenerators', () => {
     expect(newCreatures).toHaveLength(2);
     // totalSpawns must equal the number of creatures actually placed
     expect(result.cumulativeStats.totalSpawns).toBe(2);
+  });
+
+  it('Test 7: cheat skip + full neighbors + later merge → only 1 drop total (not 2)', () => {
+    // Regression: reproduces the bug where a cheat setting lastTick far in the
+    // past combined with full neighbors would produce ONE pending drop on tick,
+    // then ANOTHER creature on the next tick (after a merge frees a slot)
+    // because stale elapsed time still exceeded intervalMs.
+    const balance = makeTestBalance();
+    const intervalMs = 1800 * 1000; // 30 min
+
+    // 3x3 grid, generator at center, all 8 neighbors filled
+    const grid = createGrid(3, 3);
+    const genId = 'gen001';
+    grid.cells[4] = genId;
+    const neighborIds = ['c0', 'c1', 'c2', 'c3', 'c5', 'c6', 'c7', 'c8'];
+    [0, 1, 2, 3, 5, 6, 7, 8].forEach((idx, i) => {
+      grid.cells[idx] = neighborIds[i]!;
+    });
+
+    const t0 = 1_000_000;
+    // Simulate cheat: lastTick is 30 minutes in the past
+    const cheatTime = t0;
+    const firstTickNow = t0 + intervalMs;
+
+    const gen = makeTimerGen(genId);
+    gen.lastTickTimestamp = cheatTime;
+
+    const snapshot = makeBaseSnapshot(grid);
+    snapshot.entities = {
+      [genId]: gen,
+      ...Object.fromEntries(neighborIds.map(id => [id, { id, kind: 'creature' as const, creatureType: 'Creature1', level: 1 }])),
+    };
+
+    // First tick: full neighbors → set pendingDrop, advance lastTick by one interval
+    const afterFirstTick = tickTimerGenerators(snapshot, firstTickNow, balance);
+    const genAfterFirst = afterFirstTick.entities[genId] as GeneratorEntity;
+    expect(genAfterFirst.pendingDrop).not.toBeNull();
+    // No new creatures placed yet (only pending)
+    const creaturesAfterFirst = Object.entries(afterFirstTick.entities)
+      .filter(([id, e]) => e.kind === 'creature' && !(id in snapshot.entities));
+    expect(creaturesAfterFirst).toHaveLength(0);
+
+    // Now simulate a merge freeing neighbor at index 0
+    const freedCells = [...afterFirstTick.grid.cells];
+    freedCells[0] = null;
+    const { [neighborIds[0]!]: _removed, ...remainingEntities } = afterFirstTick.entities;
+    const snapshotAfterMerge: GameSnapshot = {
+      ...afterFirstTick,
+      grid: { ...afterFirstTick.grid, cells: freedCells },
+      entities: remainingEntities,
+    };
+
+    // Second tick happens 5 min after the first (much less than an interval)
+    const secondTickNow = firstTickNow + 5 * 60 * 1000;
+    const afterSecondTick = tickTimerGenerators(snapshotAfterMerge, secondTickNow, balance);
+
+    // After placing pending, lastTick is reset to `now` and elapsed=0 → no extra roll.
+    // Total NEW creatures placed across both ticks must equal exactly 1 (only the pending).
+    const finalCreatures = Object.entries(afterSecondTick.entities)
+      .filter(([id, e]) => e.kind === 'creature' && !(id in snapshot.entities));
+    expect(finalCreatures).toHaveLength(1);
+
+    const genAfterSecond = afterSecondTick.entities[genId] as GeneratorEntity;
+    expect(genAfterSecond.pendingDrop).toBeNull();
+    // lastTick reset to `now` when pending was placed
+    expect(genAfterSecond.lastTickTimestamp).toBe(secondTickNow);
+  });
+
+  it('Test 8: placing pending resets lastTick to `now` (no extra catch-up drops)', () => {
+    const balance = makeTestBalance();
+    const intervalMs = 1800 * 1000;
+
+    // 3x3 grid, gen at center, neighbor at index 0 free, rest filled
+    const grid = createGrid(3, 3);
+    const genId = 'gen001';
+    grid.cells[4] = genId;
+    const filledIds = ['c1', 'c2', 'c3', 'c5', 'c6', 'c7', 'c8'];
+    [1, 2, 3, 5, 6, 7, 8].forEach((idx, i) => {
+      grid.cells[idx] = filledIds[i]!;
+    });
+
+    const t0 = 1_000_000;
+    // Gen has a pendingDrop AND an old lastTick 5 hours in the past
+    const gen = makeTimerGen(genId);
+    gen.lastTickTimestamp = t0;
+    gen.pendingDrop = { creatureType: 'Creature1', level: 1 };
+
+    const now = t0 + 5 * 60 * 60 * 1000; // 5 hours later = 10 intervals
+
+    const snapshot = makeBaseSnapshot(grid);
+    snapshot.entities = {
+      [genId]: gen,
+      ...Object.fromEntries(filledIds.map(id => [id, { id, kind: 'creature' as const, creatureType: 'Creature1', level: 1 }])),
+    };
+
+    const result = tickTimerGenerators(snapshot, now, balance);
+
+    // Only 1 new creature (the pending), not a catch-up avalanche
+    const newCreatures = Object.entries(result.entities)
+      .filter(([id, e]) => e.kind === 'creature' && !(id in snapshot.entities));
+    expect(newCreatures).toHaveLength(1);
+
+    const updatedGen = result.entities[genId] as GeneratorEntity;
+    expect(updatedGen.pendingDrop).toBeNull();
+    // lastTick reset to `now` — pause time is discarded, not carried forward
+    expect(updatedGen.lastTickTimestamp).toBe(now);
   });
 
   it('Test 5: no-op for sacrifice-mode — sacrifice generator is untouched', () => {

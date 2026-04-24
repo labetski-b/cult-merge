@@ -8,11 +8,17 @@ import { SeededRng } from '@infra/rng';
  * Ticks all timer-mode generators in the snapshot.
  *
  * For each generator with spawnMode === 'timer':
- * 1. If pendingDrop is set, try to place it in a free neighbor. If placed, clear pendingDrop.
+ * 1. If pendingDrop is set, try to place it in a free neighbor. If placed, clear
+ *    pendingDrop AND reset lastTickTimestamp to `now` (the frozen-pause ends here,
+ *    so the next interval starts counting from this moment — no extra catch-up
+ *    drops from pre-pause elapsed time).
  * 2. While enough time has elapsed AND no pendingDrop:
  *    - Roll a single creature via rollSingleOutput
  *    - If a free neighbor exists → place creature, advance lastTickTimestamp by one interval
- *    - Else (full) → set pendingDrop, BREAK (model α: timer does NOT advance)
+ *    - Else (full, model α) → set pendingDrop, advance lastTickTimestamp by one interval
+ *      (this interval was "spent" producing the pending drop), and BREAK. The
+ *      pause begins AFTER this pending is produced, and additional elapsed time
+ *      is discarded (no accumulation while paused).
  *
  * Returns the same snapshot reference if nothing changed.
  */
@@ -66,6 +72,11 @@ export function tickTimerGenerators(
 
         entities = { ...entities, [creatureId]: creature };
         pendingDrop = null;
+        // Reset the timer: the frozen pause ends here, and the next interval
+        // starts counting from now. Without this reset, stale elapsed time
+        // (e.g. from a cheat or long offline) could trigger extra catch-up
+        // drops in step 2 right after unblocking.
+        lastTick = now;
         genChanged = true;
         changed = true;
         totalSpawnsPlaced += 1;
@@ -101,8 +112,14 @@ export function tickTimerGenerators(
         changed = true;
         totalSpawnsPlaced += 1;
       } else {
-        // Model α: timer does NOT advance when neighbors are full
+        // Model α: one interval of time IS spent producing this pending drop,
+        // so advance lastTick by exactly one interval. The frozen pause begins
+        // AFTER this pending is produced. Without this advance, stale elapsed
+        // time would trigger extra drops once neighbors free up (e.g. a cheat
+        // that sets lastTick far in the past would produce 2+ creatures: one
+        // pending here, plus more during the next tick after placement).
         pendingDrop = spawn;
+        lastTick += intervalMs;
         genChanged = true;
         changed = true;
         break;
