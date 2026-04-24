@@ -23,6 +23,7 @@ import {
   type FeedRuntimeReason
 } from '@domain/runtime/feed';
 import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
+import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
@@ -49,6 +50,8 @@ interface GameActions {
   feedPredator: (predatorId: string, creatureId: string) => void;
   addKrakenExp: (amount: number) => void;
   tickFlowerPots: (now: number) => void;
+  tickTimerGenerators: (now: number) => void;
+  debugSkipTimerGenerator: (entityId: string) => void;
   buyFlowerPot: () => void;
   speedUpFlowerPot: (entityId: string) => void;
   ensureAutoTask: () => void;
@@ -261,7 +264,7 @@ export const useGameStore = create<GameStore>()(
             };
           }
 
-          return {
+          const mergedPartial = {
             grid: nextGrid,
             entities: nextEntities,
             predatorMergeCounts: newMergeCounts,
@@ -272,6 +275,14 @@ export const useGameStore = create<GameStore>()(
             mergeCountByLine: nextMergeCountByLine,
             lastMessage: `${merged.kind} merged → ${merged.kind === 'rune' ? merged.runeType : `level ${(merged as CreatureEntity).level}`}.${spawnMsgFinal}`
           };
+
+          // After merge a cell becomes free — give timer generators a chance to spawn
+          const intermediateSnapshot = { ...state, ...mergedPartial };
+          const tickedSnapshot = tickTimerGenerators(intermediateSnapshot, Date.now(), BALANCE);
+          if (tickedSnapshot !== intermediateSnapshot) {
+            return { ...mergedPartial, entities: tickedSnapshot.entities, grid: tickedSnapshot.grid, rngState: tickedSnapshot.rngState, cumulativeStats: tickedSnapshot.cumulativeStats };
+          }
+          return mergedPartial;
         });
         const afterMerge = get();
         set({ questState: evaluateAllQuests(BALANCE, afterMerge.cumulativeStats, afterMerge) });
@@ -1708,6 +1719,45 @@ export const useGameStore = create<GameStore>()(
             grid: nextGrid,
             rngState: rng.getState(),
             ...(totalSpawned > 0 && { lastMessage: `FlowerPot spawned ${totalSpawned} creature(s)!` })
+          };
+        });
+      },
+
+      tickTimerGenerators: (now) => {
+        set((state) => {
+          const ticked = tickTimerGenerators(state, now, BALANCE);
+          if (ticked === state) return {};
+          return {
+            entities: ticked.entities,
+            grid: ticked.grid,
+            rngState: ticked.rngState,
+            cumulativeStats: ticked.cumulativeStats,
+          };
+        });
+      },
+
+      debugSkipTimerGenerator: (entityId) => {
+        set((state) => {
+          const entity = state.entities[entityId];
+          if (!entity || entity.kind !== 'generator') return {};
+          const gen = entity as GeneratorEntity;
+          const config = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+          if (!config || config.spawnMode !== 'timer') return {};
+          const intervalMs = (config.tickIntervalSec ?? 0) * 1000;
+          const updatedEntity: GeneratorEntity = {
+            ...gen,
+            lastTickTimestamp: Date.now() - intervalMs,
+          };
+          const intermediateSnapshot = {
+            ...state,
+            entities: { ...state.entities, [entityId]: updatedEntity },
+          };
+          const ticked = tickTimerGenerators(intermediateSnapshot, Date.now(), BALANCE);
+          return {
+            entities: ticked.entities,
+            grid: ticked.grid,
+            rngState: ticked.rngState,
+            cumulativeStats: ticked.cumulativeStats,
           };
         });
       },
