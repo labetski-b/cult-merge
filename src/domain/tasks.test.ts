@@ -1,0 +1,142 @@
+import { describe, it, expect } from 'vitest';
+import type { BalanceConfig } from '../data/schemas';
+import type { GameSnapshot, GeneratorEntity } from './types';
+import { BALANCE } from '../data/loadBalance';
+import { createGrid } from './grid';
+import { createEmptyCumulativeStats, createEmptyQuestState } from './quests';
+import { SeededRng } from '../infra/rng';
+import { generateAutoTask } from './tasks';
+
+/**
+ * Test balance based on real BALANCE, but with a trimmed generator list:
+ * - Gen1: sacrifice mode, drops Creature1 (krakenRequired=1)
+ * - Gen2: sacrifice mode, drops Creature3 (krakenRequired=1, uses rune1 so phantom purchase is possible)
+ *
+ * With kraken.level=1 and 100 rune1 available, the player could "phantom purchase"
+ * Gen2 — the current (buggy) scoring table adds it, which the refactor in Task 3
+ * will eliminate.
+ */
+function makeBalanceWithTwoGens(): BalanceConfig {
+  const gen1 = {
+    id: 1,
+    name: 'Gen1',
+    spawnMode: 'sacrifice' as const,
+    eggType: 'Egg_Creature1',
+    purchaseCurrency: 'rune1' as const,
+    purchaseCost: 5,
+    krakenRequired: 1,
+    lines: ['Creature1', 'Creature2'] as [string, string],
+    levels: [
+      {
+        level: 1,
+        chargeCost: 0.5,
+        numCreatures: 15,
+        outputs: [{ creatureType: 'Creature1', level: 1, chance: 1 }],
+        upgrade: {
+          mergesRequired: 15,
+          runeType: 'rune1' as const,
+          runeCost: 2,
+          upgradeDurationSec: 3,
+        },
+      },
+      {
+        level: 2,
+        chargeCost: 0.75,
+        numCreatures: 17,
+        outputs: [{ creatureType: 'Creature1', level: 1, chance: 1 }],
+      },
+    ],
+  };
+
+  const gen2 = {
+    id: 2,
+    name: 'Gen2',
+    spawnMode: 'sacrifice' as const,
+    eggType: 'Egg_Creature3',
+    purchaseCurrency: 'rune1' as const, // reuse rune1 so 100 rune1 makes phantom purchase possible
+    purchaseCost: 5,
+    krakenRequired: 1, // force availability at KL1
+    lines: ['Creature3', 'Creature4'] as [string, string],
+    levels: [
+      {
+        level: 1,
+        chargeCost: 0.5,
+        numCreatures: 15,
+        outputs: [{ creatureType: 'Creature3', level: 1, chance: 1 }],
+      },
+    ],
+  };
+
+  return {
+    ...BALANCE,
+    generators: {
+      generators: [gen1, gen2],
+    },
+  };
+}
+
+/**
+ * Snapshot with Gen1 L1 on field (and nothing else). 100 rune1 available so a
+ * phantom purchase of Gen2 is affordable from the scoring table's perspective.
+ */
+function makeSnapshotWithGen1OnField(): GameSnapshot {
+  const grid = createGrid(5, 5);
+  const gen1Id = 'gen1_a';
+  grid.cells[0] = gen1Id;
+
+  const gen1: GeneratorEntity = {
+    id: gen1Id,
+    kind: 'generator',
+    generatorId: 1,
+    level: 1,
+    charges: [],
+  };
+
+  return {
+    kraken: { level: 1, step: 0, currentExp: 0 },
+    resources: { meat: 100, eyes: 0, rune1: 100, rune2: 0, gems: 0 },
+    grid,
+    entities: { [gen1Id]: gen1 },
+    taskProgress: {},
+    currentTaskFed: [],
+    pendingRewards: [],
+    rngState: 1,
+    lastMessage: null,
+    predatorMergeCounts: {},
+    mergeCountByLine: {},
+    predatorQueueIndex: 0,
+    predatorsSpawnedOnce: [],
+    managerCards: [],
+    currentAutoTask: null,
+    lastAutoTaskLine: null,
+    autoTaskLineCompletions: {},
+    autoTaskLastLevels: {},
+    session: 1,
+    meatButtonPresses: 0,
+    meatPressesAtLastFP: 0,
+    fpQuestsByKrakenLevel: {},
+    cumulativeStats: createEmptyCumulativeStats(),
+    questState: createEmptyQuestState(),
+    meatDropQueue: [],
+    chapterClaimed: {},
+    mergesSpentByGen: {},
+    activeUpgrade: null,
+  };
+}
+
+describe('generateAutoTask — scoring table sources', () => {
+  it('considers only generators physically on the field (no phantom purchases)', () => {
+    const config = makeBalanceWithTwoGens();
+    const state = makeSnapshotWithGen1OnField();
+    const rng = new SeededRng(1);
+
+    const task = generateAutoTask(config, state, rng);
+
+    // Force difficulty >= 2 path by using a non-empty scoring table.
+    // The debug scoring table should only reference generators on the field.
+    expect(task.debugScoringTable).toBeDefined();
+    const genIds = new Set(task.debugScoringTable!.map((e) => e.genId));
+    expect(genIds.has(1)).toBe(true);
+    expect(genIds.has(2)).toBe(false); // Gen2 must NOT appear as a phantom purchase
+  });
+});
