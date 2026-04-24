@@ -13,7 +13,7 @@ import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/
 import { mergeEntities } from '@domain/merge';
 import { canUpgradeGenerator } from '@domain/upgrades';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
-import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete } from '@domain/tasks';
+import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import {
   feedEntity as applyFeedEntity,
@@ -618,6 +618,8 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let nextMeatPressesAtLastFP = state.meatPressesAtLastFP;
+          let nextFpQuestsByKrakenLevel = state.fpQuestsByKrakenLevel;
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -684,8 +686,13 @@ export const useGameStore = create<GameStore>()(
                   // If this was the last mandatory task, generate first auto task
                   const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
                   if (nextMandatory === null) {
-                    const snapForGen = { ...state, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels };
+                    const snapForGen = { ...state, kraken: krakenState, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
                     nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                    const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                    if (fpUpdate) {
+                      nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                      nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                    }
                   }
                 } else {
                   // Auto task → generate next
@@ -696,8 +703,13 @@ export const useGameStore = create<GameStore>()(
                     nextAutoTaskLastLevels[cr.type] = cr.level;
                   }
                   const completedLine = task.creatures[0]?.type ?? null;
-                  const snapForGen = { ...state, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels };
+                  const snapForGen = { ...state, kraken: krakenState, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
                   nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                  const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                  if (fpUpdate) {
+                    nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                    nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                  }
                   nextAutoTaskLine = completedLine;
                 }
               }
@@ -725,6 +737,8 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
+            meatPressesAtLastFP: nextMeatPressesAtLastFP,
+            fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
             rngState: rng.getState(),
             cumulativeStats: {
               ...state.cumulativeStats,
@@ -755,6 +769,8 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let nextMeatPressesAtLastFP = state.meatPressesAtLastFP;
+          let nextFpQuestsByKrakenLevel = state.fpQuestsByKrakenLevel;
           let meatButtonPresses = state.meatButtonPresses;
           let session = state.session;
           let cqMerges = 0;
@@ -903,7 +919,13 @@ export const useGameStore = create<GameStore>()(
             ?? nextAutoTask;
 
           if (!task) {
-            nextAutoTask = generateAutoTask(BALANCE, { ...state, kraken: krakenState, resources: nextResources, entities: nextEntities, taskProgress: nextTaskProgress }, rng);
+            const snapForGen = { ...state, kraken: krakenState, resources: nextResources, entities: nextEntities, taskProgress: nextTaskProgress, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel, meatButtonPresses };
+            nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+            const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+            if (fpUpdate) {
+              nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+              nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+            }
             task = nextAutoTask;
           }
 
@@ -920,6 +942,8 @@ export const useGameStore = create<GameStore>()(
               lastAutoTaskLine: nextAutoTaskLine,
               autoTaskLineCompletions: nextAutoTaskLineCompletions,
               autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatPressesAtLastFP: nextMeatPressesAtLastFP,
+              fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
               meatButtonPresses,
               session,
               rngState: rng.getState(),
@@ -1288,9 +1312,17 @@ export const useGameStore = create<GameStore>()(
                   lastAutoTaskLine: null as string | null,
                   resources: nextResources,
                   entities: nextEntities,
-                  autoTaskLastLevels: nextAutoTaskLastLevels
+                  autoTaskLastLevels: nextAutoTaskLastLevels,
+                  meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                  fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                  meatButtonPresses
                 };
                 nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+                const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+                if (fpUpdate) {
+                  nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                  nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+                }
               }
             } else {
               for (const cr of currentTask.creatures) {
@@ -1303,14 +1335,23 @@ export const useGameStore = create<GameStore>()(
               const completedLine = currentTask.creatures[0]?.type ?? null;
               const snapForGen = {
                 ...state,
+                kraken: krakenState,
                 lastAutoTaskLine: completedLine,
                 currentAutoTask: currentTask,
                 resources: nextResources,
                 entities: nextEntities,
                 autoTaskLineCompletions: nextAutoTaskLineCompletions,
-                autoTaskLastLevels: nextAutoTaskLastLevels
+                autoTaskLastLevels: nextAutoTaskLastLevels,
+                meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                meatButtonPresses
               };
               nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
+              const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
+              if (fpUpdate) {
+                nextMeatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+                nextFpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+              }
               nextAutoTaskLine = completedLine;
             }
 
@@ -1343,6 +1384,8 @@ export const useGameStore = create<GameStore>()(
               lastAutoTaskLine: nextAutoTaskLine,
               autoTaskLineCompletions: nextAutoTaskLineCompletions,
               autoTaskLastLevels: nextAutoTaskLastLevels,
+              meatPressesAtLastFP: nextMeatPressesAtLastFP,
+              fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
               meatButtonPresses,
               session,
               rngState: rng.getState(),
@@ -1380,6 +1423,8 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
+            meatPressesAtLastFP: nextMeatPressesAtLastFP,
+            fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
             meatButtonPresses,
             session,
             rngState: rng.getState(),
@@ -1682,9 +1727,11 @@ export const useGameStore = create<GameStore>()(
 
           const rng = new SeededRng(state.rngState);
           const autoTask = generateAutoTask(BALANCE, state, rng);
+          const fpUpdate = applyFPCounterUpdate(autoTask, state, BALANCE);
           return {
             currentAutoTask: autoTask,
-            rngState: rng.getState()
+            rngState: rng.getState(),
+            ...(fpUpdate ?? {})
           };
         });
       },

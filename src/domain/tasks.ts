@@ -298,6 +298,31 @@ export function isFPTask(task: TaskDefinition, config: BalanceConfig): boolean {
   return task.pickedGenId !== undefined && isFPGenerator(task.pickedGenId, config);
 }
 
+/**
+ * If `task` is an FP quest, returns the partial state update needed to record it:
+ *  - `meatPressesAtLastFP` resets the "sacrifices since last FP" delta.
+ *  - `fpQuestsByKrakenLevel[state.kraken.level]` increments by 1.
+ *
+ * Callers spread the return value into the next state object they're building
+ * (Zustand `set`, SimulationEngine mutations, functional feed snapshot, etc).
+ *
+ * Returns `null` for non-FP tasks — caller spreads `{}` / skips.
+ */
+export function applyFPCounterUpdate(
+  task: TaskDefinition,
+  state: GameSnapshot,
+  config: BalanceConfig,
+): Pick<GameSnapshot, 'meatPressesAtLastFP' | 'fpQuestsByKrakenLevel'> | null {
+  if (!isFPTask(task, config)) return null;
+  return {
+    meatPressesAtLastFP: state.meatButtonPresses,
+    fpQuestsByKrakenLevel: {
+      ...state.fpQuestsByKrakenLevel,
+      [state.kraken.level]: (state.fpQuestsByKrakenLevel[state.kraken.level] ?? 0) + 1,
+    },
+  };
+}
+
 export function generateAutoTask(
   config: BalanceConfig,
   state: GameSnapshot,

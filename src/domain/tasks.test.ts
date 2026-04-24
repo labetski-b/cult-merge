@@ -5,7 +5,7 @@ import { BALANCE } from '../data/loadBalance';
 import { createGrid } from './grid';
 import { createEmptyCumulativeStats, createEmptyQuestState } from './quests';
 import { SeededRng } from '../infra/rng';
-import { generateAutoTask, isFPTask } from './tasks';
+import { applyFPCounterUpdate, generateAutoTask, isFPTask } from './tasks';
 
 /**
  * Test balance based on real BALANCE, but with a trimmed generator list:
@@ -404,5 +404,66 @@ describe('isFPTask', () => {
 
   it('returns false when pickedGenId is undefined', () => {
     expect(isFPTask(makeTask(undefined), config)).toBe(false);
+  });
+});
+
+describe('applyFPCounterUpdate', () => {
+  const config = makeBalanceWithTimerGen(); // Gen3 is the timer (FP) generator
+
+  const makeTask = (pickedGenId?: number): TaskDefinition => ({
+    id: 't',
+    creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+    expMultiplier: 1,
+    resMultiplier: 1,
+    pickedGenId,
+  });
+
+  it('returns counter update when task is FP (pickedGenId points at timer gen)', () => {
+    const state = makeSnapshotWithGen1OnField();
+    state.meatButtonPresses = 17;
+    state.kraken.level = 3;
+    state.fpQuestsByKrakenLevel = { 2: 1, 3: 1 };
+
+    const update = applyFPCounterUpdate(makeTask(3), state, config);
+
+    expect(update).not.toBeNull();
+    expect(update!.meatPressesAtLastFP).toBe(17);
+    // bumps KL3 to 2, KL2 untouched
+    expect(update!.fpQuestsByKrakenLevel).toEqual({ 2: 1, 3: 2 });
+  });
+
+  it('returns null when task is non-FP (pickedGenId points at sacrifice gen)', () => {
+    const state = makeSnapshotWithGen1OnField();
+    expect(applyFPCounterUpdate(makeTask(1), state, config)).toBeNull();
+  });
+
+  it('returns null when pickedGenId is undefined (fallback task)', () => {
+    const state = makeSnapshotWithGen1OnField();
+    expect(applyFPCounterUpdate(makeTask(undefined), state, config)).toBeNull();
+  });
+
+  it('does not mutate state.fpQuestsByKrakenLevel reference', () => {
+    const state = makeSnapshotWithGen1OnField();
+    state.kraken.level = 1;
+    state.fpQuestsByKrakenLevel = { 1: 1 };
+    const originalRef = state.fpQuestsByKrakenLevel;
+
+    const update = applyFPCounterUpdate(makeTask(3), state, config);
+
+    expect(update).not.toBeNull();
+    expect(update!.fpQuestsByKrakenLevel).not.toBe(originalRef); // new object
+    expect(originalRef).toEqual({ 1: 1 }); // original untouched
+    expect(update!.fpQuestsByKrakenLevel).toEqual({ 1: 2 });
+  });
+
+  it('initializes fpQuestsByKrakenLevel entry to 1 when missing', () => {
+    const state = makeSnapshotWithGen1OnField();
+    state.kraken.level = 5;
+    state.fpQuestsByKrakenLevel = {}; // KL5 entry not present
+
+    const update = applyFPCounterUpdate(makeTask(3), state, config);
+
+    expect(update).not.toBeNull();
+    expect(update!.fpQuestsByKrakenLevel).toEqual({ 5: 1 });
   });
 });

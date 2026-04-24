@@ -5,7 +5,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getCurrentStepRewards } from '@domain/kraken';
 import { mergeEntities } from '@domain/merge';
 import { recordMerge } from '@domain/lineUpgrades';
-import { generateAutoTask } from '@domain/tasks';
+import { applyFPCounterUpdate, generateAutoTask } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { feedEntity as applyFeedEntity } from '@domain/runtime/feed';
@@ -111,7 +111,13 @@ export class SimulationEngine {
   private ensureAutoTask() {
     if (this.state.kraken.level < 2) return;
     if (getActiveTask(this.config.balance, this.state)) return;
-    this.state.currentAutoTask = generateAutoTask(this.config.balance, this.state, this.rng);
+    const newTask = generateAutoTask(this.config.balance, this.state, this.rng);
+    this.state.currentAutoTask = newTask;
+    const fpUpdate = applyFPCounterUpdate(newTask, this.state, this.config.balance);
+    if (fpUpdate) {
+      this.state.meatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
+      this.state.fpQuestsByKrakenLevel = fpUpdate.fpQuestsByKrakenLevel;
+    }
   }
 
   private executeTick(outerTick: number) {

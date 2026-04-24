@@ -2,7 +2,7 @@ import { findEntityCell, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp } from '@domain/kraken';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
-import { generateAutoTask, getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { applyFPCounterUpdate, generateAutoTask, getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
 import type { GameSnapshot, Resources, RuneItemKey, TaskDefinition } from '@domain/types';
 import type { RuntimeContext, RuntimeResult } from './types';
 
@@ -264,17 +264,21 @@ export function feedEntity(
       autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels
     };
 
+    const newAutoTask = nextMandatoryTask === null
+      ? generateAutoTask(ctx.balance, generationSnapshot, ctx.rng)
+      : null;
+    const fpUpdate = newAutoTask
+      ? applyFPCounterUpdate(newAutoTask, generationSnapshot, ctx.balance)
+      : null;
+
     nextSnapshot = {
       ...nextSnapshot,
       taskProgress: nextTaskProgress,
-      currentAutoTask: nextMandatoryTask === null
-        ? (
-            generateAutoTask(ctx.balance, generationSnapshot, ctx.rng)
-          )
-        : null,
+      currentAutoTask: newAutoTask,
       autoTaskLineCompletions: taskBookkeeping.autoTaskLineCompletions,
       autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels,
-      rngState: nextMandatoryTask === null ? ctx.rng.getState() : snapshot.rngState
+      rngState: nextMandatoryTask === null ? ctx.rng.getState() : snapshot.rngState,
+      ...(fpUpdate ?? {})
     };
   } else {
     const completedLine = task.creatures[0]?.type ?? null;
@@ -286,13 +290,17 @@ export function feedEntity(
       autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels
     };
 
+    const newAutoTask = generateAutoTask(ctx.balance, generationSnapshot, ctx.rng);
+    const fpUpdate = applyFPCounterUpdate(newAutoTask, generationSnapshot, ctx.balance);
+
     nextSnapshot = {
       ...nextSnapshot,
-      currentAutoTask: generateAutoTask(ctx.balance, generationSnapshot, ctx.rng),
+      currentAutoTask: newAutoTask,
       lastAutoTaskLine: completedLine,
       autoTaskLineCompletions: taskBookkeeping.autoTaskLineCompletions,
       autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels,
-      rngState: ctx.rng.getState()
+      rngState: ctx.rng.getState(),
+      ...(fpUpdate ?? {})
     };
   }
 
