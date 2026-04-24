@@ -120,6 +120,24 @@ export interface TickMetrics {
   // Time tracking
   totalTimeSec: number;
   sessionTimeSec: number;
+
+  // Upgrade tracking
+  activeUpgradeGen: number | null;
+  upgradesStarted: number;
+  upgradesCollected: number;
+  runeStarveRejects: number;
+  idleUpgradeTicks: number;
+
+  // Gen3 (timer-mode) tracking
+  gen3PassiveSpawns: number;
+  gen3CheatSpawns: number;
+  gen3SkipClicks: number;
+  questsClosedViaGen3Skip: number;
+
+  // Generator state snapshots
+  unlockedGenerators: number[];
+  mergesSpentByGenSnapshot: Record<number, number>;
+  generatorLevelsSnapshot: Record<number, number>;
 }
 
 export interface SimulationSnapshot {
@@ -215,4 +233,14 @@ export interface CumulativeMetrics {
   totalTimeSec: number;
   totalPredictedExp: number;
   totalQuestMeatCost: number;
+  // Upgrade counters
+  upgradesStarted: number;
+  upgradesCollected: number;
+  runeStarveRejects: number;
+  idleUpgradeTicks: number;
+  // Gen3 (timer-mode) counters
+  gen3PassiveSpawns: number;
+  gen3CheatSpawns: number;
+  gen3SkipClicks: number;
+  questsClosedViaGen3Skip: number;
 }

@@ -1,4 +1,4 @@
-import type { GameSnapshot } from '@domain/types';
+import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
 import { getCurrentMandatoryTask } from '@domain/tasks';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
@@ -28,6 +28,14 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalTimeSec: 0,
     totalPredictedExp: 0,
     totalQuestMeatCost: 0,
+    upgradesStarted: 0,
+    upgradesCollected: 0,
+    runeStarveRejects: 0,
+    idleUpgradeTicks: 0,
+    gen3PassiveSpawns: 0,
+    gen3CheatSpawns: 0,
+    gen3SkipClicks: 0,
+    questsClosedViaGen3Skip: 0,
   };
 }
 
@@ -124,6 +132,32 @@ export function captureTickMetrics(
 
     // Time tracking
     sessionTimeSec,
+
+    // Upgrade tracking
+    activeUpgradeGen: state.activeUpgrade?.generatorId ?? null,
+    upgradesStarted: cumulative.upgradesStarted ?? 0,
+    upgradesCollected: cumulative.upgradesCollected ?? 0,
+    runeStarveRejects: cumulative.runeStarveRejects ?? 0,
+    idleUpgradeTicks: cumulative.idleUpgradeTicks ?? 0,
+
+    // Gen3 (timer-mode) tracking
+    gen3PassiveSpawns: cumulative.gen3PassiveSpawns ?? 0,
+    gen3CheatSpawns: cumulative.gen3CheatSpawns ?? 0,
+    gen3SkipClicks: cumulative.gen3SkipClicks ?? 0,
+    questsClosedViaGen3Skip: cumulative.questsClosedViaGen3Skip ?? 0,
+
+    // Generator state snapshots
+    unlockedGenerators: Object.values(state.entities)
+      .filter((e): e is GeneratorEntity => e.kind === 'generator')
+      .map(e => e.generatorId)
+      .filter((v, i, a) => a.indexOf(v) === i),
+    mergesSpentByGenSnapshot: { ...state.mergesSpentByGen },
+    generatorLevelsSnapshot: Object.values(state.entities)
+      .filter((e): e is GeneratorEntity => e.kind === 'generator')
+      .reduce<Record<number, number>>((acc, e) => {
+        acc[e.generatorId] = Math.max(acc[e.generatorId] ?? 0, e.level);
+        return acc;
+      }, {}),
   };
 }
 

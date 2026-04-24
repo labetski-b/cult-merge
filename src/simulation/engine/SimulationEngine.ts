@@ -49,6 +49,14 @@ export class SimulationEngine {
   private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
   private totalActions = 0;
   private currentGameTimeMs = 0;
+  // Tracks whether a skip_timer_generator action fired during the current quest
+  // (a new quest resets it on `new_quest` / `quest_completed`).
+  // Used as a proxy for questsClosedViaGen3Skip.
+  // TODO: this may overcount slightly if skip happened in same tick but not
+  // specifically for the completed quest's creature requirement.
+  private currentQuestUsedSkipTimer = false;
+  // Tracks whether a collect_upgrade action changed state this tick (used for idleUpgradeTicks)
+  private tickHadCollectUpgrade = false;
 
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
@@ -141,6 +149,7 @@ export class SimulationEngine {
 
     const MAX_ITERATIONS = 500; // safety limit
     this.tickLogIndex = 0;
+    this.tickHadCollectUpgrade = false;
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
       const krakenLevelBefore = this.state.kraken.level;
@@ -213,7 +222,17 @@ export class SimulationEngine {
     }
 
     // Passive tick: advance timer-mode generators (e.g. Gen3) based on accumulated game time
+    const creaturesBeforePassive = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
     this.state = tickTimerGenerators(this.state, this.currentGameTimeMs, this.config.balance);
+    const creaturesAfterPassive = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
+    if (creaturesAfterPassive > creaturesBeforePassive) {
+      this.cumulative.gen3PassiveSpawns += (creaturesAfterPassive - creaturesBeforePassive);
+    }
+
+    // Idle upgrade tick: upgrade still active at tick end AND no collect happened this tick
+    if (this.state.activeUpgrade !== null && !this.tickHadCollectUpgrade) {
+      this.cumulative.idleUpgradeTicks += 1;
+    }
 
     // Capture metrics (cumulative is already updated in action handlers like feedEntity)
     const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
@@ -248,24 +267,43 @@ export class SimulationEngine {
         this.tapGenerator(action.generatorId);
         break;
       case 'start_upgrade': {
+        const hadActiveBefore = this.state.activeUpgrade !== null;
         this.state = applyStartUpgrade(this.state, this.config.balance, action.entityId, this.currentGameTimeMs);
+        if (!hadActiveBefore && this.state.activeUpgrade !== null) {
+          this.cumulative.upgradesStarted += 1;
+        } else if (!hadActiveBefore && this.state.activeUpgrade === null) {
+          // Start was rejected (runes insufficient, mergesRequired not met, etc.)
+          this.cumulative.runeStarveRejects += 1;
+        }
         break;
       }
       case 'collect_upgrade': {
+        const hadActiveBefore = this.state.activeUpgrade !== null;
         this.state = applyCollectUpgrade(this.state, this.currentGameTimeMs);
+        if (hadActiveBefore && this.state.activeUpgrade === null) {
+          this.cumulative.upgradesCollected += 1;
+          this.tickHadCollectUpgrade = true;
+        }
         break;
       }
       case 'skip_timer_generator': {
+        this.cumulative.gen3SkipClicks += 1;
+        this.currentQuestUsedSkipTimer = true;
         const entity = this.state.entities[action.entityId];
         if (!entity || entity.kind !== 'generator') break;
         const cfg = this.config.balance.generators.generators.find(g => g.id === entity.generatorId);
         if (!cfg || cfg.spawnMode !== 'timer') break;
         const intervalMs = (cfg.tickIntervalSec ?? 0) * 1000;
+        const creaturesBefore = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
         const withBackdate: GameSnapshot = {
           ...this.state,
           entities: { ...this.state.entities, [action.entityId]: { ...entity, lastTickTimestamp: this.currentGameTimeMs - intervalMs } },
         };
         this.state = tickTimerGenerators(withBackdate, this.currentGameTimeMs, this.config.balance);
+        const creaturesAfter = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
+        if (creaturesAfter > creaturesBefore) {
+          this.cumulative.gen3CheatSpawns += (creaturesAfter - creaturesBefore);
+        }
         break;
       }
       case 'quest_completed':
@@ -499,6 +537,14 @@ export class SimulationEngine {
           this.cumulative.totalEyesGained += event.eyesGained;
           this.cumulative.totalTasksCompleted += 1;
           this.cumulative.totalQuestMeatCost += event.meatCost;
+          // Proxy: if any skip_timer_generator fired during this quest, count it.
+          // TODO: may overcount if skip was for a different generator than the
+          // creature the quest required; a precise attribution would require
+          // tracking the skip's target creatureType against quest requirements.
+          if (this.currentQuestUsedSkipTimer) {
+            this.cumulative.questsClosedViaGen3Skip += 1;
+          }
+          this.currentQuestUsedSkipTimer = false;
           this.taskNumber++;
           // Notify strategy to advance phase: task → reward
           this.config.strategy.onQuestCompleted?.();
