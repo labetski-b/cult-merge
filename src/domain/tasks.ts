@@ -110,13 +110,19 @@ export function getExpectedL1PerCharge(
 /** Scoring table entry: best generator for a creature at given budget. */
 type ScoringEntry = ScoringTableEntry;
 
-/** Build scoring table over on-field generators, applying a phantom +1 level when the next upgrade is affordable. */
 interface ScoringResult {
   collapsed: ScoringEntry[];
   raw: ScoringEntry[];
 }
 
+/** Projection window for timer-mode (Flower Pot) scoring: 8 × tick interval (≈ 4h of drops). */
 const FP_TICKS_WINDOW = 8;
+
+/**
+ * Build scoring table over on-field generators. `scoringLevel = factLvl + 1` if the next upgrade
+ * is currently affordable (runes + merges), else `factLvl`. Sacrifice generators project by meat
+ * budget; timer generators (Flower Pot) project by an 8-tick window.
+ */
 
 function buildScoringTable(
   config: BalanceConfig,
