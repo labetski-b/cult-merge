@@ -446,6 +446,19 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.btn-chapter--claimable {
+  border: 1px solid rgba(255, 107, 107, 0.7);
+  background: linear-gradient(90deg, #ff5a5a, #ff3b3b);
+  animation: chapter-claim-pulse 1.4s ease-in-out infinite;
+}
+.btn-chapter--claimable:hover:not(:disabled) {
+  background: linear-gradient(90deg, #ff5a5a, #ff3b3b);
+  filter: brightness(1.1);
+}
+.btn-chapter--claimable:active:not(:disabled) {
+  background: linear-gradient(90deg, #ff5a5a, #ff3b3b);
+  transform: translateY(1px);
+}
 
 .button-row {
   display: flex;
