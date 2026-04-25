@@ -57,7 +57,9 @@ strategies/               — стратегия AI-игрока
 | `feed` | Убирает существо с поля → +EXP, прогресс по заданию |
 | `merge` | Два существа/генератора одного типа и уровня → одно уровнем выше |
 | `open_box` | Достаёт руну из бокса |
-| `buy_generator` | Покупает Generator level 1 за руны (стоимость из `purchaseCost`) |
+| `start_upgrade` `{ entityId }` | Запуск асинхронного апгрейда генератора (single-slot, проверка merges + run cost) |
+| `collect_upgrade` | Сбор готового апгрейда из активного слота (no-op если таймер ещё крутится) |
+| `skip_timer_generator` `{ entityId }` | Quest-driven cheat для timer-mode генераторов: бэкдейтит `lastTickTimestamp` и форсит spawn |
 | `new_quest` | Синтетическое событие: назначена новая `Kraken task` (legacy action name, state не мутирует) |
 
 ### Важные механики
@@ -79,7 +81,9 @@ strategies/               — стратегия AI-игрока
 | `feed` | 0.8 |
 | `charge_generator` | 1.0 |
 | `spawn_generator` | 0.5 |
-| `buy_generator` | 1.5 |
+| `start_upgrade` | 0.5 |
+| `collect_upgrade` | 0.5 |
+| `skip_timer_generator` | 2.0 |
 | `new_quest` | 0 (synthetic) |
 | `expand_board` | 0 (synthetic) |
 
@@ -123,13 +127,13 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 - **Если есть активная `Kraken task` (уровень ≥ 2):**
 
   1. Определяет нужные `creatureType` из текущего задания
-  2. **Проактивный апгрейд генераторов** (всегда, перед спавном):
+  2. **Проактивный апгрейд генераторов** (async-slot, перед спавном):
      - Мержит все существующие пары генераторов одного уровня
-     - Находит max-уровень генератора нужной линейки на поле
-     - Считает `calcGensNeeded(targetLevel, avail)` — сколько gen 1-1 ещё нужно купить
-       с учётом запланированных мержей текущего тика
-     - Если рун хватает на весь апгрейд (`gensToBuy × purchaseCost ≤ rune1`) → покупает 1 gen 1-1
-     - Если ген уже на max (level 5) и задача требует Creature1 → покупает gen 1-1 (держит для CR1 задач)
+     - Если `state.activeUpgrade` готов → шлёт `collect_upgrade`
+     - Иначе через `pickUpgradeCandidate` выбирает кандидата (нужная линейка, прошёл merge-gate,
+       руны достаточно) → шлёт `start_upgrade { entityId }`
+     - Если задача требует timer-mode generator (Gen3) и подходящий ген уже на поле → шлёт
+       `skip_timer_generator { entityId }` (учитывается в `gen3SkipClicks`)
   3. **canProduce = false** (ни одного подходящего генератора):
      - Спавнит из line-генераторов + скармливает всех существ для EXP
        (EXP → kraken level up → rune rewards → апгрейд ген. на следующем тике)
@@ -193,6 +197,38 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 - **`totalMerges`** — количество выполненных `merge` действий
 - **`totalCharges`** — количество выполненных `charge_generator` действий (зарядов генераторов за мясо)
 
+### Новые метрики 3.23 (async-upgrade + Gen3 timer-mode)
+
+Все хранятся в `CumulativeMetrics` (для cumul. счётчиков) или в `state` (для snapshot-полей)
+и пробрасываются в `TickMetrics` через `captureTickMetrics`:
+
+- **`activeUpgradeGen`** — `generatorId` текущего активного апгрейда, либо `null` (slot пустой)
+- **`upgradesStarted`** — cumul. счётчик действий `start_upgrade`
+- **`upgradesCollected`** — cumul. счётчик действий `collect_upgrade`, изменивших state
+- **`runeStarveRejects`** — сколько раз стратегия хотела стартовать апгрейд, но не хватило рун
+- **`idleUpgradeTicks`** — тики, в которых был отправлен `collect_upgrade`, но таймер ещё не истёк
+- **`gen3PassiveSpawns`** — пассивные спавны от `tickTimerGenerators` (Gen3 idle ticking)
+- **`gen3CheatSpawns`** — спавны через quest-cheat `skip_timer_generator`
+- **`gen3SkipClicks`** — действия `skip_timer_generator`, отправленные стратегией
+- **`questsClosedViaGen3Skip`** — квесты, закрытые в тике, где использовался cheat
+- **`unlockedGenerators`** — список `generatorId`, которые уже стоят на поле в этом тике
+- **`mergesSpentByGenSnapshot`** — копия `state.mergesSpentByGen` (gate для апгрейдов)
+- **`generatorLevelsSnapshot`** — `{ generatorId → maxLevel }` по существам на поле
+
+### Gen3 timer-mode
+
+Gen3 (исторически Flower Pot) — единственный генератор со `spawnMode: 'timer'`. Не требует
+заряда мясом и не активируется кликом игрока:
+
+- **Пассивный спавн** — `tickTimerGenerators` вызывается в конце каждого engine tick после
+  выполнения strategy actions. Если с момента `lastTickTimestamp` прошло ≥ `tickIntervalSec`,
+  выкатывается одна попытка спавна (`rollGeneratorSpawn`). При успехе → `gen3PassiveSpawns += 1`.
+- **Quest-cheat** — если активный `Kraken task` требует Creature от timer-mode генератора,
+  стратегия отправляет `skip_timer_generator { entityId }`. Engine бэкдейтит
+  `lastTickTimestamp = now - intervalMs` и форсит spawn → `gen3CheatSpawns += 1`.
+  Cumul. счётчик `gen3SkipClicks` инкрементится на действие, `questsClosedViaGen3Skip` — при
+  завершении квеста, в течение которого был хоть один skip.
+
 График **New Creatures Discovered** (Sessions only) показывает Δ delta/session + cumul на правой оси.
 
 При режиме Tick — каждый тик = одна точка. При Session и Sacrifices — тики группируются по значению ключа, и каждая группа сворачивается в одну точку на графике.
@@ -228,9 +264,16 @@ aggregateHistory(history, getKey, getValue, mode)
 - **Kraken tasks** (`tasks.json`): по уровням кракена. Level 2 = Creature1. Level 3+ = появляется Creature2
 - **Kraken quests** (`quests.json`): unlockable Kraken quest layer, сейчас организован по chapter'ам и unlock на Kraken level 4
 - **Связка**: генератор → `lines: ["Creature1", "Creature2"]` → может когда-нибудь выдать оба типа. `outputs` текущего уровня определяет что выдаёт прямо сейчас
-- **Прокачка генераторов**: gen level N → N+1 требует 2^(N-1) покупок gen 1-1.
-  Стратегия проверяет полную стоимость апгрейда перед покупкой; покупает по 1 ген в тик.
-  (gen 1-1→1-2: 2 покупки; gen 1-2→1-3: ещё 2; итого до gen 1-5: 16 покупок)
+- **Прокачка генераторов (async-upgrade slot)**: апгрейд генератора больше не покупается мгновенно
+  через `buy_generator`/`merge_cascade`. Вместо этого:
+  - **Single-slot**: только один активный апгрейд за раз (`state.activeUpgrade`). Пока слот занят,
+    нельзя стартовать другой апгрейд (но остальные действия — спавн/мерджи/фид — продолжаются).
+  - **Merge-gate**: количество накопленных мерджей на линии (`state.mergesSpentByGen[genId]`)
+    должно достичь `mergesRequired` нужного уровня, иначе старт невозможен.
+  - **Rune-cost**: апгрейд стоит rune1/rune2 — снимаются при `start_upgrade`. Если рун не хватает,
+    стратегия инкрементит `runeStarveRejects` и не отправляет действие.
+  - **Timer**: апгрейд готов через `upgradeDurationSec`. До `collect_upgrade`'а слот занят;
+    тики, в которых была попытка collect'а, но таймер ещё не истёк, считаются как `idleUpgradeTicks`.
 - **Мясо**: `calculateMeatDrop(totalEyes)` — количество мяса за нажатие кнопки, линейно растёт внутри главы
 - **Сессия**: `calculateSession(pressCount)` — нажатия 1-5 = сессия 1, 6-10 = сессия 2 и т.д.
 
