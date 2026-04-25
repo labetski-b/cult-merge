@@ -45,6 +45,15 @@ function tryLoadFile<T>(filename: string, schema: ZodType<T>): T | null {
 }
 
 const expGenerators = tryLoadFile('generators.json', generatorsDataSchema);
+if (expGenerators) {
+  const valid = expGenerators.generators.every(g =>
+    g.levels.every(l => l.upgrade != null)
+  );
+  if (!valid) {
+    console.error(`[experiment ${expName}] ERROR: generators.json missing 'upgrade' field on one or more levels. This experiment is incompatible with 3.23 simulator.`);
+    process.exit(1);
+  }
+}
 const expChapters = tryLoadFile('chapters_data_analytics.json', chaptersDataSchema);
 const expCreatures = tryLoadFile('creatures.json', creaturesDataSchema);
 const expKrakenProgression = tryLoadFile('kraken_progression.json', krakenProgressionDataSchema);
