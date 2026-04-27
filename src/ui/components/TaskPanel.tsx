@@ -160,8 +160,11 @@ export function TaskPanel() {
       onClick={() => completeQuest()}
       style={{ cursor: 'pointer' }}
     >
-      {task?.id.startsWith('mandatory') && (
-        <span className="task-mandatory-corner" title="Mandatory task">m</span>
+      {task && (task.id.startsWith('mandatory')
+        ? <span className="task-mandatory-corner" title="Mandatory task">m</span>
+        : task.difficulty != null
+          ? <span className="task-mandatory-corner" title={`Difficulty ${task.difficulty}`}>{task.difficulty}</span>
+          : null
       )}
       {task ? (
         <>
