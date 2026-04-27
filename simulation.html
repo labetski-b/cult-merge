@@ -160,7 +160,6 @@
       flex-direction: column;
       gap: var(--space-2);
       min-width: 0;
-      cursor: help;
       align-self: end;
       margin-left: var(--space-5);
     }
@@ -173,6 +172,11 @@
     .sim-strategy__row {
       align-items: center;
       height: 36px;
+    }
+    .sim-strategy__hint {
+      color: var(--text-tertiary);
+      font-weight: 400;
+      margin-left: var(--space-1);
     }
     /* Quest Rewards / Quest Distribution layout — gap */
     .qr-charts-row {
@@ -315,11 +319,13 @@
             <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
           </div>
 
-          <div class="sim-strategy" title="Жмёт кнопку мяса когда не хватает на заряд">
+          <div class="sim-strategy">
             <div class="sim-strategy__label">STRATEGY</div>
-            <label class="cm-check sim-strategy__row" title="Жмёт кнопку мяса когда не хватает на заряд">
+            <label class="cm-check sim-strategy__row">
               <input type="checkbox" class="cm-check__box" name="strategy" value="realistic" checked disabled>
-              <span class="cm-check__label" title="Жмёт кнопку мяса когда не хватает на заряд">Realistic Player</span>
+              <span class="cm-check__label">
+                Realistic Player <span class="sim-strategy__hint">(жмёт кнопку мяса когда не хватает на заряд)</span>
+              </span>
             </label>
           </div>
 
