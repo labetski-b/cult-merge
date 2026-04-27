@@ -119,6 +119,31 @@ interface ScoringResult {
 const FP_TICKS_WINDOW = 8;
 
 /**
+ * Craving weight boost coefficient applied to on-field L1 equivalents.
+ *
+ * Final weight in `pickWeightedByRecency`:
+ *   baseWeight × (1 + log2(1 + fieldL1) × FIELD_L1_WEIGHT_ALPHA)
+ *
+ * Tuning knob: higher → lines already piled up on the field are picked more
+ * often. 0 disables the boost (back to pure recency). Kept as a module-level
+ * constant rather than in autoConfig until the balance lands.
+ */
+export const FIELD_L1_WEIGHT_ALPHA = 0.4;
+
+/**
+ * Pure helper: compute the craving weight for one scoring entry.
+ *
+ * `baseWeight` is whatever the caller produced from their own recency model
+ * (currently creature-number rank). This function layers the fieldL1 bonus on
+ * top so tests can assert the formula numerically without reaching into the
+ * private weighted-pick loop.
+ */
+export function computeCravingWeight(row: ScoringEntry, baseWeight: number): number {
+  const fieldBonus = Math.log2(1 + row.fieldL1) * FIELD_L1_WEIGHT_ALPHA;
+  return baseWeight * (1 + fieldBonus);
+}
+
+/**
  * Build scoring table over on-field generators. `scoringLevel = factLvl + 1` if the next upgrade
  * is currently affordable (runes + merges), else `factLvl`. Sacrifice generators project by meat
  * budget; timer generators (Flower Pot) project by an 8-tick window.
@@ -217,11 +242,17 @@ function makeTaskId(rng: SeededRng): string {
 
 /**
  * Weighted random selection from a scoring table.
- * Weight is based on creature line recency: rank by creature number (e.g. "Creature9" → 9),
- * sorted ascending so oldest = rank 1, newest = rank N.
- * Entries with the same creature number share the same rank.
+ *
+ * Base weight encodes creature-line recency: creatures are ranked by
+ * creature number (e.g. "Creature9" → 9), sorted ascending so oldest = rank 1,
+ * newest = rank N. Entries with the same creature number share the same rank.
+ *
+ * That base weight is then amplified by a bonus proportional to the
+ * L1-equivalent of creatures of that line already sitting on the field —
+ * see `computeCravingWeight` and `FIELD_L1_WEIGHT_ALPHA`. Lines with nothing
+ * on the field get bonus = 0 and fall back to pure recency weighting.
  */
-function pickWeightedByRecency(table: ScoringEntry[], rng: SeededRng): ScoringEntry {
+export function pickWeightedByRecency(table: ScoringEntry[], rng: SeededRng): ScoringEntry {
   // Collect sorted unique creature numbers to determine rank
   const creatureNums = table.map(e => parseInt(e.creatureType.replace('Creature', ''), 10));
   const uniqueSorted = [...new Set(creatureNums)].sort((a, b) => a - b);
@@ -230,7 +261,8 @@ function pickWeightedByRecency(table: ScoringEntry[], rng: SeededRng): ScoringEn
 
   const weights = table.map(e => {
     const num = parseInt(e.creatureType.replace('Creature', ''), 10);
-    return rankMap.get(num) ?? 1;
+    const baseWeight = rankMap.get(num) ?? 1;
+    return computeCravingWeight(e, baseWeight);
   });
 
   const totalWeight = weights.reduce((a, b) => a + b, 0);
