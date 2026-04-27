@@ -107,6 +107,8 @@ Vite раздаёт `public/` как статику → файлы будут д
 | T6 | Переразметить **Quest Rewards table** (`cm-table`, бейджи) | code-agent | `simulation.html` + код, который её рендерит |
 | T7 | Удалить старый inline `<style>` из `simulation.html`, выявить и зафиксировать «гэпы» (что не покрывается cm-* и нужно дописать) | code-agent | финальный `simulation.html`, секция «Gaps» в этом docs |
 | T8 | Smoke-test: запустить dev server, прогнать симуляцию, сделать скриншоты, сравнить с эталоном | code-agent / orchestrator | отчёт в `.context/sim-design-system-smoke.md` + скриншот |
+| T9 | Polish UI после визуальной проверки (charts/badges/x-axis label) | code-agent | изменения в `simulation.html` + `main.ts`; см. Gap #10 |
+| T10 | Фикс form controls (Stop-when select / Value / Seed): рамка, фон, chevron, hover, focus | code-agent | defensive override в `simulation.html`; см. Gap #11 |
 
 T1 — последовательно первый. T2-T6 — могут идти параллельно (разные секции, не конфликтуют). T7 — после всех. T8 — финал.
 
@@ -149,6 +151,13 @@ T1 — последовательно первый. T2-T6 — могут идт�
    - Бейджи агрегации (`agg-badge`): убраны символы `↓ Δ ∅ ±`, оставлены uppercase-only лейблы (`LAST`, `STEP`, `RATE`, `DELTA`, `AVG`, `GAINED + DROP` и т.п.). Капс задаётся самим `cm-badge` (`text-transform: uppercase`).
    - "X axis" label: добавлен микро-капс стиль (`--fs-micro`, `letter-spacing: 0.08em`, `text-transform: uppercase`, `color: --text-tertiary`).
 9. **Progress.** Заменили `<progress>` на `cm-progress` + `cm-progress__bar`; `main.ts` теперь пишет `style.width = "%"` вместо `value`.
+11. **Form controls в Simulation Controls (T10).** Визуальная проверка показала, что `Stop when` (select), `Value` (number-input) и `Seed` (text/number-input) рендерились без видимой рамки/фона/chevron. Диагностика:
+   - Классы `cm-input` / `cm-select` в HTML стоят корректно.
+   - Правила `.cm-input, .cm-select, .cm-textarea` в `public/design-system/components.css` (строки 92-129) **полные** — есть `appearance: none`, `border`, `background`, `border-radius`, hover/focus, chevron-SVG для select.
+   - Скорее всего проблема была в том, что пользователь видел старый dist (browser cache / pre-T9 build).
+   - Решение: добавлен **defensive override** в inline `<style>` `simulation.html` (под `/* Form controls fallback — gap, see docs (#11) */`). Скоупится к `.sim-controls__grid` чтобы не задеть остальные cm-input/select на странице (action-log filter scoped via `.cm-logtable__*`). Override использует `var(--surface-1)` как фон (явная просьба ревьюера, чуть светлее чем upstream-овая `rgba(10,16,32,0.6)`), высоту 36px (= `cm-btn`), chevron stroke `#6b7a9c` ≈ `--text-tertiary`.
+   - Хотя upstream корректен, override страхует от cache-проблем при следующих ребилдах и фиксирует целевой visual contract.
+   - **Заметка для апстрима**: `/Users/labetsky/Documents/AI/PROJECTS/CULT.MERGE/DESIGN SYSTEM/components.css` уже содержит правильные правила, апстрим патч не нужен — но если возникнут регрессии, начинать диагностику оттуда.
 
 ---
 

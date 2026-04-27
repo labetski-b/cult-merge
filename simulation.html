@@ -29,6 +29,50 @@
       color: var(--text-secondary);
       line-height: 1.4;
     }
+
+    /* Form controls fallback — gap, see docs/design-system-integration.md (#11).
+       Defensive override — upstream components.css rules for .cm-input/.cm-select/.cm-textarea
+       exist & are complete, but we re-assert the chrome here so:
+        - Stop-when select / Value number-input / Seed input all share identical height & border
+        - background uses --surface-1 (per visual review request, slightly lighter than rgba(10,16,32,.6))
+        - chevron stroke matches --text-tertiary tone
+       Heights aligned with .cm-btn (36px) so the form-row stays uniform. */
+    .sim-controls__grid .cm-input,
+    .sim-controls__grid .cm-select,
+    .sim-controls__grid .cm-textarea {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 36px;
+      padding: 0 var(--space-3);
+      background: var(--surface-1);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font: inherit;
+      font-size: var(--fs-body);
+      width: 100%;
+      transition:
+        border-color var(--dur-fast) var(--ease-out),
+        box-shadow var(--dur-fast) var(--ease-out),
+        background var(--dur-fast) var(--ease-out);
+    }
+    .sim-controls__grid .cm-textarea { height: auto; padding: var(--space-2) var(--space-3); }
+    .sim-controls__grid .cm-select {
+      padding-right: var(--space-8);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5l5 5 5-5' stroke='%236b7a9c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right var(--space-3) center;
+    }
+    .sim-controls__grid .cm-input:hover,
+    .sim-controls__grid .cm-select:hover,
+    .sim-controls__grid .cm-textarea:hover { border-color: var(--border-strong); }
+    .sim-controls__grid .cm-input:focus,
+    .sim-controls__grid .cm-select:focus,
+    .sim-controls__grid .cm-textarea:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px var(--accent-primary-soft);
+    }
     .simulation-app {
       max-width: 1400px;
       margin: 0 auto;
