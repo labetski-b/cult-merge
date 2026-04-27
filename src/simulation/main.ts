@@ -33,7 +33,7 @@ const form = document.getElementById('sim-form') as HTMLFormElement;
 const runBtn = document.getElementById('run-btn') as HTMLButtonElement;
 const exportBtn = document.getElementById('export-btn') as HTMLButtonElement;
 const progressContainer = document.getElementById('progress-container') as HTMLDivElement;
-const progressBar = document.getElementById('progress') as HTMLProgressElement;
+const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
 const progressText = document.getElementById('progress-text') as HTMLSpanElement;
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
 
@@ -55,14 +55,26 @@ const fieldPopupClose = document.getElementById('field-popup-close')!;
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
 
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
+// Tab switching (cm-tabs: aria-selected + .sim-tab-panel.hidden)
+document.querySelectorAll('#sim-tabs .cm-tab').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    btn.classList.add('active');
+    document.querySelectorAll('#sim-tabs .cm-tab').forEach(b => b.setAttribute('aria-selected', 'false'));
+    document.querySelectorAll('.sim-tab-panel').forEach(p => p.classList.add('hidden'));
+    btn.setAttribute('aria-selected', 'true');
     const tabId = (btn as HTMLElement).dataset.tab!;
     document.getElementById(tabId)!.classList.remove('hidden');
+  });
+});
+
+// X-axis segmented control: keep hidden <select id="x-axis-mode"> in sync for legacy logic
+document.querySelectorAll('#x-axis-seg .cm-seg__btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#x-axis-seg .cm-seg__btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    btn.setAttribute('aria-pressed', 'true');
+    const value = (btn as HTMLElement).dataset.value!;
+    const sel = document.getElementById('x-axis-mode') as HTMLSelectElement;
+    sel.value = value;
+    sel.dispatchEvent(new Event('change'));
   });
 });
 
@@ -123,7 +135,7 @@ async function handleRunSimulation(e: Event) {
       const strategy = STRATEGIES[strategyKey as keyof typeof STRATEGIES];
 
       progressText.textContent = `Running ${strategy.name}... (${i + 1}/${selectedStrategies.length})`;
-      progressBar.value = (i / selectedStrategies.length) * 100;
+      progressBar.style.width = `${(i / selectedStrategies.length) * 100}%`;
 
       console.log(`Starting simulation ${i + 1}: ${strategy.name}`);
 
@@ -160,7 +172,7 @@ async function handleRunSimulation(e: Event) {
     // Don't return — fall through to render partial results
   }
 
-  progressBar.value = 100;
+  progressBar.style.width = '100%';
   progressText.textContent = `Complete! (seed: ${seed})`;
 
   // Always render whatever we have
@@ -219,6 +231,30 @@ function renderSummaryTable(results: SimulationResult[]) {
   }
 }
 
+// Map engine action types to cm-logtable__action--<modifier>.
+// Design system has 7 modifiers: spawn, feed, merge, press, sacrif, levelup, reward.
+// Engine has more — we map to the closest visual semantic; unknown types render with no modifier.
+const ACTION_CLASS_MAP: Record<string, string> = {
+  spawn_generator: 'spawn',
+  feed: 'feed',
+  merge: 'merge',
+  merge_cascade: 'merge',
+  buy_and_merge: 'merge',
+  charge_generator: 'press',
+  gather_meat: 'press',
+  buy_generator: 'press',
+  buy_runes: 'press',
+  claim_reward: 'reward',
+  open_box: 'reward',
+  quest_completed: 'reward',
+  new_quest: 'reward',
+  // No engine action maps to 'sacrif' or 'levelup' directly today; reserved.
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderActionLog(results: SimulationResult[]) {
   logBody.innerHTML = '';
   if (results.length === 0) return;
@@ -242,35 +278,46 @@ function renderActionLog(results: SimulationResult[]) {
   logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
 
   if (entries.length === 0) {
-    logBody.innerHTML = `<tr><td colspan="21" style="text-align:center; opacity:0.5;">No actions for tick ${tick}</td></tr>`;
+    logBody.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">No actions for tick ${tick}</td></tr>`;
     return;
   }
+
+  const numCell = (v: number | string, sep = false): string => {
+    const isZero = (typeof v === 'number' && v === 0);
+    const cls = [isZero ? 'zero' : '', sep ? 'gsep' : ''].filter(Boolean).join(' ');
+    return cls ? `<td class="${cls}">${v}</td>` : `<td>${v}</td>`;
+  };
 
   for (const entry of entries) {
     const row = document.createElement('tr');
     const s = entry.state;
+    const actionType = entry.action.type;
+    const actionMod = ACTION_CLASS_MAP[actionType] ?? '';
+    const actionCls = actionMod
+      ? `cm-logtable__action cm-logtable__action--${actionMod}`
+      : 'cm-logtable__action';
     row.innerHTML = `
-      <td>${entry.actionIndex}</td>
+      <td class="left idx">${entry.actionIndex}</td>
       <td>${entry.taskNumber}</td>
-      <td>${entry.action.type}</td>
-      <td class="note-cell">${entry.note}</td>
-      <td>${s.krakenLevel}</td>
-      <td>${s.krakenStep}</td>
-      <td>${s.krakenExp}</td>
-      <td>${s.meat}</td>
-      <td>${s.eyes}</td>
-      <td>${s.rune1}</td>
-      <td>${s.rune2}</td>
-      <td>${s.creatures}</td>
-      <td>${s.generators}</td>
-      <td>${s.gridCells}</td>
-      <td>${s.freeCells}</td>
-      <td>${s.pendingRewards}</td>
-      <td>${s.taskFed}</td>
-      <td>${s.session}</td>
-      <td>${s.meatButtonPresses}</td>
-      <td>${formatTimeSec(s.totalTimeSec)}</td>
-      <td class="note-cell">${s.currentTask}</td>
+      <td class="left gsep"><span class="${actionCls}">${escapeHtml(actionType)}</span></td>
+      <td class="left cm-logtable__detail note-cell">${escapeHtml(entry.note)}</td>
+      ${numCell(s.krakenLevel, true)}
+      ${numCell(s.krakenStep)}
+      ${numCell(s.krakenExp)}
+      ${numCell(s.meat, true)}
+      ${numCell(s.eyes)}
+      ${numCell(s.rune1, true)}
+      ${numCell(s.rune2)}
+      ${numCell(s.creatures)}
+      ${numCell(s.generators, true)}
+      ${numCell(s.gridCells)}
+      ${numCell(s.freeCells)}
+      ${numCell(s.pendingRewards, true)}
+      ${numCell(s.taskFed)}
+      ${numCell(s.session)}
+      ${numCell(s.meatButtonPresses)}
+      <td class="cm-logtable__time gsep">${formatTimeSec(s.totalTimeSec)}</td>
+      <td class="left gsep cm-logtable__detail note-cell">${escapeHtml(s.currentTask)}</td>
     `;
     row.addEventListener('click', () => showFieldPopup(entry));
     logBody.appendChild(row);
@@ -1587,6 +1634,6 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
 
   const preText = [headerLine, separatorLine, ...dataRows, separatorLine, overallRow].join('\n');
 
-  inner.innerHTML = `<pre style="margin:0; font-family:'Courier New',Courier,monospace; font-size:13px; color:#e8f1f5; line-height:1.6;">${preText}</pre>`;
+  inner.innerHTML = `<pre>${preText}</pre>`;
   container.style.display = 'block';
 }

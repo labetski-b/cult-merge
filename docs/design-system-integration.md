@@ -121,9 +121,26 @@ T1 — последовательно первый. T2-T6 — могут идт�
 5. **Modal popup для деталей записи лога.** В `components.css` нет явной `cm-modal` — используем `cm-card--raised` поверх кастомного overlay div. Возможно потребуется минимальный кастомный CSS (фиксация overlay).
 6. **`run-sim.ts` (CLI)** не затрагивается — он не использует UI.
 
-## Gaps (заполняется по ходу T7)
+## Gaps (T7)
 
-- _TBD после переразметки_
+Что не покрывается готовыми `cm-*` компонентами или потребовало кастомных дописываний:
+
+1. **Modal / popup overlay.** В `components.css` нет `cm-modal`. Использован паттерн «overlay div + cm-card cm-card--raised». Минимальный кастомный CSS живёт inline в `simulation.html` под комментарием `/* Modal overlay — gap, see docs */` (`.sim-modal-overlay`, `.sim-modal`, `.sim-modal__close`).
+2. **Bug в `components.css`: правило `.cm-logtable__action`** не имеет opening-селектора (строки 488-503 файла, после блока `.gsep` идёт «осиротевший» блок свойств, который применяется к `.gsep`, а сам `.cm-logtable__action` остаётся пустым). Так как нам нельзя править `components.css`, добавлен небольшой override-блок в `<style>` `simulation.html` с теми же свойствами. **TODO для будущего апстрима**: починить селектор в исходном `components.css`.
+3. **Action types симулятора шире, чем 7 модификаторов дизайн-системы.** Engine использует `gather_meat`, `claim_reward`, `open_box`, `feed`, `merge`, `merge_cascade`, `buy_and_merge`, `charge_generator`, `spawn_generator`, `buy_generator`, `buy_runes`, `quest_completed`, `new_quest` (+ редкие `expand_board`, `free_cells`, `tick_flowerpots`, `buy_runes`). Маппинг на 7 модификаторов в `src/simulation/main.ts:ACTION_CLASS_MAP`:
+   - `spawn_generator` → `spawn`
+   - `feed` → `feed`
+   - `merge`, `merge_cascade`, `buy_and_merge` → `merge`
+   - `charge_generator`, `gather_meat`, `buy_generator`, `buy_runes` → `press`
+   - `claim_reward`, `open_box`, `quest_completed`, `new_quest` → `reward`
+   - Модификаторы `sacrif` и `levelup` пока не используются (нет engine-эквивалентов с этим именем).
+   - Прочие типы (`expand_board`, `free_cells`, `tick_flowerpots`) → без модификатора (нейтральная пилюля).
+4. **Layout grid симулятора.** Сетки `.simulation-app`, `.sim-controls__grid`, `.sim-charts`, `.qr-charts-row` и поля заголовка специфичны для симулятора и оставлены кастомными в inline-`<style>` (помечено `/* sim-specific layout — gap */`). Это не попадает в дизайн-систему.
+5. **Quest Rewards body charts.** Контейнеры под `qr-chart-per-quest`/`qr-chart-per-chapter` обёрнуты в `cm-card`, но рендер-логики для них в `main.ts` нет (placeholder). Не блокирует переразметку.
+6. **Density.** Оставлен `data-density="default"`. После smoke-test (T8) можем переключиться на `compact` для action-log таба.
+7. **Hidden `<select id="x-axis-mode">`.** Сохранён скрытым в DOM, чтобы не переписывать функцию `getCurrentXAxisMode()`. Видимый UI — `cm-seg`. Клик по сегменту синхронизирует `<select>` и шлёт `change`-event.
+8. **Strategy controls.** В дизайн-системе нет готового «labelled fieldset». Использован `cm-check` в одиночном варианте (поскольку чекбокс задизейблен — фактически декоративный текст с описанием стратегии).
+9. **Progress.** Заменили `<progress>` на `cm-progress` + `cm-progress__bar`; `main.ts` теперь пишет `style.width = "%"` вместо `value`.
 
 ---
 
