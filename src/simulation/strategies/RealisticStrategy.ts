@@ -678,9 +678,12 @@ export class RealisticStrategy implements AIStrategy {
     if (state.activeUpgrade !== null) {
       return [{ type: 'collect_upgrade' }];
     }
-    const cand = pickUpgradeCandidate(state, this.balance);
-    if (!cand) return [];
-    return [{ type: 'start_upgrade', entityId: cand.entityId }];
+    const result = pickUpgradeCandidate(state, this.balance);
+    if (result.candidate) {
+      return [{ type: 'start_upgrade', entityId: result.candidate.entityId }];
+    }
+    // blockedBy будет обработан в Task 3 (farmMergesForLine)
+    return [];
   }
 
   // ---------- Generators: spawn / charge ----------
