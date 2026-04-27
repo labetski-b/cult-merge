@@ -106,8 +106,12 @@
     .sim-controls__grid .cm-field { align-self: end; }
     .sim-controls__cta {
       display: flex;
+      flex-direction: column;
       gap: var(--space-2);
-      align-self: end;
+      align-self: stretch;
+    }
+    .sim-controls__cta .cm-btn {
+      width: 100%;
     }
 
     .sim-tab-panel { display: block; }
@@ -156,6 +160,7 @@
       padding: var(--space-3) var(--space-4);
       grid-column: span 2;
       min-width: 0;
+      cursor: help;
     }
     .sim-strategy__label {
       font-size: var(--fs-micro);
@@ -165,20 +170,6 @@
       font-weight: var(--fw-medium);
     }
     .sim-strategy__row { align-items: center; }
-    .sim-strategy__hint {
-      color: var(--text-tertiary);
-      font-weight: var(--fw-regular);
-      margin-left: var(--space-1);
-    }
-    .sim-strategy__desc {
-      margin: 0;
-      /* offset so description aligns under the strategy name (not under the checkbox).
-         Checkbox is 16px wide + cm-check gap of --space-2 (8px) → ~24px total */
-      margin-left: calc(16px + var(--space-2));
-      font-size: var(--fs-micro);
-      color: var(--text-tertiary);
-      line-height: 1.4;
-    }
     @media (max-width: 900px) {
       .sim-strategy { grid-column: span 1; }
     }
@@ -324,20 +315,17 @@
             <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
           </div>
 
-          <section class="cm-card sim-strategy">
+          <section class="cm-card sim-strategy" title="Жмёт кнопку мяса когда не хватает на заряд">
             <div class="sim-strategy__label">STRATEGY</div>
             <label class="cm-check sim-strategy__row">
               <input type="checkbox" class="cm-check__box" name="strategy" value="realistic" checked disabled>
-              <span class="cm-check__label">
-                Realistic Player <span class="sim-strategy__hint">(Task-focused only)</span>
-              </span>
+              <span class="cm-check__label">Realistic Player</span>
             </label>
-            <p class="sim-strategy__desc">Жмёт кнопку мяса когда не хватает на заряд</p>
           </section>
 
           <div class="sim-controls__cta">
-            <button type="submit" id="run-btn" class="cm-btn cm-btn--primary">Run Simulation</button>
             <button type="button" id="export-btn" class="cm-btn cm-btn--ghost" disabled>Export (JSON)</button>
+            <button type="submit" id="run-btn" class="cm-btn cm-btn--primary">Run Simulation</button>
           </div>
         </div>
       </form>
