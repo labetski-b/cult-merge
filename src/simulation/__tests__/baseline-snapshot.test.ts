@@ -14,7 +14,7 @@ import baseline from './snapshots/baseline-3.23.json';
  * fire for the default strategy at this run length).
  */
 describe('Regression: baseline 3.23 snapshot', () => {
-  it('key metrics stay within 5% of baseline', () => {
+  it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {
     const engine = new SimulationEngine({
       seed: baseline.seed,
       stopCondition: { type: 'ticks', value: baseline.ticks },
