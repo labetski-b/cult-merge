@@ -9,6 +9,9 @@ import { METRIC_AGGREGATION, aggregateHistory, countDistinctBy, getKeyFn, type A
 // Register Chart.js components
 Chart.register(...registerables);
 
+// T9 polish: global default — bump tick/legend/title font from 9px to 11px (--fs-micro)
+Chart.defaults.font.size = 11;
+
 function formatTimeSec(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.round(sec % 60);
@@ -511,16 +514,35 @@ function renderCharts(results: SimulationResult[]) {
     ds(label, data, clr, { fill: 'origin', backgroundColor: clr + '28', ...extras });
 
   // Common axis + tooltip options
-  const xAxis = { title: { display: true, text: xTitle, color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } };
+  // T9 polish: 11px tick font, fewer gridlines, short legend dash
+  const TICK_FONT_SIZE = 11;
+  const GRID_COLOR = 'rgba(148, 173, 230, 0.08)';   // matches --border-subtle (dark theme)
+  const X_MAX_TICKS = 10;
+  const xAxis = {
+    title: { display: true, text: xTitle, color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
+    ticks: { color: '#e8f1f5', font: { size: TICK_FONT_SIZE }, maxTicksLimit: X_MAX_TICKS, autoSkip: true },
+    grid: { color: GRID_COLOR },
+  };
   const yAxis = (text: string, extra: Record<string, unknown> = {}) => ({
     beginAtZero: true,
-    title: { display: true, text, color: '#e8f1f5' },
-    ticks: { color: '#e8f1f5' },
-    grid: { color: 'rgba(143, 193, 255, 0.1)' },
+    title: { display: true, text, color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
+    ticks: { color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
+    grid: { color: GRID_COLOR },
     ...extra,
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commonPlugins = { legend: { labels: { color: '#e8f1f5' } }, tooltip: { callbacks: { label: tooltipLabel }, filter: (item: any) => item.parsed.y !== 0, itemSort: (a: any, b: any) => b.parsed.y - a.parsed.y } };
+  const commonPlugins = {
+    legend: {
+      labels: {
+        color: '#e8f1f5',
+        font: { size: TICK_FONT_SIZE },
+        boxWidth: 16,
+        boxHeight: 2,
+        usePointStyle: false,
+      },
+    },
+    tooltip: { callbacks: { label: tooltipLabel }, filter: (item: any) => item.parsed.y !== 0, itemSort: (a: any, b: any) => b.parsed.y - a.parsed.y },
+  };
   const commonInteraction = { mode: 'index' as const, intersect: false };
   const xOpts = (yTitle: string, yExtra: Record<string, unknown> = {}) => ({
     responsive: true,
@@ -532,7 +554,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Kraken Level + Chapter — dual-axis stepped ─────────────────────────────
   if (visible('level')) {
-    setAggBadge('level', '↓ last');
+    setAggBadge('level', 'LAST');
     const levelDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       return [
@@ -546,7 +568,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yLevel:   { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Level',   color: '#e8f1f5' }, ticks: { color: '#e8f1f5', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yLevel:   { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Level',   color: '#e8f1f5' }, ticks: { color: '#e8f1f5', stepSize: 1 }, grid: { color: GRID_COLOR } },
           yChapter: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Chapter', color: '#ff9966' }, ticks: { color: '#ff9966', stepSize: 1 }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -558,7 +580,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Tasks Completed — cumulative + rate per period ────────────────────────
   if (visible('tasks')) {
-    setAggBadge('tasks', '↓ last + Δ rate');
+    setAggBadge('tasks', 'LAST + RATE');
     const taskDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       const cumData = series(result.history, s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
@@ -574,7 +596,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yTasks: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Tasks (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yTasks: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Tasks (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: GRID_COLOR } },
           yRate:  { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Tasks/period',   color: '#ff9966' }, ticks: { color: '#ff9966' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -586,7 +608,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── EXP — cumulative + rate-of-change on right axis ──────────────────────
   if (visible('exp')) {
-    setAggBadge('exp', '↓ last');
+    setAggBadge('exp', 'LAST');
     const expDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       const cumData = series(result.history, s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
@@ -602,7 +624,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yExp:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'EXP (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5'  }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yExp:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'EXP (cumul.)', color: '#e8f1f5' }, ticks: { color: '#e8f1f5'  }, grid: { color: GRID_COLOR } },
           yRate: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'EXP/period',   color: '#a47cff' }, ticks: { color: '#a47cff' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -614,7 +636,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── EXP per Quest — forward step-delta aligned with current task chart ───
   if (visible('exp-per-task')) {
-    setAggBadge('exp-per-task', 'Δ step');
+    setAggBadge('exp-per-task', 'STEP');
     charts['exp-per-task'] = new Chart(document.getElementById('chart-exp-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -636,7 +658,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Eyes per Quest — forward step-delta + eyePerMeat balance rate ────────
   if (visible('eyes-per-task')) {
-    setAggBadge('eyes-per-task', 'Δ step + balance rate');
+    setAggBadge('eyes-per-task', 'STEP + RATE');
     const eyePerMeatTable = results[0]!.config.balance.tasks.autoConfig?.eyePerMeat ?? [];
     const getEyePerMeatRate = (chapter: number): number => {
       let rate = eyePerMeatTable[0]?.[1] ?? 0;
@@ -664,7 +686,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Charges per Quest — forward step-delta ───────────────────────────
   if (visible('charges-per-task')) {
-    setAggBadge('charges-per-task', 'Δ step');
+    setAggBadge('charges-per-task', 'STEP');
     charts['charges-per-task'] = new Chart(document.getElementById('chart-charges-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -680,7 +702,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Meat on Charges per Quest — forward step-delta ─────────────────
   if (visible('meat-per-task')) {
-    setAggBadge('meat-per-task', 'Δ step');
+    setAggBadge('meat-per-task', 'STEP');
     charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -696,7 +718,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Sacrifices per Quest — forward step-delta ──────────────────────
   if (visible('sacrifices-per-task')) {
-    setAggBadge('sacrifices-per-task', 'Δ step');
+    setAggBadge('sacrifices-per-task', 'STEP');
     charts['sacrifices-per-task'] = new Chart(document.getElementById('chart-sacrifices-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -712,7 +734,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Spawns per Quest — forward step-delta aligned with current task chart ─
   if (visible('spawns-per-task')) {
-    setAggBadge('spawns-per-task', 'Δ step');
+    setAggBadge('spawns-per-task', 'STEP');
     charts['spawns-per-task'] = new Chart(document.getElementById('chart-spawns-per-task') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -729,7 +751,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Quest Meat Cost — forward step-delta ─────────────────────────────────
   if (visible('quest-meat-cost')) {
-    setAggBadge('quest-meat-cost', 'Δ step');
+    setAggBadge('quest-meat-cost', 'STEP');
     charts['quest-meat-cost'] = new Chart(document.getElementById('chart-quest-meat-cost') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -749,7 +771,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Session & Sacrifices ──────────────────────────────────────────────────
   if (visible('session')) {
-    setAggBadge('session', '↓ last');
+    setAggBadge('session', 'LAST');
     charts.session = new Chart(document.getElementById('chart-session') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -762,7 +784,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          ySession: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session #',      color: '#4de2c2' }, ticks: { color: '#4de2c2', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          ySession: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session #',      color: '#4de2c2' }, ticks: { color: '#4de2c2', stepSize: 1 }, grid: { color: GRID_COLOR } },
           yPresses: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Presses (total)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -774,7 +796,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Time per Session — session time + cumulative ───────────────────────
   if (visible('session-time')) {
-    setAggBadge('session-time', '↓ last');
+    setAggBadge('session-time', 'LAST');
     const sesTime = series(h0, s => s.metrics.sessionTimeSec / 60, 'last');
     const cumTime = series(h0, s => s.metrics.totalTimeSec / 60, 'last');
     charts['session-time'] = new Chart(document.getElementById('chart-session-time') as HTMLCanvasElement, {
@@ -789,7 +811,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          ySes:   { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session (min)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          ySes:   { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Session (min)', color: '#ffd966' }, ticks: { color: '#ffd966' }, grid: { color: GRID_COLOR } },
           yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total (min)',   color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -801,7 +823,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Meat: gained per period + drop per sacrifice ─────────────────────────
   if (visible('resources')) {
-    setAggBadge('resources', 'Δ gained + ↓ drop');
+    setAggBadge('resources', 'GAINED + DROP');
     const meatDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       const cumGained  = series(result.history, s => s.metrics.totalMeatGained, 'last');
@@ -818,7 +840,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yFlow: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Meat gained/period', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yFlow: { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Meat gained/period', color: '#e8f1f5' }, ticks: { color: '#e8f1f5' }, grid: { color: GRID_COLOR } },
           yDrop: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'per sacrifice',      color: '#ff9966' }, ticks: { color: '#ff9966' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -830,7 +852,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Runes ─────────────────────────────────────────────────────────────────
   if (visible('runes')) {
-    setAggBadge('runes', '∅ avg');
+    setAggBadge('runes', 'AVG');
     charts.runes = new Chart(document.getElementById('chart-runes') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -846,7 +868,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Eyes — cumulative, fill ───────────────────────────────────────────────
   if (visible('eyes')) {
-    setAggBadge('eyes', '∅ avg');
+    setAggBadge('eyes', 'AVG');
     charts.eyes = new Chart(document.getElementById('chart-eyes') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -863,7 +885,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Grid Size — stepped (discrete) ───────────────────────────────────────
   if (visible('gridsize')) {
-    setAggBadge('gridsize', '↓ last');
+    setAggBadge('gridsize', 'LAST');
     charts.gridsize = new Chart(document.getElementById('chart-gridsize') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -881,7 +903,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Current Task Creature Requirements ───────────────────────────────────
   if (visible('task-creature')) {
-    setAggBadge('task-creature', '↓ last');
+    setAggBadge('task-creature', 'LAST');
     const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
     const allCreatureTypes = new Set<string>();
     for (const result of results) {
@@ -920,7 +942,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Generators — max level per type ─────────────────────────────────────
   if (visible('generators')) {
-    setAggBadge('generators', '↓ last');
+    setAggBadge('generators', 'LAST');
     const genColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2', '#ff9966', '#66b3ff'];
 
     // Collect all generator type IDs that appear across all results
@@ -962,7 +984,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Creature Progress — max level ever reached per creature type ─────────
   if (visible('creature-progress')) {
-    setAggBadge('creature-progress', '↓ last');
+    setAggBadge('creature-progress', 'LAST');
     const creatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a', '#7cffb2', '#ff9966', '#66b3ff', '#ff66cc'];
 
     const allCreatureTypes = new Set<string>();
@@ -1003,7 +1025,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Runes Flow — diverging bar: gained above axis, spent below ───────────
   if (visible('runes-flow')) {
-    setAggBadge('runes-flow', 'Δ ±');
+    setAggBadge('runes-flow', 'DELTA');
     const r1cum = series(h0, s => s.metrics.totalRune1Gained, 'last');
     const r1sp  = series(h0, s => s.metrics.totalRune1Spent,  'last');
     const r2cum = series(h0, s => s.metrics.totalRune2Gained, 'last');
@@ -1040,7 +1062,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Eyes Flow — emission per period ──────────────────────────────────────
   if (visible('eyes-flow')) {
-    setAggBadge('eyes-flow', 'Δ delta');
+    setAggBadge('eyes-flow', 'DELTA');
     const eyesCum  = series(h0, s => s.metrics.totalEyesGained, 'last');
     const eyesRate = eyesCum.map((v, i) => i === 0 ? 0 : v - eyesCum[i - 1]!);
     charts['eyes-flow'] = new Chart(document.getElementById('chart-eyes-flow') as HTMLCanvasElement, {
@@ -1057,7 +1079,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Eyes per Meat Spent — ratio line (sessions & presses modes) ──────────
   if (visible('eyes-vs-meat')) {
-    setAggBadge('eyes-vs-meat', 'Δ eyes / Δ meat');
+    setAggBadge('eyes-vs-meat', 'EYES / MEAT');
     const eyesCum      = series(h0, s => s.metrics.totalEyesGained, 'last');
     const meatSpentCum = series(h0, s => s.metrics.totalMeatSpent,  'last');
     const ratio = eyesCum.map((v, i) => {
@@ -1074,7 +1096,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Gems — balance + emission per period ──────────────────────────────────
   if (visible('gems')) {
-    setAggBadge('gems', '∅ avg + Δ');
+    setAggBadge('gems', 'AVG + DELTA');
     const gemsBal  = series(h0, s => s.metrics.gems,           METRIC_AGGREGATION.gems ?? 'avg');
     const gemsCum  = series(h0, s => s.metrics.totalGemsGained, 'last');
     const gemsRate = gemsCum.map((v, i) => i === 0 ? 0 : v - gemsCum[i - 1]!);
@@ -1090,7 +1112,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yBal:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Balance',     color: '#7cffb2' }, ticks: { color: '#7cffb2' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yBal:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Balance',     color: '#7cffb2' }, ticks: { color: '#7cffb2' }, grid: { color: GRID_COLOR } },
           yRate: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Gained/period', color: '#ff6b8a' }, ticks: { color: '#ff6b8a' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -1102,7 +1124,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── New Creatures Discovered — delta per session ──────────────────────────
   if (visible('unique-creatures')) {
-    setAggBadge('unique-creatures', 'Δ delta');
+    setAggBadge('unique-creatures', 'DELTA');
     const cumData = series(h0, s => s.metrics.totalUniqueCreatures, 'last');
     const rateData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
     charts['unique-creatures'] = new Chart(document.getElementById('chart-unique-creatures') as HTMLCanvasElement, {
@@ -1117,7 +1139,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          y:      { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'New per session', color: '#7cffb2' }, ticks: { color: '#7cffb2', stepSize: 1 }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          y:      { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'New per session', color: '#7cffb2' }, ticks: { color: '#7cffb2', stepSize: 1 }, grid: { color: GRID_COLOR } },
           yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total unique',    color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -1129,7 +1151,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Spawns & Merges — delta per period ───────────────────────────────────
   if (visible('activity')) {
-    setAggBadge('activity', 'Δ delta');
+    setAggBadge('activity', 'DELTA');
     const spawnCum  = series(h0, s => s.metrics.totalSpawns, 'last');
     const mergeCum  = series(h0, s => s.metrics.totalMerges, 'last');
     const spawnRate = spawnCum.map((v, i) => i === 0 ? 0 : v - spawnCum[i - 1]!);
@@ -1139,8 +1161,9 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: [
-          ds('Spawns/period', spawnRate, '#ffd966'),
-          ds('Merges/period', mergeRate, '#a47cff'),
+          // T9 polish: area-fill with 0.15 alpha
+          ds('Spawns/period', spawnRate, '#ffd966', { fill: 'origin', backgroundColor: 'rgba(255, 217, 102, 0.15)' }),
+          ds('Merges/period', mergeRate, '#a47cff', { fill: 'origin', backgroundColor: 'rgba(164, 124, 255, 0.15)' }),
         ]
       },
       options: xOpts('Count')
@@ -1149,7 +1172,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Generator Charges — delta per period + cumulative ────────────────────
   if (visible('charges')) {
-    setAggBadge('charges', 'Δ delta');
+    setAggBadge('charges', 'DELTA');
     const chargeCum  = series(h0, s => s.metrics.totalCharges, 'last');
     const chargeRate = chargeCum.map((v, i) => i === 0 ? 0 : v - chargeCum[i - 1]!);
     charts.charges = new Chart(document.getElementById('chart-charges') as HTMLCanvasElement, {
@@ -1164,7 +1187,7 @@ function renderCharts(results: SimulationResult[]) {
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          yRate:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Charges/period', color: '#ff6b8a' }, ticks: { color: '#ff6b8a' }, grid: { color: 'rgba(143, 193, 255, 0.1)' } },
+          yRate:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Charges/period', color: '#ff6b8a' }, ticks: { color: '#ff6b8a' }, grid: { color: GRID_COLOR } },
           yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total (cumul.)', color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -1179,7 +1202,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // ── Sessions per Kraken Level ─────────────────────────────────────────────
   if (visible('sessions-per-level')) {
-    setAggBadge('sessions-per-level', '# sessions');
+    setAggBadge('sessions-per-level', 'SESSIONS');
     const keyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
     const valFn = (s: SimulationSnapshot) => s.gameState.session;
     const { labels: krakenLabels } = countDistinctBy(results[0]!.history, keyFn, valFn);
@@ -1209,7 +1232,7 @@ function renderCharts(results: SimulationResult[]) {
     barColor: string,
   ) => {
     if (!visible(chartKey)) return;
-    setAggBadge(chartKey, 'Δ per chapter');
+    setAggBadge(chartKey, 'PER CHAPTER');
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricFn, aggMode);
     const datasets = results.map((result, idx) => {
       const cumData = aggregateHistory(result.history, chapterKeyFn, metricFn, aggMode).data;
@@ -1228,7 +1251,7 @@ function renderCharts(results: SimulationResult[]) {
   makeChapterBarChart('generators-per-chapter', s => Object.keys(s.metrics.generatorsByType).length, 'last', 'Generators', 'Generators', '#a1887f');
   // Meat per chapter — actual + scoring
   if (visible('meat-spent-per-chapter')) {
-    setAggBadge('meat-spent-per-chapter', 'Δ per chapter');
+    setAggBadge('meat-spent-per-chapter', 'PER CHAPTER');
     const metricActual = (s: SimulationSnapshot) => s.metrics.totalMeatSpent;
     const metricScoring = (s: SimulationSnapshot) => s.metrics.totalQuestMeatCost;
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricActual, 'last');
@@ -1249,7 +1272,7 @@ function renderCharts(results: SimulationResult[]) {
   }
   // Runes purchased per chapter — dual bar (rune1 + rune2)
   if (visible('runes-purchased-per-chapter')) {
-    setAggBadge('runes-purchased-per-chapter', 'Δ per chapter');
+    setAggBadge('runes-purchased-per-chapter', 'PER CHAPTER');
     const metricR1 = (s: SimulationSnapshot) => s.metrics.rune1Purchased;
     const metricR2 = (s: SimulationSnapshot) => s.metrics.rune2Purchased;
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricR1, 'last');
@@ -1271,7 +1294,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // Time per chapter — special: aggregate totalTimeSec then convert delta to minutes
   if (visible('time-per-chapter')) {
-    setAggBadge('time-per-chapter', 'Δ per chapter (min)');
+    setAggBadge('time-per-chapter', 'PER CHAPTER (MIN)');
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last');
     const datasets = results.map((result, idx) => {
       const cumData = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last').data;
@@ -1286,7 +1309,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // Meat per Press per Chapter — average meatPerPress within each chapter
   if (visible('meat-per-press-per-chapter')) {
-    setAggBadge('meat-per-press-per-chapter', 'avg per chapter');
+    setAggBadge('meat-per-press-per-chapter', 'AVG PER CHAPTER');
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg');
     const datasets = results.map((result, idx) => {
       const data = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg').data;
@@ -1300,7 +1323,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // Sessions per Chapter — how many distinct sessions in each chapter
   if (visible('sessions-per-chapter')) {
-    setAggBadge('sessions-per-chapter', '# sessions');
+    setAggBadge('sessions-per-chapter', 'SESSIONS');
     const { labels: chLabels } = countDistinctBy(results[0]!.history, chapterKeyFn, s => s.gameState.session);
     const datasets = results.map((result, idx) => {
       const { data } = countDistinctBy(result.history, chapterKeyFn, s => s.gameState.session);
@@ -1314,7 +1337,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // Tasks per Session per Chapter — avg tasks completed in each session within a chapter
   if (visible('tasks-per-session-per-chapter')) {
-    setAggBadge('tasks-per-session-per-chapter', 'tasks / sessions');
+    setAggBadge('tasks-per-session-per-chapter', 'TASKS / SESSIONS');
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last');
     const datasets = results.map((result, idx) => {
       const tasksCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
@@ -1334,7 +1357,7 @@ function renderCharts(results: SimulationResult[]) {
 
   // Eyes per Quest per Chapter — avg eyes earned per quest within each chapter
   if (visible('eyes-per-quest-per-chapter')) {
-    setAggBadge('eyes-per-quest-per-chapter', 'eyes / tasks per chapter');
+    setAggBadge('eyes-per-quest-per-chapter', 'EYES / TASKS PER CHAPTER');
     const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last');
     const datasets = results.map((result, idx) => {
       const eyesCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last').data;

@@ -89,9 +89,24 @@
       padding: var(--space-2) 0 var(--space-4);
     }
     .sim-axis-row__label {
-      font-size: var(--fs-small);
+      font-size: var(--fs-micro);
       color: var(--text-tertiary);
-      letter-spacing: 0.02em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: var(--fw-medium);
+    }
+
+    /* Strategy block — gap (no labelled fieldset in design system) */
+    .sim-strategy {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    .sim-strategy__desc {
+      margin: 0;
+      font-size: var(--fs-micro);
+      color: var(--text-tertiary);
+      line-height: 1.4;
     }
 
     /* Quest Rewards / Quest Distribution layout — gap */
@@ -234,15 +249,13 @@
           <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
         </div>
 
-        <div class="cm-field">
+        <div class="cm-field sim-strategy">
           <label class="cm-label">Strategy</label>
-          <label class="cm-check" style="height:36px;align-items:center;">
+          <label class="cm-check" style="align-items:center;">
             <input type="checkbox" class="cm-check__box" name="strategy" value="realistic" checked disabled>
-            <span>
-              <span class="cm-check__label">Realistic Player</span>
-              <span class="cm-check__hint">Жмёт кнопку мяса когда не хватает на заряд</span>
-            </span>
+            <span class="cm-check__label">Realistic Player</span>
           </label>
+          <p class="sim-strategy__desc">Жмёт кнопку мяса когда не хватает на заряд</p>
         </div>
 
         <div class="sim-controls__cta">

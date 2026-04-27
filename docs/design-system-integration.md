@@ -139,7 +139,15 @@ T1 — последовательно первый. T2-T6 — могут идт�
 5. **Quest Rewards body charts.** Контейнеры под `qr-chart-per-quest`/`qr-chart-per-chapter` обёрнуты в `cm-card`, но рендер-логики для них в `main.ts` нет (placeholder). Не блокирует переразметку.
 6. **Density.** Оставлен `data-density="default"`. После smoke-test (T8) можем переключиться на `compact` для action-log таба.
 7. **Hidden `<select id="x-axis-mode">`.** Сохранён скрытым в DOM, чтобы не переписывать функцию `getCurrentXAxisMode()`. Видимый UI — `cm-seg`. Клик по сегменту синхронизирует `<select>` и шлёт `change`-event.
-8. **Strategy controls.** В дизайн-системе нет готового «labelled fieldset». Использован `cm-check` в одиночном варианте (поскольку чекбокс задизейблен — фактически декоративный текст с описанием стратегии).
+8. **Strategy controls.** В дизайн-системе нет готового «labelled fieldset». Использован `cm-check` в одиночном варианте (поскольку чекбокс задизейблен — фактически декоративный текст с описанием стратегии). T9 polish: hint вынесен из `cm-check__hint` (наезжал на чекбокс) в отдельный `<p class="sim-strategy__desc">` под чекбоксом — стиль `--fs-micro` / `--text-tertiary`. Класс `sim-strategy` / `sim-strategy__desc` — sim-specific override.
+10. **Chart polish (T9).** Несколько отклонений от стандартных Chart.js дефолтов, реализованных глобально в `renderCharts()` / `Chart.defaults`:
+   - `Chart.defaults.font.size = 11` (соответствует `--fs-micro`); ранее по умолчанию 9.
+   - X-axis: `maxTicksLimit: 10`, `autoSkip: true` — снижает плотность вертикальных гридлайнов на time charts.
+   - Grid color: `rgba(148, 173, 230, 0.08)` — соответствует `--border-subtle` (dark theme). CSS-переменные Chart.js не понимает напрямую, поэтому захардкожено.
+   - Legend: `boxWidth: 16, boxHeight: 2, usePointStyle: false` — короткий dash-индикатор (раньше растягивался).
+   - "Spawns & Merges" (`chart-activity`): area-fill `fill: 'origin'` с альфой 0.15 (`rgba(255, 217, 102, 0.15)` для Spawns, `rgba(164, 124, 255, 0.15)` для Merges).
+   - Бейджи агрегации (`agg-badge`): убраны символы `↓ Δ ∅ ±`, оставлены uppercase-only лейблы (`LAST`, `STEP`, `RATE`, `DELTA`, `AVG`, `GAINED + DROP` и т.п.). Капс задаётся самим `cm-badge` (`text-transform: uppercase`).
+   - "X axis" label: добавлен микро-капс стиль (`--fs-micro`, `letter-spacing: 0.08em`, `text-transform: uppercase`, `color: --text-tertiary`).
 9. **Progress.** Заменили `<progress>` на `cm-progress` + `cm-progress__bar`; `main.ts` теперь пишет `style.width = "%"` вместо `value`.
 
 ---
