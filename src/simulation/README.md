@@ -132,6 +132,17 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
      - Если `state.activeUpgrade` готов → шлёт `collect_upgrade`
      - Иначе через `pickUpgradeCandidate` выбирает кандидата (нужная линейка, прошёл merge-gate,
        руны достаточно) → шлёт `start_upgrade { entityId }`
+     - **Farm-merges fallback:** если `pickUpgradeCandidate` возвращает `blockedBy: { reason: 'merges' }`
+       (генератор готов к апгрейду по рунам, но не хватает мерджей на линии), стратегия запускает
+       `farmMergesForLine`:
+       1. Path B — пытается смерджить готовую пару существ из линии генератора.
+       2. Path A — если пары нет, спавнит с lowest-level генератора линии (обычный ladder:
+          `gather_meat` → `charge_generator` → `spawn_generator`).
+       3. Guard: если на гриде уже ≥6 существ линии — пропускаем спавн, не флудим поле.
+
+       Это исправляет stall-кейс baseline-3.23 (kraken Lv3, заблокированный Gen1 Lv2 по 25 merges):
+       после фикса страт за 50 000 тиков (seed=42) прогрессирует до krakenLevel 10 / chapter 7 /
+       6 upgrades / 42 006 totalEyes / 145 завершённых `Kraken tasks`.
      - Если задача требует timer-mode generator (Gen3) и подходящий ген уже на поле → шлёт
        `skip_timer_generator { entityId }` (учитывается в `gen3SkipClicks`)
   3. **canProduce = false** (ни одного подходящего генератора):
