@@ -682,8 +682,81 @@ export class RealisticStrategy implements AIStrategy {
     if (result.candidate) {
       return [{ type: 'start_upgrade', entityId: result.candidate.entityId }];
     }
-    // blockedBy будет обработан в Task 3 (farmMergesForLine)
+    if (result.blockedBy) {
+      return this.farmMergesForLine(state, result.blockedBy.generatorId);
+    }
     return [];
+  }
+
+  /**
+   * Farm-merges fallback. When `pickUpgradeCandidate` reports a generator blocked
+   * by `reason:'merges'`, accumulate merges on its line:
+   *   Path B (preferred): merge any existing pair of (creatureType, level) on the line.
+   *   Path A (fallback):  spawn from the lowest-level generator on the line, using the
+   *                       standard ladder (gather_meat → charge_generator → spawn_generator).
+   * Guard: if the grid already holds ≥6 creatures of the line without a mergeable
+   * pair, skip the spawn to avoid flooding the grid.
+   */
+  private farmMergesForLine(state: GameSnapshot, generatorId: number): SimulationAction[] {
+    const config = this.balance.generators.generators.find(g => g.id === generatorId);
+    if (!config) return [];
+    const lineSet = new Set(config.lines);
+
+    // Path B: try merge a pair on the line
+    const creatures = Object.values(state.entities)
+      .filter((e): e is CreatureEntity => e.kind === 'creature')
+      .filter(c => lineSet.has(c.creatureType));
+
+    // group by (type, level), find any pair (skip max-level)
+    const byKey = new Map<string, CreatureEntity[]>();
+    for (const c of creatures) {
+      const creatureConfig = this.balance.creatures?.creatures?.find(cc => cc.type === c.creatureType);
+      const maxLevel = creatureConfig?.maxLevel ?? Infinity;
+      if (c.level >= maxLevel) continue;
+      const key = `${c.creatureType}:${c.level}`;
+      const arr = byKey.get(key) ?? [];
+      arr.push(c);
+      byKey.set(key, arr);
+    }
+    for (const arr of byKey.values()) {
+      if (arr.length >= 2) {
+        return [{ type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id }];
+      }
+    }
+
+    // Guard against spawn flood
+    if (creatures.length >= 6) return [];
+
+    // Path A: spawn from lowest-level generator on the line
+    const generators = Object.values(state.entities)
+      .filter((e): e is GeneratorEntity => e.kind === 'generator')
+      .filter(g => {
+        const cfg = this.balance.generators.generators.find(c => c.id === g.generatorId);
+        if (!cfg) return false;
+        return cfg.lines.some(l => lineSet.has(l));
+      })
+      .sort((a, b) => a.level - b.level);
+
+    if (generators.length === 0) return [];
+    const gen = generators[0]!;
+    const genConfig = this.balance.generators.generators.find(c => c.id === gen.generatorId);
+    const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
+
+    // has charges + free cells → spawn
+    if (gen.charges.length > 0) {
+      const free = getFreeCellIndexes(state.grid).length;
+      if (free > 0) {
+        return [{ type: 'spawn_generator', generatorId: gen.id }];
+      }
+      return []; // grid full; let questStep handle freeCells next tick
+    }
+
+    // no charges → gather meat or charge
+    const chargeCost = levelConfig?.chargeCost ?? 0;
+    if (state.resources.meat < chargeCost) {
+      return [{ type: 'gather_meat', targetCost: chargeCost }];
+    }
+    return [{ type: 'charge_generator', generatorId: gen.id }];
   }
 
   // ---------- Generators: spawn / charge ----------
