@@ -141,7 +141,12 @@ T1 — последовательно первый. T2-T6 — могут идт�
 5. **Quest Rewards body charts.** Контейнеры под `qr-chart-per-quest`/`qr-chart-per-chapter` обёрнуты в `cm-card`, но рендер-логики для них в `main.ts` нет (placeholder). Не блокирует переразметку.
 6. **Density.** Оставлен `data-density="default"`. После smoke-test (T8) можем переключиться на `compact` для action-log таба.
 7. **Hidden `<select id="x-axis-mode">`.** Сохранён скрытым в DOM, чтобы не переписывать функцию `getCurrentXAxisMode()`. Видимый UI — `cm-seg`. Клик по сегменту синхронизирует `<select>` и шлёт `change`-event.
-8. **Strategy controls.** В дизайн-системе нет готового «labelled fieldset». Использован `cm-check` в одиночном варианте (поскольку чекбокс задизейблен — фактически декоративный текст с описанием стратегии). T9 polish: hint вынесен из `cm-check__hint` (наезжал на чекбокс) в отдельный `<p class="sim-strategy__desc">` под чекбоксом — стиль `--fs-micro` / `--text-tertiary`. Класс `sim-strategy` / `sim-strategy__desc` — sim-specific override.
+8. **Strategy controls.** В дизайн-системе нет готового «labelled fieldset». Использован `cm-check` в одиночном варианте (поскольку чекбокс задизейблен — фактически декоративный текст с описанием стратегии). T9 polish: hint вынесен из `cm-check__hint` (наезжал на чекбокс) в отдельный `<p class="sim-strategy__desc">` под чекбоксом — стиль `--fs-micro` / `--text-tertiary`. Класс `sim-strategy` / `sim-strategy__desc` — sim-specific override. **T11 update:** блок вынесен из `sim-controls__grid` в отдельную карточку `<section class="cm-card sim-strategy">` под формой. Добавлены кастомные классы:
+   - `sim-strategy__label` — mini-caps "STRATEGY" заголовок (`--fs-micro`, `--text-tertiary`, `letter-spacing: 0.08em`, uppercase, `--fw-medium`).
+   - `sim-strategy__row` — wrapper для `.cm-check` с `align-items: center` (вместо дефолтного `flex-start`).
+   - `sim-strategy__hint` — мелкая серая пометка "(Task-focused only)" inline с названием (`--text-tertiary`, `--fw-regular`).
+   - `sim-strategy__desc` — описание стратегии, отступ слева `calc(16px + var(--space-2))` чтобы текст шёл под именем стратегии, а не под чекбоксом.
+   - Padding карточки переопределён на `--space-4` (вместо дефолтных `--space-5` от `cm-card`) для более плотного вида согласно эталону.
 10. **Chart polish (T9).** Несколько отклонений от стандартных Chart.js дефолтов, реализованных глобально в `renderCharts()` / `Chart.defaults`:
    - `Chart.defaults.font.size = 11` (соответствует `--fs-micro`); ранее по умолчанию 9.
    - X-axis: `maxTicksLimit: 10`, `autoSkip: true` — снижает плотность вертикальных гридлайнов на time charts.
