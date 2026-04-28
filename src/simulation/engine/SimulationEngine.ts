@@ -155,6 +155,8 @@ export class SimulationEngine {
 
       const decision: StrategyDecision = this.config.strategy.decide(this.state, this.rng);
 
+      let iterAdvanced = false;
+
       // Execute all actions in this batch
       for (let i = 0; i < decision.actions.length; i++) {
         const action = decision.actions[i]!;
@@ -174,6 +176,7 @@ export class SimulationEngine {
         // collect_upgrade always advances time even when no-op (timer still running),
         // so currentGameTimeMs eventually crosses finishesAt without infinite loop.
         if (stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade') {
+          iterAdvanced = true;
           this.currentGameTimeMs += getActionTimeSec(action) * 1000;
           const dt = this.addActionTime(action);
           // Only log actions that actually changed state (or are synthetic log-only events).
@@ -212,9 +215,18 @@ export class SimulationEngine {
         break;
       }
 
-      // Safety: if strategy returns no actions and not done, it's stuck
-      if (decision.actions.length === 0) {
-        console.warn(`[Tick ${outerTick}] Strategy returned empty actions without done=true, breaking`);
+      // Idle: nothing happened this iteration (no actions or all no-ops).
+      // Emit a synthetic tick_idle log entry, bump idle counters, and break out
+      // so the outer tick doesn't burn MAX_ITERATIONS doing nothing.
+      if (!iterAdvanced) {
+        const reason = decision.actions.length === 0 ? 'no_actions' : 'all_noop';
+        const idleAction: SimulationAction = { type: 'tick_idle', reason };
+        const idleState = this.captureCompactState(0);
+        idleState.currentTask = this.captureTaskLabel();
+        this.pushLog(idleAction, idleState, `idle: ${reason}`);
+        this.cumulative.ticksIdle += 1;
+        const lvl = this.state.kraken.level;
+        this.cumulative.idleByKrakenLevel[lvl] = (this.cumulative.idleByKrakenLevel[lvl] ?? 0) + 1;
         break;
       }
     }
@@ -319,6 +331,8 @@ export class SimulationEngine {
         this.executeGatherMeat(action);
         break;
       case 'free_cells':
+        break; // synthetic log-only event, no state mutation
+      case 'tick_idle':
         break; // synthetic log-only event, no state mutation
     }
   }
@@ -823,6 +837,8 @@ export class SimulationEngine {
         return `${action.newRows}×${action.newCols} = ${action.newRows * action.newCols} cells`;
       case 'free_cells':
         return `${action.reason}: freed ${action.freed}`;
+      case 'tick_idle':
+        return `idle: ${action.reason}`;
     }
   }
 

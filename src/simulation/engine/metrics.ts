@@ -36,6 +36,8 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     gen3CheatSpawns: 0,
     gen3SkipClicks: 0,
     questsClosedViaGen3Skip: 0,
+    ticksIdle: 0,
+    idleByKrakenLevel: {},
   };
 }
 

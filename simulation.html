@@ -1,14 +1,24 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark" data-density="compact">
 <head>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('cm-sim-theme');
+        if (saved === 'light' || saved === 'dark') {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (_) {}
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CULT.MERGE - AI Simulation Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/cult-merge/design-system/tokens.css">
-  <link rel="stylesheet" href="/cult-merge/design-system/components.css">
+  <link rel="stylesheet" href="design-system/tokens.css">
+  <link rel="stylesheet" href="design-system/components.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     /* sim-specific layout — gap, see docs/design-system-integration.md */
@@ -84,6 +94,7 @@
     .sim-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: var(--space-3);
       padding-bottom: var(--space-4);
       border-bottom: 1px solid var(--border-default);
@@ -96,6 +107,60 @@
       color: var(--text-primary);
     }
     .sim-header__title .accent { color: var(--accent-primary); }
+    .sim-header__actions {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2, 8px);
+    }
+    .sim-header__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-default);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-size: var(--fs-small);
+      font-weight: var(--fw-medium);
+      text-decoration: none;
+      transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    }
+    .sim-header__link:hover {
+      background: var(--surface-3);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+    .sim-header__link svg { width: 16px; height: 16px; }
+    .sim-theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: var(--radius-full, 999px);
+      border: 1px solid var(--border-default);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    }
+    .sim-theme-toggle:hover {
+      background: var(--surface-3);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+    .sim-theme-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+    .sim-theme-toggle__icon { width: 18px; height: 18px; display: block; }
+    [data-theme="dark"] .sim-theme-toggle__icon--sun { display: block; }
+    [data-theme="dark"] .sim-theme-toggle__icon--moon { display: none; }
+    [data-theme="light"] .sim-theme-toggle__icon--sun { display: none; }
+    [data-theme="light"] .sim-theme-toggle__icon--moon { display: block; }
 
     .sim-controls__grid {
       display: grid;
@@ -346,7 +411,39 @@
   <div class="simulation-app">
     <header class="sim-header">
       <h1 class="sim-header__title">CULT<span class="accent">.</span>MERGE — AI Simulation Dashboard</h1>
+      <div class="sim-header__actions">
+      <a class="sim-header__link" href="strategy-flowchart.html" target="_blank" rel="noopener" title="Strategy logic flowchart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+          <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+          <rect x="9" y="15" width="6" height="6" rx="1"></rect>
+          <path d="M6 9v3h12V9M12 12v3"></path>
+        </svg>
+        <span>Strategy logic</span>
+      </a>
+      <button id="theme-toggle" class="sim-theme-toggle" type="button" aria-label="Toggle theme" title="Toggle light/dark theme">
+        <svg class="sim-theme-toggle__icon sim-theme-toggle__icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <svg class="sim-theme-toggle__icon sim-theme-toggle__icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      </div>
     </header>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+          var curr = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+          var next = curr === 'light' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', next);
+          try { localStorage.setItem('cm-sim-theme', next); } catch (_) {}
+        });
+      })();
+    </script>
 
     <section class="cm-card">
       <div class="cm-card__head">
@@ -782,6 +879,29 @@
         </header>
         <div class="cm-logtable__scroll">
           <table class="cm-logtable__t" id="action-log-table">
+            <colgroup>
+              <col style="width: 44px">   <!-- # -->
+              <col style="width: 40px">   <!-- Q# -->
+              <col style="width: 130px">  <!-- Action -->
+              <col style="width: 200px">  <!-- Detail -->
+              <col style="width: 44px">   <!-- Lvl -->
+              <col style="width: 44px">   <!-- Step -->
+              <col style="width: 56px">   <!-- EXP -->
+              <col style="width: 56px">   <!-- Meat -->
+              <col style="width: 64px">   <!-- Eyes -->
+              <col style="width: 44px">   <!-- R1 -->
+              <col style="width: 44px">   <!-- R2 -->
+              <col style="width: 44px">   <!-- Cr -->
+              <col style="width: 44px">   <!-- Gen -->
+              <col style="width: 56px">   <!-- Field -->
+              <col style="width: 52px">   <!-- Free -->
+              <col style="width: 48px">   <!-- Rew -->
+              <col style="width: 44px">   <!-- Fed -->
+              <col style="width: 44px">   <!-- Ses -->
+              <col style="width: 56px">   <!-- Press -->
+              <col style="width: 56px">   <!-- Time -->
+              <col style="width: 140px">  <!-- Task -->
+            </colgroup>
             <thead>
               <tr>
                 <th class="left">#</th>

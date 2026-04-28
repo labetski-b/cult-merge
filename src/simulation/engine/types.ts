@@ -17,7 +17,8 @@ export type SimulationAction =
   | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
   | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
   | { type: 'expand_board'; newRows: number; newCols: number }
-  | { type: 'free_cells'; reason: string; freed: number };
+  | { type: 'free_cells'; reason: string; freed: number }
+  | { type: 'tick_idle'; reason: string };
 
 export interface StrategyDecision {
   actions: SimulationAction[];
@@ -243,4 +244,6 @@ export interface CumulativeMetrics {
   gen3CheatSpawns: number;
   gen3SkipClicks: number;
   questsClosedViaGen3Skip: number;
+  ticksIdle: number;
+  idleByKrakenLevel: Record<number, number>;
 }

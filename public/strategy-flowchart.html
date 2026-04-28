@@ -98,8 +98,8 @@
   <strong>Tick = один значимый результат:</strong><br>
   &bull; Early game (kraken &lt; 2): один level-up кракена<br>
   &bull; Normal game: task &rarr; reward &rarr; invest &rarr; done<br><br>
-  <strong>Движок вызывает стратегию в цикле, пока та не скажет «готово».</strong><br>
-  Engine loop: <code>while (!done) { decision = strategy.decide(state); execute(decision.actions); }</code><br><br>
+  <strong>Движок вызывает стратегию в цикле, пока та не скажет «готово» или итерация не окажется пустой.</strong><br>
+  Engine loop: <code>for iter &lt; 500 { decision = strategy.decide(state); execute(decision.actions); if (decision.done) break; if (!iterAdvanced) emit tick_idle + break; }</code>. <strong>Idle-выход:</strong> если итерация не изменила state и не продвинула время (no_actions либо all_noop) — движок логгирует синтетическое событие <code>tick_idle</code>, инкрементит <code>cumulative.ticksIdle</code> + <code>idleByKrakenLevel[lvl]</code> и прерывает inner loop. Защита от прожигания 500 итераций впустую.<br><br>
   <strong>Стратегия проходит 3 фазы последовательно: выполнить задание &rarr; забрать награды &rarr; вложиться в генераторы.</strong><br>
   Phase state machine: <code>decide()</code> хранит <code>phase: 'task' | 'reward' | 'invest'</code>.<br><br>
   <strong>Когда существо скормлено и задание выполнено, domain автоматически создаёт следующее задание. Стратегия переключается на фазу наград.</strong><br>
@@ -120,6 +120,7 @@
   <div class="legend-item"><div class="legend-color" style="background:#27ae60"></div> Phase 4: Invest + Done</div>
   <div class="legend-item"><div class="legend-color" style="background:#e8c23c"></div> Условие</div>
   <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div> freeCells</div>
+  <div class="legend-item"><div class="legend-color" style="background:#7f8c8d"></div> tick_idle (idle exit)</div>
 </div>
 
 <h2>decide() — sequential phase state machine</h2>
@@ -159,6 +160,29 @@ flowchart TD
 </pre>
 </div>
 
+<h2 style="margin-top:24px">Engine inner loop — idle guard</h2>
+<div class="chart-container">
+<pre class="mermaid">
+flowchart LR
+    LOOP_START["executeTick(tick)"] --> CALL["decision = strategy.decide()\nexecute(decision.actions)"]
+    CALL --> CHECK_DONE{"decision.done?"}
+    CHECK_DONE -- Да --> EXIT_OK["break — тик завершён"]
+    CHECK_DONE -- Нет --> CHECK_PROG{"iterAdvanced?\n(state changed\nили time advance)"}
+    CHECK_PROG -- Да --> CALL
+    CHECK_PROG -- Нет --> EMIT["tick_idle event в Action Log\ncumulative.ticksIdle++\nidleByKrakenLevel[lvl]++\nbreak inner loop"]
+    EMIT --> EXIT_OK
+
+    classDef engineNode fill:#4a9eff,color:#fff,stroke:#3580d4,stroke-width:2px
+    classDef condNode fill:#e8c23c,color:#1a1a2e,stroke:#c9a520,stroke-width:2px
+    classDef idleNode fill:#7f8c8d,color:#fff,stroke:#5d6d7e,stroke-width:2px
+
+    class LOOP_START,CALL,EXIT_OK engineNode
+    class CHECK_DONE,CHECK_PROG condNode
+    class EMIT idleNode
+</pre>
+</div>
+<p class="note">Защита от прожигания 500 итераций впустую. Когда стратегия эмитит actions=[] (no_actions) либо все действия — no-op (all_noop), движок логает синтетическое <code>tick_idle</code>, инкрементит счётчики и переходит к следующему тику.</p>
+
 <h2>Порядок фаз в тике</h2>
 <table>
   <thead>
@@ -185,6 +209,7 @@ flowchart TD
     <tr><td class="phase-name">ensureAutoTask() между итерациями</td><td>Domain feed генерит next task. ensureAutoTask() — safety net в конце тика</td></tr>
     <tr><td class="phase-name">decide() returns SimulationAction[]</td><td>decide() returns { actions, done: boolean }</td></tr>
     <tr><td class="phase-name">Один результат: набор actions</td><td>Один тик = квест завершён ИЛИ kraken level-up</td></tr>
+    <tr><td class="phase-name">При тупике: 500 итераций впустую</td><td><strong>tick_idle event:</strong> если итерация не изменила state и не продвинула время — синтетическое событие в Action Log + счётчики <code>ticksIdle</code> и <code>idleByKrakenLevel</code>. Внешний тик идёт дальше</td></tr>
   </tbody>
 </table>
 
