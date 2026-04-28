@@ -68,8 +68,15 @@ export class SimulationEngine {
       strategy,
       balance,
     };
-    this.state = createInitialSnapshot(this.config.balance, { seed: this.config.seed });
+    this.state = input.initialSnapshot
+      ? input.initialSnapshot
+      : createInitialSnapshot(this.config.balance, { seed: this.config.seed });
+
     this.rng = new SeededRng(this.config.seed);
+    if (typeof input.rngState === 'number') {
+      // SeededRng has no public restoreState — set private state via cast.
+      (this.rng as unknown as { state: number }).state = input.rngState >>> 0;
+    }
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];

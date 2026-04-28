@@ -50,6 +50,10 @@ export interface SimulationConfig {
   tickInterval: number; // ms between ticks (for timestamp only)
   strategy: AIStrategy;
   balance: BalanceConfig;
+  /** Если передан — engine стартует с этого snapshot'а вместо createInitialSnapshot. */
+  initialSnapshot?: GameSnapshot;
+  /** Если передан вместе с initialSnapshot — RNG восстанавливается из этого state. */
+  rngState?: number;
 }
 
 export interface TickMetrics {
