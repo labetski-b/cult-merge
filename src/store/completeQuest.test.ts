@@ -42,7 +42,12 @@ describe('completeQuest: preserves partial progress on incomplete', () => {
     useGameStore.setState({
       kraken: { level: 2, step: 0, currentExp: 0 },
       taskProgress: { '2': 999 },
-      resources: { meat: 0, eyes: 0, rune1: 0, rune2: 0, gems: 0 },
+      // Provide enough runes so a Gen1 upgrade is purchasable IF the simulator
+      // farms enough merges. The task itself is unreachable (Creature5 lv10),
+      // so completeQuest must surface "partially progressed" — but the
+      // invest-phase still has legitimate work to do (upgrade Gen1), which
+      // exercises the partial-progress guarantee.
+      resources: { meat: 0, eyes: 0, rune1: 100, rune2: 100, gems: 0 },
       entities: { [gen1Id]: drainedGen },
       currentAutoTask: task,
       currentTaskFed: [],
