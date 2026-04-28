@@ -61,11 +61,34 @@
   background: rgba(60, 45, 20, 0.3);
 }
 
-.generator-upgrade-card-header {
-  display: flex;
+.generator-upgrade-grid {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: auto auto auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
   align-items: center;
-  gap: 10px;
   margin-bottom: 8px;
+}
+
+.generator-upgrade-grid-single {
+  grid-template-rows: auto auto;
+}
+
+.generator-upgrade-card-identity {
+  grid-column: 1;
+  grid-row: 1 / span 4;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 64px;
+  gap: 2px;
+}
+
+.generator-upgrade-grid-single .generator-upgrade-card-identity {
+  grid-row: 1 / span 2;
 }
 
 .generator-upgrade-card-img {
@@ -87,20 +110,69 @@
   border-radius: 6px;
 }
 
-.generator-upgrade-card-title {
-  display: flex;
-  flex-direction: column;
-}
-
 .generator-upgrade-card-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
+  margin-top: 2px;
+  line-height: 1.1;
 }
 
 .generator-upgrade-card-level {
-  font-size: 12px;
+  font-size: 11px;
   color: #ffd454;
+  line-height: 1.1;
+}
+
+.generator-upgrade-row-label {
+  grid-column: 2 / span 2;
+  align-self: end;
+  font-size: 9px;
+  color: rgba(245, 247, 250, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.generator-upgrade-row-label-current {
+  grid-row: 1;
+}
+
+.generator-upgrade-row-label-next {
+  grid-row: 3;
+  border-top: 1px solid rgba(255, 180, 60, 0.18);
+  padding-top: 8px;
+  margin-top: 6px;
+}
+
+.generator-upgrade-chips {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  grid-column: 2;
+  align-self: start;
+}
+
+.generator-upgrade-chips-current {
+  grid-row: 2;
+}
+
+.generator-upgrade-chips-next {
+  grid-row: 4;
+}
+
+.generator-upgrade-grid .generator-upgrade-drops {
+  grid-column: 3;
+  align-self: center;
+}
+
+.generator-upgrade-grid .generator-upgrade-drops-current {
+  grid-row: 2;
+}
+
+.generator-upgrade-grid .generator-upgrade-drops-next {
+  grid-row: 4;
+  opacity: 0.95;
 }
 
 .generator-upgrade-progress-label {
@@ -215,14 +287,17 @@
 }
 
 .generator-upgrade-drops {
-  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
-.generator-upgrade-drops-grid {
+.generator-upgrade-drops-row {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  justify-content: flex-end;
 }
 
 .generator-upgrade-drop-cell {
@@ -233,14 +308,21 @@
 }
 
 .generator-upgrade-drop-frame {
-  width: 40px;
-  height: 40px;
+  position: relative;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(143, 193, 255, 0.1);
   border: 1px solid rgba(143, 193, 255, 0.2);
   border-radius: 6px;
+}
+
+.generator-upgrade-drop-frame-new {
+  background: rgba(255, 212, 84, 0.12);
+  border-color: rgba(255, 212, 84, 0.55);
+  box-shadow: 0 0 8px rgba(255, 212, 84, 0.35);
 }
 
 .generator-upgrade-drop-img {
@@ -261,4 +343,13 @@
   color: rgba(245, 247, 250, 0.85);
   font-weight: 600;
   text-align: center;
+}
+
+.generator-upgrade-drop-sparkle {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 12px;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px rgba(255, 212, 84, 0.8));
 }

@@ -92,6 +92,29 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
   );
 }
 
+type CreatureOutput = {
+  creatureType: string;
+  level: number;
+  chance: number;
+};
+
+function groupOutputsByType(outputs: CreatureOutput[]): CreatureOutput[][] {
+  const order: string[] = [];
+  const buckets = new Map<string, CreatureOutput[]>();
+  for (const out of outputs) {
+    if (!buckets.has(out.creatureType)) {
+      buckets.set(out.creatureType, []);
+      order.push(out.creatureType);
+    }
+    buckets.get(out.creatureType)!.push(out);
+  }
+  return order.map((type) => {
+    const list = buckets.get(type)!.slice();
+    list.sort((a, b) => a.level - b.level);
+    return list;
+  });
+}
+
 function GeneratorUpgradeCard({
   gen,
   mergeCountByLine,
@@ -112,9 +135,21 @@ function GeneratorUpgradeCard({
     ? getGeneratorMergesAvailable(config, mergeCountByLine, mergesSpentByGen)
     : 0;
   const currentLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level);
-  const outputs = currentLevelConfig?.outputs ?? [];
+  const nextLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level + 1);
+  const outputs: CreatureOutput[] = currentLevelConfig?.outputs ?? [];
+  const nextOutputs: CreatureOutput[] = nextLevelConfig?.outputs ?? [];
   const spawns = currentLevelConfig?.numCreatures ?? 0;
   const chargeCost = currentLevelConfig?.chargeCost ?? 0;
+  const nextSpawns = nextLevelConfig?.numCreatures ?? 0;
+  const nextChargeCost = nextLevelConfig?.chargeCost ?? 0;
+
+  const currentGroups = groupOutputsByType(outputs);
+
+  const currentKeys = new Set(outputs.map((o) => `${o.creatureType}-${o.level}`));
+  const newOutputs = nextOutputs.filter(
+    (o) => !currentKeys.has(`${o.creatureType}-${o.level}`)
+  );
+  const hasNextLevel = nextLevelConfig !== undefined;
 
   const handleStart = () => {
     useGameStore.getState().startGeneratorUpgrade(gen.id);
@@ -152,13 +187,9 @@ function GeneratorUpgradeCard({
     : null;
 
   let disabledReason: string | null = null;
-  if (check && !check.ok) {
-    if (check.reason === 'merges') {
-      disabledReason = `Need ${required - merges} more merges`;
-    } else if (check.reason === 'runes' && row) {
-      const have = resources[row.runeType] ?? 0;
-      disabledReason = `Need ${row.runeCost - have} more ${row.runeType}`;
-    }
+  if (check && !check.ok && check.reason === 'runes' && row) {
+    const have = resources[row.runeType] ?? 0;
+    disabledReason = `Need ${row.runeCost - have} more ${row.runeType}`;
   }
 
   const canStart = check?.ok === true;
@@ -166,31 +197,37 @@ function GeneratorUpgradeCard({
 
   return (
     <div className="generator-upgrade-card">
-      <div className="generator-upgrade-card-header">
-        {img ? (
-          <img src={img} alt={`Gen ${gen.generatorId}`} className="generator-upgrade-card-img" />
-        ) : (
-          <div className="generator-upgrade-card-icon">G{gen.generatorId}</div>
-        )}
-        <div className="generator-upgrade-card-title">
-          <div className="generator-upgrade-card-name">Gen {gen.generatorId}</div>
-          <div className="generator-upgrade-card-level">Level {gen.level}</div>
+      <div
+        className={`generator-upgrade-grid${hasNextLevel ? '' : ' generator-upgrade-grid-single'}`}
+      >
+        <div className="generator-upgrade-card-identity">
+          {img ? (
+            <img src={img} alt={`Gen ${gen.generatorId}`} className="generator-upgrade-card-img" />
+          ) : (
+            <div className="generator-upgrade-card-icon">G{gen.generatorId}</div>
+          )}
         </div>
-        <div className="generator-upgrade-stat">
-          <div className="generator-upgrade-stat-label">Spawns</div>
-          <div className="generator-upgrade-stat-value">{spawns}</div>
+
+        <div className="generator-upgrade-row-label generator-upgrade-row-label-current">
+          Level {gen.level}
         </div>
-        <div className="generator-upgrade-stat">
-          <div className="generator-upgrade-stat-label">Charge</div>
-          <div className="generator-upgrade-stat-value">
-            {chargeCost}
-            <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+        <div className="generator-upgrade-chips generator-upgrade-chips-current">
+          <div className="generator-upgrade-stat">
+            <div className="generator-upgrade-stat-label">Spawns</div>
+            <div className="generator-upgrade-stat-value">{spawns}</div>
+          </div>
+          <div className="generator-upgrade-stat">
+            <div className="generator-upgrade-stat-label">Charge</div>
+            <div className="generator-upgrade-stat-value">
+              {chargeCost}
+              <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+            </div>
           </div>
         </div>
-        {outputs.length > 0 && (
-          <div className="generator-upgrade-drops">
-            <div className="generator-upgrade-drops-grid">
-              {outputs.map((out, idx) => {
+        <div className="generator-upgrade-drops generator-upgrade-drops-current">
+          {currentGroups.map((group, gIdx) => (
+            <div className="generator-upgrade-drops-row" key={`group-${gIdx}`}>
+              {group.map((out, idx) => {
                 const sprite = getCreatureImage(out.creatureType, out.level);
                 const pct = out.chance <= 1 ? out.chance * 100 : out.chance;
                 const pctLabel = `${Math.round(pct)}%`;
@@ -217,7 +254,60 @@ function GeneratorUpgradeCard({
                 );
               })}
             </div>
-          </div>
+          ))}
+        </div>
+
+        {hasNextLevel && (
+          <>
+            <div className="generator-upgrade-row-label generator-upgrade-row-label-next">
+              Upgrade
+            </div>
+            <div className="generator-upgrade-chips generator-upgrade-chips-next">
+              <div className="generator-upgrade-stat">
+                <div className="generator-upgrade-stat-label">Spawns</div>
+                <div className="generator-upgrade-stat-value">{nextSpawns}</div>
+              </div>
+              <div className="generator-upgrade-stat">
+                <div className="generator-upgrade-stat-label">Charge</div>
+                <div className="generator-upgrade-stat-value">
+                  {nextChargeCost}
+                  <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+                </div>
+              </div>
+            </div>
+            <div className="generator-upgrade-drops generator-upgrade-drops-next">
+              {newOutputs.length > 0 && (
+                <div className="generator-upgrade-drops-row">
+                  {newOutputs.map((out, idx) => {
+                    const sprite = getCreatureImage(out.creatureType, out.level);
+                    return (
+                      <div
+                        key={`new-${out.creatureType}-${out.level}-${idx}`}
+                        className="generator-upgrade-drop-cell generator-upgrade-drop-cell-new"
+                      >
+                        <div className="generator-upgrade-drop-frame generator-upgrade-drop-frame-new">
+                          {sprite ? (
+                            <img
+                              src={sprite}
+                              alt={`${out.creatureType} L${out.level}`}
+                              className="generator-upgrade-drop-img"
+                            />
+                          ) : (
+                            <div className="generator-upgrade-drop-placeholder">
+                              {out.creatureType}
+                            </div>
+                          )}
+                          <span className="generator-upgrade-drop-sparkle" aria-hidden>
+                            &#10024;
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
