@@ -59,11 +59,11 @@ export class SimulationEngine {
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
     const strategy = input.strategy ?? new RealisticStrategy(balance);
-    const stopValue = input.stopCondition.value;
+    const stopValue = 'value' in input.stopCondition ? input.stopCondition.value : undefined;
     this.config = {
       seed: input.seed,
       stopCondition: input.stopCondition,
-      maxTicks: input.maxTicks ?? stopValue,
+      maxTicks: input.maxTicks ?? stopValue ?? 0,
       tickInterval: input.tickInterval ?? 1000,
       strategy,
       balance,
@@ -83,11 +83,12 @@ export class SimulationEngine {
   }
 
   private shouldStop(tick: number): boolean {
-    const { type, value } = this.config.stopCondition;
-    switch (type) {
-      case 'ticks':       return tick + 1 >= value;
-      case 'krakenLevel': return this.state.kraken.level >= value;
-      case 'tasks':       return this.cumulative.totalTasksCompleted >= value;
+    const cond = this.config.stopCondition;
+    switch (cond.type) {
+      case 'ticks':            return tick + 1 >= cond.value;
+      case 'krakenLevel':      return this.state.kraken.level >= cond.value;
+      case 'tasks':            return this.cumulative.totalTasksCompleted >= cond.value;
+      case 'oneTaskCompleted': return this.cumulative.totalTasksCompleted >= 1;
     }
   }
 

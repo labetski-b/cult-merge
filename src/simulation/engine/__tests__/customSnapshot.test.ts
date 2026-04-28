@@ -35,4 +35,16 @@ describe('SimulationEngine accepts custom initial snapshot and rng state', () =>
     const eng = engine as unknown as { rng: SeededRng };
     expect(eng.rng.getState()).toBe(stateAfterTwoCalls);
   });
+
+  it('stops after first task completion when stopCondition is oneTaskCompleted', () => {
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'oneTaskCompleted' },
+      maxTicks: 5000,
+      balance: BALANCE,
+    });
+    const result = engine.run();
+    expect(result.summary.totalTasksCompleted).toBeGreaterThanOrEqual(1);
+    expect(result.summary.totalTasksCompleted).toBeLessThanOrEqual(2);
+  });
 });

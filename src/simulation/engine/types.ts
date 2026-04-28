@@ -37,11 +37,12 @@ export interface AIStrategy {
   reset?(): void;
 }
 
-export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks';
-export interface StopCondition {
-  type: StopConditionType;
-  value: number;
-}
+export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks' | 'oneTaskCompleted';
+export type StopCondition =
+  | { type: 'ticks'; value: number }
+  | { type: 'krakenLevel'; value: number }
+  | { type: 'tasks'; value: number }
+  | { type: 'oneTaskCompleted' };
 
 export interface SimulationConfig {
   seed: number;
