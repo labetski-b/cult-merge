@@ -59,28 +59,36 @@ export class SimulationEngine {
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
     const strategy = input.strategy ?? new RealisticStrategy(balance);
-    const stopValue = input.stopCondition.value;
+    const stopValue = 'value' in input.stopCondition ? input.stopCondition.value : undefined;
     this.config = {
       seed: input.seed,
       stopCondition: input.stopCondition,
-      maxTicks: input.maxTicks ?? stopValue,
+      maxTicks: input.maxTicks ?? stopValue ?? 0,
       tickInterval: input.tickInterval ?? 1000,
       strategy,
       balance,
     };
-    this.state = createInitialSnapshot(this.config.balance, { seed: this.config.seed });
+    this.state = input.initialSnapshot
+      ? input.initialSnapshot
+      : createInitialSnapshot(this.config.balance, { seed: this.config.seed });
+
     this.rng = new SeededRng(this.config.seed);
+    if (typeof input.rngState === 'number') {
+      // SeededRng has no public restoreState — set private state via cast.
+      (this.rng as unknown as { state: number }).state = input.rngState >>> 0;
+    }
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
   }
 
   private shouldStop(tick: number): boolean {
-    const { type, value } = this.config.stopCondition;
-    switch (type) {
-      case 'ticks':       return tick + 1 >= value;
-      case 'krakenLevel': return this.state.kraken.level >= value;
-      case 'tasks':       return this.cumulative.totalTasksCompleted >= value;
+    const cond = this.config.stopCondition;
+    switch (cond.type) {
+      case 'ticks':            return tick + 1 >= cond.value;
+      case 'krakenLevel':      return this.state.kraken.level >= cond.value;
+      case 'tasks':            return this.cumulative.totalTasksCompleted >= cond.value;
+      case 'oneTaskCompleted': return this.cumulative.totalTasksCompleted >= 1;
     }
   }
 
@@ -486,7 +494,7 @@ export class SimulationEngine {
     // In the real game, merged generators come pre-charged
     if (merged.kind === 'generator') {
       const gen = merged as GeneratorEntity;
-      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance, this.state);
+      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance);
       gen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
     }
 

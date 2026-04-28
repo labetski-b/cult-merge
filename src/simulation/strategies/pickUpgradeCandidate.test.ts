@@ -22,11 +22,12 @@ describe('pickUpgradeCandidate', () => {
   it('returns null candidate when no unlocked generator has budget', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     const withOne = withGen(base, 'g1', 1, 1);
-    // Default snapshot: rune1=0, mergeCountByLine={} → Gen1 L1 blocked by merges (0/15).
-    // canUpgradeGenerator surfaces 'merges' before checking runes, so blockedBy is set.
+    // Default snapshot: rune1=0, mergeCountByLine={} → Gen1 L1 blocked by merges (0/15)
+    // AND by runes (0/2). pickUpgradeCandidate must NOT flag blockedByMerges because
+    // farming merges is futile while runes are also missing — the upgrade can't be bought.
     const result = pickUpgradeCandidate(withOne, BALANCE);
     expect(result.candidate).toBeNull();
-    expect(result.blockedBy?.reason).toBe('merges');
+    expect(result.blockedBy).toBeUndefined();
   });
 
   it('prefers quest-relevant generator when budget allows (priority 1)', () => {
@@ -109,6 +110,23 @@ describe('pickUpgradeCandidate.blockedBy', () => {
     };
   }
 
+  function makeStateWithGen1Lv2BlockedByMergesAndRunes(): GameSnapshot {
+    // Gen1 Lv2 → Lv3 needs mergesRequired=25, rune1 cost=4.
+    // mergeCountByLine.Creature1 = 23 (insufficient), rune1 = 0 (insufficient).
+    // canUpgradeGenerator surfaces 'merges' first; without the rune-availability guard
+    // pickUpgradeCandidate would emit blockedBy:'merges' and trigger farmMergesForLine,
+    // wasting actions on an upgrade that can't be purchased.
+    const base = createInitialSnapshot(BALANCE, { seed: 42 });
+    const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 2 }]);
+    return {
+      ...cleared,
+      resources: { ...cleared.resources, rune1: 0, rune2: 0 },
+      mergeCountByLine: { ...cleared.mergeCountByLine, Creature1: 23 },
+      mergesSpentByGen: { 1: 0 },
+      currentAutoTask: null,
+    };
+  }
+
   function makeStateWithMultipleBlocked(): GameSnapshot {
     // Gen1 Lv2 blocked by merges (have 0 < need 25).
     // Gen2 Lv4 blocked by merges (need 180; we provide 50 → blocked).
@@ -149,6 +167,18 @@ describe('pickUpgradeCandidate.blockedBy', () => {
     const state = makeStateWithReadyGen1AndBlockedGen2();
     const result = pickUpgradeCandidate(state, BALANCE);
     expect(result.candidate).not.toBeNull();
+    expect(result.blockedBy).toBeUndefined();
+  });
+
+  it('does not surface blockedBy when both merges and runes are insufficient', () => {
+    // Regression: previously canUpgradeGenerator returned reason='merges' (checked first)
+    // and pickUpgradeCandidate flagged blockedByMerges without checking the rune balance.
+    // This caused farmMergesForLine to grind merges for an upgrade that could not be
+    // afforded anyway — wasted simulator actions visible as merge/spawn deltas with no
+    // rune change in autocomplete logs.
+    const state = makeStateWithGen1Lv2BlockedByMergesAndRunes();
+    const result = pickUpgradeCandidate(state, BALANCE);
+    expect(result.candidate).toBeNull();
     expect(result.blockedBy).toBeUndefined();
   });
 

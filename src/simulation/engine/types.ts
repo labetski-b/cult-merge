@@ -37,11 +37,12 @@ export interface AIStrategy {
   reset?(): void;
 }
 
-export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks';
-export interface StopCondition {
-  type: StopConditionType;
-  value: number;
-}
+export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks' | 'oneTaskCompleted';
+export type StopCondition =
+  | { type: 'ticks'; value: number }
+  | { type: 'krakenLevel'; value: number }
+  | { type: 'tasks'; value: number }
+  | { type: 'oneTaskCompleted' };
 
 export interface SimulationConfig {
   seed: number;
@@ -50,6 +51,10 @@ export interface SimulationConfig {
   tickInterval: number; // ms between ticks (for timestamp only)
   strategy: AIStrategy;
   balance: BalanceConfig;
+  /** Если передан — engine стартует с этого snapshot'а вместо createInitialSnapshot. */
+  initialSnapshot?: GameSnapshot;
+  /** Если передан вместе с initialSnapshot — RNG восстанавливается из этого state. */
+  rngState?: number;
 }
 
 export interface TickMetrics {

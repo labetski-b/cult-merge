@@ -43,7 +43,18 @@ export function pickUpgradeCandidate(
       }
       continue;
     }
-    if (check.reason === 'merges') blockedByMerges.push(g);
+    if (check.reason === 'merges') {
+      // Only flag as merges-blocked if runes are also available — otherwise
+      // farming merges is wasted effort (the upgrade still cannot be purchased).
+      // canUpgradeGenerator surfaces 'merges' before checking runes, so we must
+      // re-check the rune balance here against the upgrade row.
+      const row = resolveUpgradeCost(g.generatorId, g.level, balance);
+      if (!row) continue;
+      const runeBalance = state.resources[row.runeType] ?? 0;
+      if (runeBalance >= row.runeCost) {
+        blockedByMerges.push(g);
+      }
+    }
   }
 
   if (withBudget.length > 0) {

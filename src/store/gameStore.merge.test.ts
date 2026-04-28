@@ -112,9 +112,11 @@ describe('gameStore.interactCells records per-line merges', () => {
 
     useGameStore.getState().completeQuest();
 
-    // The two L1 creatures were merged once into an L2, which was then fed.
-    // mergeCountByLine for Creature1 must reflect that quest-driven merge.
-    expect(useGameStore.getState().mergeCountByLine.Creature1).toBe(1);
+    // completeQuest now delegates to the simulator, which may perform many
+    // merges across multiple ticks while closing the task. The exact count is
+    // strategy-dependent; the invariant we care about is that quest-driven
+    // merges are recorded for the targeted line.
+    expect(useGameStore.getState().mergeCountByLine.Creature1 ?? 0).toBeGreaterThanOrEqual(1);
   });
 
   it('dropping a generator onto another generator is a no-op', () => {
