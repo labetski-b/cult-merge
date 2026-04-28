@@ -13,8 +13,10 @@ import { DragProvider } from '@ui/DragContext';
 
 function App() {
   const lastMessage = useGameStore((state) => state.lastMessage);
+  const lastSimActions = useGameStore((state) => state.lastSimActions);
   const tickTimerGenerators = useGameStore((state) => state.tickTimerGenerators);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [simLogOpen, setSimLogOpen] = useState(false);
 
   useEffect(() => {
     tickTimerGenerators(Date.now());
@@ -61,7 +63,34 @@ function App() {
           onClose={() => setUpgradeModalOpen(false)}
         />
 
-        <footer className="status-bar">{lastMessage ?? 'Ready.'}</footer>
+        <footer className="status-bar">
+          <span className="status-bar__message">{lastMessage ?? 'Ready.'}</span>
+          {lastSimActions.length > 0 && (
+            <button
+              type="button"
+              className="status-bar__sim-toggle"
+              onClick={() => setSimLogOpen((prev) => !prev)}
+              aria-expanded={simLogOpen}
+            >
+              {simLogOpen ? '▾' : '▸'} Sim log ({lastSimActions.length})
+            </button>
+          )}
+        </footer>
+        {simLogOpen && lastSimActions.length > 0 && (
+          <div
+            className="sim-log-panel"
+            role="region"
+            aria-label="Simulator action log"
+          >
+            <ol className="sim-log-panel__list">
+              {lastSimActions.map((line, i) => (
+                <li key={i} className="sim-log-panel__item">
+                  {line}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </DragProvider>
   );

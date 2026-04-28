@@ -15,6 +15,7 @@ import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { runAutocompleteSimulation } from '@domain/runtime/runAutocomplete';
+import { formatSimAction } from '@domain/runtime/formatSimAction';
 import {
   feedEntity as applyFeedEntity,
   feedRuneToResources,
@@ -29,6 +30,12 @@ import { SeededRng } from '@infra/rng';
 import { SAVE_KEY, SAVE_VERSION } from '@infra/storage';
 
 interface GameActions {
+  /**
+   * Human-readable log of actions performed by the simulator during the most
+   * recent autocomplete (`completeQuest`) run. Cleared/replaced on each call.
+   * Capped at the latest 50 entries.
+   */
+  lastSimActions: string[];
   addMeat: (amount: number) => void;
   feedEntity: (entityId: string) => void;
   interactCells: (sourceIndex: number, targetIndex: number) => void;
@@ -116,6 +123,7 @@ export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       ...createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE }),
+      lastSimActions: [],
 
       addMeat: (amount) => {
         if (amount <= 0) return;
@@ -760,7 +768,11 @@ export const useGameStore = create<GameStore>()(
           const lastMessage = result.completed
             ? `Quest completed in ${result.ticks} ticks.`
             : 'Quest partially progressed. Could not fully complete.';
+          // Keep only the latest 50 actions, formatted for the UI status bar.
+          const trimmed = result.actionsLog.slice(-50);
+          const lastSimActions = trimmed.map(formatSimAction);
           return {
+            lastSimActions,
             grid: final.grid,
             entities: final.entities,
             resources: final.resources,
@@ -1087,7 +1099,10 @@ export const useGameStore = create<GameStore>()(
       },
 
       resetGame: () => {
-        set(createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE }));
+        set({
+          ...createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE }),
+          lastSimActions: [],
+        });
       },
 
       clearLastMessage: () => {
@@ -1100,7 +1115,7 @@ export const useGameStore = create<GameStore>()(
       migrate: (persistedState, persistedVersion) =>
         migrateGameStore(persistedState, persistedVersion) as GameStore,
       partialize: (state) => {
-        const { meatDropQueue: _omit, ...rest } = state;
+        const { meatDropQueue: _omit, lastSimActions: _omit2, ...rest } = state;
         return rest as GameStore;
       }
     }
