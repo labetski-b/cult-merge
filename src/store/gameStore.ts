@@ -756,10 +756,10 @@ export const useGameStore = create<GameStore>()(
       completeQuest: () => {
         set((state) => {
           const result = runAutocompleteSimulation(state, BALANCE, { maxTicks: 200 });
-          if (!result.completed) {
-            return { lastMessage: 'Недостаточно ресурсов' };
-          }
           const final = result.finalState;
+          const lastMessage = result.completed
+            ? `Quest completed in ${result.ticks} ticks.`
+            : 'Quest partially progressed. Could not fully complete.';
           return {
             grid: final.grid,
             entities: final.entities,
@@ -787,7 +787,7 @@ export const useGameStore = create<GameStore>()(
             managerCards: final.managerCards,
             meatDropQueue: final.meatDropQueue,
             chapterClaimed: final.chapterClaimed,
-            lastMessage: `Quest completed in ${result.ticks} ticks.`,
+            lastMessage,
           };
         });
         const afterCompleteQuest = get();

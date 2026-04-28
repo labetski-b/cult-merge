@@ -16,6 +16,44 @@ export interface AutocompleteOptions {
 }
 
 /**
+ * Pick the `GameSnapshot` shape out of a possibly-larger object (e.g. the
+ * zustand store, which augments the snapshot with action functions). Functions
+ * cannot be `structuredClone`d, so we project to the data subset first.
+ */
+function pickSnapshot(input: GameSnapshot): GameSnapshot {
+  return {
+    kraken: input.kraken,
+    resources: input.resources,
+    grid: input.grid,
+    entities: input.entities,
+    taskProgress: input.taskProgress,
+    currentTaskFed: input.currentTaskFed,
+    pendingRewards: input.pendingRewards,
+    rngState: input.rngState,
+    lastMessage: input.lastMessage,
+    predatorMergeCounts: input.predatorMergeCounts,
+    mergeCountByLine: input.mergeCountByLine,
+    predatorQueueIndex: input.predatorQueueIndex,
+    predatorsSpawnedOnce: input.predatorsSpawnedOnce,
+    managerCards: input.managerCards,
+    currentAutoTask: input.currentAutoTask,
+    lastAutoTaskLine: input.lastAutoTaskLine,
+    autoTaskLineCompletions: input.autoTaskLineCompletions,
+    autoTaskLastLevels: input.autoTaskLastLevels,
+    session: input.session,
+    meatButtonPresses: input.meatButtonPresses,
+    meatPressesAtLastFP: input.meatPressesAtLastFP,
+    fpQuestsByKrakenLevel: input.fpQuestsByKrakenLevel,
+    cumulativeStats: input.cumulativeStats,
+    questState: input.questState,
+    meatDropQueue: input.meatDropQueue,
+    chapterClaimed: input.chapterClaimed,
+    mergesSpentByGen: input.mergesSpentByGen,
+    activeUpgrade: input.activeUpgrade,
+  };
+}
+
+/**
  * Run the simulator on a production snapshot until the active task closes
  * (or `maxTicks` is exhausted). Used by the "autocomplete quest" production flow.
  */
@@ -24,13 +62,16 @@ export function runAutocompleteSimulation(
   balance: typeof DEFAULT_BALANCE = DEFAULT_BALANCE,
   options: AutocompleteOptions = {}
 ): AutocompleteResult {
+  // Strip non-data members (action functions on the live zustand state) before
+  // cloning, since `structuredClone` rejects functions.
+  const clonedSnapshot = structuredClone(pickSnapshot(snapshot));
   const strategy = new RealisticStrategy(balance);
   strategy.reset();
 
   const engine = new SimulationEngine({
-    seed: snapshot.rngState ?? 1,
-    rngState: snapshot.rngState,
-    initialSnapshot: snapshot,
+    seed: clonedSnapshot.rngState ?? 1,
+    rngState: clonedSnapshot.rngState,
+    initialSnapshot: clonedSnapshot,
     stopCondition: { type: 'oneTaskCompleted' },
     maxTicks: options.maxTicks ?? 200,
     strategy,
