@@ -494,7 +494,7 @@ export class SimulationEngine {
     // In the real game, merged generators come pre-charged
     if (merged.kind === 'generator') {
       const gen = merged as GeneratorEntity;
-      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance, this.state);
+      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance);
       gen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
     }
 
