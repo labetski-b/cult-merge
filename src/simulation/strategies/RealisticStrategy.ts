@@ -137,7 +137,8 @@ export class RealisticStrategy implements AIStrategy {
       if (gen.charges.length === 0) {
         const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
         const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
-        const chargeCost = levelConfig?.chargeCost ?? 0;
+        // Timer-mode generators don't have a chargeCost — they spawn passively.
+        const chargeCost = levelConfig && levelConfig.mode === 'sacrifice' ? levelConfig.chargeCost : 0;
 
         if (state.resources.meat < chargeCost) {
           return { actions: [{ type: 'gather_meat', targetCost: chargeCost }], done: false };
@@ -224,7 +225,8 @@ export class RealisticStrategy implements AIStrategy {
     // e. Generator has no charges — check if we need meat
     if (bestGen.charges.length === 0 && missingTypes.size > 0) {
       const levelConfig = bestGenConfig?.levels.find(l => l.level === bestGen.level);
-      const chargeCost = levelConfig?.chargeCost ?? 0;
+      // Timer-mode levels have no chargeCost; the timer-mode branch above already returned.
+      const chargeCost = levelConfig && levelConfig.mode === 'sacrifice' ? levelConfig.chargeCost : 0;
 
       if (state.resources.meat < chargeCost) {
         return { actions: [{ type: 'gather_meat', targetCost: chargeCost }], done: false };
@@ -692,7 +694,12 @@ export class RealisticStrategy implements AIStrategy {
     const genConfig = this.balance.generators.generators.find(g => g.id === genId);
     if (!genConfig) return 0;
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
-    if (!levelConfig || levelConfig.chargeCost <= 0) return l1pc; // free charge = infinite efficiency, return l1pc as proxy
+    if (!levelConfig) return 0;
+    // Timer-mode generators have no per-meat cost (passive spawning) — treat as 0.
+    // `getExpectedL1PerCharge` already returns 0 for timer mode, so this branch is
+    // defensive — we'd have early-returned above if reached.
+    if (levelConfig.mode !== 'sacrifice') return 0;
+    if (levelConfig.chargeCost <= 0) return l1pc; // free charge = infinite efficiency, return l1pc as proxy
     return l1pc / levelConfig.chargeCost;
   }
 
@@ -857,8 +864,10 @@ export class RealisticStrategy implements AIStrategy {
       return []; // grid full; let questStep handle freeCells next tick
     }
 
-    // no charges → gather meat or charge
-    const chargeCost = levelConfig?.chargeCost ?? 0;
+    // no charges → gather meat or charge.
+    // Timer-mode gens were filtered out above (`cfg.spawnMode === 'timer'`), so this
+    // branch is only reached for sacrifice gens. Narrow before reading chargeCost.
+    const chargeCost = levelConfig && levelConfig.mode === 'sacrifice' ? levelConfig.chargeCost : 0;
     if (state.resources.meat < chargeCost) {
       return [{ type: 'gather_meat', targetCost: chargeCost }];
     }
@@ -893,7 +902,9 @@ export class RealisticStrategy implements AIStrategy {
       if (drained && freeSlots > 0) {
         const genConfig = this.balance.generators.generators.find(g => g.id === gen.generatorId);
         const levelConfig = genConfig?.levels.find(l => l.level === gen.level);
-        if (levelConfig && remainingMeat >= levelConfig.chargeCost) {
+        // Only sacrifice-mode gens can be charged + bulk-spawned here. Timer gens
+        // tick passively and have no chargeCost / numCreatures.
+        if (levelConfig && levelConfig.mode === 'sacrifice' && remainingMeat >= levelConfig.chargeCost) {
           actions.push({ type: 'charge_generator', generatorId: gen.id });
           remainingMeat -= levelConfig.chargeCost;
           const moreSpawns = Math.min(levelConfig.numCreatures, freeSlots);

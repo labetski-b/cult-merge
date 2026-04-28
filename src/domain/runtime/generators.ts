@@ -52,7 +52,7 @@ export function chargeGenerator(
 
   // Timer-mode generators (e.g. Gen3 Flower Pot) do NOT accept meat feeding.
   // They tick passively via tickTimerGenerators.
-  if (genConfig.spawnMode === 'timer') {
+  if (genConfig.spawnMode === 'timer' || levelConfig.mode !== 'sacrifice') {
     return { snapshot, changed: false, events: [], reason: 'generator_timer_mode' };
   }
 

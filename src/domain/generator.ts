@@ -73,6 +73,15 @@ export function rollGeneratorSpawn(
   config: BalanceConfig
 ): Array<{ creatureType: string; level: number }> {
   const { levelConfig } = getGeneratorConfig(config, generatorEntity.generatorId, generatorEntity.level);
+
+  // Timer-mode generators spawn passively via tickTimerGenerators — they don't roll
+  // batches of creatures on charge. Returning [] is the safe defensive behaviour:
+  // chargeGenerator/spawnFromGenerator gate timer-mode at the call site, so this
+  // path should never fire for them in production.
+  if (levelConfig.mode !== 'sacrifice') {
+    return [];
+  }
+
   const spawns: Array<{ creatureType: string; level: number }> = [];
 
   for (let index = 0; index < levelConfig.numCreatures; index += 1) {

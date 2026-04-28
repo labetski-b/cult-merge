@@ -7,6 +7,7 @@ import { getGeneratorConfig } from '@domain/generator';
 import { canMergeCreatures, canMergeRunes } from '@domain/merge';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
+import { formatCompact } from '@ui/formatCompact';
 import { useDragContext } from '@ui/DragContext';
 
 function computeTimerProgress(
@@ -614,14 +615,38 @@ export function GridBoard() {
           <div className="popup-title">
             Generator {chargePopup.entity.generatorId} (L{chargePopup.entity.level})
           </div>
-          <div className="popup-info">
-            Cost: {chargeInfo.levelConfig.chargeCost} meat
-            &nbsp;&bull;&nbsp;
-            Spawns: {chargeInfo.levelConfig.numCreatures}
-          </div>
-          <button className="btn popup-btn" onClick={handleCharge} type="button">
-            Charge ({chargeInfo.levelConfig.chargeCost} meat)
-          </button>
+          {chargeInfo.levelConfig.mode === 'timer' ? (
+            <>
+              <div className="popup-info">
+                1 spawn / {chargeInfo.levelConfig.tickIntervalSec}s
+              </div>
+              <table className="popup-prob-table">
+                <tbody>
+                  {chargeInfo.levelConfig.outputs.map((out, idx) => {
+                    const pct = out.chance <= 1 ? out.chance * 100 : out.chance;
+                    return (
+                      <tr key={`${out.creatureType}-${out.level}-${idx}`}>
+                        <td>{out.creatureType.replace('Creature', 'Cr')}</td>
+                        <td>L{out.level}</td>
+                        <td>{Math.round(pct)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <>
+              <div className="popup-info">
+                Cost: {formatCompact(chargeInfo.levelConfig.chargeCost)} meat
+                &nbsp;&bull;&nbsp;
+                Spawns: {chargeInfo.levelConfig.numCreatures}
+              </div>
+              <button className="btn popup-btn" onClick={handleCharge} type="button">
+                Charge ({formatCompact(chargeInfo.levelConfig.chargeCost)} meat)
+              </button>
+            </>
+          )}
           <button
             className="popup-close"
             onClick={() => setChargePopup(null)}

@@ -12,6 +12,10 @@ import baseline from './snapshots/baseline-3.23.json';
  * The `Math.max(1, expected)` guard makes the relative-error formula behave
  * sanely when the baseline value is 0 (e.g. Gen3 cheat counters that don't
  * fire for the default strategy at this run length).
+ *
+ * Snapshot rebaselined 2026-04-28: FP (Gen3) quest formula corrected — removed
+ * spurious `numCreatures` multiplier. FP quest targets dropped ~15×, so kraken
+ * progression / cheat-spawn counters / total eyes all shifted accordingly.
  */
 describe('Regression: baseline 3.23 snapshot', () => {
   it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {

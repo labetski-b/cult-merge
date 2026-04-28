@@ -1,11 +1,12 @@
 export const SAVE_KEY = 'cult_merge_save_v1';
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 export function migrateSave(raw: {
   version: number;
   snapshot: {
     entities: Record<string, unknown>;
     grid: { cells: (string | null)[]; [key: string]: unknown };
+    activeUpgrade?: { entityId?: string; [key: string]: unknown } | null;
     [key: string]: unknown;
   };
 }): typeof raw {
@@ -45,6 +46,29 @@ export function migrateSave(raw: {
         ...snapshot,
         meatPressesAtLastFP: 0,
         fpQuestsByKrakenLevel: {},
+      },
+    };
+  }
+
+  if (current.version < 24) {
+    const snapshot = current.snapshot;
+    const validIds = new Set(Object.keys(snapshot.entities ?? {}));
+    const cells = snapshot.grid?.cells ?? [];
+    const newCells = cells.map((cell: string | null) =>
+      cell !== null && !validIds.has(cell) ? null : cell,
+    );
+    const active = snapshot.activeUpgrade ?? null;
+    const newActive =
+      active && typeof active.entityId === 'string' && !validIds.has(active.entityId)
+        ? null
+        : active;
+    current = {
+      ...current,
+      version: 24,
+      snapshot: {
+        ...snapshot,
+        grid: { ...snapshot.grid, cells: newCells },
+        activeUpgrade: newActive,
       },
     };
   }

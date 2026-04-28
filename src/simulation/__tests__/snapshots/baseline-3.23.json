@@ -1,15 +1,15 @@
 {
   "seed": 42,
   "ticks": 1000,
-  "totalEyes": 777671,
-  "krakenLevel": 39,
+  "totalEyes": 688078,
+  "krakenLevel": 29,
   "chapter": 12,
-  "upgradesStarted": 32,
-  "upgradesCollected": 32,
+  "upgradesStarted": 29,
+  "upgradesCollected": 29,
   "gen3PassiveSpawns": 0,
-  "gen3CheatSpawns": 8835,
-  "gen3SkipClicks": 8838,
-  "questsClosedViaGen3Skip": 57,
-  "totalTasksCompleted": 930,
-  "capturedAt": "2026-04-28"
+  "gen3CheatSpawns": 1951,
+  "gen3SkipClicks": 1952,
+  "questsClosedViaGen3Skip": 60,
+  "totalTasksCompleted": 963,
+  "capturedAt": "2026-04-28-fp-cleanup"
 }

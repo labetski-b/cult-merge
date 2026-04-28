@@ -298,8 +298,14 @@ export const useGameStore = create<GameStore>()(
         const entity = pre.entities[generatorId];
         if (entity && entity.kind === 'generator' && entity.charges.length === 0) {
           const { levelConfig } = getGeneratorConfig(BALANCE, entity.generatorId, entity.level);
-          while (get().resources.meat < levelConfig.chargeCost) {
-            get().getMeat();
+          // Only sacrifice-mode generators consume meat. Timer-mode generators
+          // (Gen3 Flower Pot) tick passively — `applyGeneratorCharge` will reject
+          // the action with `generator_timer_mode`, so we just skip the meat-gathering
+          // loop here to avoid spinning forever.
+          if (levelConfig.mode === 'sacrifice') {
+            while (get().resources.meat < levelConfig.chargeCost) {
+              get().getMeat();
+            }
           }
         }
 
@@ -572,10 +578,12 @@ export const useGameStore = create<GameStore>()(
             const { generator: genCfg } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
             if (genCfg.spawnMode === 'timer') continue;
 
-            // Charge if empty and can afford
+            // Charge if empty and can afford. Timer-mode levels were filtered out via
+            // the `genCfg.spawnMode === 'timer'` guard above, so `levelConfig.mode`
+            // is always 'sacrifice' here — narrow explicitly so chargeCost is typed.
             if (gen.charges.length === 0) {
               const { levelConfig } = getGeneratorConfig(BALANCE, gen.generatorId, gen.level);
-              if (nextMeat >= levelConfig.chargeCost) {
+              if (levelConfig.mode === 'sacrifice' && nextMeat >= levelConfig.chargeCost) {
                 nextMeat -= levelConfig.chargeCost;
                 const spawns = rollGeneratorSpawn(rng, gen, BALANCE);
                 gen = { ...gen, charges: spawns.map((s) => ({ creatureType: s.creatureType, level: s.level })) };
@@ -771,9 +779,13 @@ export const useGameStore = create<GameStore>()(
           // Keep only the latest 50 actions, formatted for the UI status bar.
           const trimmed = result.actionsLog.slice(-50);
           const lastSimActions = trimmed.map(formatSimAction);
+          // Defensive scrub: drop orphan cell IDs (cells referencing entities that no longer exist).
+          // Belt-and-suspenders against any future divergence between sim and production reward paths.
+          const cleanCells = final.grid.cells.map((id) => (id && final.entities[id]) ? id : null);
+          const cleanGrid = { ...final.grid, cells: cleanCells };
           return {
             lastSimActions,
-            grid: final.grid,
+            grid: cleanGrid,
             entities: final.entities,
             resources: final.resources,
             kraken: final.kraken,
@@ -1170,6 +1182,30 @@ export function migrateGameStore(
             cell !== null && removedIds.has(cell) ? null : cell,
           ),
         },
+      };
+    }
+  }
+
+  if (persistedVersion < 24) {
+    const state = persistedState as {
+      entities?: Record<string, unknown>;
+      grid?: { cells?: (string | null)[] };
+      activeUpgrade?: { entityId?: string } | null;
+    };
+    if (state.entities && state.grid?.cells) {
+      const validIds = new Set(Object.keys(state.entities));
+      const newCells = state.grid.cells.map((cell) =>
+        cell !== null && !validIds.has(cell) ? null : cell,
+      );
+      const active = state.activeUpgrade ?? null;
+      const newActive =
+        active && typeof active.entityId === 'string' && !validIds.has(active.entityId)
+          ? null
+          : active;
+      persistedState = {
+        ...(persistedState as object),
+        grid: { ...state.grid, cells: newCells },
+        activeUpgrade: newActive,
       };
     }
   }

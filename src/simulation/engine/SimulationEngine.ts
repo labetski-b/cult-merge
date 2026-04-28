@@ -375,14 +375,23 @@ export class SimulationEngine {
     const [reward, ...restRewards] = this.state.pendingRewards;
     if (!reward) return;
 
-    this.state.pendingRewards = restRewards;
-
     if (reward.type === 'egg' && typeof reward.value === 'string') {
       const parts = reward.value.match(/^gen_(\d+)_(\d+)$/);
       if (parts) {
         const genId = Number(parts[1]);
         const genLevel = Number(parts[2]);
+
+        // Mirror production: drop the reward as no-op if a generator of this id already exists.
+        const alreadyOwned = Object.values(this.state.entities).some(
+          (e) => e.kind === 'generator' && e.generatorId === genId,
+        );
+        if (alreadyOwned) {
+          this.state.pendingRewards = restRewards;
+          return;
+        }
+
         const freeSlots = getFreeCellIndexes(this.state.grid);
+        // No free cell: leave reward in queue (do NOT shift). Strategy will free cells next tick.
         if (freeSlots.length === 0) return;
 
         const targetCell = freeSlots[0]!;
@@ -403,9 +412,14 @@ export class SimulationEngine {
         }
         this.state.entities[newGenId] = newGen;
         this.state.grid.cells[targetCell] = newGenId;
+        this.state.pendingRewards = restRewards;
+      } else {
+        // Malformed egg value — drop it.
+        this.state.pendingRewards = restRewards;
       }
     } else if (reward.type === 'res_box' && typeof reward.value === 'number') {
       const freeSlots = getFreeCellIndexes(this.state.grid);
+      // No free cell: leave reward in queue (do NOT shift).
       if (freeSlots.length === 0) return;
 
       const targetCell = freeSlots[0]!;
@@ -427,6 +441,12 @@ export class SimulationEngine {
         contents
       };
       this.state.grid.cells[targetCell] = boxId;
+      this.state.pendingRewards = restRewards;
+    } else {
+      // 'grid' / 'mechanic' / unknown: grid expansion is already handled via addExp/getGridSizeForLevel
+      // elsewhere in the engine; mechanic rewards are visual-only. Drop as no-op so the queue advances
+      // and the rewards step can terminate.
+      this.state.pendingRewards = restRewards;
     }
   }
 

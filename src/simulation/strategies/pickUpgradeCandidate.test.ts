@@ -65,15 +65,15 @@ describe('pickUpgradeCandidate', () => {
 
 describe('pickUpgradeCandidate.blockedBy', () => {
   function makeStateWithGen1Lv2BlockedByMerges(): GameSnapshot {
-    // Gen1 Lv2 → Lv3 needs mergesRequired=25, rune1 cost=4.
-    // mergeCountByLine.Creature1 = 23, mergesSpentByGen[1] = 0 → have=23, need=25 → blocked by merges.
+    // Gen1 Lv2 → Lv3 needs mergesRequired=45, rune1 cost=4.
+    // mergeCountByLine.Creature1 = 43, mergesSpentByGen[1] = 0 → have=43, need=45 → blocked by merges.
     // Resources: rune1 ≥ 4 (so runes are NOT the blocker).
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 2 }]);
     return {
       ...cleared,
       resources: { ...cleared.resources, rune1: 1000, rune2: 1000 },
-      mergeCountByLine: { ...cleared.mergeCountByLine, Creature1: 23 },
+      mergeCountByLine: { ...cleared.mergeCountByLine, Creature1: 43 },
       mergesSpentByGen: { 1: 0 },
       currentAutoTask: null,
     };
@@ -111,8 +111,8 @@ describe('pickUpgradeCandidate.blockedBy', () => {
   }
 
   function makeStateWithGen1Lv2BlockedByMergesAndRunes(): GameSnapshot {
-    // Gen1 Lv2 → Lv3 needs mergesRequired=25, rune1 cost=4.
-    // mergeCountByLine.Creature1 = 23 (insufficient), rune1 = 0 (insufficient).
+    // Gen1 Lv2 → Lv3 needs mergesRequired=45, rune1 cost=4.
+    // mergeCountByLine.Creature1 = 43 (insufficient), rune1 = 0 (insufficient).
     // canUpgradeGenerator surfaces 'merges' first; without the rune-availability guard
     // pickUpgradeCandidate would emit blockedBy:'merges' and trigger farmMergesForLine,
     // wasting actions on an upgrade that can't be purchased.
@@ -121,7 +121,7 @@ describe('pickUpgradeCandidate.blockedBy', () => {
     return {
       ...cleared,
       resources: { ...cleared.resources, rune1: 0, rune2: 0 },
-      mergeCountByLine: { ...cleared.mergeCountByLine, Creature1: 23 },
+      mergeCountByLine: { ...cleared.mergeCountByLine, Creature1: 43 },
       mergesSpentByGen: { 1: 0 },
       currentAutoTask: null,
     };
@@ -152,8 +152,8 @@ describe('pickUpgradeCandidate.blockedBy', () => {
     expect(result.blockedBy).toBeDefined();
     expect(result.blockedBy?.generatorId).toBe(1);
     expect(result.blockedBy?.reason).toBe('merges');
-    expect(result.blockedBy?.have).toBe(23);
-    expect(result.blockedBy?.needed).toBe(25);
+    expect(result.blockedBy?.have).toBe(43);
+    expect(result.blockedBy?.needed).toBe(45);
   });
 
   it('does not surface blockedBy when only blocker is runes', () => {

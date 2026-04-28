@@ -1,4 +1,4 @@
-import type { BalanceConfig } from '@data/schemas';
+import type { BalanceConfig, TimerLevelConfig } from '@data/schemas';
 import type { CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
 import { getGridSizeForLevel } from '@domain/gridSize';
@@ -98,12 +98,31 @@ export function getExpectedL1PerCharge(
   const levelConfig = gen.levels.find(l => l.level === genLevel);
   if (!levelConfig) return 0;
 
+  // Timer-mode generators don't have a "per charge" notion — they spawn 1 creature per
+  // tick. Use `getExpectedL1PerSpawn` for those. Returning 0 here keeps callers (which
+  // multiply by meat budget / chargeCost) from producing a meaningful sacrifice-style
+  // score for a timer gen.
+  if (levelConfig.mode !== 'sacrifice') return 0;
+
   let total = 0;
   for (const output of levelConfig.outputs) {
     if (output.creatureType === creatureType) {
       total += output.chance * levelConfig.numCreatures * Math.pow(2, output.level - 1);
     }
   }
+  return total;
+}
+
+/**
+ * Expected L1-equivalents from a single timer-gen spawn.
+ *
+ * Timer generators (Flower Pot) drop 1 creature per `tickIntervalSec`, so the per-spawn
+ * yield is just `Σ chance × 2^(L-1)` over the level's `outputs` — no `numCreatures`
+ * multiplier. Used by the Flower Pot scoring branch in `buildScoringTable`.
+ */
+function getExpectedL1PerSpawn(levelConfig: TimerLevelConfig): number {
+  let total = 0;
+  for (const o of levelConfig.outputs) total += o.chance * Math.pow(2, o.level - 1);
   return total;
 }
 
@@ -115,8 +134,12 @@ interface ScoringResult {
   raw: ScoringEntry[];
 }
 
-/** Projection window for timer-mode (Flower Pot) scoring: 8 × tick interval (≈ 4h of drops). */
-const FP_TICKS_WINDOW = 8;
+/**
+ * Expected number of spawns from a timer generator over a typical session window
+ * (~4h of drops at 30-min `tickIntervalSec`). Used as the projection horizon for
+ * Flower Pot scoring: `spawnL1 = FP_EXPECTED_SPAWNS × Σ chance × 2^(L-1)`.
+ */
+const FP_EXPECTED_SPAWNS = 8;
 
 /**
  * Craving weight boost coefficient applied to on-field L1 equivalents.
@@ -194,18 +217,32 @@ function buildScoringTable(
     const levelConfig = genConfig.levels.find(l => l.level === genLevel);
     if (!levelConfig) continue;
 
-    const isTimer = genConfig.spawnMode === 'timer';
     const types = new Set(levelConfig.outputs.map(o => o.creatureType));
     for (const ct of types) {
-      const l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
-      if (l1pc <= 0) continue;
-
-      const l1PerMeat = isTimer
-        ? 0
-        : (levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc);
+      // Per-creature yield. Timer gens drop 1 creature per tick (no `numCreatures`
+      // multiplier), so the per-spawn L1 for `ct` is just `Σ_{ct} chance × 2^(L-1)`.
+      // Sacrifice gens use the legacy per-charge formula in `getExpectedL1PerCharge`.
+      let l1pc: number;
+      let l1PerMeat: number;
+      let spawnL1: number;
+      if (levelConfig.mode === 'timer') {
+        const l1PerSpawnForCt = levelConfig.outputs
+          .filter((o) => o.creatureType === ct)
+          .reduce((sum, o) => sum + o.chance * Math.pow(2, o.level - 1), 0);
+        if (l1PerSpawnForCt <= 0) continue;
+        // Keep the legacy `l1pc` field populated with the per-spawn yield so downstream
+        // consumers (debug tables, eye-reward fallback) still get a sensible non-zero value.
+        l1pc = l1PerSpawnForCt;
+        l1PerMeat = 0;
+        spawnL1 = FP_EXPECTED_SPAWNS * l1PerSpawnForCt;
+      } else {
+        l1pc = getExpectedL1PerCharge(config, genId, genLevel, ct);
+        if (l1pc <= 0) continue;
+        l1PerMeat = levelConfig.chargeCost > 0 ? l1pc / levelConfig.chargeCost : l1pc;
+        spawnL1 = meatBudget * l1PerMeat;
+      }
 
       const fieldL1 = fieldL1Map.get(ct) ?? 0;
-      const spawnL1 = isTimer ? FP_TICKS_WINDOW * l1pc : meatBudget * l1PerMeat;
       const totalL1 = spawnL1 + fieldL1;
 
       const creature = config.creatures.creatures.find(c => c.type === ct);

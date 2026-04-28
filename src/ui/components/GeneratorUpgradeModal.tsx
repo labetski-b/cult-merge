@@ -7,6 +7,7 @@ import {
   resolveUpgradeCost,
 } from '@domain/upgrades';
 import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
+import { formatCompact } from '@ui/formatCompact';
 import { useSecondTicker } from '@ui/hooks/useSecondTicker';
 import type { ActiveUpgrade, GeneratorEntity } from '@domain/types';
 import rune1Icon from '@assets/resources/rune1.png';
@@ -138,10 +139,14 @@ function GeneratorUpgradeCard({
   const nextLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level + 1);
   const outputs: CreatureOutput[] = currentLevelConfig?.outputs ?? [];
   const nextOutputs: CreatureOutput[] = nextLevelConfig?.outputs ?? [];
-  const spawns = currentLevelConfig?.numCreatures ?? 0;
-  const chargeCost = currentLevelConfig?.chargeCost ?? 0;
-  const nextSpawns = nextLevelConfig?.numCreatures ?? 0;
-  const nextChargeCost = nextLevelConfig?.chargeCost ?? 0;
+  const isTimerMode = currentLevelConfig?.mode === 'timer';
+  const isNextTimerMode = nextLevelConfig?.mode === 'timer';
+  const spawns = currentLevelConfig?.mode === 'sacrifice' ? currentLevelConfig.numCreatures : 0;
+  const chargeCost = currentLevelConfig?.mode === 'sacrifice' ? currentLevelConfig.chargeCost : 0;
+  const nextSpawns = nextLevelConfig?.mode === 'sacrifice' ? nextLevelConfig.numCreatures : 0;
+  const nextChargeCost = nextLevelConfig?.mode === 'sacrifice' ? nextLevelConfig.chargeCost : 0;
+  const tickIntervalSec = currentLevelConfig?.mode === 'timer' ? currentLevelConfig.tickIntervalSec : 0;
+  const nextTickIntervalSec = nextLevelConfig?.mode === 'timer' ? nextLevelConfig.tickIntervalSec : 0;
 
   const currentGroups = groupOutputsByType(outputs);
 
@@ -212,17 +217,26 @@ function GeneratorUpgradeCard({
           Level {gen.level}
         </div>
         <div className="generator-upgrade-chips generator-upgrade-chips-current">
-          <div className="generator-upgrade-stat">
-            <div className="generator-upgrade-stat-label">Spawns</div>
-            <div className="generator-upgrade-stat-value">{spawns}</div>
-          </div>
-          <div className="generator-upgrade-stat">
-            <div className="generator-upgrade-stat-label">Charge</div>
-            <div className="generator-upgrade-stat-value">
-              {chargeCost}
-              <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+          {isTimerMode ? (
+            <div className="generator-upgrade-stat">
+              <div className="generator-upgrade-stat-label">Tick</div>
+              <div className="generator-upgrade-stat-value">{tickIntervalSec}s</div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="generator-upgrade-stat">
+                <div className="generator-upgrade-stat-label">Spawns</div>
+                <div className="generator-upgrade-stat-value">{spawns}</div>
+              </div>
+              <div className="generator-upgrade-stat">
+                <div className="generator-upgrade-stat-label">Charge</div>
+                <div className="generator-upgrade-stat-value">
+                  {formatCompact(chargeCost)}
+                  <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="generator-upgrade-drops generator-upgrade-drops-current">
           {currentGroups.map((group, gIdx) => (
@@ -263,17 +277,26 @@ function GeneratorUpgradeCard({
               Upgrade
             </div>
             <div className="generator-upgrade-chips generator-upgrade-chips-next">
-              <div className="generator-upgrade-stat">
-                <div className="generator-upgrade-stat-label">Spawns</div>
-                <div className="generator-upgrade-stat-value">{nextSpawns}</div>
-              </div>
-              <div className="generator-upgrade-stat">
-                <div className="generator-upgrade-stat-label">Charge</div>
-                <div className="generator-upgrade-stat-value">
-                  {nextChargeCost}
-                  <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+              {isNextTimerMode ? (
+                <div className="generator-upgrade-stat">
+                  <div className="generator-upgrade-stat-label">Tick</div>
+                  <div className="generator-upgrade-stat-value">{nextTickIntervalSec}s</div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="generator-upgrade-stat">
+                    <div className="generator-upgrade-stat-label">Spawns</div>
+                    <div className="generator-upgrade-stat-value">{nextSpawns}</div>
+                  </div>
+                  <div className="generator-upgrade-stat">
+                    <div className="generator-upgrade-stat-label">Charge</div>
+                    <div className="generator-upgrade-stat-value">
+                      {formatCompact(nextChargeCost)}
+                      <img src={meatIcon} alt="meat" className="generator-upgrade-stat-icon" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="generator-upgrade-drops generator-upgrade-drops-next">
               {newOutputs.length > 0 && (

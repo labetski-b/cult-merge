@@ -1,7 +1,10 @@
 export function formatCompact(n: number): string {
   if (!isFinite(n)) return String(n);
   if (n < 0) return '-' + formatCompact(-n);
-  if (n < 1000) return String(Math.floor(n));
+  if (n < 1000) {
+    const rounded = Math.round(n * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  }
 
   const units: [number, string][] = [
     [1e12, 't'],

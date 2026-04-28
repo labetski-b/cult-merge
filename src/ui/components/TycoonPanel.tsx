@@ -1,6 +1,7 @@
 import { BALANCE } from '@data/loadBalance';
 import { calculateMeatDrop } from '@domain/chapters';
 import { useCurrentChapter, useGameStore } from '@store/gameStore';
+import { formatCompact } from '@ui/formatCompact';
 import './TycoonPanel.css';
 
 type Props = { open: boolean; onClose: () => void };
@@ -47,7 +48,7 @@ export function TycoonPanel({ open, onClose }: Props) {
             </div>
             <div className="tycoon-stat-row">
               <dt>Meat</dt>
-              <dd>{meat} (+{meatPreview})</dd>
+              <dd>{formatCompact(meat)} (+{formatCompact(meatPreview)})</dd>
             </div>
           </dl>
         </section>

@@ -29,6 +29,7 @@ function makeBalanceWithTwoGens(): BalanceConfig {
     lines: ['Creature1', 'Creature2'] as [string, string],
     levels: [
       {
+        mode: 'sacrifice' as const,
         level: 1,
         chargeCost: 0.5,
         numCreatures: 15,
@@ -41,6 +42,7 @@ function makeBalanceWithTwoGens(): BalanceConfig {
         },
       },
       {
+        mode: 'sacrifice' as const,
         level: 2,
         chargeCost: 0.75,
         numCreatures: 17,
@@ -60,6 +62,7 @@ function makeBalanceWithTwoGens(): BalanceConfig {
     lines: ['Creature3', 'Creature4'] as [string, string],
     levels: [
       {
+        mode: 'sacrifice' as const,
         level: 1,
         chargeCost: 0.5,
         numCreatures: 15,
@@ -209,9 +212,9 @@ function makeBalanceWithTimerGen(): BalanceConfig {
     lines: ['Creature5', 'Creature7'] as [string, string],
     levels: [
       {
+        mode: 'timer' as const,
         level: 1,
-        chargeCost: 0,
-        numCreatures: 3,
+        tickIntervalSec: 1800,
         outputs: [
           { creatureType: 'Creature5', level: 1, chance: 0.6 },
           { creatureType: 'Creature7', level: 1, chance: 0.4 },
@@ -252,9 +255,10 @@ describe('generateAutoTask — Flower Pot scoring', () => {
       (e) => e.genId === 3 && e.creatureType === 'Creature5'
     );
     expect(fpRowC5).toBeDefined();
-    // spawnsInWindow = 8 × numCreatures(3) = 24
-    // spawnL1[C5] = 24 × (0.6 × 2^0) = 14.4
-    expect(fpRowC5!.spawnL1).toBeCloseTo(14.4, 2);
+    // Timer gens spawn 1 creature per tick (no numCreatures multiplier).
+    // spawnL1[C5] = FP_EXPECTED_SPAWNS(8) × Σ(chance × 2^(L-1))
+    //             = 8 × (0.6 × 2^0) = 4.8
+    expect(fpRowC5!.spawnL1).toBeCloseTo(4.8, 2);
   });
 
   it('produces one row per creature line for timer gen', () => {

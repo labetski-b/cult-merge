@@ -24,9 +24,9 @@ function makeTestBalance(): BalanceConfig {
     lines: ['Creature5', 'Creature6'] as [string, string],
     levels: [
       {
+        mode: 'timer' as const,
         level: 1,
-        chargeCost: 2.25,
-        numCreatures: 15,
+        tickIntervalSec: 1800,
         outputs: [{ creatureType: 'Creature5', level: 1, chance: 1.0 }],
       },
     ],
@@ -44,6 +44,7 @@ function makeTestBalance(): BalanceConfig {
     lines: ['Creature1', 'Creature2'] as [string, string],
     levels: [
       {
+        mode: 'sacrifice' as const,
         level: 1,
         chargeCost: 2,
         numCreatures: 2,

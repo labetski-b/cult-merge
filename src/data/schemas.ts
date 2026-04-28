@@ -13,13 +13,31 @@ const generatorUpgradeSchema = z.object({
   upgradeDurationSec: z.number().nonnegative().optional(),
 });
 
-const generatorLevelSchema = z.object({
+const sacrificeLevelSchema = z.object({
+  mode: z.literal('sacrifice'),
   level: z.number().int().min(1),
   chargeCost: z.number().min(0),
   numCreatures: z.number().int().positive(),
   outputs: z.array(outputSchema).min(1),
   upgrade: generatorUpgradeSchema.optional()
 });
+
+const timerLevelSchema = z.object({
+  mode: z.literal('timer'),
+  level: z.number().int().min(1),
+  tickIntervalSec: z.number().positive(),
+  outputs: z.array(outputSchema).min(1),
+  upgrade: generatorUpgradeSchema.optional()
+});
+
+const generatorLevelSchema = z.discriminatedUnion('mode', [
+  sacrificeLevelSchema,
+  timerLevelSchema,
+]);
+
+export type SacrificeLevelConfig = z.infer<typeof sacrificeLevelSchema>;
+export type TimerLevelConfig = z.infer<typeof timerLevelSchema>;
+export type GeneratorLevelConfig = z.infer<typeof generatorLevelSchema>;
 
 export const generatorSchema = z.object({
   id: z.number().int().positive(),

@@ -8,6 +8,7 @@ interface GeneratorOutput {
 }
 
 interface GeneratorLevel {
+  mode: 'sacrifice';
   level: number;
   chargeCost: number;
   numCreatures: number;
@@ -21,7 +22,7 @@ interface GeneratorLevel {
 }
 
 function makeLevel(outputs: GeneratorOutput[]): GeneratorLevel {
-  return { level: 1, chargeCost: 0, numCreatures: 1, outputs };
+  return { mode: 'sacrifice', level: 1, chargeCost: 0, numCreatures: 1, outputs };
 }
 
 describe('rollSingleOutput', () => {

@@ -354,6 +354,25 @@ body {
   margin-bottom: 4px;
 }
 
+.popup-prob-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 4px 0 6px;
+}
+
+.popup-prob-table td {
+  padding: 2px 6px;
+  text-align: left;
+  opacity: 0.9;
+}
+
+.popup-prob-table td:last-child {
+  text-align: right;
+  color: #ffd454;
+  font-weight: 600;
+}
+
 .popup-close {
   position: absolute;
   top: 4px;

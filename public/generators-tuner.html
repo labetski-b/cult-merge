@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generators Tuner — CULT.MERGE</title>
+  <link rel="stylesheet" href="design-system/tokens.css" />
+  <link rel="stylesheet" href="design-system/components.css" />
+  <style>
+    /* ===== Layout-specific (page-level) styles ===== */
+    body {
+      margin: 0;
+      background: var(--surface-0);
+      color: var(--text-primary);
+      font-family: var(--font-base, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+      font-size: var(--fs-body, 14px);
+    }
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .page-head h1 {
+      font-size: var(--fs-h2, 20px);
+      margin: 0;
+      color: var(--text-primary);
+    }
+    .page-head .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* ===== Left column (controls) ===== */
+    .controls {
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      padding: 14px;
+    }
+    .controls h3 {
+      margin: 16px 0 8px;
+      font-size: var(--fs-small, 12px);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 12px;
+    }
+    .controls h3:first-child {
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0;
+    }
+    .knob {
+      display: grid;
+      grid-template-columns: 1fr 64px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .knob-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .knob-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1 0 110px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      min-width: 0;
+    }
+    .knob-row input[type="range"] {
+      flex: 1;
+      min-width: 60px;
+      accent-color: var(--accent-primary);
+    }
+    .knob-row .cm-input {
+      width: 70px;
+      height: 28px;
+      padding: 0 6px;
+      font-size: var(--fs-small, 12px);
+    }
+    .knob-grid {
+      display: grid;
+      grid-template-columns: 110px 1fr 70px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .knob-grid input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-primary);
+    }
+    .knob-grid .cm-input {
+      height: 28px;
+      padding: 0 6px;
+      font-size: var(--fs-small, 12px);
+    }
+
+    /* ===== Right column ===== */
+    .right-col {
+      min-width: 0;
+    }
+    .panel {
+      display: none;
+      padding: 14px;
+    }
+    .panel.is-active {
+      display: block;
+    }
+
+    /* Table panel */
+    .gen-block {
+      margin-bottom: var(--space-4, 16px);
+      width: fit-content;
+      max-width: 100%;
+    }
+    .gen-block:last-child {
+      margin-bottom: 0;
+    }
+    .gen-block .cm-card__title {
+      font-size: var(--fs-body, 14px);
+    }
+    .gen-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: auto;
+      font-size: 11px;
+      font-family: var(--font-mono, "SF Mono", Menlo, monospace);
+      font-variant-numeric: tabular-nums;
+    }
+    .gen-table th, .gen-table td {
+      padding: 3px 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: right;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .gen-table th {
+      text-align: center;
+      background: var(--surface-2);
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .gen-table th.group-head {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .gen-table td.lvl-cell {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--surface-2);
+    }
+    .gen-table td.num {
+      text-align: right;
+    }
+    .gen-table td.dim,
+    .gen-table th.dim {
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+    .gen-table .group-start {
+      border-left: 1px solid var(--border-subtle);
+    }
+    .gen-table .cell-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      align-items: flex-end;
+      line-height: 1.15;
+    }
+    .gen-table .cell-main {
+      color: var(--text-primary);
+    }
+    .gen-table .cell-sub {
+      color: var(--text-tertiary);
+      font-size: 10px;
+    }
+    .delta-pos { color: var(--success); font-size: 10px; }
+    .delta-neg { color: var(--danger); font-size: 10px; }
+    .gen-table .eff-cell {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+    .gen-table .eff-cell .delta-slot {
+      display: inline-block;
+      min-width: 36px;
+      text-align: left;
+    }
+
+    /* Charts panel */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .chart-block h4 {
+      margin: 0 0 6px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .chart-block canvas {
+      width: 100%;
+      max-width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      display: block;
+    }
+
+    /* JSON panel */
+    .json-pre {
+      white-space: pre-wrap;
+      max-height: calc(100vh - 200px);
+      overflow: auto;
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 10px;
+      background: var(--surface-0);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+    }
+
+    /* small */
+    .row { display: flex; align-items: center; gap: 8px; }
+    .spacer { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-head">
+      <h1>Generators Tuner</h1>
+      <div class="actions">
+        <button id="btn-reset" class="cm-btn cm-btn--ghost">Reset to baseline</button>
+        <button id="btn-copy" class="cm-btn cm-btn--primary">Copy JSON</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- ============ LEFT: CONTROLS ============ -->
+      <div class="cm-card controls">
+        <h3>Tuning</h3>
+        <div id="grp-tune"></div>
+        <h3 style="margin-top:16px;">Base charge cost (meat) per generator</h3>
+        <div id="grp-charge-per-gen"></div>
+      </div>
+
+      <!-- ============ RIGHT: TABS ============ -->
+      <div class="right-col">
+        <div class="cm-tabs" role="tablist">
+          <button class="cm-tab" data-tab="table" aria-selected="true" role="tab">Table</button>
+          <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
+          <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
+        </div>
+
+        <section id="panel-table" class="panel is-active" style="padding:0;">
+          <div id="gen-tables-container"><!-- filled by JS: 8 cm-card blocks --></div>
+        </section>
+
+        <section id="panel-charts" class="cm-card panel">
+          <div class="charts-grid">
+            <div class="chart-block">
+              <h4>Total cost to L10 per gen (runes)</h4>
+              <canvas id="chart-total" width="600" height="220"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-json" class="cm-card panel">
+          <div class="row" style="margin-bottom:8px;">
+            <span style="color: var(--text-secondary); font-size: 12px;">Generated JSON (8 generators × 10 levels)</span>
+            <span class="spacer"></span>
+            <button id="btn-copy-inline" class="cm-btn cm-btn--sm">Copy</button>
+          </div>
+          <pre id="json-out" class="json-pre is-mono"></pre>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { DEFAULTS, BASELINE, computeGenerators, interpolate } from './generator-curves.mjs';
+
+    // ============================================================
+    //  STATE
+    // ============================================================
+    /** @type {import('./generator-curves.mjs').GeneratorParams} */
+    let params = structuredClone(DEFAULTS);
+    const baselineResult = computeGenerators(structuredClone(BASELINE));
+    const baselineGens = baselineResult.generators;
+
+    // ============================================================
+    //  KNOB BUILDERS
+    // ============================================================
+
+    /**
+     * Build a labeled range+number pair.
+     * Renders into `parent`. On change, calls `onChange(value)`.
+     */
+    function makeKnob(parent, opts) {
+      const { label, min, max, step, value, onChange, title, id } = opts;
+      const wrap = document.createElement('div');
+      wrap.className = 'knob-grid';
+
+      const lab = document.createElement('label');
+      lab.className = 'knob-label';
+      lab.textContent = label;
+      if (title) {
+        lab.title = title;
+        wrap.title = title;
+      }
+
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = min;
+      range.max = max;
+      range.step = step;
+      range.value = value;
+      if (id) range.id = id;
+
+      const num = document.createElement('input');
+      num.type = 'number';
+      num.className = 'cm-input';
+      num.min = min;
+      num.max = max;
+      num.step = step;
+      num.value = value;
+      if (id) num.id = `${id}-num`;
+
+      const sync = (v) => {
+        range.value = v;
+        num.value = v;
+      };
+      range.addEventListener('input', () => {
+        const v = parseFloat(range.value);
+        num.value = v;
+        onChange(v);
+      });
+      num.addEventListener('input', () => {
+        const v = parseFloat(num.value);
+        if (Number.isFinite(v)) {
+          range.value = v;
+          onChange(v);
+        }
+      });
+
+      wrap.appendChild(lab);
+      wrap.appendChild(range);
+      wrap.appendChild(num);
+      parent.appendChild(wrap);
+
+      return { sync };
+    }
+
+    // Track all knob controllers so Reset can sync them.
+    const knobControllers = [];
+
+    function registerKnob(ctrl, getCurrent) {
+      knobControllers.push({ ctrl, getCurrent });
+    }
+
+    function buildControls() {
+      const grp = document.getElementById('grp-tune');
+      grp.innerHTML = '';
+
+      const kAdvance = makeKnob(grp, {
+        label: 'Advance rate',
+        title: 'Вероятность продвижения на 1 chain-level за апгрейд (binomial chain-advance).',
+        min: 0.10, max: 0.60, step: 0.01,
+        value: params.advanceRate,
+        onChange: (v) => { params.advanceRate = v; render(); },
+      });
+      registerKnob(kAdvance, () => params.advanceRate);
+
+      const kFloor = makeKnob(grp, {
+        label: 'Decay floor',
+        title: 'Минимум вероятности для уровней в фазе падения (после своего пика). Остальные масштабируются вниз чтобы Σ=1.',
+        min: 0.0, max: 0.20, step: 0.005,
+        value: params.decayFloor,
+        onChange: (v) => { params.decayFloor = v; render(); },
+      });
+      registerKnob(kFloor, () => params.decayFloor);
+
+      const kPrim = makeKnob(grp, {
+        label: 'Primary share',
+        title: 'Доля primary creature в outputs; secondary = 1 − primary. До активации secondary всегда 100% primary.',
+        min: 0.5, max: 1.0, step: 0.01,
+        value: params.primaryShare,
+        onChange: (v) => { params.primaryShare = v; render(); },
+      });
+      registerKnob(kPrim, () => params.primaryShare);
+
+      const kLG = makeKnob(grp, {
+        label: 'levelGrowth',
+        title: 'База роста стоимости апгрейда: cost(L) = baseUpgradeCost × levelGrowth^(L-1) × genMultiplier.',
+        min: 1.2, max: 2.0, step: 0.05,
+        value: params.levelGrowth,
+        onChange: (v) => { params.levelGrowth = v; render(); },
+      });
+      registerKnob(kLG, () => params.levelGrowth);
+
+      const grpCharge = document.getElementById('grp-charge-per-gen');
+      grpCharge.innerHTML = '';
+      for (let i = 0; i < 8; i++) {
+        const idx = i;
+        const kCharge = makeKnob(grpCharge, {
+          label: `Gen${i + 1}`,
+          title: `Стоимость заряда (мясо) Gen${i + 1} на L=1. На L>1: chargeCost(L) = baseChargeCostByGen[${i}] × totalEff(L) / totalEff(1).`,
+          min: 0.1, max: 10.0, step: 0.05,
+          value: params.baseChargeCostByGen[idx],
+          onChange: (v) => { params.baseChargeCostByGen[idx] = v; render(); },
+        });
+        registerKnob(kCharge, () => params.baseChargeCostByGen[idx]);
+      }
+    }
+
+    // ============================================================
+    //  RENDERERS
+    // ============================================================
+
+    function fmtNum(v, digits) {
+      if (!Number.isFinite(v)) return '—';
+      const f = digits ?? 2;
+      const s = v.toFixed(f);
+      return s.replace(/\.?0+$/, '') || '0';
+    }
+
+    function pctDelta(current, base) {
+      if (base === 0) return null;
+      const d = (current - base) / base;
+      return d;
+    }
+
+    /** Numeric suffix from creature name "Creature7" → 7 (for tie-break sort). */
+    function creatureSuffix(name) {
+      const m = name.match(/(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    }
+
+    /** Short label from "Creature7" → "Cr7". */
+    function creatureShort(name) {
+      const n = creatureSuffix(name);
+      return `Cr${n}`;
+    }
+
+    function deltaSpan(current, base) {
+      if (!Number.isFinite(current) || !Number.isFinite(base) || base === 0) return '';
+      const d = (current - base) / base;
+      if (Math.abs(d) < 0.005) return '';
+      const cls = d > 0 ? 'delta-pos' : 'delta-neg';
+      const sign = d > 0 ? '+' : '';
+      return `<div class="${cls}">${sign}${(d * 100).toFixed(0)}%</div>`;
+    }
+
+    /**
+     * Build creature ordering for one Gen across all 10 levels.
+     * Returns: [{ name, short, firstSeenL, topL }, ...] in order-of-appearance.
+     */
+    function buildCreatureOrder(gen) {
+      /** @type {Map<string, {firstSeenL: number, topL: number}>} */
+      const map = new Map();
+      for (let L = 1; L <= gen.levels.length; L++) {
+        const lvl = gen.levels[L - 1];
+        for (const o of lvl.outputs) {
+          const cur = map.get(o.creatureType);
+          if (!cur) {
+            map.set(o.creatureType, { firstSeenL: L, topL: o.level });
+          } else {
+            if (o.level > cur.topL) cur.topL = o.level;
+          }
+        }
+      }
+      const arr = [];
+      for (const [name, info] of map.entries()) {
+        arr.push({ name, short: creatureShort(name), firstSeenL: info.firstSeenL, topL: info.topL });
+      }
+      arr.sort((a, b) => {
+        if (a.firstSeenL !== b.firstSeenL) return a.firstSeenL - b.firstSeenL;
+        return creatureSuffix(a.name) - creatureSuffix(b.name);
+      });
+      return arr;
+    }
+
+    /**
+     * Compute Eff (sum of L1-equivalent creatures) for a given creature in a level:
+     *   Eff = spawns × Σ(chance_i × 2^(level_i - 1)) over outputs of this creature.
+     */
+    function computeEff(lvl, creatureName) {
+      let sum = 0;
+      for (const o of lvl.outputs) {
+        if (o.creatureType === creatureName) {
+          sum += o.chance * Math.pow(2, o.level - 1);
+        }
+      }
+      return lvl.numCreatures * sum;
+    }
+
+    /**
+     * Find chance for a creature at a specific spawn level inside outputs[].
+     * Returns null if not present (renders as em-dash).
+     */
+    function chanceFor(lvl, creatureName, spawnLevel) {
+      for (const o of lvl.outputs) {
+        if (o.creatureType === creatureName && o.level === spawnLevel) return o.chance;
+      }
+      return null;
+    }
+
+    function renderTable(currentGens) {
+      const container = document.getElementById('gen-tables-container');
+      const N_LEVELS = params.upgradeLevels;
+
+      let outerHtml = '';
+
+      for (let gi = 0; gi < currentGens.length; gi++) {
+        const g = currentGens[gi];
+        const baseG = baselineGens[gi];
+
+        const order = buildCreatureOrder(g);
+
+        // Header row 1 (group titles): Lvl, Meat, Spawns, then per-creature group spanning (topL + 1) cols (L1..L_top + Eff).
+        let head1 = '<tr>';
+        head1 += '<th rowspan="2">Lvl</th>';
+        head1 += '<th rowspan="2">Meat</th>';
+        head1 += '<th rowspan="2">Spawns</th>';
+        head1 += '<th rowspan="2" title="Total efficiency = Σ over all creatures (numCreatures × chance × 2^(level-1))">Total Eff</th>';
+        head1 += '<th rowspan="2">Charges</th>';
+        head1 += '<th rowspan="2">Cost</th>';
+        head1 += '<th rowspan="2">Cur</th>';
+        for (const c of order) {
+          const span = c.topL + 3; // Σ% + L1..L_top + Eff + Max@4
+          head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
+        }
+        head1 += '</tr>';
+
+        // Header row 2: per-creature Σ% + L1..L_top + Eff + Max@4
+        let head2 = '<tr>';
+        for (const c of order) {
+          head2 += `<th class="group-start dim">Σ%</th>`;
+          for (let lv = 1; lv <= c.topL; lv++) {
+            head2 += `<th>L${lv}</th>`;
+          }
+          head2 += `<th>Eff</th>`;
+          head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
+        }
+        head2 += '</tr>';
+
+        // Body rows: one per upgrade level.
+        let body = '';
+        for (let L = 1; L <= N_LEVELS; L++) {
+          const lvl = g.levels[L - 1];
+          const baseLvl = baseG.levels[L - 1];
+
+          // Meat per charge = chargeCost (computed in generator-curves.mjs as
+          // baseChargeCost × totalEff(L) / totalEff(1)).
+          const meat = lvl.chargeCost;
+          const meatBase = baseLvl.chargeCost;
+
+          // Upgrade columns (absent on the last level).
+          const up = lvl.upgrade;
+          const upBase = baseLvl.upgrade;
+          let chargesStr, costStr, curStr;
+          let costNum = null, costBaseNum = null;
+          if (up) {
+            const charges = Math.ceil(up.mergesRequired * 2 / lvl.numCreatures);
+            chargesStr = String(charges);
+            costNum = up.runeCost;
+            costBaseNum = upBase ? upBase.runeCost : null;
+            costStr = String(up.runeCost);
+            curStr = up.runeType === 'rune1' ? 'r1' : 'r2';
+          } else {
+            chargesStr = '—';
+            costStr = '—';
+            curStr = '—';
+          }
+
+          // Total Eff = Σ over all creatures (numCreatures × Σ chance_k × 2^(k-1))
+          let totalEff = 0;
+          for (const o of lvl.outputs) totalEff += o.chance * Math.pow(2, o.level - 1);
+          totalEff *= lvl.numCreatures;
+
+          let row = '<tr>';
+          row += `<td class="lvl-cell">L${L}</td>`;
+          row += `<td class="num"><div class="cell-stack"><span class="cell-main">${fmtNum(meat, 1)}</span>${deltaSpan(meat, meatBase)}</div></td>`;
+          row += `<td class="num">${lvl.numCreatures}</td>`;
+          row += `<td class="num">${fmtNum(totalEff, 1)}</td>`;
+          row += `<td class="num${up ? '' : ' dim'}">${chargesStr}</td>`;
+          if (up && costBaseNum !== null) {
+            row += `<td class="num"><div class="cell-stack"><span class="cell-main">${costStr}</span>${deltaSpan(costNum, costBaseNum)}</div></td>`;
+          } else {
+            row += `<td class="num${up ? '' : ' dim'}">${costStr}</td>`;
+          }
+          row += `<td class="num${up ? '' : ' dim'}">${curStr}</td>`;
+
+          for (const c of order) {
+            // Σ% — total share of this creature in current level's outputs.
+            let sum = 0;
+            for (const o of lvl.outputs) {
+              if (o.creatureType === c.name) sum += o.chance;
+            }
+            if (sum === 0) {
+              row += `<td class="num group-start dim">—</td>`;
+            } else {
+              row += `<td class="num group-start dim">${Math.round(sum * 100)}%</td>`;
+            }
+            for (let lv = 1; lv <= c.topL; lv++) {
+              const ch = chanceFor(lvl, c.name, lv);
+              if (ch === null || ch === 0) {
+                row += `<td class="num dim">—</td>`;
+              } else {
+                row += `<td class="num">${Math.round(ch * 100)}%</td>`;
+              }
+            }
+            // Eff column for this creature. Delta = % growth vs previous level for the same lineage.
+            const eff = computeEff(lvl, c.name);
+            const effPrev = L > 1 ? computeEff(g.levels[L - 2], c.name) : 0;
+            const effBase = computeEff(baseLvl, c.name);
+            const effStr = eff > 0 ? fmtNum(eff, 1) : '—';
+            let effGrowthStr = '';
+            if (eff > 0 && effPrev > 0) {
+              const pct = (eff / effPrev - 1) * 100;
+              const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
+              const sign = pct > 0 ? '+' : '';
+              effGrowthStr = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
+            }
+            row += `<td class="num"><span class="eff-cell"><span class="cell-main">${effStr}</span><span class="delta-slot">${effGrowthStr}</span></span></td>`;
+            // Max@4: max creature level achievable from 4 full charges of generator for this lineage.
+            // L1-equivalents over 4 charges = 4 × Eff. Max level = floor(log2(L1eq)) + 1.
+            const l1eq = 4 * eff;
+            const maxLvl = l1eq >= 1 ? Math.floor(Math.log2(l1eq)) + 1 : 0;
+            const maxLvlBase = (4 * effBase) >= 1 ? Math.floor(Math.log2(4 * effBase)) + 1 : 0;
+            const maxStr = maxLvl > 0 ? `L${maxLvl}` : '—';
+            const maxDelta = maxLvl - maxLvlBase;
+            const maxDeltaStr = maxDelta === 0 ? '' :
+              `<span class="${maxDelta > 0 ? 'delta-pos' : 'delta-neg'}">${maxDelta > 0 ? '+' : ''}${maxDelta}</span>`;
+            row += `<td class="num"><div class="cell-stack"><span class="cell-main">${maxStr}</span>${maxDeltaStr}</div></td>`;
+          }
+
+          row += '</tr>';
+          body += row;
+        }
+
+        const title = `${g.name} (kraken: ${params.genKrakenRequired[gi]})`;
+
+        outerHtml += `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <table class="gen-table">
+                <thead>${head1}${head2}</thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML = outerHtml;
+    }
+
+    // -------- Charts --------
+    const CHART_COLORS = [
+      '#2ad4b3', '#f08267', '#6aa3ff', '#c084ff',
+      '#e8b339', '#ef5a6f', '#5fd1d8', '#b8c473',
+    ];
+    const BASELINE_COLOR = '#888';
+
+    function getCssColor(name, fallback) {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    }
+
+    function setCanvasDpi(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth || canvas.width;
+      const cssH = canvas.clientHeight || canvas.height;
+      if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
+        canvas.width = cssW * dpr;
+        canvas.height = cssH * dpr;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: cssW, h: cssH };
+    }
+
+    function drawAxes(ctx, x0, y0, w, h, xMin, xMax, yMin, yMax, xLabel, yLabel) {
+      const axis = getCssColor('--chart-axis', '#666');
+      const grid = getCssColor('--chart-grid', '#222');
+      const labelColor = getCssColor('--text-tertiary', '#888');
+      ctx.strokeStyle = axis;
+      ctx.fillStyle = labelColor;
+      ctx.lineWidth = 1;
+      ctx.font = '10px monospace';
+
+      // Y grid + labels (5 ticks)
+      const yTicks = 4;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i <= yTicks; i++) {
+        const y = y0 + h - (i / yTicks) * h;
+        const yVal = yMin + (i / yTicks) * (yMax - yMin);
+        ctx.strokeStyle = grid;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x0 + w, y);
+        ctx.stroke();
+        ctx.fillStyle = labelColor;
+        ctx.fillText(yVal.toFixed(yMax > 100 ? 0 : 1), x0 - 4, y);
+      }
+      // X axis labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const xTicks = Math.min(10, Math.max(2, Math.round(xMax - xMin)));
+      for (let i = 0; i <= xTicks; i++) {
+        const x = x0 + (i / xTicks) * w;
+        const xVal = xMin + (i / xTicks) * (xMax - xMin);
+        ctx.strokeStyle = grid;
+        ctx.beginPath();
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y0 + h);
+        ctx.stroke();
+        ctx.fillStyle = labelColor;
+        ctx.fillText(String(Math.round(xVal)), x, y0 + h + 2);
+      }
+      // Border
+      ctx.strokeStyle = axis;
+      ctx.strokeRect(x0, y0, w, h);
+    }
+
+    function drawLine(ctx, points, x0, y0, w, h, xMin, xMax, yMin, yMax, color, dashed) {
+      if (points.length === 0) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = dashed ? 1 : 1.5;
+      ctx.setLineDash(dashed ? [4, 3] : []);
+      ctx.beginPath();
+      for (let i = 0; i < points.length; i++) {
+        const [px, py] = points[i];
+        const x = x0 + ((px - xMin) / (xMax - xMin)) * w;
+        const y = y0 + h - ((py - yMin) / Math.max(1e-9, (yMax - yMin))) * h;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function chartTotal(currentGens) {
+      const canvas = document.getElementById('chart-total');
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const pad = { l: 36, r: 8, t: 8, b: 18 };
+      const x0 = pad.l, y0 = pad.t, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+
+      const sumCost = (gens) => gens.map(g =>
+        g.levels.filter(l => l.upgrade).reduce((a, l) => a + l.upgrade.runeCost, 0),
+      );
+      const cur = sumCost(currentGens);
+      const base = sumCost(baselineGens);
+      const yMax = Math.ceil(Math.max(...cur, ...base) * 1.1);
+
+      drawAxes(ctx, x0, y0, plotW, plotH, 0.5, currentGens.length + 0.5, 0, yMax || 1, 'gen', 'units');
+
+      const barW = plotW / currentGens.length * 0.6;
+      for (let i = 0; i < currentGens.length; i++) {
+        const xc = x0 + ((i + 1) / (currentGens.length + 1)) * plotW;
+        // baseline ghost (gray, behind, slightly wider+transparent)
+        const bh = (base[i] / yMax) * plotH;
+        ctx.fillStyle = 'rgba(140,140,140,0.4)';
+        ctx.fillRect(xc - barW / 2 - 2, y0 + plotH - bh, barW + 4, bh);
+        // current
+        const ch = (cur[i] / yMax) * plotH;
+        ctx.fillStyle = CHART_COLORS[i];
+        ctx.fillRect(xc - barW / 2, y0 + plotH - ch, barW, ch);
+        // label
+        ctx.fillStyle = getCssColor('--text-tertiary', '#888');
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`G${i + 1}`, xc, y0 + plotH + 2);
+        ctx.fillStyle = getCssColor('--text-secondary', '#aaa');
+        ctx.fillText(String(cur[i]), xc, y0 + plotH - ch - 12);
+      }
+    }
+
+    function renderCharts(currentGens) {
+      chartTotal(currentGens);
+    }
+
+    function renderJSON(result) {
+      const out = document.getElementById('json-out');
+      // Gen1-only mode: emit just the first generator.
+      out.textContent = JSON.stringify({ generators: result.generators.slice(0, 1) }, null, 2);
+    }
+
+    // ============================================================
+    //  RENDER LOOP
+    // ============================================================
+    function render() {
+      const result = computeGenerators(params);
+      renderTable(result.generators);
+      renderCharts(result.generators);
+      renderJSON(result);
+    }
+
+    // ============================================================
+    //  TABS
+    // ============================================================
+    function switchTab(name) {
+      const tabs = document.querySelectorAll('.cm-tab');
+      tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false'));
+      const panels = document.querySelectorAll('.panel');
+      panels.forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
+      // Re-draw charts on switch (sizing)
+      if (name === 'charts') {
+        const result = computeGenerators(params);
+        renderCharts(result.generators);
+      }
+    }
+    document.querySelectorAll('.cm-tab').forEach(t => {
+      t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+
+    // ============================================================
+    //  RESET / COPY
+    // ============================================================
+    function syncAllKnobs() {
+      // Rebuild controls UI from params (simplest sync — re-create knobs).
+      knobControllers.length = 0;
+      buildControls();
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      params = structuredClone(DEFAULTS);
+      syncAllKnobs();
+      render();
+    });
+
+    function flashCopied(btn) {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1000);
+    }
+
+    async function copyJSON(btn) {
+      const result = computeGenerators(params);
+      const txt = JSON.stringify({ generators: result.generators.slice(0, 1) }, null, 2);
+      try {
+        await navigator.clipboard.writeText(txt);
+        flashCopied(btn);
+      } catch (e) {
+        // fallback: select <pre>
+        const pre = document.getElementById('json-out');
+        const range = document.createRange();
+        range.selectNode(pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+        flashCopied(btn);
+      }
+    }
+    document.getElementById('btn-copy').addEventListener('click', (e) => copyJSON(e.currentTarget));
+    document.getElementById('btn-copy-inline').addEventListener('click', (e) => copyJSON(e.currentTarget));
+
+    // ============================================================
+    //  INIT
+    // ============================================================
+    buildControls();
+    render();
+    // Re-render charts on resize
+    window.addEventListener('resize', () => {
+      const active = document.querySelector('.cm-tab[aria-selected="true"]');
+      if (active && active.dataset.tab === 'charts') {
+        const result = computeGenerators(params);
+        renderCharts(result.generators);
+      }
+    });
+  </script>
+</body>
+</html>
