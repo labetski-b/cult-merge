@@ -1,458 +1,416 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-density="compact">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CULT.MERGE - AI Simulation Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/cult-merge/design-system/tokens.css">
+  <link rel="stylesheet" href="/cult-merge/design-system/components.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
+    /* sim-specific layout — gap, see docs/design-system-integration.md */
+    body { min-height: 100vh; }
+
+    /* Fix for broken .cm-logtable__action selector in components.css (missing opening rule).
+       See Gaps in docs/design-system-integration.md */
+    .cm-logtable__action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px 2px 7px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: var(--fw-medium);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      line-height: 1.4;
     }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
-      color: #e8f1f5;
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
+
+    /* Form controls fallback — gap, see docs/design-system-integration.md (#11).
+       Defensive override — upstream components.css rules for .cm-input/.cm-select/.cm-textarea
+       exist & are complete, but we re-assert the chrome here so:
+        - Stop-when select / Value number-input / Seed input all share identical height & border
+        - background uses --surface-1 (per visual review request, slightly lighter than rgba(10,16,32,.6))
+        - chevron stroke matches --text-tertiary tone
+       Heights aligned with .cm-btn (36px) so the form-row stays uniform. */
+    .sim-controls__grid .cm-input,
+    .sim-controls__grid .cm-select,
+    .sim-controls__grid .cm-textarea {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 36px;
+      padding: 0 var(--space-3);
+      background: var(--surface-1);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font: inherit;
+      font-size: var(--fs-body);
+      width: 100%;
+      transition:
+        border-color var(--dur-fast) var(--ease-out),
+        box-shadow var(--dur-fast) var(--ease-out),
+        background var(--dur-fast) var(--ease-out);
+    }
+    .sim-controls__grid .cm-textarea { height: auto; padding: var(--space-2) var(--space-3); }
+    .sim-controls__grid .cm-select {
+      padding-right: var(--space-8);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5l5 5 5-5' stroke='%236b7a9c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right var(--space-3) center;
+    }
+    .sim-controls__grid .cm-input:hover,
+    .sim-controls__grid .cm-select:hover,
+    .sim-controls__grid .cm-textarea:hover { border-color: var(--border-strong); }
+    .sim-controls__grid .cm-input:focus,
+    .sim-controls__grid .cm-select:focus,
+    .sim-controls__grid .cm-textarea:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px var(--accent-primary-soft);
     }
     .simulation-app {
       max-width: 1400px;
       margin: 0 auto;
-    }
-    header h1 {
-      font-size: 32px;
-      margin-bottom: 8px;
-      color: #4de2c2;
-      text-align: center;
-    }
-    .controls {
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-    .controls h2 {
-      font-size: 20px;
-      margin-bottom: 16px;
-      color: #ffd966;
-    }
-    #sim-form {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 16px;
-    }
-    label {
+      padding: var(--space-6) var(--space-8);
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      font-size: 14px;
+      gap: var(--space-5);
     }
-    input[type="number"] {
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid rgba(143, 193, 255, 0.5);
-      background: rgba(20, 35, 55, 0.8);
-      color: #e8f1f5;
-      font-size: 14px;
-    }
-    fieldset {
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 6px;
-      padding: 12px;
-    }
-    fieldset legend {
-      padding: 0 8px;
-      color: #4de2c2;
-    }
-    fieldset label {
-      flex-direction: row;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    fieldset input[type="checkbox"] {
-      margin-right: 8px;
-      width: 18px;
-      height: 18px;
-    }
-    button {
-      background: linear-gradient(135deg, #4de2c2 0%, #3bb89d 100%);
-      border: none;
-      color: #0d1b2a;
-      padding: 12px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: transform 0.2s;
-    }
-    button:hover {
-      transform: translateY(-2px);
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    #export-btn {
-      background: linear-gradient(135deg, #a47cff 0%, #8c5ee8 100%);
-    }
-    .progress-container {
-      margin-top: 16px;
-      display: none;
-    }
-    progress {
-      width: 100%;
-      height: 24px;
-      border-radius: 6px;
-    }
-    #progress-text {
-      display: block;
-      margin-top: 8px;
-      text-align: center;
-      font-size: 14px;
-      color: #4de2c2;
-    }
-
-    /* Tabs */
-    .tab-bar {
+    .sim-header {
       display: flex;
-      gap: 4px;
-      margin-bottom: 24px;
+      align-items: center;
+      gap: var(--space-3);
+      padding-bottom: var(--space-4);
+      border-bottom: 1px solid var(--border-default);
     }
-    .tab-btn {
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      color: #e8f1f5;
-      padding: 10px 24px;
-      border-radius: 8px 8px 0 0;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: background 0.2s;
+    .sim-header__title {
+      font-size: var(--fs-h1);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--tr-h1);
+      margin: 0;
+      color: var(--text-primary);
     }
-    .tab-btn:hover {
-      background: rgba(30, 58, 95, 0.8);
-      transform: none;
-    }
-    .tab-btn.active {
-      background: rgba(77, 226, 194, 0.15);
-      border-bottom-color: transparent;
-      color: #4de2c2;
-    }
-    .tab-panel { display: block; }
-    .tab-panel.hidden { display: none; }
+    .sim-header__title .accent { color: var(--accent-primary); }
 
-    .summary {
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
+    .sim-controls__grid {
+      display: grid;
+      grid-template-columns: 110px 140px 90px auto 1fr auto;
+      gap: var(--space-4);
+      align-items: stretch;
     }
-    .summary h2 {
-      font-size: 20px;
-      margin-bottom: 16px;
-      color: #ffd966;
+    @media (max-width: 900px) {
+      .sim-controls__grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     }
-    table {
+    .sim-controls__grid .cm-field { align-self: end; }
+    .sim-controls__cta {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      align-self: stretch;
+      grid-column: 6;
+    }
+    .sim-controls__cta .cm-btn {
       width: 100%;
-      border-collapse: collapse;
     }
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid rgba(143, 193, 255, 0.2);
-    }
-    th {
-      color: #4de2c2;
-      font-weight: 600;
-    }
-    .charts {
+
+    .sim-tab-panel { display: block; }
+    .sim-tab-panel.hidden { display: none; }
+
+    .sim-charts {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-      gap: 24px;
+      gap: var(--space-4);
     }
-    .chart-container {
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 10px;
-      padding: 20px;
+    .sim-charts .cm-card {
       position: relative;
     }
-    .chart-full-width {
+    .sim-charts .chart-full-width {
       grid-column: 1 / -1;
     }
-    .chart-container h3 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      color: #ffd966;
-      text-align: center;
-    }
-    .agg-badge {
-      position: absolute;
-      top: 10px;
-      right: 12px;
-      font-size: 11px;
-      color: rgba(232, 241, 245, 0.5);
-      background: rgba(14, 25, 42, 0.6);
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid rgba(143, 193, 255, 0.2);
-      pointer-events: none;
-    }
-    canvas {
+    .sim-charts canvas {
       max-height: 300px;
     }
-
-    /* Action Log */
-    .action-log-panel {
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 10px;
-      padding: 20px;
-    }
-    .action-log-panel h2 {
-      font-size: 20px;
-      margin-bottom: 16px;
-      color: #ffd966;
-    }
-    .log-controls {
+    .sim-axis-row {
       display: flex;
-      gap: 16px;
       align-items: center;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
+      gap: var(--space-3);
+      padding: var(--space-2) 0 var(--space-4);
     }
-    .log-controls label {
-      flex-direction: row;
+    .sim-axis-row__label {
+      font-size: var(--fs-micro);
+      color: var(--text-tertiary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: var(--fw-medium);
+    }
+
+    /* Strategy block — gap (no labelled fieldset in design system).
+       Standalone cm-card with mini-caps "STRATEGY" header above checkbox.
+       Lives as a grid cell inside .sim-controls__grid spanning 2 columns
+       so the checkbox + "(Task-focused only)" + description fit comfortably,
+       while still keeping all controls on a single row.
+       See docs/design-system-integration.md Gap #8. */
+    .sim-strategy {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 0;
+      align-self: end;
+      margin-left: var(--space-5);
+    }
+    .sim-strategy__label {
+      font-size: var(--fs-small);
+      font-weight: var(--fw-medium);
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+    .sim-strategy__row {
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
+      height: 36px;
     }
-    .log-controls input, .log-controls select {
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid rgba(143, 193, 255, 0.5);
-      background: rgba(20, 35, 55, 0.8);
-      color: #e8f1f5;
-      font-size: 14px;
+    .sim-strategy__hint {
+      color: var(--text-tertiary);
+      font-weight: 400;
+      margin-left: var(--space-1);
     }
-    .log-controls .nav-btn {
-      padding: 6px 14px;
-      font-size: 13px;
+    /* Quest Rewards / Quest Distribution layout — gap */
+    .qr-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-bottom: var(--space-4);
     }
-    .log-table-wrap {
-      max-height: 600px;
-      overflow-y: auto;
-      border: 1px solid rgba(143, 193, 255, 0.2);
-      border-radius: 6px;
+    .qr-charts-row .cm-card {
+      height: 320px;
     }
-    #action-log-table {
-      font-size: 13px;
+
+    /* Modal overlay — gap, see docs */
+    .sim-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: var(--z-modal, 800);
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-4);
     }
-    #action-log-table td {
-      padding: 6px 8px;
-      white-space: nowrap;
+    .sim-modal-overlay.open { display: flex; }
+    .sim-modal {
+      max-width: 520px;
+      width: 100%;
+      max-height: 75vh;
+      overflow: auto;
+      position: relative;
     }
-    #action-log-table th {
-      padding: 8px;
-      position: sticky;
-      top: 0;
-      background: rgba(14, 25, 42, 0.95);
-      z-index: 1;
+    .sim-modal__close {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-4);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      color: var(--text-tertiary);
+      background: transparent;
+      border: 0;
+      padding: 4px;
+    }
+    .sim-modal__close:hover { color: var(--text-primary); }
+    .sim-modal h3 {
+      margin: 0 0 var(--space-3);
+      font-size: var(--fs-h3);
+      color: var(--accent-primary);
+    }
+    .sim-modal table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--fs-small);
+      margin-bottom: var(--space-2);
+    }
+    .sim-modal th, .sim-modal td {
+      border: 1px solid var(--border-subtle);
+      padding: 4px 8px;
+      text-align: left;
+    }
+    .sim-modal th {
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-weight: var(--fw-medium);
+    }
+    .sim-modal b {
+      color: var(--accent-primary);
+      display: block;
+      margin: var(--space-3) 0 var(--space-1);
+      font-weight: var(--fw-semibold);
+    }
+
+    /* Action log — minor adjustments inline with cm-logtable */
+    .sim-log-tickinfo {
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      color: var(--text-tertiary);
     }
     #action-log-table .note-cell {
       white-space: normal;
-      max-width: 300px;
-    }
-    .tick-separator td {
-      background: rgba(77, 226, 194, 0.08);
-      font-weight: 600;
-      color: #4de2c2;
+      max-width: 320px;
     }
     #action-log-body tr { cursor: pointer; }
-    #action-log-body tr:hover { background: rgba(77, 226, 194, 0.07); }
+    #action-log-body tr:hover { background: var(--accent-primary-soft); }
+
+    /* Field popup (action-log row details) */
     #field-popup-overlay {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0, 0, 0, 0.55);
       z-index: 1000;
       align-items: center; justify-content: center;
     }
     #field-popup-overlay.open { display: flex; }
     #field-popup {
-      background: #1a2d45; border: 1px solid rgba(143,193,255,0.3);
-      border-radius: 8px; padding: 16px;
+      background: var(--surface-4);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
       max-width: 480px; width: 90%; max-height: 70vh;
-      overflow-y: auto; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-      color: #e8f1f5;
+      overflow-y: auto;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+      color: var(--text-primary);
     }
-    #field-popup h3 { margin: 0 0 12px; font-size: 14px; color: #4de2c2; }
-    #field-popup table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    #field-popup th, #field-popup td { border: 1px solid rgba(143,193,255,0.2); padding: 3px 8px; text-align: left; }
-    #field-popup th { background: rgba(14,25,42,0.7); color: #ffd966; }
-    #field-popup b { color: #ffd966; display: block; margin: 8px 0 4px; }
-    #field-popup-close { float: right; cursor: pointer; font-size: 18px; line-height: 1; color: #aaa; }
-    #field-popup-close:hover { color: #fff; }
-    .chart-x-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      font-size: 14px;
-      flex-wrap: wrap;
+    #field-popup h3 {
+      margin: 0 0 var(--space-3);
+      font-size: var(--fs-body);
+      color: var(--accent-primary);
     }
-    .x-axis-group {
-      display: inline-flex;
-      gap: 4px;
-      flex-wrap: wrap;
+    #field-popup table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--fs-small);
     }
-
-    /* Quest Distribution Table */
-    #quest-distribution-table {
-      display: none;
-      background: rgba(14, 25, 42, 0.7);
-      border: 1px solid rgba(143, 193, 255, 0.3);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
-      overflow-x: auto;
+    #field-popup th,
+    #field-popup td {
+      border: 1px solid var(--border-default);
+      padding: var(--space-1) var(--space-2);
+      text-align: left;
     }
-    #quest-distribution-table h3 {
+    #field-popup th {
+      background: var(--surface-1);
+      color: var(--accent-secondary);
+    }
+    #field-popup b {
+      color: var(--accent-secondary);
+      display: block;
+      margin: var(--space-2) 0 var(--space-1);
+    }
+    #field-popup-close {
+      float: right;
+      cursor: pointer;
       font-size: 18px;
-      margin-bottom: 16px;
-      color: #ffd966;
+      line-height: 1;
+      color: var(--text-tertiary);
     }
-    #quest-distribution-table pre {
+    #field-popup-close:hover { color: var(--text-primary); }
+
+    /* Quest distribution pre */
+    #quest-distribution-table-inner pre {
       margin: 0;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 13px;
-      color: #e8f1f5;
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      color: var(--text-primary);
       line-height: 1.6;
       white-space: pre;
     }
 
-    /* ── Quest Rewards tab ── */
-    .qr-charts-row {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .qr-chart-wrap {
-      flex: 1;
-      min-width: 0;
-      background: #1a252e;
-      border-radius: 8px;
-      padding: 12px;
-      height: 320px;
-    }
-    .quest-rewards-section {
-      max-width: 720px;
-    }
-    .quest-rewards-section h2 {
-      margin-bottom: 4px;
-    }
-    .qr-subtitle {
-      opacity: 0.55;
-      font-size: 12px;
-      margin: 0 0 14px;
-    }
-    .qr-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      font-variant-numeric: tabular-nums;
-    }
-    .qr-table th {
-      position: sticky;
-      top: 0;
-      background: #1e2a33;
-      padding: 6px 10px;
-      border-bottom: 2px solid #3a4f5e;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .qr-table td {
-      padding: 4px 10px;
-      border-bottom: 1px solid #293742;
-      white-space: nowrap;
-    }
-    .qr-table tbody tr:hover {
-      background: rgba(77, 226, 194, 0.06);
-    }
-    .qr-num   { width: 36px; text-align: center; opacity: 0.5; }
-    .qr-quest { text-align: left; }
-    .qr-center { text-align: center; }
-    .qr-right  { text-align: right; }
-    .qr-pos { color: #4de2c2; }
-    .qr-neg { color: #e24d4d; }
+    /* Quest Rewards table customisation atop cm-table */
+    .qr-pos { color: var(--success); }
+    .qr-neg { color: var(--danger); }
     .qr-totals td {
-      font-weight: 700;
-      border-top: 2px solid #3a4f5e;
-      padding-top: 8px;
+      font-weight: var(--fw-bold);
+      border-top: 2px solid var(--border-default);
+      padding-top: var(--space-2);
+    }
+
+    @media (max-width: 1100px) {
+      .sim-charts { grid-template-columns: 1fr; }
+      .qr-charts-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="simulation-app">
-    <header>
-      <h1>CULT.MERGE - AI Simulation Dashboard</h1>
+    <header class="sim-header">
+      <h1 class="sim-header__title">CULT<span class="accent">.</span>MERGE — AI Simulation Dashboard</h1>
     </header>
 
-    <section class="controls">
-      <h2>Simulation Controls</h2>
+    <section class="cm-card">
+      <div class="cm-card__head">
+        <h2 class="cm-card__title">Simulation Controls</h2>
+      </div>
       <form id="sim-form">
-        <label>
-          Seed:
-          <input type="number" id="seed" placeholder="random">
-        </label>
+        <div class="sim-controls__grid">
+          <div class="cm-field">
+            <label class="cm-label" for="seed">Seed</label>
+            <input class="cm-input is-mono" type="number" id="seed" placeholder="random">
+          </div>
 
-        <label>
-          Stop when:
-          <select id="stop-type">
-            <option value="krakenLevel">Kraken Level ≥</option>
-            <option value="tasks">Tasks completed ≥</option>
-            <option value="ticks">Ticks (raw) ≥</option>
-          </select>
-        </label>
+          <div class="cm-field">
+            <label class="cm-label" for="stop-type">Stop when</label>
+            <select class="cm-select" id="stop-type">
+              <option value="krakenLevel">Kraken Level ≥</option>
+              <option value="tasks">Tasks completed ≥</option>
+              <option value="ticks">Ticks (raw) ≥</option>
+            </select>
+          </div>
 
-        <label>
-          Value:
-          <input type="number" id="stop-value" value="10" min="1">
-        </label>
+          <div class="cm-field">
+            <label class="cm-label" for="stop-value">Value</label>
+            <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
+          </div>
 
-        <fieldset>
-          <legend>Strategy</legend>
-          <label><input type="checkbox" name="strategy" value="realistic" checked disabled> Realistic Player (Task-focused only)</label>
-          <p style="font-size: 12px; opacity: 0.7; margin: 8px 0 0 0;">Жмёт кнопку мяса когда не хватает на заряд</p>
-        </fieldset>
+          <div class="sim-strategy">
+            <div class="sim-strategy__label">STRATEGY</div>
+            <label class="cm-check sim-strategy__row">
+              <input type="checkbox" class="cm-check__box" name="strategy" value="realistic" checked disabled>
+              <span class="cm-check__label">
+                Realistic Player <span class="sim-strategy__hint">(жмёт кнопку мяса когда не хватает на заряд)</span>
+              </span>
+            </label>
+          </div>
 
-        <div>
-          <button type="submit" id="run-btn">Run Simulation</button>
-          <button type="button" id="export-btn" disabled>Export Data (JSON)</button>
+          <div class="sim-controls__cta">
+            <button type="button" id="export-btn" class="cm-btn cm-btn--ghost" disabled>Export (JSON)</button>
+            <button type="submit" id="run-btn" class="cm-btn cm-btn--primary">Run Simulation</button>
+          </div>
         </div>
       </form>
 
-      <div id="progress-container" class="progress-container">
-        <progress id="progress" max="100" value="0"></progress>
-        <span id="progress-text">0%</span>
+      <div id="progress-container" class="progress-container" style="margin-top: var(--space-4); display: none;">
+        <div class="cm-progress">
+          <div id="progress-bar" class="cm-progress__bar" style="width: 0%"></div>
+        </div>
+        <span id="progress-text" style="display:block; margin-top: var(--space-2); text-align:center; font-size: var(--fs-small); color: var(--accent-primary); font-family: var(--font-mono);">0%</span>
       </div>
     </section>
 
-    <div class="tab-bar">
-      <button class="tab-btn active" data-tab="tab-summary">Summary</button>
-      <button class="tab-btn" data-tab="tab-charts">Charts</button>
-      <button class="tab-btn" data-tab="tab-action-log">Action Log</button>
-      <button class="tab-btn" data-tab="tab-quest-rewards" style="display:none">Quest Rewards</button>
+    <div class="cm-tabs" role="tablist" id="sim-tabs">
+      <button class="cm-tab" role="tab" aria-selected="true" data-tab="tab-summary">Summary</button>
+      <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-charts">Charts</button>
+      <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-action-log">Action Log</button>
+      <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-quest-rewards" style="display:none">Quest Rewards</button>
     </div>
 
-    <div class="tab-panel" id="tab-summary">
-      <section class="summary">
-        <h2>Simulation Summary</h2>
-        <table id="summary-table">
+    <div class="sim-tab-panel" id="tab-summary">
+      <section class="cm-card">
+        <div class="cm-card__head">
+          <h2 class="cm-card__title">Simulation Summary</h2>
+        </div>
+        <table class="cm-table" id="summary-table">
           <thead>
             <tr>
               <th>Strategy</th>
@@ -467,259 +425,347 @@
           </thead>
           <tbody id="summary-body">
             <tr>
-              <td colspan="8" style="text-align: center; opacity: 0.5;">No simulation results yet. Click "Run Simulation" to start.</td>
+              <td colspan="8" style="text-align: center; color: var(--text-tertiary);">No simulation results yet. Click "Run Simulation" to start.</td>
             </tr>
           </tbody>
         </table>
       </section>
     </div>
 
-    <div class="tab-panel hidden" id="tab-charts">
-      <div class="chart-x-controls">
-        <span>X Axis:</span>
-        <div class="x-axis-group" id="x-axis-mode" role="radiogroup" aria-label="X axis mode">
-          <button type="button" class="tab-btn active" data-value="sessions">Sessions</button>
-          <button type="button" class="tab-btn" data-value="presses">Sacrifices</button>
-          <button type="button" class="tab-btn" data-value="tasks">Per Task</button>
-          <button type="button" class="tab-btn" data-value="time">Time (minutes)</button>
-          <button type="button" class="tab-btn" data-value="krakenLevel">Kraken Level</button>
-          <button type="button" class="tab-btn" data-value="chapter">Chapter</button>
+    <div class="sim-tab-panel hidden" id="tab-charts">
+      <div class="sim-axis-row">
+        <span class="sim-axis-row__label">X axis</span>
+        <div class="cm-seg" role="tablist" aria-label="X axis" id="x-axis-seg">
+          <button type="button" class="cm-seg__btn" aria-pressed="true" data-value="sessions">Sessions</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="presses">Sacrifices</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="tasks">Per Task</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="time">Time</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="krakenLevel">Kraken Level</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="chapter">Chapter</button>
         </div>
       </div>
-      <div id="quest-distribution-table">
-        <h3>Quest Distribution by Era</h3>
+
+      <div id="quest-distribution-table" class="cm-card" style="margin-bottom: var(--space-4); display:none;">
+        <div class="cm-card__head">
+          <h3 class="cm-card__title">Quest Distribution by Era</h3>
+        </div>
         <div id="quest-distribution-table-inner"></div>
       </div>
 
-      <section class="charts">
-        <div class="chart-container chart-full-width">
-          <h3>Current Task (creature level needed)</h3>
-          <span class="agg-badge"></span>
+      <section class="sim-charts">
+        <div class="cm-card chart-container chart-full-width">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Current Task (creature level needed)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-task-creature"></canvas>
         </div>
 
-        <div class="chart-container chart-full-width">
-          <h3>Spawns per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container chart-full-width">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Spawns per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-spawns-per-task"></canvas>
         </div>
 
-        <div class="chart-container chart-full-width">
-          <h3>Quest Meat Cost (scoring)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container chart-full-width">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Quest Meat Cost (scoring)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-quest-meat-cost"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Kraken Level Progression</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Kraken Level Progression</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-level"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Tasks Completed</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Tasks Completed</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-tasks"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>New Creatures Discovered</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">New Creatures Discovered</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-unique-creatures"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Spawns &amp; Merges</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Spawns &amp; Merges</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-activity"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Generator Charges</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Generator Charges</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-charges"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>EXP Gained (Cumulative + Rate)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">EXP Gained (Cumulative + Rate)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-exp"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>EXP per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">EXP per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-exp-per-task"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Eyes per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Eyes per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-eyes-per-task"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Charges per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Charges per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-charges-per-task"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Meat on Charges per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Meat on Charges per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-meat-per-task"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Sacrifices per Quest</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Sacrifices per Quest</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-sacrifices-per-task"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Session &amp; Sacrifices</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Session &amp; Sacrifices</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-session"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Time per Session</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Time per Session</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-session-time"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Meat Spent &amp; Drop per Press</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Meat Spent &amp; Drop per Press</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-resources"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Runes (balance)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Runes (balance)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-runes"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Runes Flow (emission / sink)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Runes Flow (emission / sink)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-runes-flow"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Eyes (balance)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Eyes (balance)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-eyes"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Eyes Flow (emission)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Eyes Flow (emission)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-eyes-flow"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Eyes per Meat Spent</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Eyes per Meat Spent</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-eyes-vs-meat"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Gems (balance + emission)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Gems (balance + emission)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-gems"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Grid Size</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Grid Size</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-gridsize"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Generators (by type &amp; level)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Generators (by type &amp; level)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-generators"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Creature Progress (max level per line)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Creature Progress (max level per line)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-creature-progress"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Sessions per Kraken Level</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Sessions per Kraken Level</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-sessions-per-level"></canvas>
         </div>
 
-        <div class="chart-container">
-          <h3>Tasks Completed per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Tasks Completed per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-tasks-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Spawns per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Spawns per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-spawns-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Unique Creatures per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Unique Creatures per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-creatures-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Time per Chapter (min)</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Time per Chapter (min)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-time-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Meat per Press per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Meat per Press per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-meat-per-press-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Generators Unlocked per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Generators Unlocked per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-generators-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Sessions per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Sessions per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-sessions-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Tasks per Session per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Tasks per Session per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-tasks-per-session-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Meat Spent per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Meat Spent per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-meat-spent-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Runes Purchased per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Runes Purchased per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-runes-purchased-per-chapter"></canvas>
         </div>
-        <div class="chart-container">
-          <h3>Eyes per Quest per Chapter</h3>
-          <span class="agg-badge"></span>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Eyes per Quest per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
           <canvas id="chart-eyes-per-quest-per-chapter"></canvas>
         </div>
       </section>
     </div>
 
-    <div class="tab-panel hidden" id="tab-action-log">
-      <section class="action-log-panel">
-        <h2>Action Log</h2>
-        <div class="log-controls">
-          <label>Tick: <input type="number" id="log-tick" value="0" min="0" style="width:80px"></label>
-          <button class="nav-btn" id="log-prev-tick" type="button">&larr; Prev</button>
-          <button class="nav-btn" id="log-next-tick" type="button">Next &rarr;</button>
-          <label>Filter:
+    <div class="sim-tab-panel hidden" id="tab-action-log">
+      <section class="cm-logtable">
+        <header class="cm-logtable__head">
+          <h3>Action Log</h3>
+          <span></span>
+          <div class="cm-logtable__controls">
+            <div class="cm-logtable__tick">
+              <label for="log-tick">Tick</label>
+              <input id="log-tick" type="number" value="0" min="0">
+              <span class="cm-logtable__navbtns">
+                <button class="cm-btn cm-btn--ghost cm-btn--icon cm-btn--sm" id="log-prev-tick" type="button" aria-label="Previous tick">←</button>
+                <button class="cm-btn cm-btn--ghost cm-btn--icon cm-btn--sm" id="log-next-tick" type="button" aria-label="Next tick">→</button>
+              </span>
+            </div>
+          </div>
+          <div class="cm-logtable__filter">
+            <span>Filter</span>
             <select id="log-filter-type">
               <option value="">All actions</option>
               <option value="gather_meat">gather_meat</option>
@@ -732,84 +778,91 @@
               <option value="buy_generator">buy_generator</option>
               <option value="new_quest">new_quest</option>
             </select>
-          </label>
-          <span id="log-tick-info" style="opacity:0.6; font-size:13px;"></span>
-        </div>
-        <div class="log-table-wrap">
-          <table id="action-log-table">
+          </div>
+        </header>
+        <div class="cm-logtable__scroll">
+          <table class="cm-logtable__t" id="action-log-table">
             <thead>
               <tr>
-                <th>#</th>
+                <th class="left">#</th>
                 <th>Q#</th>
-                <th>Action</th>
-                <th>Detail</th>
-                <th>Lvl</th>
+                <th class="left gsep">Action</th>
+                <th class="left">Detail</th>
+                <th class="num-group gsep">Lvl</th>
                 <th>Step</th>
                 <th>EXP</th>
-                <th>Meat</th>
+                <th class="num-group gsep">Meat</th>
                 <th>Eyes</th>
-                <th>R1</th>
+                <th class="num-group gsep">R1</th>
                 <th>R2</th>
                 <th>Cr</th>
-                <th>Gen</th>
+                <th class="num-group gsep">Gen</th>
                 <th>Field</th>
                 <th>Free</th>
-                <th>Rew</th>
+                <th class="num-group gsep">Rew</th>
                 <th>Fed</th>
                 <th>Ses</th>
-                <th>Presses</th>
-                <th>Time</th>
-                <th>Task</th>
+                <th>Press</th>
+                <th class="gsep">Time</th>
+                <th class="left gsep">Task</th>
               </tr>
             </thead>
             <tbody id="action-log-body">
-              <tr><td colspan="21" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+              <tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">Run simulation first</td></tr>
             </tbody>
           </table>
         </div>
+        <footer class="cm-logtable__foot">
+          <span id="log-tick-info" class="sim-log-tickinfo">Tick 0/0 — 0 actions</span>
+          <span class="spacer"></span>
+          <span>Click row for field snapshot</span>
+        </footer>
       </section>
     </div>
-  </div>
 
-    <div class="tab-panel hidden" id="tab-quest-rewards">
+    <div class="sim-tab-panel hidden" id="tab-quest-rewards">
       <div class="qr-charts-row">
-        <div class="qr-chart-wrap">
+        <div class="cm-card">
           <canvas id="qr-chart-per-quest"></canvas>
         </div>
-        <div class="qr-chart-wrap">
+        <div class="cm-card">
           <canvas id="qr-chart-per-chapter"></canvas>
         </div>
       </div>
-      <section class="quest-rewards-section">
-        <h2>Quest Reward Comparison</h2>
-        <p class="qr-subtitle">
-          <b>Current</b> = meatCost × eyePerMeat[chapter] &nbsp;|&nbsp;
-          <b>Old</b> = Σ(creatureEyes × count) × 2
-        </p>
-        <table class="qr-table">
+      <section class="cm-card">
+        <div class="cm-card__head">
+          <div>
+            <h2 class="cm-card__title">Quest Reward Comparison</h2>
+            <p class="cm-card__sub" style="margin-top: var(--space-1);">
+              <b>Current</b> = meatCost × eyePerMeat[chapter] &nbsp;|&nbsp;
+              <b>Old</b> = Σ(creatureEyes × count) × 2
+            </p>
+          </div>
+        </div>
+        <table class="cm-table qr-table">
           <thead>
             <tr>
-              <th class="qr-num">#</th>
-              <th class="qr-quest">Quest</th>
-              <th class="qr-center">Kraken</th>
-              <th class="qr-center">Ch</th>
-              <th class="qr-right">Current</th>
-              <th class="qr-right">Old</th>
-              <th class="qr-right">Δ</th>
-              <th class="qr-right">Ratio</th>
+              <th>#</th>
+              <th>Quest</th>
+              <th>Kraken</th>
+              <th>Ch</th>
+              <th class="num">Current</th>
+              <th class="num">Old</th>
+              <th class="num">Δ</th>
+              <th class="num">Ratio</th>
             </tr>
           </thead>
           <tbody id="quest-rewards-body">
-            <tr><td colspan="8" style="text-align:center; opacity:0.5;">Run simulation first</td></tr>
+            <tr><td colspan="8" style="text-align:center; color: var(--text-tertiary);">Run simulation first</td></tr>
           </tbody>
         </table>
       </section>
     </div>
   </div>
 
-  <div id="field-popup-overlay">
-    <div id="field-popup">
-      <span id="field-popup-close">✕</span>
+  <div id="field-popup-overlay" class="sim-modal-overlay">
+    <div id="field-popup" class="cm-card cm-card--raised sim-modal">
+      <button id="field-popup-close" class="sim-modal__close" aria-label="Close">✕</button>
       <h3 id="field-popup-title">Field at Tick 0</h3>
       <div id="field-popup-content"></div>
     </div>
