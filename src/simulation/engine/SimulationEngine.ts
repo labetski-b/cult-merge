@@ -652,10 +652,26 @@ export class SimulationEngine {
 
       // Log chapter completion
       if (curr.completed && !prev?.completed) {
+        let queuedReward = false;
+        if (chapter.unlocksGenerator) {
+          const alreadyOnGrid = Object.values(this.state.entities).some(
+            e => e.kind === 'generator' && e.generatorId === chapter.unlocksGenerator
+          );
+          if (!alreadyOnGrid) {
+            this.state.pendingRewards.push({
+              type: 'egg',
+              value: `gen_${chapter.unlocksGenerator}_1`,
+            });
+            queuedReward = true;
+          }
+        }
         const chapterAction: SimulationAction = { type: 'new_quest', taskLabel: `[Chapter] ${chapter.name} (ch${chapter.id}) completed!` };
         const dt = this.addActionTime(chapterAction);
         const logState = this.captureCompactState(dt);
-        this.pushLog(chapterAction, logState, `Chapter ${chapter.id} "${chapter.name}" completed — unlocks generator ${chapter.unlocksGenerator}`);
+        const note = queuedReward
+          ? `Chapter ${chapter.id} "${chapter.name}" completed — queued generator ${chapter.unlocksGenerator} reward`
+          : `Chapter ${chapter.id} "${chapter.name}" completed — unlocks generator ${chapter.unlocksGenerator}`;
+        this.pushLog(chapterAction, logState, note);
       }
     }
   }

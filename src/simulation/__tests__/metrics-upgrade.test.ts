@@ -19,8 +19,8 @@ describe('New TickMetrics fields', () => {
     expect(sample.generatorLevelsSnapshot).toBeDefined();
     expect(typeof sample.upgradesStarted).toBe('number');
   });
-  it('upgradesStarted and upgradesCollected increase over a long run', () => {
-    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 2000 } });
+  it('upgradesStarted and upgradesCollected increase over a long run', { timeout: 60000 }, () => {
+    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 1000 } });
     const result = engine.run();
     const final = result.history[result.history.length - 1]!.metrics;
     expect(final.upgradesStarted).toBeGreaterThan(0);

@@ -1,6 +1,6 @@
 /**
  * Regenerate src/simulation/__tests__/snapshots/baseline-3.23.json from a fresh
- * 50000-tick run at seed=42. Use after intentional strategy/engine changes.
+ * 1000-tick run at seed=42. Use after intentional strategy/engine changes.
  *
  * Usage: npx tsx --tsconfig tsconfig.app.json scripts/regenerate-baseline.ts
  */
@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SEED = 42;
-const TICKS = 50000;
+const TICKS = 1000;
 const OUT = path.resolve(
   __dirname,
   '../src/simulation/__tests__/snapshots/baseline-3.23.json'

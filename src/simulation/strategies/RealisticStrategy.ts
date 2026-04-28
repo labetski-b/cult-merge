@@ -216,6 +216,8 @@ export class RealisticStrategy implements AIStrategy {
     const bestGen = workGenerators[0]!;
     const bestGenConfig = this.balance.generators.generators.find(g => g.id === bestGen.generatorId);
     if (missingTypes.size > 0 && bestGenConfig?.spawnMode === 'timer') {
+      const clearActions = this.clearNeighborCell(state, bestGen.id, task, usedIds);
+      if (clearActions.length > 0) return { actions: clearActions, done: false };
       return { actions: [{ type: 'skip_timer_generator', entityId: bestGen.id }], done: false };
     }
 
@@ -428,6 +430,104 @@ export class RealisticStrategy implements AIStrategy {
     }
 
     return actions;
+  }
+
+  /**
+   * Free at least one 8-neighbor cell of a timer-mode generator so its passive
+   * spawn (or skip_timer cheat) has a place to land. Returns:
+   *   - [] if a neighbor is already free (no clearing needed)
+   *   - [merge] if two neighbors form a mergeable pair (creatures or runes)
+   *   - [sacrifice/feed] for the cheapest non-task entity restricted to neighbor cells
+   *   - [] if no clearing is possible (caller falls back to skip_timer_generator)
+   */
+  private clearNeighborCell(
+    state: GameSnapshot,
+    generatorEntityId: string,
+    task: TaskDefinition | null,
+    usedIds: Set<string>
+  ): SimulationAction[] {
+    const genCellIndex = findEntityCell(state.grid, generatorEntityId);
+    if (genCellIndex < 0) return [];
+
+    const neighborIndexes = getNeighborCellIndexes(state.grid, genCellIndex);
+    const occupiedNeighborIds = neighborIndexes
+      .map(idx => state.grid.cells[idx])
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    if (occupiedNeighborIds.length < neighborIndexes.length) {
+      return [];
+    }
+
+    // 1) Try merge among neighbor entities (creatures of same type+level, or mergeable runes)
+    const neighborCreatures: CreatureEntity[] = [];
+    const neighborRunes: RuneEntity[] = [];
+    for (const id of occupiedNeighborIds) {
+      const ent = state.entities[id];
+      if (!ent || usedIds.has(id)) continue;
+      if (ent.kind === 'creature') neighborCreatures.push(ent);
+      else if (ent.kind === 'rune') neighborRunes.push(ent);
+    }
+
+    const creatureGroups = new Map<string, CreatureEntity[]>();
+    for (const c of neighborCreatures) {
+      const cfg = this.balance.creatures.creatures.find(cc => cc.type === c.creatureType);
+      const maxLevel = cfg?.maxLevel ?? 15;
+      if (c.level >= maxLevel) continue;
+      const key = `${c.creatureType}:${c.level}`;
+      const arr = creatureGroups.get(key) ?? [];
+      arr.push(c);
+      creatureGroups.set(key, arr);
+    }
+    for (const arr of creatureGroups.values()) {
+      if (arr.length >= 2) {
+        return [{ type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id }];
+      }
+    }
+
+    const runeGroups = new Map<string, RuneEntity[]>();
+    for (const r of neighborRunes) {
+      const arr = runeGroups.get(r.runeType) ?? [];
+      arr.push(r);
+      runeGroups.set(r.runeType, arr);
+    }
+    for (const arr of runeGroups.values()) {
+      if (arr.length >= 2 && canMergeRunes(arr[0]!, arr[1]!)) {
+        return [{ type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id }];
+      }
+    }
+
+    // 2) Sacrifice/feed cheapest non-task creature in a neighbor cell.
+    const taskTypes = new Set<string>();
+    if (task) {
+      for (const req of task.creatures) taskTypes.add(req.type);
+    }
+
+    const feedable = neighborCreatures.filter(c => !usedIds.has(c.id));
+    const nonTask = feedable.filter(c => !taskTypes.has(c.creatureType));
+    const candidates = nonTask.length > 0 ? nonTask : feedable;
+
+    if (candidates.length > 0) {
+      const creatureNum = (c: CreatureEntity) => parseInt(c.creatureType.replace('Creature', ''), 10);
+      candidates.sort((a, b) => {
+        const numDiff = creatureNum(a) - creatureNum(b);
+        if (numDiff !== 0) return numDiff;
+        return a.level - b.level;
+      });
+      const target = candidates[0]!;
+      usedIds.add(target.id);
+      return [{ type: 'feed', entityId: target.id }];
+    }
+
+    // Runes can also be fed if no creature candidate exists in the neighborhood.
+    const feedableRunes = neighborRunes.filter(r => !usedIds.has(r.id));
+    if (feedableRunes.length > 0) {
+      const target = feedableRunes[0]!;
+      usedIds.add(target.id);
+      return [{ type: 'feed', entityId: target.id }];
+    }
+
+    // No clearable entity in neighborhood (e.g. all neighbors are generators).
+    return [];
   }
 
   private openBoxes(
@@ -727,12 +827,18 @@ export class RealisticStrategy implements AIStrategy {
     // Guard against spawn flood
     if (creatures.length >= 6) return [];
 
-    // Path A: spawn from lowest-level generator on the line
+    // Path A: spawn from lowest-level generator on the line.
+    // Timer-mode generators (spawnMode='timer') cannot be charged or spawned manually —
+    // chargeGenerator/spawnFromGenerator both no-op for them (see runtime/generators.ts).
+    // Excluding them here prevents an infinite gather_meat → charge_generator loop
+    // until the engine's action ceiling. They tick passively; quest-phase skip_timer
+    // cheat handles them when a quest is active.
     const generators = Object.values(state.entities)
       .filter((e): e is GeneratorEntity => e.kind === 'generator')
       .filter(g => {
         const cfg = this.balance.generators.generators.find(c => c.id === g.generatorId);
         if (!cfg) return false;
+        if (cfg.spawnMode === 'timer') return false;
         return cfg.lines.some(l => lineSet.has(l));
       })
       .sort((a, b) => a.level - b.level);

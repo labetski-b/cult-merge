@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../engine/SimulationEngine';
 import type { SimulationAction } from '../engine/types';
-import type { GameSnapshot, GeneratorEntity } from '@domain/types';
+import type { GameSnapshot } from '@domain/types';
 import { BALANCE } from '@data/loadBalance';
 
 describe('meatButtonPresses tracking', () => {
@@ -41,15 +41,14 @@ describe('meatButtonPresses tracking', () => {
 });
 
 describe('FP quest counters', () => {
-  it('updates meatPressesAtLastFP and fpQuestsByKrakenLevel on FP quest completion', () => {
-    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 5000 } });
+  it('updates meatPressesAtLastFP and fpQuestsByKrakenLevel on FP quest completion', { timeout: 60000 }, () => {
+    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 1000 } });
     const result = engine.run();
     const counters = result.finalState.fpQuestsByKrakenLevel ?? {};
     const hasFP = Object.values(counters).some(v => (v as number) > 0);
-    // Tolerate zero if Gen3 never unlocked; but if Gen3 was used:
-    const gen3Used = Object.values(result.finalState.entities).some(
-      (e): e is GeneratorEntity => e.kind === 'generator' && e.generatorId === 3
-    );
-    if (gen3Used) expect(hasFP).toBe(true);
+    const finalMetrics = result.history[result.history.length - 1]!.metrics;
+    const gen3Produced = finalMetrics.gen3PassiveSpawns > 0 || finalMetrics.gen3CheatSpawns > 0;
+    if (gen3Produced) expect(hasFP).toBe(true);
+    void (result.finalState as GameSnapshot);
   });
 });

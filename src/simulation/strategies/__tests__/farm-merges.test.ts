@@ -155,3 +155,146 @@ describe('RealisticStrategy farm-merges fallback', () => {
     expect(spawnActions).toHaveLength(0);
   });
 });
+
+/**
+ * Build a state where invest-phase blockedBy='merges' fires for Gen3 (timer-mode,
+ * lines = ['Creature5','Creature6']). Used to verify the strategy doesn't emit
+ * gather_meat/charge_generator on a timer-mode generator (they are no-ops in
+ * the engine and would loop forever).
+ *
+ * Differences from makeBaselineStuckState:
+ *  - kraken.level = 11 (Gen3 has krakenRequired=10)
+ *  - The grid hosts a Gen3 entity (timer-mode); creatures and charges ignored
+ *    for the timer-mode path.
+ *  - mergeCountByLine sets Creature5 just below the Gen3 Lv1 mergesRequired=20.
+ */
+function makeGen3StuckState(opts: {
+  creaturesOnGrid?: CreatureSpec[];
+  meat?: number;
+  extraGenerators?: Array<{ generatorId: number; level: number; charges?: number }>;
+} = {}): GameSnapshot {
+  const base = createInitialSnapshot(BALANCE, { seed: 42 });
+  const krakenLevel = 11;
+  const mandatoryCount = BALANCE.tasks.mandatory[String(krakenLevel)]?.length ?? 0;
+
+  const gen3: GeneratorEntity = {
+    id: 'gen3',
+    kind: 'generator',
+    generatorId: 3,
+    level: 1,
+    charges: [],
+  };
+
+  const entities: GameSnapshot['entities'] = { [gen3.id]: gen3 };
+  const cells: Array<string | null> = Array.from({ length: base.grid.cells.length }, () => null);
+  cells[0] = gen3.id;
+
+  let nextCell = 1;
+
+  const extraGens = opts.extraGenerators ?? [];
+  let extraGenIdx = 0;
+  for (const eg of extraGens) {
+    extraGenIdx++;
+    const id = `gx${extraGenIdx}`;
+    const charges = eg.charges ?? 0;
+    const cfg = BALANCE.generators.generators.find(g => g.id === eg.generatorId);
+    const firstOutput = cfg?.levels.find(l => l.level === eg.level)?.outputs[0];
+    const ent: GeneratorEntity = {
+      id,
+      kind: 'generator',
+      generatorId: eg.generatorId,
+      level: eg.level,
+      charges: Array.from({ length: charges }, () => ({
+        creatureType: firstOutput?.creatureType ?? 'Creature1',
+        level: firstOutput?.level ?? 1,
+      })),
+    };
+    entities[id] = ent;
+    cells[nextCell++] = id;
+  }
+
+  let creatureIdCounter = 0;
+  const creaturesOnGrid = opts.creaturesOnGrid ?? [];
+  for (const spec of creaturesOnGrid) {
+    for (let i = 0; i < spec.count; i++) {
+      if (nextCell >= cells.length) {
+        throw new Error('Test setup: too many creatures for grid');
+      }
+      const id = `c${++creatureIdCounter}`;
+      const creature: CreatureEntity = {
+        id,
+        kind: 'creature',
+        creatureType: spec.type,
+        level: spec.level,
+      };
+      entities[id] = creature;
+      cells[nextCell++] = id;
+    }
+  }
+
+  return {
+    ...base,
+    kraken: { ...base.kraken, level: krakenLevel },
+    resources: {
+      ...base.resources,
+      meat: opts.meat ?? 100,
+      rune1: 1000,
+      rune2: 1000,
+    },
+    grid: { ...base.grid, cells },
+    entities,
+    taskProgress: { [String(krakenLevel)]: mandatoryCount },
+    currentAutoTask: null,
+    pendingRewards: [],
+    mergeCountByLine: { Creature5: 19 },
+    mergesSpentByGen: { 3: 0 },
+    activeUpgrade: null,
+  };
+}
+
+describe('RealisticStrategy farm-merges fallback — timer-mode generators', () => {
+  let strategy: RealisticStrategy;
+  let rng: SeededRng;
+
+  beforeEach(() => {
+    strategy = new RealisticStrategy(BALANCE);
+    rng = new SeededRng(42);
+  });
+
+  it('Timer-mode-only line, no mergeable pair: returns no actions (no gather_meat/charge_generator)', () => {
+    const state = makeGen3StuckState({
+      creaturesOnGrid: [],
+      meat: 0,
+    });
+    const decision = strategy.decide(state, rng);
+    const forbidden = decision.actions.filter(
+      a => a.type === 'gather_meat' || a.type === 'charge_generator' || a.type === 'spawn_generator'
+    );
+    expect(forbidden).toHaveLength(0);
+  });
+
+  it('Timer-mode line with mergeable pair: still emits merge (Path B unchanged)', () => {
+    const state = makeGen3StuckState({
+      creaturesOnGrid: [{ type: 'Creature5', level: 1, count: 2 }],
+      meat: 100,
+    });
+    const decision = strategy.decide(state, rng);
+    const mergeActions = decision.actions.filter(a => a.type === 'merge');
+    expect(mergeActions).toHaveLength(1);
+  });
+
+  it('Mixed line with sacrifice-mode generator alongside timer-mode: Path A uses the sacrifice gen', () => {
+    // Gen4 (id=4) is sacrifice-mode and shares the lines ['Creature7', 'Creature8'].
+    // To reuse the Gen3 stuck setup we need Gen3 blocked, but to confirm that the
+    // filter doesn't break sacrifice-mode pathing in general we set up a separate
+    // baseline state and add a sacrifice-mode generator on a different line.
+    const state = makeBaselineStuckState({
+      creaturesOnGrid: [],
+      charges: 1,
+      meat: 100,
+    });
+    const decision = strategy.decide(state, rng);
+    const spawnActions = decision.actions.filter(a => a.type === 'spawn_generator');
+    expect(spawnActions.length).toBeGreaterThanOrEqual(1);
+  });
+});
