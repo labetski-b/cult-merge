@@ -145,7 +145,10 @@ function buildMergeNests(): string {
   // Единый цикл по всем генераторам id=1..8, отсортированным по id
   const sortedGens = [...generators].sort((a, b) => a.id - b.id);
   for (const gen of sortedGens) {
-    const idValue = gen.id === 3 ? 'Chicken' : gen.eggType;
+    const idValue =
+      gen.id === 3 ? 'Chicken'
+      : gen.id >= 4 ? `Egg_Creature${gen.id - 1}`
+      : gen.eggType;
     const destroyer = resolveDestroyerLevel(gen.id);
     for (let i = 0; i < gen.levels.length; i++) {
       const lvl = gen.levels[i]!;
