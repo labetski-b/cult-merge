@@ -75,8 +75,8 @@ function buildMergeNests(): string {
     numCreatures: number,
     chargeCost: number,
     levelIdx: number,
-    purchaseCurrency: 'rune1' | 'rune2',
-    purchaseCost: number,
+    priceCurrency: 'rune1' | 'rune2' | null,
+    priceAmount: number | null,
     idValue: string,
     upgradeDuration: number | null,
     mergesRequired: number | null,
@@ -123,9 +123,9 @@ function buildMergeNests(): string {
     const spawn2Dist = levelDist(spawn2Data, 16);
     const hardDist = levelDist(undefined, 3); // Hard always 0 for generators/flowerpot
 
-    // First row of a generator gets price/amount
-    const price = levelIdx === 0 ? mapCurrency(purchaseCurrency) : '';
-    const amount = levelIdx === 0 ? String(purchaseCost) : '';
+    // Price/Amount: для уровня 1 — purchase, для уровней 2+ — upgrade.runeType/runeCost
+    const price = priceCurrency !== null ? mapCurrency(priceCurrency) : '';
+    const amount = priceAmount !== null ? String(priceAmount) : '';
     const id = idValue;
 
     const durationStr = upgradeDuration !== null ? fmt(upgradeDuration) : '';
@@ -158,10 +158,24 @@ function buildMergeNests(): string {
       const numCreatures = lvl.mode === 'sacrifice' ? lvl.numCreatures : 0;
       const chargeCost = lvl.mode === 'sacrifice' ? lvl.chargeCost : 0;
 
+      // Price/Amount: уровень 1 → purchase, уровни 2+ → upgrade предыдущего уровня
+      let priceCurrency: 'rune1' | 'rune2' | null;
+      let priceAmount: number | null;
+      if (i === 0) {
+        priceCurrency = null;
+        priceAmount = null;
+      } else if (prevUpgrade) {
+        priceCurrency = prevUpgrade.runeType;
+        priceAmount = prevUpgrade.runeCost;
+      } else {
+        priceCurrency = null;
+        priceAmount = null;
+      }
+
       rows.push(computeSpawnRow(
         lvl.outputs, gen.lines as [string, string],
         numCreatures, chargeCost,
-        i, gen.purchaseCurrency, gen.purchaseCost, idValue,
+        i, priceCurrency, priceAmount, idValue,
         upgradeDuration, mergesRequired,
         i === 0 ? destroyer : '',
       ));
