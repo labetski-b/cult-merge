@@ -27,6 +27,24 @@ interface NeighborCreatureSpec {
 interface BuildOpts {
   neighbors: Array<NeighborCreatureSpec | null>; // length 8
   cornerGen3?: boolean; // place Gen3 at cell index 0 (corner) instead of center
+  /**
+   * Optional: place additional creatures in non-neighbor (far) cells.
+   * Map keyed by absolute cell index → creature spec. Cell index must not
+   * collide with the generator cell or any neighbor cell. Used for move-rescue
+   * and deadlock test setups.
+   */
+  farCreatures?: Record<number, NeighborCreatureSpec>;
+  /**
+   * Override task creature requirement (default: Creature5 Lv1).
+   * Used when we need neighbors to be Creature5 Lv N where N > task.level so
+   * `feedPartialTask` does NOT consume them and the strategy actually exercises
+   * `clearNeighborCell`.
+   */
+  taskCreature?: NeighborCreatureSpec;
+  /** Optional grid override (default 3x3). For move-rescue tests we need a 4x4. */
+  gridSize?: { rows: number; cols: number };
+  /** When gridSize provided, the cell index for Gen3 (overrides cornerGen3). */
+  gen3CellIndex?: number;
 }
 
 function makeGen3State(opts: BuildOpts): GameSnapshot {
@@ -34,8 +52,8 @@ function makeGen3State(opts: BuildOpts): GameSnapshot {
 
   // 3x3 grid is the simplest setup that exercises 8-neighborhood logic.
   // Override the default grid with one we control fully.
-  const rows = 3;
-  const cols = 3;
+  const rows = opts.gridSize?.rows ?? 3;
+  const cols = opts.gridSize?.cols ?? 3;
   const cells: Array<string | null> = Array.from({ length: rows * cols }, () => null);
 
   // Reset entities — drop the auto-seeded gen1 from createInitialSnapshot.
@@ -56,7 +74,23 @@ function makeGen3State(opts: BuildOpts): GameSnapshot {
   let genCellIndex: number;
   let neighborIndexes: number[];
 
-  if (opts.cornerGen3) {
+  if (opts.gen3CellIndex !== undefined) {
+    genCellIndex = opts.gen3CellIndex;
+    // Compute neighbor indexes based on row/col around genCellIndex.
+    const row = Math.floor(genCellIndex / cols);
+    const col = genCellIndex % cols;
+    neighborIndexes = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = row + dr;
+        const nc = col + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+          neighborIndexes.push(nr * cols + nc);
+        }
+      }
+    }
+  } else if (opts.cornerGen3) {
     genCellIndex = 0; // top-left corner
     // Corner has only 3 neighbors: (0,1), (1,0), (1,1) → indexes 1, 3, 4
     neighborIndexes = [1, 3, 4];
@@ -82,11 +116,36 @@ function makeGen3State(opts: BuildOpts): GameSnapshot {
     cells[neighborIndexes[i]!] = id;
   }
 
+  if (opts.farCreatures) {
+    for (const [cellIdxStr, spec] of Object.entries(opts.farCreatures)) {
+      const cellIdx = Number(cellIdxStr);
+      if (cellIdx === genCellIndex) {
+        throw new Error(`farCreatures cell ${cellIdx} collides with generator cell`);
+      }
+      if (neighborIndexes.includes(cellIdx)) {
+        throw new Error(`farCreatures cell ${cellIdx} is a neighbor of the generator`);
+      }
+      if (cells[cellIdx] !== null) {
+        throw new Error(`farCreatures cell ${cellIdx} already occupied`);
+      }
+      const id = `f${++counter}`;
+      const creature: CreatureEntity = {
+        id,
+        kind: 'creature',
+        creatureType: spec.type,
+        level: spec.level,
+      };
+      entities[id] = creature;
+      cells[cellIdx] = id;
+    }
+  }
+
   // Quest needing Creature5 Lv1 (Gen3 line). This makes the strategy go through
   // questStep with a real auto-task and target the Gen3 timer cheat.
+  const taskSpec = opts.taskCreature ?? { type: 'Creature5', level: 1 };
   const autoTask: TaskDefinition = {
     id: 'auto:test',
-    creatures: [{ type: 'Creature5', level: 1, count: 1 }],
+    creatures: [{ type: taskSpec.type, level: taskSpec.level, count: 1 }],
     expMultiplier: 1,
     resMultiplier: 1,
   };
@@ -218,5 +277,177 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
     const decision = strategy.decide(state, rng);
     const types = decision.actions.map(a => a.type);
     expect(types).toContain('skip_timer_generator');
+  });
+});
+
+/**
+ * Direct unit tests for the private `clearNeighborCell` method via cast.
+ *
+ * Rationale: when neighbors are all task-typed, the strategy's higher-level
+ * `decide()` path may go through `freeCells` (which has its own fallback) or
+ * never even reach `clearNeighborCell`. To verify the move-rescue and
+ * "no-fallback-to-task-types" rules in isolation, we drive `clearNeighborCell`
+ * directly with crafted snapshots.
+ */
+type ClearNeighborCell = (
+  state: GameSnapshot,
+  generatorEntityId: string,
+  task: TaskDefinition | null,
+  usedIds: Set<string>,
+) => Array<
+  | { type: 'merge'; sourceId: string; targetId: string }
+  | { type: 'feed'; entityId: string }
+  | { type: 'move_entity'; entityId: string; targetCellIndex: number }
+>;
+
+function callClearNeighborCell(
+  strategy: RealisticStrategy,
+  state: GameSnapshot,
+  generatorEntityId: string,
+  task: TaskDefinition | null,
+): ReturnType<ClearNeighborCell> {
+  const fn = (strategy as unknown as { clearNeighborCell: ClearNeighborCell }).clearNeighborCell.bind(strategy);
+  return fn(state, generatorEntityId, task, new Set<string>());
+}
+
+describe('RealisticStrategy clearNeighborCell — task-type protection + move-rescue', () => {
+  let strategy: RealisticStrategy;
+
+  beforeEach(() => {
+    strategy = new RealisticStrategy(BALANCE);
+  });
+
+  it('returns [] (no fallback to task-type) when all neighbors are task-typed and no rescue option exists', () => {
+    // Center Gen3 in 3x3, all 8 neighbors = Creature5 at distinct levels (no merge pair),
+    // task = Creature5 Lv1 (so feedPartialTask would not match these higher-level Creature5
+    // when called via decide()). No non-task creatures anywhere.
+    const state = makeGen3State({
+      neighbors: [
+        { type: 'Creature5', level: 2 },
+        { type: 'Creature5', level: 3 },
+        { type: 'Creature5', level: 4 },
+        { type: 'Creature5', level: 5 },
+        { type: 'Creature5', level: 6 },
+        { type: 'Creature5', level: 7 },
+        { type: 'Creature5', level: 8 },
+        { type: 'Creature5', level: 9 },
+      ],
+    });
+    const task = state.currentAutoTask!;
+    const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
+    // Must NOT feed any Creature5 (the task type). No clearing possible.
+    expect(result).toEqual([]);
+  });
+
+  it('move-rescue: feeds non-task donor on a far cell, then moves task-type neighbor into the freed cell', () => {
+    // 4x4 grid, Gen3 at corner (cell 0). Corner has 3 neighbors: 1, 4, 5.
+    // All 3 neighbors = Creature5 at distinct levels (task type, no merge pair, no
+    // non-task feedable in the neighborhood). Far cell 15 holds a Creature7 Lv1
+    // (non-task) — this is the donor whose feeding frees a far cell. Far cells 2,
+    // 3, 6, 7, 8, 9, 10, 11, 12, 13, 14 are empty (so the grid is NOT full and
+    // freeCells branch in questStep doesn't trigger — when called via decide()).
+    const state = makeGen3State({
+      gridSize: { rows: 4, cols: 4 },
+      gen3CellIndex: 0,
+      neighbors: [
+        { type: 'Creature5', level: 2 }, // cell 1
+        { type: 'Creature5', level: 3 }, // cell 4
+        { type: 'Creature5', level: 4 }, // cell 5
+      ],
+      farCreatures: {
+        15: { type: 'Creature7', level: 1 }, // donor: non-task
+      },
+    });
+    const task = state.currentAutoTask!;
+    const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
+
+    expect(result.length).toBe(2);
+    const [first, second] = result;
+    // First: feed the non-task donor
+    expect(first!.type).toBe('feed');
+    const fedId = (first as { type: 'feed'; entityId: string }).entityId;
+    const fedEnt = state.entities[fedId];
+    expect(fedEnt!.kind).toBe('creature');
+    expect((fedEnt as CreatureEntity).creatureType).toBe('Creature7');
+
+    // Second: move a task-type neighbor into the freed donor cell
+    expect(second!.type).toBe('move_entity');
+    const move = second as { type: 'move_entity'; entityId: string; targetCellIndex: number };
+    const movedEnt = state.entities[move.entityId];
+    expect(movedEnt!.kind).toBe('creature');
+    expect((movedEnt as CreatureEntity).creatureType).toBe('Creature5');
+    expect(move.targetCellIndex).toBe(15); // donor's cell, freed by the feed above
+
+    // Sanity: the moved entity must be one of the Gen3 neighbors (cells 1, 4, 5)
+    const movedSourceCell = state.grid.cells.indexOf(move.entityId);
+    expect([1, 4, 5]).toContain(movedSourceCell);
+  });
+
+  it('returns [] (deadlock) when neighbors are all task-typed and field has no non-task feedable to rescue with', () => {
+    // 4x4 grid, Gen3 at corner. 3 task-type neighbors. Far cells contain only
+    // task-type creatures (so no donor available). Expect [] — no feed, no move.
+    const state = makeGen3State({
+      gridSize: { rows: 4, cols: 4 },
+      gen3CellIndex: 0,
+      neighbors: [
+        { type: 'Creature5', level: 2 },
+        { type: 'Creature5', level: 3 },
+        { type: 'Creature5', level: 4 },
+      ],
+      farCreatures: {
+        10: { type: 'Creature5', level: 5 },
+        15: { type: 'Creature5', level: 6 },
+      },
+    });
+    const task = state.currentAutoTask!;
+    const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
+    expect(result).toEqual([]);
+  });
+});
+
+/**
+ * questStep deadlock-handling: when clearNeighborCell can't free a Gen3
+ * neighbor AND no neighbor is free, the strategy must NOT emit
+ * `skip_timer_generator` (which would feed a wasteful spawn into a still-full
+ * grid and immediately re-trigger the same loop).
+ */
+describe('RealisticStrategy questStep deadlock — no skip_timer_generator on unrecoverable FP', () => {
+  let strategy: RealisticStrategy;
+  let rng: SeededRng;
+
+  beforeEach(() => {
+    strategy = new RealisticStrategy(BALANCE);
+    rng = new SeededRng(42);
+  });
+
+  it('does not emit skip_timer_generator when all neighbors are task-typed with no rescue option', () => {
+    // 4x4 grid, Gen3 at corner. 3 task-type neighbors, far cells have only
+    // task-type creatures and several free cells (so the questStep step (d)
+    // freeCells branch does not run). Field has Creature5 Lv N (N != task.level)
+    // so feedPartialTask doesn't match; mergeForTask doesn't match either.
+    const state = makeGen3State({
+      gridSize: { rows: 4, cols: 4 },
+      gen3CellIndex: 0,
+      neighbors: [
+        { type: 'Creature5', level: 2 },
+        { type: 'Creature5', level: 3 },
+        { type: 'Creature5', level: 4 },
+      ],
+      farCreatures: {
+        15: { type: 'Creature5', level: 5 },
+      },
+    });
+    const decision = strategy.decide(state, rng);
+    expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
+    // And it should not waste a task-type creature.
+    const fed = decision.actions.find(a => a.type === 'feed') as
+      | { type: 'feed'; entityId: string }
+      | undefined;
+    if (fed) {
+      const ent = state.entities[fed.entityId];
+      if (ent && ent.kind === 'creature') {
+        expect((ent as CreatureEntity).creatureType).not.toBe('Creature5');
+      }
+    }
   });
 });
