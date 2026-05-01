@@ -16,6 +16,14 @@ import baseline from './snapshots/baseline-3.23.json';
  * Snapshot rebaselined 2026-04-28: FP (Gen3) quest formula corrected — removed
  * spurious `numCreatures` multiplier. FP quest targets dropped ~15×, so kraken
  * progression / cheat-spawn counters / total eyes all shifted accordingly.
+ *
+ * Snapshot rebaselined 2026-05-01: `clearNeighborCell` no longer falls back to
+ * feeding task-typed creatures next to a Gen3 spawner (this was the original
+ * FP-quest infinite-loop bug). Move-rescue compensates partially via
+ * `move_entity`, but overall productivity drops — kraken progression and
+ * cheat-spawn counters shifted correspondingly. The high `gen3SkipClicks`
+ * count reflects in-game tick stalls when the simulator burns
+ * MAX_ITERATIONS=500 inner iters before advancing the player-visible tick.
  */
 describe('Regression: baseline 3.23 snapshot', () => {
   it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {

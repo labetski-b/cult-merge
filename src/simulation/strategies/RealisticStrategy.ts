@@ -219,6 +219,32 @@ export class RealisticStrategy implements AIStrategy {
     if (missingTypes.size > 0 && bestGenConfig?.spawnMode === 'timer') {
       const clearActions = this.clearNeighborCell(state, bestGen.id, task, usedIds);
       if (clearActions.length > 0) return { actions: clearActions, done: false };
+
+      // If clearNeighborCell returned [] AND all neighbor cells are occupied
+      // by task-typed creatures, emitting skip_timer_generator would just
+      // re-trigger the same loop next tick (engine sets pendingDrop, then we
+      // come back here and try to clear again). The clearNeighborCell
+      // contract now refuses to feed task-typed creatures (the original bug),
+      // so without a productive escape the inner-loop re-fires forever. Emit
+      // a tick_idle to break out and let the engine advance to the next
+      // outer tick, where (e.g.) a different generator's actions can
+      // accumulate game time and unblock things.
+      const genCellIndex = findEntityCell(state.grid, bestGen.id);
+      const taskTypeSet = new Set<string>();
+      if (task) for (const req of task.creatures) taskTypeSet.add(req.type);
+      const neighborIdxs = genCellIndex >= 0 ? getNeighborCellIndexes(state.grid, genCellIndex) : [];
+      const allNeighborsBlockedByTaskCreatures = neighborIdxs.length > 0
+        && neighborIdxs.every(idx => {
+          const id = state.grid.cells[idx];
+          if (id === null) return false; // free neighbor → not deadlocked
+          const ent = state.entities[id];
+          if (!ent) return false;
+          if (ent.kind !== 'creature') return false; // generator/rune neighbors don't trigger the loop
+          return taskTypeSet.has(ent.creatureType);
+        });
+      if (allNeighborsBlockedByTaskCreatures) {
+        return { actions: [{ type: 'tick_idle', reason: 'fp:no_space' }], done: false };
+      }
       return { actions: [{ type: 'skip_timer_generator', entityId: bestGen.id }], done: false };
     }
 
@@ -439,8 +465,14 @@ export class RealisticStrategy implements AIStrategy {
    * spawn (or skip_timer cheat) has a place to land. Returns:
    *   - [] if a neighbor is already free (no clearing needed)
    *   - [merge] if two neighbors form a mergeable pair (creatures or runes)
-   *   - [sacrifice/feed] for the cheapest non-task entity restricted to neighbor cells
-   *   - [] if no clearing is possible (caller falls back to skip_timer_generator)
+   *   - [feed] for the cheapest non-task entity restricted to neighbor cells
+   *   - [feed donor, move_entity neighbor → donor cell] if all feedable
+   *     neighbors are task-typed but a non-task donor exists on a far cell
+   *     (move-rescue path — frees the neighbor cell without sacrificing a
+   *     task-needed creature).
+   *   - [] if no clearing is possible. Caller MUST NOT fall back to
+   *     `skip_timer_generator` in this case (that would just re-trigger the
+   *     same loop on the next tick).
    */
   private clearNeighborCell(
     state: GameSnapshot,
@@ -499,28 +531,32 @@ export class RealisticStrategy implements AIStrategy {
     }
 
     // 2) Sacrifice/feed cheapest non-task creature in a neighbor cell.
+    // CRITICAL: never feed a creature whose type is in `taskTypes` while the
+    // task is active — doing so would consume a piece the quest needs (or
+    // will need next tick) and trigger the spawner-loop bug:
+    //   feed(taskCreature) → free neighbor → spawn(taskCreature) → repeat.
     const taskTypes = new Set<string>();
     if (task) {
       for (const req of task.creatures) taskTypes.add(req.type);
     }
 
     const feedable = neighborCreatures.filter(c => !usedIds.has(c.id));
-    const nonTask = feedable.filter(c => !taskTypes.has(c.creatureType));
-    const candidates = nonTask.length > 0 ? nonTask : feedable;
+    const nonTaskNeighbors = feedable.filter(c => !taskTypes.has(c.creatureType));
 
-    if (candidates.length > 0) {
+    if (nonTaskNeighbors.length > 0) {
       const creatureNum = (c: CreatureEntity) => parseInt(c.creatureType.replace('Creature', ''), 10);
-      candidates.sort((a, b) => {
+      nonTaskNeighbors.sort((a, b) => {
         const numDiff = creatureNum(a) - creatureNum(b);
         if (numDiff !== 0) return numDiff;
         return a.level - b.level;
       });
-      const target = candidates[0]!;
+      const target = nonTaskNeighbors[0]!;
       usedIds.add(target.id);
       return [{ type: 'feed', entityId: target.id }];
     }
 
-    // Runes can also be fed if no creature candidate exists in the neighborhood.
+    // Runes can also be fed if no non-task creature candidate exists in the
+    // neighborhood. (Runes are never task-typed creatures, so always safe.)
     const feedableRunes = neighborRunes.filter(r => !usedIds.has(r.id));
     if (feedableRunes.length > 0) {
       const target = feedableRunes[0]!;
@@ -528,8 +564,65 @@ export class RealisticStrategy implements AIStrategy {
       return [{ type: 'feed', entityId: target.id }];
     }
 
-    // No clearable entity in neighborhood (e.g. all neighbors are generators).
-    return [];
+    // 3) Move-rescue: all feedable neighbors are task-typed and there's no
+    //    non-task creature/rune adjacent to the spawner. Try to relocate one
+    //    of the task-typed neighbors to a far cell so the neighbor slot frees
+    //    up WITHOUT sacrificing a needed creature. We do this by
+    //    feeding a non-task creature on a far cell (the donor) and emitting
+    //    a `move_entity` for the chosen neighbor into the freed donor cell.
+    if (feedable.length === 0) {
+      // No task-typed neighbor to move (nothing to rescue). Deadlock.
+      return [];
+    }
+
+    const neighborSet = new Set(neighborIndexes);
+    const allCreatures = Object.values(state.entities)
+      .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
+
+    // Find a non-task donor sitting on a "far" cell (not a neighbor of the
+    // spawner, not the spawner cell itself). Prefer the cheapest by
+    // (creatureNum, level).
+    const farDonors: Array<{ creature: CreatureEntity; cellIndex: number }> = [];
+    for (const c of allCreatures) {
+      if (taskTypes.has(c.creatureType)) continue;
+      const idx = findEntityCell(state.grid, c.id);
+      if (idx < 0) continue;
+      if (idx === genCellIndex) continue;
+      if (neighborSet.has(idx)) continue;
+      farDonors.push({ creature: c, cellIndex: idx });
+    }
+
+    if (farDonors.length === 0) {
+      // No rescuer available — deadlock. Caller must avoid skip_timer_generator.
+      return [];
+    }
+
+    const creatureNum = (c: CreatureEntity) => parseInt(c.creatureType.replace('Creature', ''), 10);
+    farDonors.sort((a, b) => {
+      const numDiff = creatureNum(a.creature) - creatureNum(b.creature);
+      if (numDiff !== 0) return numDiff;
+      return a.creature.level - b.creature.level;
+    });
+
+    const donor = farDonors[0]!;
+
+    // Choose the neighbor to relocate: prefer the lowest-level task-typed
+    // creature (least useful for higher-level merge chains).
+    const taskNeighbors = feedable.filter(c => taskTypes.has(c.creatureType));
+    if (taskNeighbors.length === 0) {
+      // Shouldn't happen given the earlier filter ordering, but be safe.
+      return [];
+    }
+    taskNeighbors.sort((a, b) => a.level - b.level);
+    const moved = taskNeighbors[0]!;
+
+    usedIds.add(donor.creature.id);
+    usedIds.add(moved.id);
+
+    return [
+      { type: 'feed', entityId: donor.creature.id },
+      { type: 'move_entity', entityId: moved.id, targetCellIndex: donor.cellIndex },
+    ];
   }
 
   private openBoxes(
