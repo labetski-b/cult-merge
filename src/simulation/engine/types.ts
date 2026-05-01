@@ -18,7 +18,8 @@ export type SimulationAction =
   | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
   | { type: 'expand_board'; newRows: number; newCols: number }
   | { type: 'free_cells'; reason: string; freed: number }
-  | { type: 'tick_idle'; reason: string };
+  | { type: 'tick_idle'; reason: string }
+  | { type: 'move_entity'; entityId: string; targetCellIndex: number };
 
 export interface StrategyDecision {
   actions: SimulationAction[];

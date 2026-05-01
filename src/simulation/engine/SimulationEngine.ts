@@ -342,7 +342,31 @@ export class SimulationEngine {
         break; // synthetic log-only event, no state mutation
       case 'tick_idle':
         break; // synthetic log-only event, no state mutation
+      case 'move_entity':
+        this.moveEntity(action.entityId, action.targetCellIndex);
+        break;
     }
+  }
+
+  private moveEntity(entityId: string, targetCellIndex: number) {
+    const grid = this.state.grid;
+    if (targetCellIndex < 0 || targetCellIndex >= grid.cells.length) {
+      throw new Error(
+        `move_entity: targetCellIndex ${targetCellIndex} out of range (grid has ${grid.cells.length} cells)`
+      );
+    }
+    const sourceCell = findEntityCell(grid, entityId);
+    if (sourceCell < 0) {
+      throw new Error(`move_entity: entity ${entityId} not found on grid`);
+    }
+    if (grid.cells[targetCellIndex] !== null) {
+      throw new Error(
+        `move_entity: target cell ${targetCellIndex} is occupied by ${grid.cells[targetCellIndex]}`
+      );
+    }
+    // Mirror the in-place mutation pattern used by mergeEntities.
+    grid.cells[sourceCell] = null;
+    grid.cells[targetCellIndex] = entityId;
   }
 
   /**
@@ -867,6 +891,15 @@ export class SimulationEngine {
         return `${action.reason}: freed ${action.freed}`;
       case 'tick_idle':
         return `idle: ${action.reason}`;
+      case 'move_entity': {
+        const e = this.state.entities[action.entityId];
+        if (!e) return `${action.entityId} → cell ${action.targetCellIndex}`;
+        if (e.kind === 'creature') {
+          const c = e as CreatureEntity;
+          return `${c.creatureType} Lv${c.level} → cell ${action.targetCellIndex}`;
+        }
+        return `${e.kind} → cell ${action.targetCellIndex}`;
+      }
     }
   }
 

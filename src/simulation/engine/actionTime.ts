@@ -21,6 +21,7 @@ export const ACTION_TIME_SECONDS: Record<SimulationAction['type'], number> = {
   expand_board:          0,     // synthetic
   free_cells:            0,     // synthetic: actual time is in the merge/feed actions
   tick_idle:             0,     // synthetic: log-only marker for an idle inner-loop iteration
+  move_entity:           0.4,
 };
 
 /** Return estimated seconds for a single action. */
