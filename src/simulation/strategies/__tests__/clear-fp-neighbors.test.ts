@@ -403,6 +403,59 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
     const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
     expect(result).toEqual([]);
   });
+
+  it('clearNeighborCell uses free cell directly when no donor is available', () => {
+    // Bug D scenario: Gen3 at corner with all neighbors = task-typed creatures
+    // (Creature5 at distinct levels — no merge pair). NO non-task donor exists
+    // anywhere on the field — every creature is the task type. BUT the grid
+    // has free cells at non-neighbor positions.
+    //
+    // Pre-fix: clearNeighborCell returns [] because the donor-rescue branch
+    // requires a non-task creature on a far cell to feed. Strategy then emits
+    // skip_timer_generator → no-op → tick_idle deadlock.
+    //
+    // Post-fix: directly emit `move_entity(taskNeighbor → freeCell)` — no donor
+    // needed, no task creature wasted. After the move Gen3 has a free neighbor.
+    const state = makeGen3State({
+      gridSize: { rows: 4, cols: 4 },
+      gen3CellIndex: 0, // corner: 3 neighbors at cells 1, 4, 5
+      neighbors: [
+        { type: 'Creature5', level: 2 }, // cell 1
+        { type: 'Creature5', level: 3 }, // cell 4
+        { type: 'Creature5', level: 4 }, // cell 5
+      ],
+      // No farCreatures: cells 2, 3, 6..15 are all free. Plenty of free
+      // non-neighbor cells but no donor.
+    });
+    const task = state.currentAutoTask!;
+    const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
+
+    // Must NOT feed (no donor and no task-type sacrifice allowed).
+    expect(result.some(a => a.type === 'feed')).toBe(false);
+
+    // Must emit exactly one move_entity from a neighbor to a non-neighbor cell.
+    const moves = result.filter(a => a.type === 'move_entity') as Array<{
+      type: 'move_entity';
+      entityId: string;
+      targetCellIndex: number;
+    }>;
+    expect(moves.length).toBe(1);
+    const move = moves[0]!;
+
+    // Moved entity must be one of the neighbor task creatures (cells 1, 4, 5).
+    const sourceCell = state.grid.cells.indexOf(move.entityId);
+    expect([1, 4, 5]).toContain(sourceCell);
+
+    // Target must be a non-neighbor (cells 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+    // and currently free.
+    expect([1, 4, 5]).not.toContain(move.targetCellIndex);
+    expect(move.targetCellIndex).not.toBe(0); // not the gen cell
+    expect(state.grid.cells[move.targetCellIndex]).toBeNull();
+
+    // Sanity: prefer the lowest-level neighbor (heuristic from existing rescue).
+    const movedEnt = state.entities[move.entityId] as CreatureEntity;
+    expect(movedEnt.level).toBe(2);
+  });
 });
 
 /**
