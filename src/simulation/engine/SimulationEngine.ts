@@ -493,17 +493,18 @@ export class SimulationEngine {
     const [rune, ...restContents] = box.contents;
     if (!rune) return;
 
+    // No free cell: leave the box untouched (do NOT shift contents). Mirrors
+    // claimReward's pattern — strategy is expected to free cells and retry.
+    const freeSlots = getFreeCellIndexes(this.state.grid);
+    if (freeSlots.length === 0) return;
+
     const runeId = this.rng.nextId();
     this.state.entities[runeId] = {
       id: runeId,
       kind: 'rune',
       runeType: rune
     };
-
-    const freeSlots = getFreeCellIndexes(this.state.grid);
-    if (freeSlots.length > 0) {
-      this.state.grid.cells[freeSlots[0]!] = runeId;
-    }
+    this.state.grid.cells[freeSlots[0]!] = runeId;
 
     if (restContents.length === 0) {
       delete this.state.entities[boxId];
