@@ -32,6 +32,15 @@ import baseline from './snapshots/baseline-3.23.json';
  * rise correspondingly — kraken 25→27, tasks 754→915, totalEyes 483→670 (k),
  * and gen3SkipClicks drops 110k→35k as the strategy stops burning iterations
  * on a corrupt grid.
+ *
+ * Snapshot rebaselined 2026-05-02 post Bug B fix (dangling-cell deadlock):
+ * The defensive deadlock check in questStep now treats dangling grid cells
+ * (id present in grid.cells but absent from state.entities) as "blocked"
+ * — matching the spawner's POV via findFreeNeighbor. Pre-fix the check
+ * returned `false` for dangling, missing the deadlock and emitting wasteful
+ * skip_timer_generator clicks. gen3SkipClicks drops 35k→351; gameplay
+ * metrics (kraken, tasks, eyes, upgrades, gen3CheatSpawns) unchanged because
+ * the previous skip clicks were already no-ops at the engine level.
  */
 describe('Regression: baseline 3.23 snapshot', () => {
   it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {

@@ -238,7 +238,7 @@ export class RealisticStrategy implements AIStrategy {
           const id = state.grid.cells[idx];
           if (id === null) return false; // free neighbor → not deadlocked
           const ent = state.entities[id];
-          if (!ent) return false;
+          if (!ent) return true; // dangling cell — from spawner's POV the cell is occupied, treat as blocked
           if (ent.kind !== 'creature') return false; // generator/rune neighbors don't trigger the loop
           return taskTypeSet.has(ent.creatureType);
         });

@@ -8,8 +8,8 @@
   "upgradesCollected": 27,
   "gen3PassiveSpawns": 0,
   "gen3CheatSpawns": 346,
-  "gen3SkipClicks": 34827,
+  "gen3SkipClicks": 351,
   "questsClosedViaGen3Skip": 57,
   "totalTasksCompleted": 915,
-  "capturedAt": "2026-05-02-bug-a-rng-collision-fix"
+  "capturedAt": "2026-05-02-bug-b-dangling-cell-deadlock-detection"
 }
