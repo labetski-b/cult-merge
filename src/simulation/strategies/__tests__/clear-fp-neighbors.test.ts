@@ -342,10 +342,12 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
   it('move-rescue: feeds non-task donor on a far cell, then moves task-type neighbor into the freed cell', () => {
     // 4x4 grid, Gen3 at corner (cell 0). Corner has 3 neighbors: 1, 4, 5.
     // All 3 neighbors = Creature5 at distinct levels (task type, no merge pair, no
-    // non-task feedable in the neighborhood). Far cell 15 holds a Creature7 Lv1
-    // (non-task) — this is the donor whose feeding frees a far cell. Far cells 2,
-    // 3, 6, 7, 8, 9, 10, 11, 12, 13, 14 are empty (so the grid is NOT full and
-    // freeCells branch in questStep doesn't trigger — when called via decide()).
+    // non-task feedable in the neighborhood). All far cells (2, 3, 6, 7, 8, 9,
+    // 10, 11, 12, 13, 14, 15) are filled — most with task-type Creature5s
+    // (distinct levels so no merge pair) and ONE donor Creature7 at cell 15.
+    // The grid is intentionally fully occupied except via feeding the donor:
+    // direct move-rescue can't fire (no free far cell), forcing the
+    // donor-rescue path.
     const state = makeGen3State({
       gridSize: { rows: 4, cols: 4 },
       gen3CellIndex: 0,
@@ -355,6 +357,18 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
         { type: 'Creature5', level: 4 }, // cell 5
       ],
       farCreatures: {
+        // Fill every non-neighbor non-gen cell.
+        2: { type: 'Creature5', level: 5 },
+        3: { type: 'Creature5', level: 6 },
+        6: { type: 'Creature5', level: 7 },
+        7: { type: 'Creature5', level: 8 },
+        8: { type: 'Creature5', level: 9 },
+        9: { type: 'Creature5', level: 10 },
+        10: { type: 'Creature5', level: 11 },
+        11: { type: 'Creature5', level: 12 },
+        12: { type: 'Creature5', level: 13 },
+        13: { type: 'Creature5', level: 14 },
+        14: { type: 'Creature5', level: 15 },
         15: { type: 'Creature7', level: 1 }, // donor: non-task
       },
     });
@@ -384,8 +398,9 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
   });
 
   it('returns [] (deadlock) when neighbors are all task-typed and field has no non-task feedable to rescue with', () => {
-    // 4x4 grid, Gen3 at corner. 3 task-type neighbors. Far cells contain only
-    // task-type creatures (so no donor available). Expect [] — no feed, no move.
+    // 4x4 grid, Gen3 at corner. 3 task-type neighbors. ALL far cells filled
+    // with task-type creatures (so neither a free far cell nor a donor is
+    // available). Expect [] — no feed, no move.
     const state = makeGen3State({
       gridSize: { rows: 4, cols: 4 },
       gen3CellIndex: 0,
@@ -395,7 +410,17 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
         { type: 'Creature5', level: 4 },
       ],
       farCreatures: {
-        10: { type: 'Creature5', level: 5 },
+        2: { type: 'Creature5', level: 5 },
+        3: { type: 'Creature5', level: 6 },
+        6: { type: 'Creature5', level: 7 },
+        7: { type: 'Creature5', level: 8 },
+        8: { type: 'Creature5', level: 9 },
+        9: { type: 'Creature5', level: 10 },
+        10: { type: 'Creature5', level: 11 },
+        11: { type: 'Creature5', level: 12 },
+        12: { type: 'Creature5', level: 13 },
+        13: { type: 'Creature5', level: 14 },
+        14: { type: 'Creature5', level: 15 },
         15: { type: 'Creature5', level: 6 },
       },
     });
@@ -504,53 +529,65 @@ describe('RealisticStrategy questStep deadlock — no skip_timer_generator on un
     }
   });
 
-  it('questStep emits tick_idle when neighbors are dangling cells', () => {
-    // Defense-in-depth: if a future bug ever leaves a cell holding an id whose
-    // entity has been deleted, the spawner-blocking neighbor check must treat
-    // that dangling cell as "blocked" (because findFreeNeighbor will report it
-    // as occupied). Otherwise the deadlock branch is skipped and we re-emit
-    // skip_timer_generator forever.
+  it('clearNeighborCell does not pick a dangling cell as move-rescue target', () => {
+    // Defense-in-depth: dangling cells (id in grid.cells but no entity) must
+    // be treated as "occupied" by both the deadlock check and the move-rescue
+    // target selection — otherwise we'd attempt to relocate a creature into a
+    // grid slot that already has a stale id, leaving the field in an
+    // inconsistent state.
     //
     // Scenario:
     //   - 4x4 grid, Gen3 at corner cell 0 (3 neighbors: 1, 4, 5).
-    //   - Cell 1: a real task creature (Creature5 Lv2 — non-feedable).
-    //   - Cell 4: a DANGLING id ('ghost') — present in grid.cells but absent
-    //             from state.entities.
-    //   - Cell 5: a real task creature (Creature5 Lv3 — non-feedable).
-    //   - Far cell 15: another task creature so no rescue donor exists.
-    //   - Other cells empty so step (d) freeCells doesn't trigger.
+    //   - Cell 1: a real task creature (Creature5 Lv2).
+    //   - Cell 4: a DANGLING id ('ghost-id-not-in-entities').
+    //   - Cell 5: a real task creature (Creature5 Lv3).
+    //   - Far cell 7: another DANGLING id (sabotaged from a real placeholder).
+    //   - Other cells empty.
     //
-    // Pre-fix: dangling-id branch returns `false` from the every() callback,
-    // so allNeighborsBlockedByTaskCreatures = false → strategy emits
-    // skip_timer_generator (the bad path).
-    // Post-fix: dangling cell counts as blocked → tick_idle with reason
-    // 'fp:no_space'.
+    // Expected: clearNeighborCell emits a move_entity targeting a TRULY free
+    // far cell (NOT cell 7 with the dangling id), moving the lowest-level
+    // real neighbor (Creature5 Lv2 from cell 1).
     const state = makeGen3State({
       gridSize: { rows: 4, cols: 4 },
       gen3CellIndex: 0,
       neighbors: [
-        { type: 'Creature5', level: 2 }, // cell 1 — real task creature
+        { type: 'Creature5', level: 2 }, // cell 1 — real
         { type: 'Creature5', level: 3 }, // cell 4 — will be replaced with dangling
-        { type: 'Creature5', level: 4 }, // cell 5 — real task creature
+        { type: 'Creature5', level: 4 }, // cell 5 — real
       ],
       farCreatures: {
-        15: { type: 'Creature5', level: 5 },
+        7: { type: 'Creature5', level: 9 }, // will be sabotaged to dangling
       },
     });
 
-    // Now sabotage cell 4: keep the cell occupied with an id, but remove the
-    // entity so it becomes "dangling".
-    const danglingId = state.grid.cells[4]!;
-    expect(danglingId).toBeTruthy();
-    delete state.entities[danglingId];
-    state.grid.cells[4] = 'ghost-id-not-in-entities';
+    // Sabotage cell 4 (neighbor) and cell 7 (far) — make both dangling.
+    for (const sabotageIdx of [4, 7]) {
+      const id = state.grid.cells[sabotageIdx]!;
+      expect(id).toBeTruthy();
+      delete state.entities[id];
+      state.grid.cells[sabotageIdx] = `ghost-${sabotageIdx}`;
+    }
 
-    const decision = strategy.decide(state, rng);
-    const tickIdleAction = decision.actions.find(a => a.type === 'tick_idle') as
-      | { type: 'tick_idle'; reason?: string }
-      | undefined;
-    expect(tickIdleAction).toBeDefined();
-    expect(tickIdleAction!.reason).toBe('fp:no_space');
-    expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
+    const task = state.currentAutoTask!;
+    const result = callClearNeighborCell(strategy, state, 'gen3-1', task);
+
+    // Direct move-rescue should fire — feedable real neighbors exist (cells 1, 5)
+    // and there are truly-free far cells (2, 3, 6, 8..15).
+    const moves = result.filter(a => a.type === 'move_entity') as Array<{
+      type: 'move_entity';
+      entityId: string;
+      targetCellIndex: number;
+    }>;
+    expect(moves.length).toBe(1);
+    const move = moves[0]!;
+    // Target must NOT be the dangling cell 7 (still occupied by a stale id).
+    expect(move.targetCellIndex).not.toBe(7);
+    // Target must be truly free.
+    expect(state.grid.cells[move.targetCellIndex]).toBeNull();
+    // Moved entity must be a real neighbor (not the dangling at cell 4).
+    const sourceCell = state.grid.cells.indexOf(move.entityId);
+    expect([1, 5]).toContain(sourceCell);
+    // No feed (no donor needed).
+    expect(result.some(a => a.type === 'feed')).toBe(false);
   });
 });

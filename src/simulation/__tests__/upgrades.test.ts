@@ -35,7 +35,7 @@ describe('Engine handles start_upgrade / collect_upgrade', () => {
 });
 
 describe('Strategy emits async upgrades', () => {
-  it('after 500 ticks, at least one generator reached level 2 via start/collect', () => {
+  it('after 500 ticks, at least one generator reached level 2 via start/collect', { timeout: 30000 }, () => {
     const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 500 } });
     const result = engine.run();
     const actions = result.actionLog.map(e => e.action.type);

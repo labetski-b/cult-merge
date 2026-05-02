@@ -466,10 +466,13 @@ export class RealisticStrategy implements AIStrategy {
    *   - [] if a neighbor is already free (no clearing needed)
    *   - [merge] if two neighbors form a mergeable pair (creatures or runes)
    *   - [feed] for the cheapest non-task entity restricted to neighbor cells
+   *   - [move_entity neighbor → free far cell] if all feedable neighbors are
+   *     task-typed but the grid has a free non-neighbor cell available. Cheaper
+   *     than donor-rescue (no feed lost), so tried first.
    *   - [feed donor, move_entity neighbor → donor cell] if all feedable
-   *     neighbors are task-typed but a non-task donor exists on a far cell
-   *     (move-rescue path — frees the neighbor cell without sacrificing a
-   *     task-needed creature).
+   *     neighbors are task-typed AND no free far cell exists, but a non-task
+   *     donor exists on a far cell (donor-rescue path — frees the neighbor
+   *     cell without sacrificing a task-needed creature).
    *   - [] if no clearing is possible. Caller MUST NOT fall back to
    *     `skip_timer_generator` in this case (that would just re-trigger the
    *     same loop on the next tick).
@@ -564,18 +567,39 @@ export class RealisticStrategy implements AIStrategy {
       return [{ type: 'feed', entityId: target.id }];
     }
 
-    // 3) Move-rescue: all feedable neighbors are task-typed and there's no
-    //    non-task creature/rune adjacent to the spawner. Try to relocate one
-    //    of the task-typed neighbors to a far cell so the neighbor slot frees
-    //    up WITHOUT sacrificing a needed creature. We do this by
-    //    feeding a non-task creature on a far cell (the donor) and emitting
-    //    a `move_entity` for the chosen neighbor into the freed donor cell.
+    // 3) Direct move-rescue: all feedable neighbors are task-typed but the
+    //    grid has free cells in non-neighbor positions. Relocate one
+    //    task-typed neighbor into a free far cell — no donor or feed needed.
+    //    Preferred over donor-rescue when possible: cheaper (no feed lost).
     if (feedable.length === 0) {
       // No task-typed neighbor to move (nothing to rescue). Deadlock.
       return [];
     }
 
     const neighborSet = new Set(neighborIndexes);
+    const taskNeighbors = feedable.filter(c => taskTypes.has(c.creatureType));
+    if (taskNeighbors.length === 0) {
+      // Shouldn't happen given the earlier filter ordering, but be safe.
+      return [];
+    }
+    // Heuristic: relocate the lowest-level task-typed creature (least useful
+    // for higher-level merge chains). Mirrors the donor-rescue heuristic below.
+    taskNeighbors.sort((a, b) => a.level - b.level);
+
+    const farFreeCells = getFreeCellIndexes(state.grid).filter(
+      idx => idx !== genCellIndex && !neighborSet.has(idx)
+    );
+    if (farFreeCells.length > 0) {
+      const moved = taskNeighbors[0]!;
+      usedIds.add(moved.id);
+      return [
+        { type: 'move_entity', entityId: moved.id, targetCellIndex: farFreeCells[0]! },
+      ];
+    }
+
+    // 4) Donor move-rescue: no free far cell. Try to free one by feeding a
+    //    non-task creature on a far cell (the donor), then move a task-typed
+    //    neighbor into the freed donor cell.
     const allCreatures = Object.values(state.entities)
       .filter(e => e.kind === 'creature' && !usedIds.has(e.id)) as CreatureEntity[];
 
@@ -605,15 +629,6 @@ export class RealisticStrategy implements AIStrategy {
     });
 
     const donor = farDonors[0]!;
-
-    // Choose the neighbor to relocate: prefer the lowest-level task-typed
-    // creature (least useful for higher-level merge chains).
-    const taskNeighbors = feedable.filter(c => taskTypes.has(c.creatureType));
-    if (taskNeighbors.length === 0) {
-      // Shouldn't happen given the earlier filter ordering, but be safe.
-      return [];
-    }
-    taskNeighbors.sort((a, b) => a.level - b.level);
     const moved = taskNeighbors[0]!;
 
     usedIds.add(donor.creature.id);

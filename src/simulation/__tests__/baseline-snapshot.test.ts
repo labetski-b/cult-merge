@@ -41,6 +41,14 @@ import baseline from './snapshots/baseline-3.23.json';
  * skip_timer_generator clicks. gen3SkipClicks drops 35k→351; gameplay
  * metrics (kraken, tasks, eyes, upgrades, gen3CheatSpawns) unchanged because
  * the previous skip clicks were already no-ops at the engine level.
+ *
+ * Snapshot rebaselined 2026-05-02 post Bug D fix (direct move-rescue):
+ * `clearNeighborCell` now picks a free non-neighbor cell directly when no
+ * non-task donor is available — previously it returned [] in this case,
+ * triggering tick_idle stalls (e.g. the T932 deadlock around Gen3 with
+ * task-only neighbors). Productive moves replace the stalls: kraken
+ * 27→35, totalEyes 670→745k, tasks 915→982, upgradesStarted/Collected
+ * 27→33. gen3SkipClicks 351→300 (fewer wasteful skips).
  */
 describe('Regression: baseline 3.23 snapshot', () => {
   it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {

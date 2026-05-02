@@ -1,15 +1,15 @@
 {
   "seed": 42,
   "ticks": 1000,
-  "totalEyes": 670221,
-  "krakenLevel": 27,
+  "totalEyes": 744913,
+  "krakenLevel": 35,
   "chapter": 12,
-  "upgradesStarted": 27,
-  "upgradesCollected": 27,
+  "upgradesStarted": 33,
+  "upgradesCollected": 33,
   "gen3PassiveSpawns": 0,
-  "gen3CheatSpawns": 346,
-  "gen3SkipClicks": 351,
-  "questsClosedViaGen3Skip": 57,
-  "totalTasksCompleted": 915,
-  "capturedAt": "2026-05-02-bug-b-dangling-cell-deadlock-detection"
+  "gen3CheatSpawns": 298,
+  "gen3SkipClicks": 300,
+  "questsClosedViaGen3Skip": 54,
+  "totalTasksCompleted": 982,
+  "capturedAt": "2026-05-02-bug-d-direct-move-rescue"
 }
