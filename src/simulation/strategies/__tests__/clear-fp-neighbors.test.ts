@@ -450,4 +450,54 @@ describe('RealisticStrategy questStep deadlock — no skip_timer_generator on un
       }
     }
   });
+
+  it('questStep emits tick_idle when neighbors are dangling cells', () => {
+    // Defense-in-depth: if a future bug ever leaves a cell holding an id whose
+    // entity has been deleted, the spawner-blocking neighbor check must treat
+    // that dangling cell as "blocked" (because findFreeNeighbor will report it
+    // as occupied). Otherwise the deadlock branch is skipped and we re-emit
+    // skip_timer_generator forever.
+    //
+    // Scenario:
+    //   - 4x4 grid, Gen3 at corner cell 0 (3 neighbors: 1, 4, 5).
+    //   - Cell 1: a real task creature (Creature5 Lv2 — non-feedable).
+    //   - Cell 4: a DANGLING id ('ghost') — present in grid.cells but absent
+    //             from state.entities.
+    //   - Cell 5: a real task creature (Creature5 Lv3 — non-feedable).
+    //   - Far cell 15: another task creature so no rescue donor exists.
+    //   - Other cells empty so step (d) freeCells doesn't trigger.
+    //
+    // Pre-fix: dangling-id branch returns `false` from the every() callback,
+    // so allNeighborsBlockedByTaskCreatures = false → strategy emits
+    // skip_timer_generator (the bad path).
+    // Post-fix: dangling cell counts as blocked → tick_idle with reason
+    // 'fp:no_space'.
+    const state = makeGen3State({
+      gridSize: { rows: 4, cols: 4 },
+      gen3CellIndex: 0,
+      neighbors: [
+        { type: 'Creature5', level: 2 }, // cell 1 — real task creature
+        { type: 'Creature5', level: 3 }, // cell 4 — will be replaced with dangling
+        { type: 'Creature5', level: 4 }, // cell 5 — real task creature
+      ],
+      farCreatures: {
+        15: { type: 'Creature5', level: 5 },
+      },
+    });
+
+    // Now sabotage cell 4: keep the cell occupied with an id, but remove the
+    // entity so it becomes "dangling".
+    const danglingId = state.grid.cells[4]!;
+    expect(danglingId).toBeTruthy();
+    delete state.entities[danglingId];
+    state.grid.cells[4] = 'ghost-id-not-in-entities';
+
+    const decision = strategy.decide(state, rng);
+    const tickIdleAction = decision.actions.find(a => a.type === 'tick_idle') as
+      | { type: 'tick_idle'; reason?: string }
+      | undefined;
+    expect(tickIdleAction).toBeDefined();
+    expect(tickIdleAction!.reason).toBe('fp:no_space');
+    expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
+  });
 });
