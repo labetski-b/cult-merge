@@ -24,6 +24,14 @@ import baseline from './snapshots/baseline-3.23.json';
  * cheat-spawn counters shifted correspondingly. The high `gen3SkipClicks`
  * count reflects in-game tick stalls when the simulator burns
  * MAX_ITERATIONS=500 inner iters before advancing the player-visible tick.
+ *
+ * Snapshot rebaselined 2026-05-02 post Bug A fix (rng collision):
+ * SimulationEngine no longer re-seeds rng from scratch and ignores the state
+ * that createInitialSnapshot advanced past Gen1's id. The Gen1-id collision
+ * (and resulting phantom-cell deadlock around T780) is eliminated. Numbers
+ * rise correspondingly — kraken 25→27, tasks 754→915, totalEyes 483→670 (k),
+ * and gen3SkipClicks drops 110k→35k as the strategy stops burning iterations
+ * on a corrupt grid.
  */
 describe('Regression: baseline 3.23 snapshot', () => {
   it('key metrics stay within 5% of baseline', { timeout: 60000 }, () => {

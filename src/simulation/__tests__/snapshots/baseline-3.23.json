@@ -1,15 +1,15 @@
 {
   "seed": 42,
   "ticks": 1000,
-  "totalEyes": 483644,
-  "krakenLevel": 25,
-  "chapter": 11,
-  "upgradesStarted": 26,
-  "upgradesCollected": 26,
+  "totalEyes": 670221,
+  "krakenLevel": 27,
+  "chapter": 12,
+  "upgradesStarted": 27,
+  "upgradesCollected": 27,
   "gen3PassiveSpawns": 0,
-  "gen3CheatSpawns": 249,
-  "gen3SkipClicks": 110734,
-  "questsClosedViaGen3Skip": 52,
-  "totalTasksCompleted": 754,
-  "capturedAt": "2026-05-01-fp-quest-move-action"
+  "gen3CheatSpawns": 346,
+  "gen3SkipClicks": 34827,
+  "questsClosedViaGen3Skip": 57,
+  "totalTasksCompleted": 915,
+  "capturedAt": "2026-05-02-bug-a-rng-collision-fix"
 }

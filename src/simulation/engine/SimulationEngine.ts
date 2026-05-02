@@ -73,9 +73,13 @@ export class SimulationEngine {
       : createInitialSnapshot(this.config.balance, { seed: this.config.seed });
 
     this.rng = new SeededRng(this.config.seed);
-    if (typeof input.rngState === 'number') {
+    // Default to the snapshot's rngState (createInitialSnapshot has already
+    // advanced the rng past Gen1's id + charge rolls). An explicit
+    // input.rngState wins so callers can resume from a saved point.
+    const rngState = input.rngState ?? this.state.rngState;
+    if (typeof rngState === 'number') {
       // SeededRng has no public restoreState — set private state via cast.
-      (this.rng as unknown as { state: number }).state = input.rngState >>> 0;
+      (this.rng as unknown as { state: number }).state = rngState >>> 0;
     }
     this.history = [];
     this.cumulative = initCumulativeMetrics();
