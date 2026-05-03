@@ -13,3 +13,6 @@ FROM UNITY/
 # Credentials / internal analytics access
 analytics/clickhouse.md
 analytics/README.md
+
+# ModularStrategy: trace artifacts written by run-sim.ts (--strategy=modular)
+public/sim-runs/
