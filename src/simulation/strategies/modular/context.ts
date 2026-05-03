@@ -28,27 +28,32 @@ export function buildContext(
 
 function buildCreatureGenMap(state: GameSnapshot): ReadonlyMap<string, GeneratorAssignment> {
   const map = new Map<string, GeneratorAssignment>();
-  // Один генератор → один тип creature по generatorId. Берём самый старший по level
-  // (если несколько одного id) — это соответствует логике investStep в RealisticStrategy.
+  // Mapping: creatureType → generator на гриде, который умеет его выдавать.
+  // Учитываем ВСЕ outputs текущего уровня генератора (не только первый), плюс
+  // "lines" из конфига (генератор может выдавать creature2 на более высоких уровнях,
+  // и линия отражает потенциал, который реализуется через upgrade).
   const genConfig = BALANCE.generators.generators;
   for (const entity of Object.values(state.entities)) {
     if (entity.kind !== 'generator') continue;
     const cfg = genConfig.find(g => g.id === entity.generatorId);
     if (!cfg) continue;
-    // Берём первый creatureType из outputs текущего уровня (в реальности у каждого
-    // gen один outputCreatureType в большинстве конфигов; если несколько — берём первый).
     const lvlCfg = cfg.levels[entity.level - 1] ?? cfg.levels[0];
-    const out = lvlCfg?.outputs?.[0];
-    if (!out) continue;
-    const creatureType = out.creatureType;
-    const existing = map.get(creatureType);
-    if (!existing || entity.level > existing.generatorLevel) {
-      map.set(creatureType, {
-        creatureType,
-        entityId: entity.id,
-        generatorId: entity.generatorId,
-        generatorLevel: entity.level,
-      });
+    const outputs = lvlCfg?.outputs ?? [];
+    const types = new Set<string>();
+    for (const o of outputs) types.add(o.creatureType);
+    // Lines — потенциальные types если upgrade'нём генератор (нужно для quest planning,
+    // когда квест требует Creature2, а Gen1 пока выдаёт только Creature1, но lines=['C1','C2']).
+    for (const ln of cfg.lines) types.add(ln);
+    for (const creatureType of types) {
+      const existing = map.get(creatureType);
+      if (!existing || entity.level > existing.generatorLevel) {
+        map.set(creatureType, {
+          creatureType,
+          entityId: entity.id,
+          generatorId: entity.generatorId,
+          generatorLevel: entity.level,
+        });
+      }
     }
   }
   return map;
