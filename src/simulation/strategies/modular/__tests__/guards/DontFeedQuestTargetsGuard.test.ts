@@ -11,7 +11,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     expect(META.blocksActionTypes).toEqual(['feed']);
   });
 
-  it('блокирует feed существа, нужного активному квесту', () => {
+  it('блокирует feed существа на ТОЧНОМ уровне квеста', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
@@ -27,6 +27,58 @@ describe('DontFeedQuestTargetsGuard', () => {
     if (!result.allow) expect(result.reason).toMatch(/quest/i);
   });
 
+  it('блокирует feed существа на ПРОМЕЖУТОЧНОМ уровне (merge-ingredient)', () => {
+    // Quest: X Lv5 ×1. Любая X Lv1..Lv4 — потенциальный merge-ingredient,
+    // нельзя кормить, иначе chain до Lv5 не сложится.
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposal: ProposedAction = {
+      action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+    };
+    const result = guard.check(proposal, state, ctx);
+    expect(result.allow).toBe(false);
+    if (!result.allow) {
+      expect(result.reason).toMatch(/merge-ingredient/i);
+      expect(result.reason).toMatch(/Lv1/);
+      expect(result.reason).toMatch(/Lv5/);
+    }
+  });
+
+  it('блокирует feed Lv2/Lv3/Lv4 ингредиентов до Lv5 квеста', () => {
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    for (const lvl of [2, 3, 4]) {
+      state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: lvl };
+      const proposal: ProposedAction = {
+        action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+        expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+      };
+      expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    }
+  });
+
+  it('пропускает feed существа ДРУГОГО типа (тип не нужен квесту)', () => {
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 1 };
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposal: ProposedAction = {
+      action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+    };
+    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+  });
+
   it('пропускает feed runes (не creature)', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
@@ -39,12 +91,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     expect(guard.check(proposal, state, ctx).allow).toBe(true);
   });
 
-  it('пропускает feed creature, удовлетворяющего QuestFeed (тот же tactic) — guard смотрит только на match с quest needs', () => {
-    // Если creature нужна квесту, и tactic = QuestFeed — guard всё равно блокирует?
-    // Контракт: guard блокирует ВЕЗДЕ feed quest-target, но QuestFeedTactic должен сообщать
-    // через goalId='CompleteActiveQuest' — это семантически правильный feed (для прогресса).
-    // На уровне guard'а различия нет: оба = feed. Поэтому guard НЕ должен блокировать
-    // если goalId='CompleteActiveQuest' (это «полезный» feed).
+  it('пропускает feed quest-target если goalId=CompleteActiveQuest (намеренный feed для прогресса)', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
