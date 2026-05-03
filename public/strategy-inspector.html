@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>ModularStrategy — Inspector</title>
+<link rel="stylesheet" href="/design-system/tokens.css">
+<link rel="stylesheet" href="/design-system/components.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 24px; }
+  h1 { text-align: center; margin: 0 0 12px; font-size: 24px; color: #fff; }
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; padding: 6px; background: #0f1a2e; border-radius: 10px; }
+  .tab-btn { padding: 8px 14px; border: none; border-radius: 8px; background: transparent; color: #8899aa; cursor: pointer; font-size: 14px; }
+  .tab-btn.active { background: #4a9eff; color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.visible { display: block; }
+  .chart-container { background: #16213e; border-radius: 12px; padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+  table.cm-table { width: 100%; }
+  .stuck-banner { background: #5a0f1f; border-radius: 8px; padding: 12px; margin: 8px 0; color: #fff; }
+  .selected-action { background: #0f5a2e; border-radius: 8px; padding: 12px; margin: 8px 0; color: #fff; }
+</style>
+</head>
+<body>
+  <h1>ModularStrategy Inspector</h1>
+  <div id="status" style="text-align: center; color: #888; margin-bottom: 16px;">Loading...</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="structure">Structure</button>
+    <button class="tab-btn" data-tab="trace">Live Trace</button>
+    <button class="tab-btn" data-tab="catalog">Catalog</button>
+    <button class="tab-btn" data-tab="stuck">Stuck Analyzer</button>
+  </div>
+
+  <div class="tab-content visible" id="tab-structure">
+    <div class="chart-container">
+      <div class="mermaid" id="structure-mermaid">graph LR
+        A[Loading...] --> B[Loading...]
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-trace">
+    <div style="margin-bottom: 12px;">
+      <input type="number" id="trace-tick-input" class="cm-input" min="0" value="0" style="width: 80px;">
+      <button class="cm-btn" id="trace-prev">←</button>
+      <button class="cm-btn" id="trace-next">→</button>
+      <span id="trace-info" style="margin-left: 12px;"></span>
+    </div>
+    <div id="trace-detail"></div>
+  </div>
+
+  <div class="tab-content" id="tab-catalog">
+    <h3>Goals</h3>
+    <table class="cm-table" id="catalog-goals"></table>
+    <h3>Tactics</h3>
+    <table class="cm-table" id="catalog-tactics"></table>
+    <h3>Guards</h3>
+    <table class="cm-table" id="catalog-guards"></table>
+  </div>
+
+  <div class="tab-content" id="tab-stuck">
+    <div id="stuck-summary"></div>
+  </div>
+
+<script type="module">
+mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
+// State
+let inspectorData = null;
+let trace = null;
+
+// Load latest run
+async function loadData() {
+  try {
+    const manifestResp = await fetch('/sim-runs/latest.json');
+    if (!manifestResp.ok) throw new Error('no latest.json');
+    const manifest = await manifestResp.json();
+    const base = `/sim-runs/${manifest.latestRunPath}`;
+    const [d, t] = await Promise.all([
+      fetch(`${base}/inspector-data.json`).then(r => r.json()),
+      fetch(`${base}/decision-trace.json`).then(r => r.json()),
+    ]);
+    inspectorData = d;
+    trace = t;
+    document.getElementById('status').textContent = `Loaded: ${manifest.latestRunPath} (${trace.length} ticks)`;
+    renderStructure();
+    renderCatalog();
+    renderTraceTab(0);
+    renderStuck();
+  } catch (e) {
+    document.getElementById('status').textContent = `No data: ${e.message}. Run scripts/run-sim.ts --strategy=modular first.`;
+  }
+}
+
+function renderStructure() {
+  const goals = inspectorData.goals;
+  const tactics = inspectorData.tactics;
+  const guards = inspectorData.guards;
+  let mmd = 'graph LR\n';
+  // Goals — синие узлы
+  for (const g of goals) {
+    mmd += `  G_${g.id}["${g.id}<br/>basePri=${g.basePriority}<br/>${g.category}"]\n`;
+    mmd += `  style G_${g.id} fill:#0f3460,stroke:#4a9eff,color:#fff\n`;
+  }
+  // Tactics — зелёные
+  for (const t of tactics) {
+    mmd += `  T_${t.id}["${t.id}<br/>${t.produces.join(',')}"]\n`;
+    mmd += `  style T_${t.id} fill:#0f5a2e,stroke:#4dff8a,color:#fff\n`;
+    for (const goalId of t.serves) mmd += `  G_${goalId} --> T_${t.id}\n`;
+  }
+  // Guards — красные
+  for (const gd of guards) {
+    mmd += `  GD_${gd.id}["${gd.id}<br/>blocks ${gd.blocksActionTypes.join(',')}"]\n`;
+    mmd += `  style GD_${gd.id} fill:#5a1f0f,stroke:#ff8a4d,color:#fff\n`;
+    for (const t of tactics) {
+      for (const ap of t.produces) if (gd.blocksActionTypes.includes(ap)) {
+        mmd += `  T_${t.id} -.->|may block| GD_${gd.id}\n`;
+        break;
+      }
+    }
+  }
+  // Possible prereq edges (статически — только наблюдаемые)
+  mmd += `  G_CompleteActiveQuest -.->|"possible prereq<br/>(dynamic, see runtime)"| G_BoardLayout\n`;
+  mmd += `  G_OpenBoxes -.->|"possible prereq"| G_MaintainFreeGrid\n`;
+  const elem = document.getElementById('structure-mermaid');
+  elem.removeAttribute('data-processed');
+  elem.textContent = mmd;
+  mermaid.run({ nodes: [elem] });
+}
+
+function renderCatalog() {
+  // Goals
+  const gh = ['<thead><tr><th>id</th><th>basePri</th><th>category</th><th>activation</th><th>urgency</th></tr></thead><tbody>'];
+  for (const g of inspectorData.goals) gh.push(`<tr><td>${g.id}</td><td>${g.basePriority}</td><td>${g.category}</td><td>${g.activationCondition}</td><td>${g.urgencyFormula}</td></tr>`);
+  gh.push('</tbody>');
+  document.getElementById('catalog-goals').innerHTML = gh.join('');
+  // Tactics
+  const th = ['<thead><tr><th>id</th><th>serves</th><th>produces</th><th>description</th></tr></thead><tbody>'];
+  for (const t of inspectorData.tactics) th.push(`<tr><td>${t.id}</td><td>${t.serves.join(',')}</td><td>${t.produces.join(',')}</td><td>${t.description}</td></tr>`);
+  th.push('</tbody>');
+  document.getElementById('catalog-tactics').innerHTML = th.join('');
+  // Guards (с count из trace)
+  const guardCounts = new Map();
+  if (trace) {
+    for (const t of trace) for (const it of t.iterations) for (const r of it.rejectedByGuards ?? [])
+      guardCounts.set(r.guardId, (guardCounts.get(r.guardId) ?? 0) + 1);
+  }
+  const gdh = ['<thead><tr><th>id</th><th>blocks</th><th>trigger</th><th>сработал</th></tr></thead><tbody>'];
+  for (const gd of inspectorData.guards) gdh.push(`<tr><td>${gd.id}</td><td>${gd.blocksActionTypes.join(',')}</td><td>${gd.trigger}</td><td>${guardCounts.get(gd.id) ?? 0}</td></tr>`);
+  gdh.push('</tbody>');
+  document.getElementById('catalog-guards').innerHTML = gdh.join('');
+}
+
+let currentTraceTick = 0;
+function renderTraceTab(idx) {
+  if (!trace || trace.length === 0) return;
+  currentTraceTick = Math.max(0, Math.min(trace.length - 1, idx));
+  document.getElementById('trace-tick-input').value = currentTraceTick;
+  const t = trace[currentTraceTick];
+  document.getElementById('trace-info').textContent = `tick=${t.tick}, endReason=${t.endReason}, outerActions=${t.outerActionsCount}`;
+  let html = '';
+  for (const it of t.iterations) {
+    html += `<div style="border:1px solid #2a3a5a; padding:8px; margin:4px 0;">`;
+    html += `<b>Iter ${it.iteration}</b> — selected: ${it.selectedGoalId ?? '<i>none</i>'}<br/>`;
+    if (it.activeGoals.length) {
+      html += `<details><summary>Active goals (${it.activeGoals.length})</summary><table class="cm-table"><thead><tr><th>id</th><th>basePri</th><th>urg</th><th>final</th><th>cat</th><th>promoted</th></tr></thead><tbody>`;
+      for (const g of it.activeGoals) html += `<tr><td>${g.id}</td><td>${g.basePriority}</td><td>${g.urgency.toFixed(2)}</td><td>${g.finalPriority.toFixed(0)}</td><td>${g.category}</td><td>${g.promotedFromPrereq ?? ''}</td></tr>`;
+      html += `</tbody></table></details>`;
+    }
+    if (it.prerequisiteChain && it.prerequisiteChain.length) {
+      html += `<details open><summary>Prereq chain</summary><table class="cm-table"><thead><tr><th>from</th><th>to</th><th>reason</th></tr></thead><tbody>`;
+      for (const l of it.prerequisiteChain) html += `<tr><td>${l.fromGoalId}</td><td>${l.toGoalId}</td><td>${l.reason}</td></tr>`;
+      html += `</tbody></table></details>`;
+    }
+    if (it.proposedActions.length) {
+      html += `<details><summary>Proposed (${it.proposedActions.length})</summary><table class="cm-table"><thead><tr><th>tactic</th><th>goal</th><th>action</th><th>reasoning</th><th>progress</th></tr></thead><tbody>`;
+      for (const p of it.proposedActions) html += `<tr><td>${p.tacticId}</td><td>${p.goalId}</td><td>${p.actionType}</td><td>${p.reasoning}</td><td>${p.expectedProgress.toFixed(2)}</td></tr>`;
+      html += `</tbody></table></details>`;
+    }
+    if (it.rejectedByGuards.length) {
+      html += `<details><summary style="color:#ff8a4d">Rejected (${it.rejectedByGuards.length})</summary><table class="cm-table"><thead><tr><th>tactic</th><th>action</th><th>guard</th><th>reason</th></tr></thead><tbody>`;
+      for (const r of it.rejectedByGuards) html += `<tr><td>${r.tacticId}</td><td>${r.actionType}</td><td>${r.guardId}</td><td>${r.reason}</td></tr>`;
+      html += `</tbody></table></details>`;
+    }
+    if (it.selectedAction) html += `<div class="selected-action">SELECTED: ${JSON.stringify(it.selectedAction)}</div>`;
+    if (it.stuckReason) html += `<div class="stuck-banner">STUCK: ${it.stuckReason}</div>`;
+    html += `</div>`;
+  }
+  document.getElementById('trace-detail').innerHTML = html;
+}
+
+document.getElementById('trace-prev').addEventListener('click', () => renderTraceTab(currentTraceTick - 1));
+document.getElementById('trace-next').addEventListener('click', () => renderTraceTab(currentTraceTick + 1));
+document.getElementById('trace-tick-input').addEventListener('change', (e) => renderTraceTab(parseInt((e.target).value) || 0));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') renderTraceTab(currentTraceTick - 1);
+  if (e.key === 'ArrowRight') renderTraceTab(currentTraceTick + 1);
+  if (e.key.toLowerCase() === 's') {
+    // next stuck
+    for (let i = currentTraceTick + 1; i < trace.length; i++) {
+      if (trace[i].iterations.some(it => it.stuckReason)) { renderTraceTab(i); break; }
+    }
+  }
+});
+
+function renderStuck() {
+  if (!trace) return;
+  const buckets = new Map();
+  trace.forEach((t, tickIdx) => {
+    for (const it of t.iterations) {
+      if (!it.stuckReason) continue;
+      let key = 'Other';
+      if (/cycle/i.test(it.stuckReason)) key = 'Prerequisite cycle';
+      else if (/budget/i.test(it.stuckReason)) key = 'tick budget exhausted';
+      else if (/guards/i.test(it.stuckReason)) key = 'All proposals rejected by guards';
+      else if (/proposed/i.test(it.stuckReason)) key = 'No tactic proposed any action';
+      const arr = buckets.get(key) ?? [];
+      arr.push({ tick: tickIdx, iter: it.iteration, reason: it.stuckReason });
+      buckets.set(key, arr);
+    }
+  });
+  let html = '';
+  for (const [k, arr] of buckets) {
+    html += `<h3>${k} <span style="color:#888">(${arr.length})</span></h3>`;
+    html += `<button class="cm-btn" onclick="window.__goto(${arr[0].tick})">go to first occurrence (tick ${arr[0].tick})</button>`;
+  }
+  document.getElementById('stuck-summary').innerHTML = html || '<p>No stuck iterations detected.</p>';
+}
+window.__goto = (tickIdx) => {
+  // Switch tab to trace, then render
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-tab=trace]').classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('visible'));
+  document.getElementById('tab-trace').classList.add('visible');
+  renderTraceTab(tickIdx);
+};
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('visible'));
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('visible');
+  });
+});
+
+loadData();
+</script>
+</body>
+</html>
