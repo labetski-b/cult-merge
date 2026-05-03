@@ -1,6 +1,7 @@
 import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
 import { RealisticStrategy } from './strategies/RealisticStrategy';
+import { ModularStrategy } from './strategies/modular/ModularStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
@@ -24,11 +25,13 @@ let charts: Record<string, Chart> = {};
 
 // Strategy instances
 const STRATEGIES = {
-  realistic: new RealisticStrategy()
+  realistic: new RealisticStrategy(),
+  modular: new ModularStrategy(),
 };
 
 const COLORS = {
-  realistic: '#4de2c2'
+  realistic: '#4de2c2',
+  modular: '#ffb84d',
 };
 
 // UI Elements
@@ -54,9 +57,28 @@ const fieldPopupTitle = document.getElementById('field-popup-title')!;
 const fieldPopupContent = document.getElementById('field-popup-content')!;
 const fieldPopupClose = document.getElementById('field-popup-close')!;
 
+// Side-store: traces from last ModularStrategy run (used by Download trace JSON)
+let lastModularTraces: ReturnType<SimulationEngine['getTickTraces']> = [];
+const downloadTraceBtn = document.getElementById('download-trace-btn') as HTMLButtonElement | null;
+
 // Event Listeners
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
+downloadTraceBtn?.addEventListener('click', handleDownloadTrace);
+
+function handleDownloadTrace() {
+  if (lastModularTraces.length === 0) {
+    alert('No modular trace available — run ModularStrategy first');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(lastModularTraces, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `modular-trace-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 // Tab switching (cm-tabs: aria-selected + .sim-tab-panel.hidden)
 document.querySelectorAll('#sim-tabs .cm-tab').forEach(btn => {
@@ -153,6 +175,12 @@ async function handleRunSimulation(e: Event) {
       console.log('Running simulation...');
       const result = engine.run();
       console.log('Simulation complete, results:', result.summary);
+
+      // If ModularStrategy — save traces for Download trace JSON
+      if (strategyKey === 'modular') {
+        lastModularTraces = engine.getTickTraces().slice();
+        if (downloadTraceBtn) downloadTraceBtn.disabled = false;
+      }
       console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
         tick: h.tick,
         krakenLevel: h.metrics.krakenLevel,

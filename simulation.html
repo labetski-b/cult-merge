@@ -489,10 +489,17 @@
                 Realistic Player <span class="sim-strategy__hint">(жмёт кнопку мяса когда не хватает на заряд)</span>
               </span>
             </label>
+            <label class="cm-check sim-strategy__row">
+              <input type="checkbox" class="cm-check__box" name="strategy" value="modular">
+              <span class="cm-check__label">
+                Modular (new) <span class="sim-strategy__hint">(Goals/Tactics/Guards с trace)</span>
+              </span>
+            </label>
           </div>
 
           <div class="sim-controls__cta">
             <button type="button" id="export-btn" class="cm-btn cm-btn--ghost" disabled>Export (JSON)</button>
+            <button type="button" id="download-trace-btn" class="cm-btn cm-btn--ghost" disabled>Download trace JSON</button>
             <button type="submit" id="run-btn" class="cm-btn cm-btn--primary">Run Simulation</button>
           </div>
         </div>
