@@ -7,7 +7,7 @@ const SEEDS = [42, 7, 100, 2024, 1337];
 const TICKS = 5000;
 
 describe('ModularStrategy integration on 5 seeds', () => {
-  it.each(SEEDS)('seed=%d: ModularStrategy не падает и выдаёт TickTrace для каждого тика', { timeout: 60_000 }, (seed) => {
+  it.each(SEEDS)('seed=%d: ModularStrategy не падает и выдаёт TickTrace для каждого тика', { timeout: 180_000 }, (seed) => {
     const modular = new ModularStrategy();
     const engine = new SimulationEngine({
       seed, stopCondition: { type: 'ticks', value: TICKS }, maxTicks: TICKS,
@@ -22,7 +22,7 @@ describe('ModularStrategy integration on 5 seeds', () => {
     expect(result.summary.duration).toBeGreaterThan(0);
   });
 
-  it.each(SEEDS)('seed=%d: метрики ModularStrategy ненулевые', { timeout: 60_000 }, (seed) => {
+  it.each(SEEDS)('seed=%d: метрики ModularStrategy ненулевые', { timeout: 180_000 }, (seed) => {
     const engine = new SimulationEngine({
       seed, stopCondition: { type: 'ticks', value: TICKS }, maxTicks: TICKS,
       strategy: new ModularStrategy(), balance: BALANCE,

@@ -69,6 +69,24 @@ console.log(`Total meat spent: ${result.summary.totalMeatSpent}`);
 console.log(`Est. play time: ${result.summary.totalTimeFormatted}`);
 console.log('');
 
+// Dump final entities for debugging (last visible state)
+console.log('=== FINAL STATE ===');
+const finalState = (engine as unknown as { state: import('../src/domain/types').GameSnapshot }).state;
+console.log(`grid ${finalState.grid.rows}×${finalState.grid.cols} = ${finalState.grid.cells.length} cells`);
+const cellMap = finalState.grid.cells.map((id, i) => id ? `${i}:${(finalState.entities[id] as { kind: string; creatureType?: string; level?: number; runeType?: string; generatorId?: number; boxId?: number })?.kind}` : `${i}:_`);
+console.log('cells:', cellMap.join(' '));
+for (const e of Object.values(finalState.entities)) {
+  if (e.kind === 'creature') console.log(' creature', e.creatureType, 'L', e.level);
+  else if (e.kind === 'generator') console.log(' generator id=', e.generatorId, 'L', e.level, 'charges=', e.charges.length);
+  else if (e.kind === 'rune') console.log(' rune', e.runeType);
+  else if (e.kind === 'box') console.log(' box id=', e.boxId, 'contents=', e.contents.length);
+}
+console.log('pendingRewards:', finalState.pendingRewards.length, JSON.stringify(finalState.pendingRewards));
+console.log('activeUpgrade:', finalState.activeUpgrade);
+console.log('currentAutoTask:', JSON.stringify(finalState.currentAutoTask));
+console.log('resources:', finalState.resources);
+console.log('');
+
 // Write trace artifacts for modular strategy
 if (strategyKind === 'modular') {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
