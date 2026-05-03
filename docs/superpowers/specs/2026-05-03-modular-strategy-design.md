@@ -1,8 +1,8 @@
 # Modular Strategy — Design Spec
 
-**Дата:** 2026-05-03 (rev 2 после ревью)
+**Дата:** 2026-05-03 (rev 3 после второго ревью)
 **Ветка:** `new_simulator` (target: `3.23/1-generators-without-merge`)
-**Статус:** дизайн зафиксирован вокруг 4 контрактов; ждёт второго ревью → план → имплементация
+**Статус:** дизайн зафиксирован; ждёт финального approve → план → имплементация
 
 ---
 
@@ -32,7 +32,7 @@
 
 - Не переписываем `RealisticStrategy`. Она остаётся работать параллельно как baseline.
 - Не делаем ломающих изменений в интерфейсе `AIStrategy` (`src/simulation/engine/types.ts`). Допустимо добавление опционального метода (например, `getTrace?()`).
-- Не меняем движок `SimulationEngine`, набор `SimulationAction`, метрики.
+- Не меняем **игровую семантику** `SimulationEngine` (логика выполнения действий, MAX_ITERATIONS, idle-detection через `!iterAdvanced`, набор `SimulationAction`, метрики). Допустимы **минимальные trace-hooks**: вызов опционального `closeTickTrace(tick, endReason)` на границе outer-tick, фиксация `endReason` исходя из существующих веток `executeTick()`. Без правок самих условий завершения.
 - Не реализуем сложный планировщик (GOAP). Решения принимаются жадно, по одной активной цели за inner-iteration.
 - Не делаем UI-редактор стратегии (диаграмма пока read-only).
 - **Trace для browser-run** (запуск из `simulation.html` без CLI) на MVP **не пишется в файлы**. Только in-memory + кнопка "Download trace JSON" + опционально `sessionStorage`. CLI-запуск (`run-sim.ts`) — пишет в `public/sim-runs/...` (см. § 8.2).
@@ -109,11 +109,16 @@ export interface TickTrace {
 }
 
 export type TickEndReason =
-  | 'done'            // стратегия сама вернула done=true
-  | 'idle'            // 0 actions выполнено, стратегия завершилась как done
-  | 'budget'          // safety budget per tick исчерпан (см. § 5.4)
-  | 'max_iterations'; // hard limit движка (500)
+  | 'done'             // engine ушёл по ветке `decision.done === true` (SimulationEngine line 222)
+  | 'idle'             // engine ушёл по ветке `!iterAdvanced` (SimulationEngine line 230) —
+                       // ни одно действие не изменило state в текущей итерации.
+                       // Может случиться при `done=false` и при непустом `actions` (если все no-op).
+  | 'max_iterations';  // inner-loop упёрся в MAX_ITERATIONS=500 без `done` и без idle (баг-сигнал).
 ```
+
+**Важно: `endReason` отражает существующее поведение engine, не вводит новое.** SimulationEngine уже разделяет три ветки выхода (`done`, `!iterAdvanced`, лимит итераций); `endReason` — это просто метка какой ветки coснулся текущий тик. Ничего в условиях завершения не меняется.
+
+**Что делать с scheduler safety budget (§ 5.4):** когда стратегия исчерпала свой внутренний бюджет действий, она возвращает `{ actions: [], done: true }` — engine увидит это как обычный `done`, `endReason='done'`. Но в `IterationDecision.stuckReason` стратегия фиксирует `"tick budget exhausted"`. Inspector распознаёт этот паттерн в Stuck Analyzer (§ 8.3, Tab 4) и выделяет такие тики отдельно. Бюджет — внутренний контракт scheduler'а, не enum engine.
 
 Вспомогательные типы:
 ```typescript
@@ -254,8 +259,16 @@ export interface GoalPrerequisite {
 - Также есть hard-limit глубины цепочки (например, 5 уровней) на случай патологий.
 
 **FP-кейс через этот контракт:**
-- `CompleteActiveQuestGoal.getPrerequisites()` смотрит: квест требует существо типа T → есть ли у него генератор? → если timer-mode и `freeNeighbors(gen) < 1` (или другой порог) → возвращает `[{ goalId: 'BoardLayout', reason: 'Gen3 has 0 free neighbors at (0,0)' }]`.
+- `CompleteActiveQuestGoal.getPrerequisites()` смотрит: квест требует существо типа T → есть ли у него генератор? → если timer-mode и `freeNeighbors(gen) < FP_RELAYOUT_THRESHOLD` → возвращает `[{ goalId: 'BoardLayout', reason: 'Gen3 has K free neighbors at (r,c); needs >=N for steady spawn' }]`.
 - Иначе возвращает `[]`. Это значит `BoardLayout` НЕ всегда промоутится — только когда реально нужен. Не "always-on".
+
+**Зафиксированный порог `FP_RELAYOUT_THRESHOLD = 2`** (т.е. promote если у timer-генератора 0 или 1 свободный сосед):
+- Угол даёт 3 соседей, ребро — 5, центр — 8. Порог 2 означает, что мы не промоутим релэйаут пока есть хотя бы 2 свободных соседа (запас на следующий спавн).
+- При 0 соседей timer-генератор не сможет спавнить вовсе → текущий тик гарантированно сломается без релэйаута.
+- При 1 соседе один спавн пройдёт, но следующий уже залипнет в `pendingDrop` → релэйаут профилактически.
+- При 2+ соседях полагаемся на guards (`ProtectFPNeighbors`) и обычный flow — релэйаут не нужен.
+
+Это **core policy**, не настройка. Менять порог следует осознанно, с прогоном acceptance criteria. Константа выносится в `src/simulation/strategies/modular/scheduler/constants.ts`, чтобы изменение было одним местом.
 
 ### 5.4 Контракт 4 — Scheduler (priority + prerequisites + category + safety budget)
 
@@ -289,17 +302,17 @@ export type GoalCategory =
 - Если есть активные prerequisites → ставит их в очередь раньше X с promotion в blocking.
 - Cycle/depth protection.
 
-#### D. Safety budget per tick
+#### D. Safety budget per tick (внутренний)
 
-Жёсткий лимит, фиксируется engine'ом, передаётся в scheduler через context:
+Жёсткий лимит на количество выполненных actions внутри одного outer-tick. **Это внутренний контракт scheduler'а, не enum engine.** Engine про бюджет ничего не знает — он просто видит обычный `done=true`.
 
 ```typescript
 const TICK_ACTION_BUDGET = 50;  // конфигурируемое
 ```
 
-Каждое выбранное `selectedAction` уменьшает счётчик. При исчерпании — следующий вызов `decide()` возвращает `done=true` без proposals, engine закрывает тик с `endReason='budget'`.
+Каждое выбранное `selectedAction` уменьшает счётчик внутри `ModularStrategy`. При исчерпании — следующий вызов `decide()` возвращает `{ actions: [], done: true }` с `IterationDecision.stuckReason = "tick budget exhausted"`. Engine закрывает тик стандартной веткой `done` (`endReason='done'`). Inspector в Stuck Analyzer (Tab 4) распознаёт паттерн `stuckReason` и выделяет такие тики отдельно.
 
-Это страховка **поверх** категорий: если из-за бага blocking goals крутятся бесконечно, бюджет всё равно закроет тик.
+Это страховка **поверх** категорий: если из-за бага blocking goals крутятся бесконечно, бюджет всё равно закроет тик с явной пометкой в trace.
 
 #### Алгоритм scheduler'а (псевдокод inner-iteration)
 
@@ -348,10 +361,15 @@ decide(state, rng) -> StrategyDecision:
   log(iter); return { actions: [], done: shouldClose }
 ```
 
-**Закрытие тика — конечный автомат:**
-- Стратегия возвращает `done=true` → engine закрывает с `endReason='done'` (если был хотя бы 1 action) или `'idle'` (если actions=0).
-- Engine исчерпал budget → `endReason='budget'`.
-- Engine упёрся в `MAX_ITERATIONS` без `done` → `endReason='max_iterations'` (это сигнал бага в стратегии).
+**Закрытие тика — отражает три ветки `executeTick()`:**
+- Engine видит `decision.done === true` → `endReason='done'`. Сюда же попадает "budget exhausted" (стратегия сама закрылась).
+- Engine видит `!iterAdvanced` (ни одно действие не изменило state, либо actions пустой, либо все no-op) → `endReason='idle'`. Это **независимо от** значения `decision.done` и от того, был ли `actions` пустым. Реальная семантика — engine line 230, не "actions=0".
+- Engine упёрся в `MAX_ITERATIONS=500` без `done` и без idle → `endReason='max_iterations'`. Сигнал бага: стратегия предлагает продвигающие действия, но не возвращает `done`. Acceptance criteria требует ноль таких тиков.
+
+**Что именно различать в trace:**
+- "Idle" может прийти даже если стратегия не считает себя застрявшей (вернула непустой `actions`, но это были `collect_upgrade` no-op'ы, например). Запись `endReason='idle'` — единственный надёжный сигнал, что игра не двинулась за тик.
+- "Budget exhausted" — отдельно через `IterationDecision.stuckReason`, см. § 5.4 D.
+- "Cycle in prerequisites" — отдельно через `stuckReason`, см. § 5.3.
 
 ---
 
@@ -374,7 +392,13 @@ export interface Goal {
 
 export interface Tactic {
   readonly meta: TacticMeta;
-  appliesTo(goal: Goal): boolean;
+  /**
+   * Tactic.serves — единственный источник правды о том, какие goals она обслуживает.
+   * Содержится в META (статически). Runtime-метода appliesTo НЕТ.
+   * Scheduler собирает proposals через `tactics.filter(t => t.meta.serves.includes(goal.meta.id))`.
+   * Контракт-тест валидирует, что для goal.id, отсутствующего в meta.serves,
+   * tactic.propose() либо не вызывается, либо возвращает [] (см. § 10.1).
+   */
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[];
 }
 
@@ -551,10 +575,11 @@ src/simulation/strategies/modular/
 
 **Каждый из 4 контрактов имеет свой test-файл**, проверяющий корректность контракта независимо от конкретных goals/tactics/guards:
 
-- `trace.contract.test.ts` — TickTrace корректно агрегируется на границе тика, endReason ставится правильно во всех 4 кейсах (done/idle/budget/max_iterations).
-- `meta.contract.test.ts` — registry helper корректно прокидывает sourceFile, валидирует обязательные поля META, ловит дубликаты id.
-- `prerequisites.contract.test.ts` — `resolvePrereqChain` корректно разворачивает цепочки, детектит циклы, hard-limit глубины, игнорирует неактивные prereqs.
-- `scheduler.contract.test.ts` — finalPriority корректен, promotion в blocking работает, budget корректно учитывается.
+- `trace.contract.test.ts` — TickTrace корректно агрегируется на границе тика; `endReason` ставится правильно во всех 3 ветках engine (`done` / `idle` / `max_iterations`); idle-тест включает кейс `done=false && actions=[noop]`, где endReason должен быть `'idle'` (не `'done'`); budget-exhausted случай → `endReason='done'` плюс `IterationDecision.stuckReason='tick budget exhausted'`.
+- `meta.contract.test.ts` — registry helper корректно прокидывает `sourceFile`, валидирует обязательные поля META, ловит дубликаты id.
+- `serves.invariant.test.ts` — для каждой пары `(tactic, goal)`, где `goal.id ∉ tactic.meta.serves`, гарантировать что `tactic.propose(state, goal, ctx)` либо не вызывается scheduler'ом (т.к. фильтрация идёт по `meta.serves`), либо возвращает `[]`. Без этого теста статический META.serves и runtime могут разойтись.
+- `prerequisites.contract.test.ts` — `resolvePrereqChain` корректно разворачивает цепочки, детектит циклы, hard-limit глубины (5), игнорирует неактивные prereqs, валидирует что `goalId` существует в registry.
+- `scheduler.contract.test.ts` — finalPriority корректен; promotion в blocking работает (goal с `category='opportunistic'` в prereq-chain ведёт себя как blocking на текущем тике); budget корректно учитывается; `PREREQ_BOOST_PRIORITY` строго выше любого `basePriority * urgency`.
 
 ### 10.2 Unit-тесты модулей
 
@@ -622,7 +647,7 @@ ModularStrategy переходит в дефолт **только** когда �
 
 **Iteration 0:**
 - Active goals: `CompleteActiveQuest` (basePri=80, blocking), `MaintainFreeGrid` (basePri=60, opportunistic, urgency=0.7), `BoardLayout` (basePri=50, opportunistic, активна т.к. Gen3 у края + квест на его существо)
-- `CompleteActiveQuest.getPrerequisites(state)` смотрит: квест требует Creature5, Gen3 даёт Creature5, freeNeighbors(Gen3) < 4 → `[{ goalId: 'BoardLayout', reason: 'Gen3 has 3 free neighbors at (0,0); needs >=4 for steady spawn' }]`
+- `CompleteActiveQuest.getPrerequisites(state)` смотрит: квест требует Creature5, Gen3 даёт Creature5, freeNeighbors(Gen3) = 1 < `FP_RELAYOUT_THRESHOLD=2` → `[{ goalId: 'BoardLayout', reason: 'Gen3 has 1 free neighbor at (0,0); threshold is 2' }]` (см. § 5.3)
 - Scheduler разворачивает: `[BoardLayout (promoted, finalPri=PREREQ_BOOST), CompleteActiveQuest, MaintainFreeGrid]`
 - `BoardPlacementTactic.propose()` → `move_entity` Gen3 → (2,2)
 - `iter0.prerequisiteChain = [{ from: 'CompleteActiveQuest', to: 'BoardLayout', reason: '...' }]`
