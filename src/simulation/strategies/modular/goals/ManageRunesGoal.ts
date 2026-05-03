@@ -6,7 +6,7 @@ export const META: GoalMeta = {
   description: 'Сливать пары одинаковых рун + кормить ими генераторы',
   basePriority: 40,
   category: 'opportunistic',
-  activationCondition: 'на гриде есть руны 2+ типов',
+  activationCondition: 'на гриде есть руна (хотя бы одна)',
   urgencyFormula: '0.3 + 0.1 * количество рун',
 };
 
@@ -24,8 +24,12 @@ function countRunesByType(state: GameSnapshot): Map<string, number> {
 export class ManageRunesGoal implements Goal {
   meta: GoalMeta = META;
   isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
-    const c = countRunesByType(state);
-    return c.size >= 2;
+    // Активен если на гриде есть хоть одна руна — иначе одиночные руны
+    // блокируют клетки и стратегия зависает (нечем merge'ить, нечем feed).
+    for (const e of Object.values(state.entities)) {
+      if (e.kind === 'rune') return true;
+    }
+    return false;
   }
   urgency(state: GameSnapshot, _ctx: StrategyContext): number {
     let total = 0;
