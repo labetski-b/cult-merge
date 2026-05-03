@@ -1,25 +1,12 @@
 import type { BalanceConfig } from '@data/schemas';
 import type { GameSnapshot } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
+import type { SimulationAction } from './actions';
 
-export type SimulationAction =
-  | { type: 'claim_reward' }
-  | { type: 'open_box'; boxId: string }
-  | { type: 'merge'; sourceId: string; targetId: string }
-  | { type: 'feed'; entityId: string }
-  | { type: 'charge_generator'; generatorId: string }
-  | { type: 'spawn_generator'; generatorId: string }
-  | { type: 'start_upgrade'; entityId: string }
-  | { type: 'collect_upgrade' }
-  | { type: 'skip_timer_generator'; entityId: string }
-  | { type: 'quest_completed'; taskLabel: string; eyesGained: number; creatures: { type: string; level: number; count: number }[] }
-  | { type: 'new_quest'; taskLabel: string }
-  | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
-  | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
-  | { type: 'expand_board'; newRows: number; newCols: number }
-  | { type: 'free_cells'; reason: string; freed: number }
-  | { type: 'tick_idle'; reason: string }
-  | { type: 'move_entity'; entityId: string; targetCellIndex: number };
+// SimulationAction вынесен в ./actions для разрыва цикла type-импорта между
+// trace и types. Реэкспорт сохраняет совместимость для всех существующих
+// потребителей (RealisticStrategy, SimulationEngine, base.ts, и др.).
+export type { SimulationAction } from './actions';
 
 export interface StrategyDecision {
   actions: SimulationAction[];
