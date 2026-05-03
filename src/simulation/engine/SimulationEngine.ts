@@ -18,6 +18,7 @@ import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import { RealisticStrategy } from '../strategies/RealisticStrategy';
 import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
+import type { TickEndReason, TickTrace } from './trace';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
 
@@ -38,6 +39,7 @@ export class SimulationEngine {
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
+  private tickTraces: TickTrace[] = [];
   private currentTick = 0;
   private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
   private tick = 0;
@@ -84,6 +86,7 @@ export class SimulationEngine {
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
+    this.tickTraces = [];
   }
 
   private shouldStop(tick: number): boolean {
@@ -160,6 +163,7 @@ export class SimulationEngine {
     const MAX_ITERATIONS = 500; // safety limit
     this.tickLogIndex = 0;
     this.tickHadCollectUpgrade = false;
+    let endReason: TickEndReason = 'max_iterations';
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
       const krakenLevelBefore = this.state.kraken.level;
@@ -224,6 +228,7 @@ export class SimulationEngine {
 
         // Safety net: generate task if domain didn't (e.g. first tick after kraken=2)
         this.ensureAutoTask();
+        endReason = 'done';
         break;
       }
 
@@ -239,6 +244,7 @@ export class SimulationEngine {
         this.cumulative.ticksIdle += 1;
         const lvl = this.state.kraken.level;
         this.cumulative.idleByKrakenLevel[lvl] = (this.cumulative.idleByKrakenLevel[lvl] ?? 0) + 1;
+        endReason = 'idle';
         break;
       }
     }
@@ -266,7 +272,15 @@ export class SimulationEngine {
       gameState: JSON.parse(JSON.stringify(this.state)),
       metrics: JSON.parse(JSON.stringify(metrics))
     });
+
+    if (this.config.strategy.closeTickTrace) {
+      const trace = this.config.strategy.closeTickTrace(outerTick, endReason);
+      this.tickTraces.push(trace);
+    }
   }
+
+  /** Возвращает все TickTrace'ы за прогон. Пустой массив если стратегия не имплементит closeTickTrace. */
+  getTickTraces(): readonly TickTrace[] { return this.tickTraces; }
 
   private executeAction(action: SimulationAction) {
     switch (action.type) {
