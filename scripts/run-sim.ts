@@ -1,24 +1,54 @@
 /**
  * Run simulation and print action log to stdout.
- * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
+ *
+ * Usage:
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter] [seed] [--strategy=realistic|modular]
  *
  * Examples:
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 2000 generator
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 500 Creature3
+ *   scripts/run-sim.ts 1000
+ *   scripts/run-sim.ts 2000 generator 42 --strategy=modular
+ *   scripts/run-sim.ts 5000 '' 42 --strategy=modular
+ *
+ * При --strategy=modular пишет inspector-data.json + decision-trace.json
+ * в public/sim-runs/<timestamp>_seed-<n>/ и обновляет public/sim-runs/latest.json.
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
 import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
+import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStrategy';
+import type { AIStrategy } from '../src/simulation/engine/types';
 import { BALANCE } from '../src/data/loadBalance';
+import { buildInspectorData } from './build-inspector-data';
 
-const ticks = parseInt(process.argv[2] ?? '1000', 10);
-const filter = process.argv[3]?.toLowerCase() ?? '';
+const args = process.argv.slice(2);
+const positional: string[] = [];
+const flags: Record<string, string> = {};
+for (const a of args) {
+  if (a.startsWith('--')) {
+    const eq = a.indexOf('=');
+    if (eq > 0) flags[a.slice(2, eq)] = a.slice(eq + 1);
+    else flags[a.slice(2)] = 'true';
+  } else {
+    positional.push(a);
+  }
+}
 
-const strategy = new RealisticStrategy();
+const ticks = parseInt(positional[0] ?? '1000', 10);
+const filter = positional[1]?.toLowerCase() ?? '';
+const seed = parseInt(positional[2] ?? '42', 10);
+const strategyKind = (flags.strategy ?? 'realistic') as 'realistic' | 'modular';
+
+let strategy: AIStrategy;
+if (strategyKind === 'modular') {
+  strategy = new ModularStrategy();
+} else {
+  strategy = new RealisticStrategy();
+}
 
 const engine = new SimulationEngine({
-  seed: parseInt(process.argv[4] ?? '42', 10),
+  seed,
   stopCondition: { type: 'ticks', value: ticks },
   maxTicks: ticks,
   tickInterval: 1000,
@@ -29,6 +59,8 @@ const engine = new SimulationEngine({
 const result = engine.run();
 
 console.log('=== SIMULATION SUMMARY ===');
+console.log(`Strategy: ${strategy.name}`);
+console.log(`Seed: ${seed}`);
 console.log(`Ticks: ${result.summary.duration}`);
 console.log(`Final level: ${result.summary.finalLevel}`);
 console.log(`Total EXP: ${result.summary.totalExpGained}`);
@@ -36,6 +68,29 @@ console.log(`Total tasks: ${result.summary.totalTasksCompleted}`);
 console.log(`Total meat spent: ${result.summary.totalMeatSpent}`);
 console.log(`Est. play time: ${result.summary.totalTimeFormatted}`);
 console.log('');
+
+// Write trace artifacts for modular strategy
+if (strategyKind === 'modular') {
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const runDir = path.join('public', 'sim-runs', `${ts}_seed-${seed}`);
+  fs.mkdirSync(runDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(runDir, 'inspector-data.json'),
+    JSON.stringify(buildInspectorData(), null, 2),
+  );
+  const traces = engine.getTickTraces();
+  fs.writeFileSync(
+    path.join(runDir, 'decision-trace.json'),
+    JSON.stringify(traces, null, 2),
+  );
+  // Update latest.json manifest
+  const manifest = { latestRunPath: path.basename(runDir), generatedAt: new Date().toISOString() };
+  fs.writeFileSync(path.join('public', 'sim-runs', 'latest.json'), JSON.stringify(manifest, null, 2));
+  console.log(`=== TRACE WRITTEN ===`);
+  console.log(`Path: ${runDir}`);
+  console.log(`Tick traces: ${traces.length}`);
+}
+
 console.log('=== ACTION LOG ===');
 
 const entries = filter
