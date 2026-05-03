@@ -2,6 +2,7 @@ import type { BalanceConfig } from '@data/schemas';
 import type { GameSnapshot } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
 import type { SimulationAction } from './actions';
+import type { TickEndReason, TickTrace } from './trace';
 
 // SimulationAction вынесен в ./actions для разрыва цикла type-импорта между
 // trace и types. Реэкспорт сохраняет совместимость для всех существующих
@@ -23,6 +24,13 @@ export interface AIStrategy {
   getCreatureGenMap?(): Array<{ creatureType: string; genId: number; genLevel: number; l1PerMeat: number }>;
   /** Reset all mutable state before a new simulation run. */
   reset?(): void;
+  /**
+   * Called by engine on outer-tick boundary (после executeTick).
+   * Стратегия дренирует свой буфер IterationDecision'ов, проставляет endReason,
+   * считает outerActionsCount и возвращает TickTrace. См. § 5.1 spec.
+   * Опциональный: RealisticStrategy его не реализует — engine просто не пишет trace.
+   */
+  closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace;
 }
 
 export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks' | 'oneTaskCompleted';
