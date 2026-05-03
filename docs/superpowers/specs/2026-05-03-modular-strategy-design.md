@@ -1,58 +1,57 @@
 # Modular Strategy — Design Spec
 
-**Дата:** 2026-05-03
+**Дата:** 2026-05-03 (rev 2 после ревью)
 **Ветка:** `new_simulator` (target: `3.23/1-generators-without-merge`)
-**Статус:** дизайн утверждён, ждёт ревью спека → план → имплементация
+**Статус:** дизайн зафиксирован вокруг 4 контрактов; ждёт второго ревью → план → имплементация
 
 ---
 
 ## 1. Контекст и боли
 
-В симуляторе `RealisticStrategy` (`src/simulation/strategies/RealisticStrategy.ts`, 1044 строки) — единственная AI-стратегия, реализованная как монолитная фаза-машина (`early → task → reward → invest`). Все приоритеты решений зашиты императивно в код. Это создаёт три повторяющиеся проблемы:
+В симуляторе `RealisticStrategy` (`src/simulation/strategies/RealisticStrategy.ts`, 1044 строки) — единственная AI-стратегия, реализованная как монолитная фаза-машина (`early → task → reward → invest`). Все приоритеты решений зашиты императивно. Это создаёт три повторяющихся проблемы:
 
-1. **Стратегия молча застревает.** Симуляция не двигается на каком-то тике, никаких сообщений нет. Чтобы понять причину, приходится читать многосотстрочный action log и реконструировать поведение по строкам.
-2. **Изменения каскадно ломают другое.** Правка одной фазы (например, `questStep`) ломает ситуации в `rewardsStep` или `investStep`, потому что инварианты не выражены явно — они подразумеваются.
-3. **Каждая новая механика — отдельная боль.** Добавление новой фичи (Faith, новый тип квеста, новые ресурсы) требует правки 3–5 разных мест в фаза-машине; нет точки расширения.
+1. **Стратегия молча застревает.** Симуляция не двигается на каком-то тике, никаких сообщений нет. Чтобы понять причину, приходится читать многосотстрочный action log и реконструировать поведение.
+2. **Изменения каскадно ломают другое.** Правка одной фазы (например, `questStep`) ломает ситуации в `rewardsStep` или `investStep`, потому что инварианты не выражены явно.
+3. **Каждая новая механика — отдельная боль.** Добавление новой фичи требует правки 3–5 разных мест.
 
-**Конкретный текущий кейс (мотивирующий пример).** Активный квест требует существо из Flower Pot (Gen3, timer-mode). Существо спавнится в соседнюю клетку, но логика "освобождения места" (`freeCells`) тут же скармливает его, освобождая место для следующего спавна. Стратегия зацикливается. При этом первопричина — структурная: FP стоит у края грида, и у него мало свободных соседей; стратегическое решение "поставить FP в (2,2), чтобы было 8 свободных соседей" в текущей логике не выражено.
+**Мотивирующий FP-кейс.** Активный квест требует существо из Flower Pot (Gen3, timer-mode). Существо спавнится в соседнюю клетку, но логика "освобождения места" тут же скармливает его. Стратегия зацикливается. Структурная первопричина: FP стоит у края, у него мало свободных соседей. Решение "сначала переставить FP в (2,2), потом продолжать квест" в текущей логике не выражено.
 
-Этот кейс показывает, что в монолите перепутаны три разные ответственности:
+В монолите перепутаны три ответственности:
 - Цель ("выполнить квест") и контр-цель ("освободить место") сталкиваются без явного арбитража.
-- Долгосрочное стратегическое решение (где стоит генератор) не отделено от тактического (что делать на этом тике).
-- Знание о механике ("у timer-генератора нужно ≥1 свободный сосед") размазано по коду.
+- Долгосрочное стратегическое решение (где стоит генератор) не отделено от тактического.
+- Знание о механике ("у timer-генератора нужен ≥1 свободный сосед") размазано по коду.
 
 ## 2. Цели
 
-1. **Дебажность.** На любой "застрял" — есть человекочитаемая причина. На любое выбранное действие — есть запись "почему именно это, какие альтернативы рассматривались, что их отвергло".
-2. **Изоляция изменений.** Добавление новой механики = новая Goal + 1–2 Tactic + 0–2 Guard, без правки существующих модулей.
+1. **Дебажность.** Любой "застрял" → человекочитаемая причина. Любое выбранное действие → запись "почему именно это, какие альтернативы, что их отвергло".
+2. **Изоляция изменений.** Новая механика = новая Goal + 1–2 Tactic + 0–2 Guard, без правки существующих модулей.
 3. **Гибкость стратегий.** Возможность собирать профили игроков (новичок / спидраннер / экономный) из разных наборов модулей и весов.
 4. **Визуальная обозримость.** Архитектура автоматически рендерится в HTML (диаграмма + live-трейс), как продолжение `public/strategy-flowchart.html`.
 
 ## 3. Не-цели
 
 - Не переписываем `RealisticStrategy`. Она остаётся работать параллельно как baseline.
-- Не делаем ломающих изменений в интерфейсе `AIStrategy` (`src/simulation/engine/types.ts`). Допустимо добавление опционального метода (например, `getTrace?()`), который старая `RealisticStrategy` просто не реализует.
+- Не делаем ломающих изменений в интерфейсе `AIStrategy` (`src/simulation/engine/types.ts`). Допустимо добавление опционального метода (например, `getTrace?()`).
 - Не меняем движок `SimulationEngine`, набор `SimulationAction`, метрики.
-- Не реализуем сложный планировщик (GOAP). Решения принимаются жадно, по одной активной цели за раз.
+- Не реализуем сложный планировщик (GOAP). Решения принимаются жадно, по одной активной цели за inner-iteration.
 - Не делаем UI-редактор стратегии (диаграмма пока read-only).
+- **Trace для browser-run** (запуск из `simulation.html` без CLI) на MVP **не пишется в файлы**. Только in-memory + кнопка "Download trace JSON" + опционально `sessionStorage`. CLI-запуск (`run-sim.ts`) — пишет в `public/sim-runs/...` (см. § 8.2).
 
 ## 4. Архитектура высокого уровня
 
-Четыре изолированных слоя, общающихся через узкие интерфейсы:
+Четыре изолированных слоя плюс четыре контракта, на которых они общаются:
 
 ```
    ┌─────────────────────────────────────────────────────────┐
    │                  ModularStrategy                        │
-   │                  (orchestrator)                         │
-   │                                                         │
-   │  decide(state, rng) → StrategyDecision                  │
+   │                  (orchestrator: Scheduler + Trace)      │
    └─────────────────────────────────────────────────────────┘
-              │                    ▲
-              ▼                    │
-   ┌──────────────────┐    ┌─────────────────┐
-   │  Goals registry  │    │ Decision Trace  │
-   │  (9 goals)       │    │ (per tick)      │
-   └──────────────────┘    └─────────────────┘
+              │                                    ▲
+              ▼                                    │ writes
+   ┌──────────────────┐                  ┌─────────────────────┐
+   │  Goals registry  │                  │ TickTrace (per      │
+   │  (9 goals)       │                  │ outer-tick aggreg.) │
+   └──────────────────┘                  └─────────────────────┘
               │
               ▼
    ┌──────────────────┐
@@ -67,424 +66,530 @@
    └──────────────────┘
 ```
 
-**Ключевое разделение:**
-- **Goals** — *что* агент хочет (декларативно, "выполнить активный квест").
-- **Tactics** — *как* достичь конкретной goal (плагины с реализацией).
+**Ключевое разделение слоёв:**
+- **Goals** — *что* агент хочет (декларативно).
+- **Tactics** — *как* достичь конкретной goal (плагины).
 - **Guards** — *чего нельзя делать* (инварианты, отвергающие предложения).
-- **Trace** — *что и почему* было решено (пишется на каждом тике).
+- **Scheduler** — *в каком порядке* и *по какому бюджету* (внутри ModularStrategy).
+- **Trace** — *что и почему* было решено (пишется на каждом inner-iteration, агрегируется на границе тика).
 
-## 5. Интерфейсы
+---
+
+## 5. Четыре контракта системы
+
+Эти четыре контракта — позвоночник дизайна. Всё остальное (раскладка модулей, конкретные goals/tactics/guards, тестирование) — следствие. Любые правки начинать с проверки этих контрактов.
+
+### 5.1 Контракт 1 — Trace (TickTrace / IterationDecision + endReason)
+
+**Inner-iteration** — один вызов `decide()`. Engine вызывает `decide()` много раз за один outer-tick, пока стратегия не вернёт `done=true` или engine не остановит из-за safety-limit / idle.
+
+**Outer-tick** — границу фиксирует **engine**, не стратегия. Это важно: trace агрегируется на границе тика *по сигналу engine*, не на `done=true`. Иначе теряются кейсы `idle` (стратегия ничего не делает 0 actions, но тик прошёл) и `max_iterations` (safety limit без `done`).
+
+```typescript
+// src/simulation/strategies/modular/types.ts
+
+/** Запись одного inner-iteration. */
+export interface IterationDecision {
+  iteration: number; // 0-based индекс внутри outer-tick
+  activeGoals: GoalSnapshot[];      // см. § 5.4
+  prerequisiteChain?: PrereqLink[]; // непустой если goal X была promoted из prereq goal Y → Z
+  selectedGoalId: string | null;
+  proposedActions: ProposedActionSnapshot[];
+  rejectedByGuards: GuardRejection[];
+  selectedAction: SimulationAction | null;
+  stuckReason?: string;
+}
+
+/** Агрегат на границе outer-tick. */
+export interface TickTrace {
+  tick: number;
+  iterations: IterationDecision[];
+  endReason: TickEndReason;
+  outerActionsCount: number; // сумма selectedAction !== null по итерациям
+}
+
+export type TickEndReason =
+  | 'done'            // стратегия сама вернула done=true
+  | 'idle'            // 0 actions выполнено, стратегия завершилась как done
+  | 'budget'          // safety budget per tick исчерпан (см. § 5.4)
+  | 'max_iterations'; // hard limit движка (500)
+```
+
+Вспомогательные типы:
+```typescript
+export interface GoalSnapshot {
+  id: string;
+  basePriority: number;
+  category: GoalCategory;        // см. § 5.4
+  urgency: number;
+  finalPriority: number;         // basePriority * urgency, либо boosted prereq
+  promotedFromPrereq?: string;   // id goal, для которой эта была prereq
+  describe: string;              // динамическое описание из Goal.describe(state)
+}
+
+export interface PrereqLink {
+  fromGoalId: string;            // goal, у которой запросили prerequisites
+  toGoalId: string;              // prerequisite, который активирован
+  reason: string;                // из getPrerequisites(...).reason
+}
+
+export interface ProposedActionSnapshot {
+  tacticId: string;
+  goalId: string;
+  actionType: string;            // SimulationAction['type']
+  reasoning: string;
+  expectedProgress: number;
+}
+
+export interface GuardRejection {
+  tacticId: string;
+  actionType: string;
+  guardId: string;
+  reason: string;
+}
+```
+
+**Ответственности:**
+- `ModularStrategy.decide()` накапливает `IterationDecision` в буфер.
+- Engine при закрытии outer-tick вызывает (новый опциональный метод `AIStrategy`) `closeTickTrace(tick, endReason): TickTrace`, который дренирует буфер, проставляет `endReason`, считает `outerActionsCount`.
+- Engine агрегирует все `TickTrace[]` за прогон и в конце сериализует в `decision-trace.json`.
+
+### 5.2 Контракт 2 — META (для tooling/Inspector)
+
+Каждый модуль (Goal/Tactic/Guard) обязан экспортировать **статическую константу** + класс. Динамическое поведение остаётся в классе, статическое описание для Inspector — в константе.
+
+```typescript
+// types.ts
+
+export interface ModuleMetaCommon {
+  id: string;                    // уникален внутри своего реестра
+  description: string;           // 1–2 предложения
+  // НЕТ sourceFile здесь — он прокидывается через registry helper
+}
+
+export interface GoalMeta extends ModuleMetaCommon {
+  basePriority: number;
+  category: GoalCategory;
+  activationCondition: string;   // human-readable, e.g. "kraken.level < 2"
+  urgencyFormula: string;        // human-readable, e.g. "1 - freeCells/totalCells"
+}
+
+export interface TacticMeta extends ModuleMetaCommon {
+  serves: readonly string[];     // ids of goals, статически
+  produces: readonly string[];   // SimulationAction.type[], которые может предложить
+}
+
+export interface GuardMeta extends ModuleMetaCommon {
+  blocksActionTypes: readonly string[]; // SimulationAction.type[]
+  trigger: string;               // human-readable, e.g. "feed творения, нужного для квеста"
+}
+```
+
+Каждый модуль экспортирует:
+```typescript
+// goals/CompleteActiveQuestGoal.ts
+export const META: GoalMeta = {
+  id: 'CompleteActiveQuest',
+  basePriority: 80,
+  category: 'blocking',
+  description: 'Выполнить текущий Kraken task / auto-task',
+  activationCondition: 'state.activeQuest != null',
+  urgencyFormula: 'progress * 0.6 + 0.4',
+};
+
+export class CompleteActiveQuestGoal implements Goal { ... }
+```
+
+**Реестр прокидывает sourceFile через helper** (без drift):
+```typescript
+// goals/index.ts
+import * as completeQuest from './CompleteActiveQuestGoal';
+import * as earlyGame from './EarlyGameGoal';
+// ...
+
+import { registerGoal } from '../registry';
+
+export const goalRegistry = [
+  registerGoal(completeQuest, './goals/CompleteActiveQuestGoal.ts'),
+  registerGoal(earlyGame, './goals/EarlyGameGoal.ts'),
+  // ...
+];
+```
+
+Helper `registerGoal(module, sourcePath)` берёт `module.META` + `new module.<ClassName>()`, прикрепляет `sourcePath` к мете, валидирует обязательные поля. **Один источник правды** — `index.ts` маппит модуль на путь, и `sourceFile` появляется в результирующем мете автоматически. В сами файлы голос с путём не пишется.
+
+(Альтернатива через `import.meta.url` тоже допустима, но в плане выберем что проще для Vite/tsx.)
+
+### 5.3 Контракт 3 — Dynamic Prerequisites (с reason и cycle protection)
+
+Goal **может** на динамическом снимке состояния заявить, что без выполнения других goals её tactics не имеют смысла.
+
+```typescript
+export interface Goal {
+  // ... isActive / urgency / describe из § 5.4
+
+  /**
+   * Динамические prerequisites.
+   * Вернуть пустой массив если их нет.
+   * Возвращаемый `goalId` ОБЯЗАТЕЛЬНО должен существовать в registry; иначе — ошибка валидации.
+   */
+  getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[];
+}
+
+export interface GoalPrerequisite {
+  goalId: string;
+  reason: string;  // "Gen3 stands at corner (0,0); needs ≥4 free neighbors for steady spawn"
+}
+```
+
+**Семантика:**
+1. Если у активной Goal X в текущем состоянии есть prerequisite на Goal Y, и Y тоже активна — Y **выполняется первой**, независимо от своей `category` и базового приоритета.
+2. Goal Y во время promotion **временно считается blocking** (см. § 5.4), даже если её `META.category === 'opportunistic'` или `'background'`.
+3. `IterationDecision.prerequisiteChain` фиксирует промоушен: `{ fromGoalId: 'CompleteActiveQuest', toGoalId: 'BoardLayout', reason: '...' }`.
+4. Если Y неактивна (`isActive=false`) — prerequisite **игнорируется**, X пытается работать без него (это явная ошибка автора Goal X, должно ловиться тестом, но не ронять прогон).
+
+**Cycle protection:**
+- Scheduler детектирует циклы при разворачивании цепочки prerequisites через DFS с visited-set по `goalId`.
+- На цикл — фиксируется ошибка в trace: `IterationDecision.stuckReason = "Prerequisite cycle: A → B → A (reason: ...)"` и текущая итерация заканчивается без действия (нативно — ошибка дизайна стратегии, не runtime-баг).
+- Также есть hard-limit глубины цепочки (например, 5 уровней) на случай патологий.
+
+**FP-кейс через этот контракт:**
+- `CompleteActiveQuestGoal.getPrerequisites()` смотрит: квест требует существо типа T → есть ли у него генератор? → если timer-mode и `freeNeighbors(gen) < 1` (или другой порог) → возвращает `[{ goalId: 'BoardLayout', reason: 'Gen3 has 0 free neighbors at (0,0)' }]`.
+- Иначе возвращает `[]`. Это значит `BoardLayout` НЕ всегда промоутится — только когда реально нужен. Не "always-on".
+
+### 5.4 Контракт 4 — Scheduler (priority + prerequisites + category + safety budget)
+
+Scheduler — это та часть `ModularStrategy.decide()`, которая решает в каком порядке обрабатывать Goals и когда выходить из inner-loop. Контракт scheduler'а — **четыре одновременных правила:**
+
+#### A. Goal priority
+
+```typescript
+finalPriority(goal, state, ctx) =
+  isPromotedToPrereq(goal)
+    ? PREREQ_BOOST_PRIORITY        // фиксированное большое число, например 1000
+    : goal.basePriority * goal.urgency(state, ctx)
+```
+
+`PREREQ_BOOST_PRIORITY` гарантирует что promoted goal обрабатывается раньше любой не-promoted, даже с высоким basePriority.
+
+#### B. Goal category — default scheduling lane
+
+```typescript
+export type GoalCategory =
+  | 'blocking'        // обязательно отрабатывать пока inner-loop активен
+  | 'opportunistic'   // выполнить ≤ N действий (default 1) и закрыть тик
+  | 'background';     // выполнить ≤ M раз за тик, low priority (default 1, может быть 0)
+```
+
+Категория — **default lane**, не абсолют. Goal в prereq-chain (см. контракт 3) **временно считается blocking** независимо от своей категории. Это явное правило, не side-effect.
+
+#### C. Prerequisites resolution
+
+См. контракт 3. Перед обработкой Goal X scheduler вызывает `X.getPrerequisites(state, ctx)`:
+- Если есть активные prerequisites → ставит их в очередь раньше X с promotion в blocking.
+- Cycle/depth protection.
+
+#### D. Safety budget per tick
+
+Жёсткий лимит, фиксируется engine'ом, передаётся в scheduler через context:
+
+```typescript
+const TICK_ACTION_BUDGET = 50;  // конфигурируемое
+```
+
+Каждое выбранное `selectedAction` уменьшает счётчик. При исчерпании — следующий вызов `decide()` возвращает `done=true` без proposals, engine закрывает тик с `endReason='budget'`.
+
+Это страховка **поверх** категорий: если из-за бага blocking goals крутятся бесконечно, бюджет всё равно закроет тик.
+
+#### Алгоритм scheduler'а (псевдокод inner-iteration)
+
+```
+decide(state, rng) -> StrategyDecision:
+  ctx = buildContext(state, rng)
+  iter = new IterationDecision(iteration++)
+
+  if remainingBudget <= 0:
+    iter.stuckReason = "tick budget exhausted"
+    log(iter); return { actions: [], done: true }
+
+  # 1. Собрать активные goals + развернуть prereq-цепочки
+  activeRaw = goals.filter(g => g.isActive(state, ctx))
+  resolvedQueue = resolvePrereqChain(activeRaw, state, ctx)
+    # → [{goal, promotedFromPrereq?, reason?}, ...] в порядке: prereqs first, blocking before others
+
+  # Если в resolution возник цикл → прокинуть stuckReason и выйти
+  if resolvedQueue.cycleDetected:
+    iter.stuckReason = formatCycle(resolvedQueue.cycle)
+    log(iter); return { actions: [], done: true }
+
+  iter.activeGoals = resolvedQueue.map(snapshot)
+
+  # 2. Идти по очереди, пока не найдём action
+  for goal in resolvedQueue:
+    proposals = collectProposals(goal, state, ctx)
+    if proposals.empty: continue
+    iter.proposedActions.append(...proposals)
+
+    survivors = filterByGuards(proposals, state, ctx, iter)
+    if survivors.empty: continue
+
+    best = survivors.maxBy(p => p.expectedProgress)
+    iter.selectedGoalId = goal.id
+    iter.selectedAction = best.action
+    log(iter); return { actions: [best.action], done: false }
+
+  # 3. Никто не дал action
+  iter.stuckReason = inferStuckReason(resolvedQueue, iter)
+
+  # Закрытие тика по категориям:
+  # Если хоть одна blocking goal активна и должна была дать action — это stuck
+  # Если только opportunistic/background и они уже отыграли свою квоту — это normal done
+  shouldClose = !hasUnsatisfiedBlocking(resolvedQueue, iter)
+  log(iter); return { actions: [], done: shouldClose }
+```
+
+**Закрытие тика — конечный автомат:**
+- Стратегия возвращает `done=true` → engine закрывает с `endReason='done'` (если был хотя бы 1 action) или `'idle'` (если actions=0).
+- Engine исчерпал budget → `endReason='budget'`.
+- Engine упёрся в `MAX_ITERATIONS` без `done` → `endReason='max_iterations'` (это сигнал бага в стратегии).
+
+---
+
+## 6. Базовые интерфейсы (полный набор)
 
 ```typescript
 // src/simulation/strategies/modular/types.ts
 
 import type { GameSnapshot, SimulationAction, SeededRng } from '../../engine/types';
 
-/**
- * Goal — декларативная цель агента.
- * Возвращает свою важность в текущем состоянии. Не выполняет действий.
- */
+export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
+
 export interface Goal {
-  readonly id: string;
-  readonly basePriority: number; // 0..100, статический
-
-  /** Активна ли goal в этом состоянии. */
+  readonly meta: GoalMeta;       // ссылка на статический META
   isActive(state: GameSnapshot, ctx: StrategyContext): boolean;
-
-  /** Динамическая важность 0..1 (например, для FreeGrid растёт с заполнением). */
   urgency(state: GameSnapshot, ctx: StrategyContext): number;
-
-  /** Человекочитаемое описание для trace ("Quest требует 3× Creature5 L2"). */
   describe(state: GameSnapshot, ctx: StrategyContext): string;
+  getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[];
 }
 
-/**
- * Tactic — модуль, знающий как достичь конкретной goal.
- * Возвращает кандидаты действий с обоснованием.
- */
 export interface Tactic {
-  readonly id: string;
-
-  /** Каким goals обслуживает (по id). */
+  readonly meta: TacticMeta;
   appliesTo(goal: Goal): boolean;
-
-  /**
-   * Предлагает действия для достижения goal.
-   * Может вернуть [] если goal недостижима этим тактиком сейчас.
-   */
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[];
 }
 
-export interface ProposedAction {
-  readonly action: SimulationAction;
-  readonly reasoning: string;          // "merge Creature1 L2 to reach quest target L3"
-  readonly expectedProgress: number;   // 0..1, насколько приближает к цели
-  readonly tacticId: string;
-  readonly goalId: string;
+export interface Guard {
+  readonly meta: GuardMeta;
+  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult;
 }
 
-/**
- * Guard — инвариант, отвергающий действия.
- * Чисто негативная роль: говорит "нельзя", не предлагает альтернативы.
- */
-export interface Guard {
-  readonly id: string;
-
-  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult;
+export interface ProposedAction {
+  action: SimulationAction;
+  reasoning: string;
+  expectedProgress: number; // 0..1
+  tacticId: string;
+  goalId: string;
 }
 
 export type GuardResult =
   | { allow: true }
   | { allow: false; reason: string };
 
-/**
- * Контекст, общий для одного inner-iteration.
- * Сюда складываются вычисленные один раз вспомогательные данные
- * (например, mapping creatureType → generator), чтобы Tactic'и не пересчитывали.
- */
 export interface StrategyContext {
-  readonly creatureGenMap: Map<string, GeneratorAssignment>;
-  readonly activeQuestNeeds: QuestNeed[];
+  readonly creatureGenMap: ReadonlyMap<string, GeneratorAssignment>;
+  readonly activeQuestNeeds: readonly QuestNeed[];
   readonly freeCellCount: number;
+  readonly remainingTickBudget: number;
   readonly rng: SeededRng;
 }
-
-/**
- * Decision Trace — структурная запись одного inner-iteration.
- */
-export interface TickDecision {
-  readonly tick: number;
-  readonly iteration: number;
-  readonly activeGoals: Array<{
-    id: string;
-    basePriority: number;
-    urgency: number;
-    finalPriority: number;
-    describe: string;
-  }>;
-  readonly selectedGoalId: string | null;
-  readonly proposedActions: Array<{
-    tacticId: string;
-    goalId: string;
-    actionType: string;
-    reasoning: string;
-    expectedProgress: number;
-  }>;
-  readonly rejectedByGuards: Array<{
-    tacticId: string;
-    actionType: string;
-    guardId: string;
-    reason: string;
-  }>;
-  readonly selectedAction: SimulationAction | null;
-  readonly stuckReason?: string;
-}
 ```
 
-## 6. Decision Loop (orchestrator)
+(Конкретные типы `GeneratorAssignment` / `QuestNeed` оставляем на план — это утилитарные структуры.)
 
-Псевдокод `ModularStrategy.decide()`:
-
-```
-decide(state, rng) -> StrategyDecision:
-  ctx = buildContext(state, rng)
-  trace = new TickDecision(tick, iteration)
-
-  # 1. Собрать активные goals
-  active = goals.filter(g => g.isActive(state, ctx))
-  active.sort(byDescending(g => g.basePriority * g.urgency(state, ctx)))
-  trace.activeGoals = active.map(snapshot)
-
-  # 2. Идти по goals в порядке приоритета
-  for goal in active:
-    proposals = []
-    for tactic in tactics where tactic.appliesTo(goal):
-      proposals.append(...tactic.propose(state, goal, ctx))
-
-    if proposals.empty: continue
-    trace.proposedActions.append(...proposals)
-
-    # 3. Прогнать через guards
-    survivors = []
-    for p in proposals:
-      verdict = checkAllGuards(p, state, ctx)
-      if verdict.allow:
-        survivors.append(p)
-      else:
-        trace.rejectedByGuards.append({p, verdict.reason})
-
-    if survivors.empty: continue
-
-    # 4. Выбрать с max expectedProgress (tie-break: tacticId алфавитно)
-    best = survivors.maxBy(p => p.expectedProgress)
-    trace.selectedGoalId = goal.id
-    trace.selectedAction = best.action
-    log(trace)
-    return { actions: [best.action], done: false }
-
-  # 5. Никто не дал действия → stuck
-  trace.stuckReason = inferStuckReason(active, trace)
-  log(trace)
-  return { actions: [], done: true }
-```
-
-**Особенности:**
-- Жадный, без backtracking. Одна цель за раз. На следующем inner-iteration состояние другое — может быть другая цель.
-- `expectedProgress` — это сравнение между tactic'ами **внутри одной goal**, не между goals.
-- Guards применяются ко всем proposals (а не пропускают proposals от тактик "владельца"). Любая Tactic может быть сужена любым Guard.
+---
 
 ## 7. Стартовые наборы
 
+Списки даны для масштаба и валидации, что 4 контракта покрывают реальные потребности. Раскладка по файлам — в implementation plan.
+
 ### 7.1 Goals (9)
 
-| id | basePriority | active when | urgency drives | describe |
-|----|--------------|-------------|----------------|----------|
-| `EarlyGame` | 90 | `kraken.level < 2` | constant 1.0 | "Early game: фарм EXP до Kraken Lv 2" |
-| `CollectRewards` | 85 | `pendingRewards.length > 0` | 1.0 | "Забрать N pending rewards" |
-| `CompleteActiveQuest` | 80 | quest exists | растёт с прогрессом квеста | "Quest: X из Y существ типа T уровня L" |
-| `OpenBoxes` | 70 | боксы на гриде | 0.7 + 0.3*количество | "M боксов ждут открытия" |
-| `MaintainFreeGrid` | 60 | `freeCells / total < 0.4` | растёт квадратично с заполнением | "Грид заполнен на P%" |
-| `BoardLayout` | 50 | timer-генератор у края + активный квест на его существо | 1.0 если ещё не в центре, иначе 0 | "Gen3 надо переместить ближе к центру" |
-| `ManageRunes` | 40 | непарные руны на гриде ≥ 2 уровней | растёт с количеством рун на поле | "K рун можно мерджить/трейдить" |
-| `UpgradeGenerator` | 30 | есть руны для апгрейда **и** нет активного апгрейда | 0.5 базово, 1.0 если квест требует существо высокого уровня | "Можно апгрейднуть Gen N до Lv M" |
-| `ProgressKraken` | 20 | нет активного квеста, kraken not maxed | constant 0.5 | "Идле-фарм EXP" |
-
-(`ProgressKraken` — fallback. Если ничего другого не активно, фармим что есть.)
+| id | basePriority | category | active when | urgency drives | typical prereq output |
+|----|--------------|----------|-------------|----------------|------------------------|
+| `EarlyGame` | 90 | blocking | `kraken.level < 2` | constant 1.0 | `[]` |
+| `CollectRewards` | 85 | blocking | `pendingRewards.length > 0` | 1.0 | `[]` |
+| `CompleteActiveQuest` | 80 | blocking | quest exists | растёт с прогрессом квеста | `[BoardLayout]` if generator misplaced; иначе `[]` |
+| `OpenBoxes` | 70 | opportunistic | боксы на гриде | 0.7 + 0.3*количество | `[MaintainFreeGrid]` if не хватает места под содержимое |
+| `MaintainFreeGrid` | 60 | opportunistic | `freeCells / total < 0.4` | растёт квадратично | `[]` |
+| `BoardLayout` | 50 | opportunistic | timer-генератор у края + (есть квест на его существо OR явный запрос как prereq) | 1.0 если ещё не оптимально | `[]` |
+| `ManageRunes` | 40 | opportunistic | непарные руны на гриде ≥ 2 уровней | растёт с количеством | `[]` |
+| `UpgradeGenerator` | 30 | background | есть руны для апгрейда **и** нет активного апгрейда | 0.5 базово, 1.0 при квесте на high-level существо | `[]` |
+| `ProgressKraken` | 20 | background | нет активного квеста, kraken not maxed | constant 0.5 | `[]` |
 
 ### 7.2 Tactics (15)
 
-| id | serves goals | propose что |
-|----|--------------|-------------|
-| `EarlyFeed` | EarlyGame | feed любых существ Кракену |
-| `EarlySpawn` | EarlyGame | spawn / charge генераторов |
-| `RewardClaim` | CollectRewards | claim_reward |
-| `BoxOpen` | OpenBoxes | open_box (с проверкой места) |
-| `QuestSpawn` | CompleteActiveQuest | spawn нужного существа (gather_meat → charge → spawn) |
-| `QuestMerge` | CompleteActiveQuest | merge до целевого уровня |
-| `QuestFeed` | CompleteActiveQuest | feed готовых существ Кракену |
-| `TimerGenSkip` | CompleteActiveQuest | skip_timer_generator (для Gen3 если нужен его тип) |
-| `GridFreeMerge` | MaintainFreeGrid | merge мусорных пар |
-| `GridFreeFeed` | MaintainFreeGrid | feed мусорных существ |
-| `BoardPlacement` | BoardLayout | move_entity (генератор → центральная клетка) |
-| `RuneMerge` | ManageRunes | merge рун до max level |
-| `RuneFeed` | ManageRunes | feed max-level рун за валюту |
-| `UpgradeStart` | UpgradeGenerator | start_upgrade |
-| `UpgradeCollect` | UpgradeGenerator | collect_upgrade (если готов) |
+| id | serves goals | produces (action types) |
+|----|--------------|------------------------|
+| `EarlyFeed` | EarlyGame | `feed` |
+| `EarlySpawn` | EarlyGame | `spawn_generator`, `charge_generator`, `gather_meat` |
+| `RewardClaim` | CollectRewards | `claim_reward`, `free_cells` |
+| `BoxOpen` | OpenBoxes | `open_box` |
+| `QuestSpawn` | CompleteActiveQuest | `spawn_generator`, `charge_generator`, `gather_meat` |
+| `QuestMerge` | CompleteActiveQuest | `merge` |
+| `QuestFeed` | CompleteActiveQuest | `feed` |
+| `TimerGenSkip` | CompleteActiveQuest | `skip_timer_generator` |
+| `GridFreeMerge` | MaintainFreeGrid | `merge` |
+| `GridFreeFeed` | MaintainFreeGrid | `feed` |
+| `BoardPlacement` | BoardLayout | `move_entity` |
+| `RuneMerge` | ManageRunes | `merge` |
+| `RuneFeed` | ManageRunes | `feed` |
+| `UpgradeStart` | UpgradeGenerator | `start_upgrade` |
+| `UpgradeCollect` | UpgradeGenerator | `collect_upgrade` |
 
 ### 7.3 Guards (6)
 
-| id | when triggers | reason text |
-|----|---------------|-------------|
-| `DontFeedQuestTargets` | action=feed для существа, нужного активному квесту | "Creature5 L2 нужен для квеста (3 из 5 готовы)" |
-| `ProtectFPNeighbors` | action освобождает соседнюю клетку timer-генератора, если он спавнит для активного квеста | "Соседняя клетка Gen3 нужна для следующего спавна" |
-| `NoUpgradeWithoutFullRunes` | start_upgrade без полного покрытия рун | "Не хватает 3× Rune2 для апгрейда Gen2" |
-| `NoSpawnIntoFullGrid` | spawn_generator при `freeCells == 0` и невозможности освободить | "Грид полон, освободить нельзя" |
-| `DontWasteUpgradeSlot` | start_upgrade пока `state.activeUpgrade !== null` | "Слот апгрейда занят" |
-| `PreserveHighLevelCreatures` | feed существа уровня ≥ 3 без явной квестовой цели | "Creature1 L4 — высокого уровня, не скармливаем без причины" |
+| id | trigger | reason text |
+|----|---------|-------------|
+| `DontFeedQuestTargets` | `feed` для существа, нужного активному квесту | "Creature5 L2 нужен для квеста (3 из 5 готовы)" |
+| `ProtectFPNeighbors` | `feed`/`merge`/`move_entity` **в соседнюю с активным timer-генератором клетку** при активном квесте на его существо. **НЕ блокирует сам spawn**. | "Соседняя клетка Gen3 нужна для следующего спавна" |
+| `NoUpgradeWithoutFullRunes` | `start_upgrade` без полного покрытия рун | "Не хватает 3× Rune2 для апгрейда Gen2" |
+| `NoSpawnIntoFullGrid` | `spawn_generator` при `freeCells == 0` и невозможности освободить | "Грид полон, освободить нельзя" |
+| `DontWasteUpgradeSlot` | `start_upgrade` пока `state.activeUpgrade !== null` | "Слот апгрейда занят" |
+| `PreserveHighLevelCreatures` | `feed` существа уровня ≥ 3 без явной квестовой цели | "Creature1 L4 — высокого уровня, не скармливаем без причины" |
 
-## 8. Decision Trace и Stuck Analyzer
+---
 
-### 8.1 Что пишется
+## 8. Артефакты для Inspector
 
-`ModularStrategy` накапливает `TickDecision` каждый inner-iteration в массив. По окончании симуляции engine получает массив через `strategy.getTrace()` (новый опциональный метод `AIStrategy`) и сохраняет в `decision-trace.json` рядом с метриками.
+### 8.1 Структура артефактов
 
-В `run-sim.ts` добавляется секция в action log: для каждого тика рядом со списком action'ов — кратко "selected: goal=X, tactic=Y" и (если был) "rejected: G actions by guards".
+При прогоне симуляции пишутся два JSON:
 
-### 8.2 Stuck Reason
+- **`inspector-data.json`** — статика стратегии. Собирается из реестров goals/tactics/guards (через META + sourceFile из registry helper § 5.2). Один и тот же файл для всех прогонов одной версии стратегии. Не зависит от seed.
+- **`decision-trace.json`** — массив `TickTrace[]` за один прогон. Зависит от seed, тик-лимита, набора эксперимента.
 
-Если `selectedAction === null`, заполняется `stuckReason` через `inferStuckReason(activeGoals, trace)`:
+### 8.2 Доставка (CLI vs browser)
 
-- Если ни одна goal не была активна → `"No active goals (kraken Lv X, no quest, grid free)"`
-- Если активные goals были, но 0 proposals → `"Active goal G had no applicable tactics"` (с перечнем активных goals)
-- Если были proposals, но все убиты guards → `"All proposals rejected: G1 (guard A), G2 (guard B)..."`
+**Scope MVP — только CLI-запуск (`scripts/run-sim.ts`):**
 
-### 8.3 Stuck Analyzer
+CLI пишет:
+```
+public/sim-runs/
+  ├── 2026-05-03T12-34-56_seed-42/
+  │   ├── inspector-data.json
+  │   └── decision-trace.json
+  ├── 2026-05-03T13-10-22_seed-7/
+  │   └── ...
+  └── latest.json   # manifest: { latestRunPath: "2026-05-03T13-10-22_seed-7" }
+```
 
-Отдельный модуль (используется в Strategy Inspector):
-- Группирует stuck-тики по `stuckReason`
-- Выдаёт топ-N паттернов застревания
-- Для каждого — рекомендация ("если часто срабатывает `ProtectFPNeighbors`, рассмотреть BoardLayout goal")
+`public/sim-runs/` добавляется в `.gitignore`. Vite автоматически раздаёт всё содержимое `public/`. `strategy-inspector.html` делает `fetch('/sim-runs/latest.json')` → читает `latestRunPath` → грузит `inspector-data.json` и `decision-trace.json` из этого подкаталога. UI Inspector'а может также показать список всех прогонов и переключаться между ними.
 
-## 9. Strategy Inspector
+**Browser-run (запуск из `simulation.html`)** — out of scope для MVP:
+- В браузере нет прав записи в `public/`.
+- На MVP trace остаётся в memory, есть кнопка "Download trace JSON" (создаёт Blob, скачивает файл).
+- Опционально — сохранение последнего trace в `sessionStorage` (если влезает по размеру).
+- Пользователь скачивает файл, кладёт его в `public/sim-runs/manual/`, выбирает в Inspector через UI. Это явный ручной флоу, без иллюзии автомата.
 
-`public/strategy-inspector.html` — самостоятельная страница, по образцу `public/strategy-flowchart.html`.
+### 8.3 Inspector — четыре вкладки
 
-**Стек:** Mermaid v11 + cm-* design system + vanilla JS. Чтение JSON-артефактов из dev-сервера.
+`public/strategy-inspector.html`. Стек: Mermaid v11 + cm-* design system + vanilla JS (как `strategy-flowchart.html`).
 
-### 9.1 Артефакты
-
-При запуске `npx tsx scripts/run-sim.ts` (и при run из UI):
-- `inspector-data.json` — структура стратегии (генерируется один раз из `goals/`, `tactics/`, `guards/` через статический анализ — список id, basePriority, описания, маппинги serves/appliesTo)
-- `decision-trace.json` — массив `TickDecision` за всю симуляцию
-
-Оба пишутся в `.context/sim-runs/<timestamp>/` (либо в фиксированный путь — финализируем в плане). Inspector подгружает их fetch'ом.
-
-### 9.2 Вкладки
-
-**Tab 1 — Structure**
-
-Mermaid flowchart, генерируемый автоматически из `inspector-data.json`:
-- Колонка слева — Goals (синие, отсортированы по basePriority)
+**Tab 1 — Structure.** Mermaid flowchart, генерируемый из `inspector-data.json`:
+- Колонка слева — Goals (синие, по basePriority, с категорией badge: blocking/opportunistic/background)
 - Колонка центра — Tactics (зелёные), стрелки от Goals → Tactics через `serves`
-- Колонка справа — Guards (красные), помечены "applies to: action types..."
+- Колонка справа — Guards (красные), помечены `blocksActionTypes`
+- Стрелки prereq между Goals (например, CompleteActiveQuest --[possible prereq]--> BoardLayout) — пунктирные, helper-комментарием "dynamic, see runtime trace"
 
-Нажатие на ноду → раскрывается панель с описанием, файлом-источником, basePriority/urgency-формулой.
+**Tab 2 — Live Trace.** Загрузка `decision-trace.json`. Слайдер тиков.
 
-**Tab 2 — Live Trace**
+Для выбранного тика:
+- Header: `tick=N`, `endReason=...`, `outerActionsCount=...`
+- Секция "Iterations" — список `IterationDecision`:
+  - Active goals (cm-table: id, basePri, urgency, finalPri, category, **promotedFromPrereq если есть**)
+  - PrereqChain (cm-table: from → to, reason) — если `prerequisiteChain.length > 0`
+  - Selected goal (highlighted)
+  - Proposed actions (cm-table)
+  - Rejected by guards (cm-table, красным)
+  - Selected action (зелёным) или stuckReason (баннер)
 
-- Слайдер тиков (0...maxTick), step = 1
-- Под слайдером — карточка одного `TickDecision`:
-  - Active Goals (cm-table со столбцами id, basePriority, urgency, finalPriority)
-  - Selected Goal (highlighted)
-  - Proposed Actions (cm-table: tacticId, action, reasoning, expectedProgress)
-  - Rejected by Guards (cm-table: tacticId, action, guardId, reason) — красным
-  - Selected Action (зелёным)
-  - Stuck banner (если есть)
+Hotkeys: ←/→ — соседний тик, ↓ — следующая итерация внутри тика, "S" — следующий stuck.
 
-Стрелки ⬅/➡ — следующий/предыдущий тик. Hotkey "S" — следующий stuck.
+**Tab 3 — Catalog.** 3 cm-table из META:
+- Goals: id, basePriority, category, activationCondition, urgencyFormula
+- Tactics: id, serves, produces, description
+- Guards: id, blocksActionTypes, trigger, "сработал N раз" (агрегат из текущего trace)
 
-**Tab 3 — Catalog**
+**Tab 4 — Stuck Analyzer.** Группировка `IterationDecision.stuckReason` по подстрокам ("All proposals rejected by guards", "Prerequisite cycle", "tick budget exhausted"). Для каждой группы — counter, "go to first occurrence" → переход в Live Trace на нужный тик/итерацию.
 
-3 cm-table:
-- Goals: id, basePriority, описание, какие tactics обслуживают
-- Tactics: id, serves (список goal-id), описание
-- Guards: id, описание, "сработал N раз" (из загруженного трейса)
+---
 
-**Tab 4 — Stuck Analyzer**
+## 9. Файловая структура (намёком)
 
-- Если в трейсе нет stuck — пустое состояние "Симуляция не застревала, всё ок"
-- Иначе — список паттернов: `stuckReason`, количество тиков, "go to first occurrence" → переход в Live Trace
-
-### 9.3 Бонус: трейс кейса с FP
-
-В Live Trace на тике 47 (пример) пользователь увидит:
-```
-Active goals:
-  CompleteActiveQuest (basePri=80, urgency=0.95, final=76.0)
-  MaintainFreeGrid (basePri=60, urgency=0.78, final=46.8)
-  BoardLayout — NOT ACTIVE (Gen3 уже в центре? проверить условие активации)
-
-Selected goal: CompleteActiveQuest
-
-Proposed:
-  QuestSpawn → spawn from Gen3
-  QuestMerge → (no pairs)
-  GridFreeFeed → feed Creature5 L1 (from MaintainFreeGrid)
-
-Rejected by Guards:
-  QuestSpawn → spawn from Gen3 — REJECTED by ProtectFPNeighbors:
-    "Gen3 has 0 free neighbors (placed at corner 0,0)"
-  GridFreeFeed → feed Creature5 L1 — REJECTED by DontFeedQuestTargets:
-    "Creature5 L1 нужен для квеста"
-
-STUCK:
-  All proposals rejected. Goal CompleteActiveQuest blocked.
-  Hint: BoardLayout goal не сработала, проверить условие активации.
-```
-
-Это и есть тот трейс, который сейчас "невидим в коде".
-
-## 10. Файловая структура
+Полная раскладка — в implementation plan. Здесь только верхнеуровневые папки:
 
 ```
 src/simulation/strategies/modular/
-├── ModularStrategy.ts                # orchestrator (decide/getTrace/reset)
-├── types.ts                          # все интерфейсы
-├── context.ts                        # buildContext(state, rng)
-├── trace/
-│   ├── DecisionTrace.ts              # сборка и сериализация TickDecision
-│   └── StuckAnalyzer.ts              # inferStuckReason + группировка
-├── goals/
-│   ├── EarlyGameGoal.ts
-│   ├── CollectRewardsGoal.ts
-│   ├── CompleteActiveQuestGoal.ts
-│   ├── OpenBoxesGoal.ts
-│   ├── MaintainFreeGridGoal.ts
-│   ├── BoardLayoutGoal.ts
-│   ├── ManageRunesGoal.ts
-│   ├── UpgradeGeneratorGoal.ts
-│   ├── ProgressKrakenGoal.ts
-│   └── index.ts                      # реестр для авто-сборки inspector-data
-├── tactics/
-│   ├── EarlyFeedTactic.ts
-│   ├── EarlySpawnTactic.ts
-│   ├── RewardClaimTactic.ts
-│   ├── BoxOpenTactic.ts
-│   ├── QuestSpawnTactic.ts
-│   ├── QuestMergeTactic.ts
-│   ├── QuestFeedTactic.ts
-│   ├── TimerGenSkipTactic.ts
-│   ├── GridFreeMergeTactic.ts
-│   ├── GridFreeFeedTactic.ts
-│   ├── BoardPlacementTactic.ts
-│   ├── RuneMergeTactic.ts
-│   ├── RuneFeedTactic.ts
-│   ├── UpgradeStartTactic.ts
-│   ├── UpgradeCollectTactic.ts
-│   └── index.ts
-├── guards/
-│   ├── DontFeedQuestTargetsGuard.ts
-│   ├── ProtectFPNeighborsGuard.ts
-│   ├── NoUpgradeWithoutFullRunesGuard.ts
-│   ├── NoSpawnIntoFullGridGuard.ts
-│   ├── DontWasteUpgradeSlotGuard.ts
-│   ├── PreserveHighLevelCreaturesGuard.ts
-│   └── index.ts
+├── ModularStrategy.ts            # orchestrator
+├── types.ts                      # все 4 контракта + интерфейсы
+├── context.ts                    # buildContext(state, rng)
+├── scheduler/                    # реализация контракта 4
+├── trace/                        # реализация контракта 1
+├── registry/                     # реализация контракта 2 (helper для META + sourceFile)
+├── prerequisites/                # реализация контракта 3 (resolveChain, cycle detect)
+├── goals/        (9 файлов + index.ts)
+├── tactics/      (15 файлов + index.ts)
+├── guards/       (6 файлов + index.ts)
 └── __tests__/
-    ├── modular-strategy.integration.test.ts
-    ├── goals/<id>.test.ts (по одному на goal)
-    ├── tactics/<id>.test.ts (по одному на tactic)
-    └── guards/<id>.test.ts (по одному на guard)
-
-scripts/
-└── build-inspector-data.ts           # парсит модули, генерит inspector-data.json
-
-public/
-└── strategy-inspector.html           # одностраничник (Mermaid + cm-* + vanilla JS)
 ```
 
-## 11. Тестирование
+---
 
-### 11.1 Unit-тесты
+## 10. Тестирование
 
-Один тест-файл на каждую Goal/Tactic/Guard. Каждый покрывает:
+### 10.1 Контракт-тесты
 
-**Goal:**
-- `isActive` true/false на разных снапшотах
-- `urgency` монотонна по входному условию (грид заполняется → urgency растёт)
-- `describe` возвращает непустую строку
+**Каждый из 4 контрактов имеет свой test-файл**, проверяющий корректность контракта независимо от конкретных goals/tactics/guards:
 
-**Tactic:**
-- На матчевой goal возвращает разумные `ProposedAction` с непустым `reasoning` и `expectedProgress ∈ [0,1]`
-- На немэтчевой goal возвращает `[]`
-- Edge cases (пустой грид, нет генератора нужного типа, нет ресурсов)
+- `trace.contract.test.ts` — TickTrace корректно агрегируется на границе тика, endReason ставится правильно во всех 4 кейсах (done/idle/budget/max_iterations).
+- `meta.contract.test.ts` — registry helper корректно прокидывает sourceFile, валидирует обязательные поля META, ловит дубликаты id.
+- `prerequisites.contract.test.ts` — `resolvePrereqChain` корректно разворачивает цепочки, детектит циклы, hard-limit глубины, игнорирует неактивные prereqs.
+- `scheduler.contract.test.ts` — finalPriority корректен, promotion в blocking работает, budget корректно учитывается.
 
-**Guard:**
-- Allow на безопасных action
-- Deny с конкретным reason на нарушающих
+### 10.2 Unit-тесты модулей
 
-### 11.2 Integration-тест
+Один тест-файл на каждую Goal/Tactic/Guard. Проверка `isActive`/`urgency`/`describe`/`getPrerequisites` или аналогов.
+
+### 10.3 Integration-тест
 
 `modular-strategy.integration.test.ts`:
-- Прогон `ModularStrategy` на 5 фиксированных seeds (одинаковых с baseline RealisticStrategy)
-- Проверка что cumulative metrics ≥ baseline (см. § 12)
-- Проверка что `decision-trace.json` корректно сериализуется и каждый тик имеет валидный `TickDecision`
-- Проверка что нет ошибок thrown изнутри `decide()`
+- Прогон `ModularStrategy` на 5 фиксированных seeds (одинаковых с baseline RealisticStrategy).
+- Проверка что cumulative metrics ≥ baseline (см. § 12).
+- Проверка что `decision-trace.json` корректно сериализуется и каждый тик имеет валидный `TickTrace` с `endReason`.
+- Проверка что нет ошибок thrown изнутри `decide()`.
 
-### 11.3 Stuck-тест
+### 10.4 Stuck-тест (FP-сценарий)
 
-Искусственно сконструированный snapshot, где известно что стратегия должна застрять (например, грид полон + квест требует существо из единственного спавнера, у которого нет соседних клеток).
-- Прогон одного `decide()` итерации
-- Ассерт: `done=true`, `stuckReason` соответствует ожидаемому паттерну
+Искусственно сконструированный snapshot:
+- Gen3 у края (0,0).
+- Активный квест на Creature5 (выход Gen3).
+- Грид заполнен на 80%.
 
-### 11.4 Trace-тест
+Ожидание:
+1. Первая итерация: `CompleteActiveQuest` запрашивает prereq → `BoardLayout` promoted.
+2. `BoardPlacementTactic` предлагает `move_entity` Gen3 → центр.
+3. На следующих итерациях квест продолжает выполняться без зацикливания.
+4. `IterationDecision.prerequisiteChain` зафиксирован.
 
-- Запуск симуляции на коротком сценарии (50 тиков)
-- Ассерт: для каждого тика есть валидный `TickDecision` с непустым `selectedAction || stuckReason`
+### 10.5 Cycle-тест
 
-## 12. Acceptance Criteria
+Искусственная пара goals с взаимными prereqs → ожидание `stuckReason` с упоминанием цикла.
 
-ModularStrategy переходит в дефолт **только** когда выполнены все условия на 5+ seeds (включая 42 — текущий по умолчанию):
+---
+
+## 11. Acceptance Criteria
+
+ModularStrategy переходит в дефолт **только** когда выполнены все условия на 5+ seeds (включая 42):
 
 | метрика | условие |
 |---------|---------|
@@ -492,49 +597,72 @@ ModularStrategy переходит в дефолт **только** когда �
 | `totalEyesGained` | ≥ baseline |
 | `totalTasksCompleted` | ≥ baseline |
 | `totalTimeSec` | ≤ baseline × 1.10 |
-| stuck-тиков | 0 на 1000-тиковой симуляции |
-| ошибок изнутри `decide()` | 0 |
+| `endReason='max_iterations'` за прогон | 0 |
+| Ошибок изнутри `decide()` | 0 |
+| FP-stuck-кейс из § 10.4 | разрешается без зацикливания |
 
-**Если не пройдено** — итерируем (правим Tactics/Guards/приоритеты Goals), повторно прогоняем. Только после прохождения — зовём пользователя на сравнение.
+---
 
-## 13. Стратегия миграции
+## 12. Стратегия миграции
 
 1. `RealisticStrategy` остаётся, не трогается.
 2. `ModularStrategy` создаётся параллельно. Доступна через флаг `--strategy=modular` в `run-sim.ts` и через select в `simulation.html`.
-3. CI или ручной прогон `npm run sim:compare` запускает обе на 5 seeds и печатает дифф метрик.
-4. Когда acceptance criteria выполнены: `ModularStrategy` становится дефолтом в `run-sim.ts` и UI.
-5. `RealisticStrategy` остаётся ещё на 1–2 релиза для regression-проверки. Помечается deprecated в комментарии класса.
+3. Скрипт `npm run sim:compare` запускает обе на 5 seeds и печатает дифф метрик.
+4. Когда acceptance criteria выполнены: `ModularStrategy` становится дефолтом.
+5. `RealisticStrategy` остаётся ещё на 1–2 релиза для regression. Помечается deprecated.
 
-## 14. Решённый кейс (FP-зацикливание)
+---
 
-Текущий бажный сценарий разбирается по слоям:
+## 13. Решённый кейс (FP) под dynamic prerequisites
 
-| Что происходит | Какой слой ловит |
-|----------------|------------------|
-| Gen3 спавнит существо для квеста | `QuestSpawnTactic.propose()` |
-| Соседняя клетка единственная свободная | `ProtectFPNeighborsGuard` помечает spawn как rejected, если квест активен и спавн идёт |
-| `MaintainFreeGrid` пытается убрать существо | `DontFeedQuestTargetsGuard` блокирует |
-| Все варианты блокированы | `stuckReason` = "All proposals rejected by guards" |
-| Системная причина — Gen3 у края | `BoardLayoutGoal` активна (FP не в центре + квест на его существо), `BoardPlacementTactic` предлагает `move_entity` — на следующем тике именно этот action будет выбран как наивысший приоритет, потому что guards его не блокируют |
+### Ситуация
+Активный квест требует существо из Gen3 (timer-mode), Gen3 расположен в (0,0) с 3 свободными соседями. Грид заполнен на 70%.
 
-**Итог:** вместо зацикливания — стратегия сама перенесёт Gen3 в центр и продолжит выполнять квест.
+### Поведение по контрактам
 
-## 15. Открытые вопросы
+**Iteration 0:**
+- Active goals: `CompleteActiveQuest` (basePri=80, blocking), `MaintainFreeGrid` (basePri=60, opportunistic, urgency=0.7), `BoardLayout` (basePri=50, opportunistic, активна т.к. Gen3 у края + квест на его существо)
+- `CompleteActiveQuest.getPrerequisites(state)` смотрит: квест требует Creature5, Gen3 даёт Creature5, freeNeighbors(Gen3) < 4 → `[{ goalId: 'BoardLayout', reason: 'Gen3 has 3 free neighbors at (0,0); needs >=4 for steady spawn' }]`
+- Scheduler разворачивает: `[BoardLayout (promoted, finalPri=PREREQ_BOOST), CompleteActiveQuest, MaintainFreeGrid]`
+- `BoardPlacementTactic.propose()` → `move_entity` Gen3 → (2,2)
+- `iter0.prerequisiteChain = [{ from: 'CompleteActiveQuest', to: 'BoardLayout', reason: '...' }]`
+- Selected: `move_entity`
 
-Финализируются в implementation plan:
+**Iteration 1:**
+- Gen3 теперь в (2,2). `CompleteActiveQuest.getPrerequisites()` → `[]` (все условия ок).
+- Scheduler: `[CompleteActiveQuest, ...]`
+- `QuestSpawnTactic.propose()` → `spawn_generator` Gen3
+- `ProtectFPNeighborsGuard.check()` → `allow: true` (соседи свободны, и guard защищает не сам spawn, а `feed`/`merge` соседей)
+- Selected: `spawn_generator`
 
-1. **Storage trace.** В `.context/sim-runs/<timestamp>/` или фиксированный `public/last-run.json`? (Влияет на Inspector — путь fetch'а.)
-2. **Build-inspector-data.** Через статический парсинг файлов или через runtime-сбор при первом запуске стратегии? (Runtime проще, но требует прогона симуляции для генерации диаграммы.)
-3. **Tie-break между tactics с одинаковым `expectedProgress`.** Алфавитно по id? По дате регистрации? Через явный `priority` в Tactic?
-4. **Как Tactics получают доступ к существующей доменной логике.** Импорт прямой (`merge.ts`, `pickUpgradeCandidate.ts`) или через сервис-слой? Голосую за прямой импорт пока — миграцию монолита делаем потом, если боль появится.
-5. **Где запускать `decision-trace.json` в режиме `simulation.html`.** Сериализация в браузере → сохранение через download / sessionStorage? (CLI пишет в файл напрямую.)
+**Iteration 2+:** существо появилось рядом. `MaintainFreeGrid` хочет его скормить (как мусор). `DontFeedQuestTargets.check()` → `deny: "Creature5 L1 нужен для квеста"`. Существо сохраняется.
+
+**Результат:** прогресс по квесту без зацикливания, FP в оптимальной позиции, всё трассируется.
+
+### Что важно
+- `BoardLayout` НЕ всегда промоутится — только при динамическом запросе. Тесты прогона на других seed (где Gen3 уже в центре) показывают пустой `prerequisiteChain` и нормальную работу.
+- `ProtectFPNeighborsGuard` **не режет сам spawn**. Он защищает соседей от случайного destruction другими tactics. Это важная переформулировка по сравнению с rev 1.
+- Выбор decision на каждой iteration виден в trace — для дебага достаточно открыть Inspector → Live Trace → нужный тик.
+
+---
+
+## 14. Открытые вопросы (финализируются в плане)
+
+1. **Конкретный путь хранения артефактов в production-сборке.** `public/sim-runs/` отлично работает в dev (Vite раздаёт), но что делать при `npm run build`? Скорее всего исключаем `sim-runs/` из production-бандла полностью.
+2. **`build-inspector-data` — runtime или статически.** На MVP предлагаю runtime: первый запуск стратегии собирает META через registry helper и сериализует в `inspector-data.json`. Статический парсинг откладываем до момента, когда runtime станет дорогим.
+3. **PREREQ_BOOST_PRIORITY — числовое значение.** Достаточно ли 1000 или нужно динамическое? На MVP — фиксированное число.
+4. **`AIStrategy.closeTickTrace(tick, endReason)` — обязательный или опциональный.** На MVP добавляем как опциональный, чтобы `RealisticStrategy` не был обязан реализовывать. Если стратегия его не имеет — engine не пишет trace для неё.
+5. **Browser-run trace UX.** Кнопка "Download" — минимально достаточно? Или нужна страница "Manual upload" в Inspector? Решим в плане.
+6. **Tie-break между tactics с одинаковым `expectedProgress`.** Алфавитно по id или порядок регистрации? Для детерминизма — алфавитно.
+7. **Tactic'и и доступ к доменной логике (`merge.ts`, `pickUpgradeCandidate.ts`).** Прямой импорт или сервис-слой? На MVP — прямой импорт, рефакторинг отложим.
 
 ---
 
 ## Изменяемые файлы
 
-- **Создать:** `src/simulation/strategies/modular/**` (~40 модулей: 9 goals + 15 tactics + 6 guards + orchestrator/types/context/trace + index-файлы), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts`
-- **Дополнить:** `src/simulation/engine/types.ts` (добавить опциональный `getTrace()` в `AIStrategy`)
-- **Дополнить:** `scripts/run-sim.ts` (флаг `--strategy`, запись trace JSON)
-- **Дополнить:** `src/simulation/main.ts` (select стратегии, подгрузка trace в UI — опционально на этапе MVP)
-- **Не трогать:** `RealisticStrategy.ts`, `SimulationEngine.ts`, `engine/metrics.ts`, `chartAggregation.ts`
+- **Создать:** `src/simulation/strategies/modular/**` (~40 модулей, см. § 9), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts` (runtime collector), `scripts/run-sim.ts` дополнить флагом `--strategy` и записью артефактов.
+- **Дополнить:** `src/simulation/engine/types.ts` (опциональные `getTrace?()` и `closeTickTrace?(tick, endReason)` в `AIStrategy`).
+- **Дополнить:** `src/simulation/engine/SimulationEngine.ts` — фиксация границ outer-tick + вызов `closeTickTrace` если стратегия его реализует. Это минимальная правка движка, не переделка.
+- **Дополнить:** `src/simulation/main.ts` (select стратегии в `simulation.html`, кнопка Download trace для browser-run).
+- **Не трогать:** `RealisticStrategy.ts`, `engine/metrics.ts`, `chartAggregation.ts`, `actionTime.ts`.
+- **`.gitignore`:** добавить `public/sim-runs/`.
