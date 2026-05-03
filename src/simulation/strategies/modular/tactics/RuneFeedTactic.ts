@@ -1,9 +1,10 @@
 import type { GameSnapshot, RuneEntity } from '@domain/types';
 import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import { canMergeRunes } from '@domain/merge';
 
 export const META: TacticMeta = {
   id: 'RuneFeed',
-  description: 'feed одиночных рун (когда нет пары для merge) → ресурсы',
+  description: 'feed рун: одиночные + max-level (которые невозможно merge)',
   serves: ['ManageRunes'],
   produces: ['feed'],
 };
@@ -21,16 +22,25 @@ export class RuneFeedTactic implements Tactic {
       byType.set(r.runeType, arr);
     }
     for (const arr of byType.values()) {
-      // Если рун > 1 — лучше merge; одиночные — feed
-      if (arr.length !== 1) continue;
-      const r = arr[0]!;
-      proposals.push({
-        action: { type: 'feed', entityId: r.id },
-        reasoning: `feed solo ${r.runeType} for resource`,
-        expectedProgress: 0.4,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
+      const sample = arr[0]!;
+      // Кейс A: одна руна — однозначно feed (нечем merge'ить).
+      // Кейс B: max-level руна (canMergeRunes==false для пары) — даже если их 2+,
+      //         merge невозможен → feed чтобы освободить клетки и капнуть рес.
+      const isMaxLevel = arr.length >= 2 && !canMergeRunes(arr[0]!, arr[1]!);
+      if (arr.length === 1 || isMaxLevel) {
+        for (const r of arr) {
+          proposals.push({
+            action: { type: 'feed', entityId: r.id },
+            reasoning: arr.length === 1
+              ? `feed solo ${r.runeType} for resource`
+              : `feed max-level ${r.runeType} (cannot merge)`,
+            // expectedProgress повышен для max-level кейса: блокировка грида важнее.
+            expectedProgress: isMaxLevel ? 0.75 : 0.4,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          });
+        }
+      }
     }
     return proposals;
   }
