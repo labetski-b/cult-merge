@@ -227,6 +227,133 @@
       display: block;
     }
 
+    /* Runes panel */
+    .runes-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .runes-controls .knob-grid {
+      margin-bottom: 0;
+      grid-template-columns: 80px 220px 70px;
+    }
+    .runes-controls .seed-info {
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+    .runes-charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .runes-chart-block {
+      margin-bottom: 12px;
+    }
+    .runes-chart-block:last-child {
+      margin-bottom: 0;
+    }
+    .runes-chart-block h4 {
+      margin: 0 0 6px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .runes-chart-block canvas {
+      width: 100%;
+      max-width: 100%;
+      background: var(--surface-2);
+      display: block;
+    }
+    /* Merged chart container: cumulative + delta share a single border, no gap. */
+    .runes-chart-merged {
+      position: relative;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      overflow: hidden;
+      background: var(--surface-2);
+    }
+    .runes-chart-merged > .runes-chart-wrap {
+      display: block;
+    }
+    .runes-chart-merged > .runes-chart-wrap + .runes-chart-wrap {
+      margin-top: -1px; /* avoid any 1px sub-pixel gap between stacked canvases */
+    }
+    .runes-legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .runes-legend .swatch {
+      display: inline-block;
+      width: 18px;
+      height: 2px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    .runes-legend .swatch.dashed {
+      background: repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px);
+      height: 2px;
+    }
+    .runes-chart-wrap {
+      position: relative;
+    }
+    .runes-chart-wrap .runes-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: transparent !important;
+      border: 0 !important;
+    }
+    .runes-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--surface-3, #2a2a2a);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      padding: 6px 8px;
+      font-size: 11px;
+      font-family: var(--font-mono, monospace);
+      color: var(--text-primary);
+      white-space: nowrap;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      left: 0;
+      top: 0;
+    }
+    .runes-tooltip.is-visible { display: block; }
+    .runes-tooltip .ttl {
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+    .runes-tooltip .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .runes-tooltip .swatch {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .runes-tooltip .swatch.dashed {
+      background: repeating-linear-gradient(to right, currentColor 0 3px, transparent 3px 5px) !important;
+      border-radius: 0;
+    }
+
     /* JSON panel */
     .json-pre {
       white-space: pre-wrap;
@@ -271,6 +398,7 @@
         <div class="cm-tabs" role="tablist">
           <button class="cm-tab" data-tab="table" aria-selected="true" role="tab">Table</button>
           <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
+          <button class="cm-tab" data-tab="runes" aria-selected="false" role="tab">Runes</button>
           <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
         </div>
 
@@ -284,6 +412,110 @@
               <h4>Total cost to L10 per gen (runes)</h4>
               <canvas id="chart-total" width="600" height="220"></canvas>
             </div>
+          </div>
+        </section>
+
+        <section id="panel-runes" class="cm-card panel">
+          <div class="runes-controls">
+            <div class="knob-grid" style="margin-bottom:0;">
+              <label class="knob-label" for="runes-trials">Trials</label>
+              <input id="runes-trials" type="range" min="100" max="10000" step="100" value="2000" />
+              <input id="runes-trials-num" type="number" class="cm-input" min="100" max="10000" step="100" value="2000" />
+            </div>
+            <button id="btn-runes-reroll" class="cm-btn cm-btn--ghost">Re-roll seed</button>
+            <span class="seed-info">seed: <span id="runes-seed-label">0xC0FFEE</span></span>
+            <span class="seed-info" id="runes-status" style="margin-left:auto;"></span>
+          </div>
+          <div class="runes-charts-grid">
+            <!-- Row 1: Strategy comparison (S1 vs S2) -->
+            <div class="chart-block">
+              <div class="runes-chart-block">
+                <h4>Rune I — Strategies</h4>
+                <div class="runes-chart-merged" id="merged-rune1">
+                  <div class="runes-chart-wrap" data-rune-key="r1">
+                    <canvas id="chart-rune1" width="600" height="180"></canvas>
+                    <canvas id="chart-rune1-overlay" class="runes-overlay" width="600" height="180"></canvas>
+                  </div>
+                  <div class="runes-chart-wrap" data-rune-key="r1-delta">
+                    <canvas id="chart-rune1-delta" width="600" height="100"></canvas>
+                    <canvas id="chart-rune1-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
+                  </div>
+                  <div id="tooltip-rune1" class="runes-tooltip"></div>
+                </div>
+                <div class="runes-legend">
+                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>S1 (Eager)</span>
+                  <span><span class="swatch dashed" style="color: #2ad4b3;"></span>S2 (Maximizer)</span>
+                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>ΔS2-S1 (bars)</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-block">
+              <div class="runes-chart-block">
+                <h4>Rune II — Strategies</h4>
+                <div class="runes-chart-merged" id="merged-rune2">
+                  <div class="runes-chart-wrap" data-rune-key="r2">
+                    <canvas id="chart-rune2" width="600" height="180"></canvas>
+                    <canvas id="chart-rune2-overlay" class="runes-overlay" width="600" height="180"></canvas>
+                  </div>
+                  <div class="runes-chart-wrap" data-rune-key="r2-delta">
+                    <canvas id="chart-rune2-delta" width="600" height="100"></canvas>
+                    <canvas id="chart-rune2-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
+                  </div>
+                  <div id="tooltip-rune2" class="runes-tooltip"></div>
+                </div>
+                <div class="runes-legend">
+                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>S1 (Eager)</span>
+                  <span><span class="swatch dashed" style="color: #6aa3ff;"></span>S2 (Maximizer)</span>
+                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>ΔS2-S1 (bars)</span>
+                </div>
+              </div>
+            </div>
+            <!-- Row 2: Supply vs Demand (S1 vs Required) -->
+            <div class="chart-block">
+              <div class="runes-chart-block">
+                <h4>Rune I — Supply vs Demand</h4>
+                <div class="runes-chart-merged" id="merged-rune1-sd">
+                  <div class="runes-chart-wrap" data-rune-key="r1-sd">
+                    <canvas id="chart-rune1-sd" width="600" height="180"></canvas>
+                    <canvas id="chart-rune1-sd-overlay" class="runes-overlay" width="600" height="180"></canvas>
+                  </div>
+                  <div class="runes-chart-wrap" data-rune-key="r1-sd-delta">
+                    <canvas id="chart-rune1-sd-delta" width="600" height="100"></canvas>
+                    <canvas id="chart-rune1-sd-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
+                  </div>
+                  <div id="tooltip-rune1-sd" class="runes-tooltip"></div>
+                </div>
+                <div class="runes-legend">
+                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>S1 (Eager)</span>
+                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Required</span>
+                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Gap Req-S1 (bars)</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-block">
+              <div class="runes-chart-block">
+                <h4>Rune II — Supply vs Demand</h4>
+                <div class="runes-chart-merged" id="merged-rune2-sd">
+                  <div class="runes-chart-wrap" data-rune-key="r2-sd">
+                    <canvas id="chart-rune2-sd" width="600" height="180"></canvas>
+                    <canvas id="chart-rune2-sd-overlay" class="runes-overlay" width="600" height="180"></canvas>
+                  </div>
+                  <div class="runes-chart-wrap" data-rune-key="r2-sd-delta">
+                    <canvas id="chart-rune2-sd-delta" width="600" height="100"></canvas>
+                    <canvas id="chart-rune2-sd-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
+                  </div>
+                  <div id="tooltip-rune2-sd" class="runes-tooltip"></div>
+                </div>
+                <div class="runes-legend">
+                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>S1 (Eager)</span>
+                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Required</span>
+                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Gap Req-S1 (bars)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="gen-table" id="runes-table"></table>
           </div>
         </section>
 
@@ -301,6 +533,14 @@
 
   <script type="module">
     import { DEFAULTS, BASELINE, computeGenerators, interpolate } from './generator-curves.mjs';
+
+    // Load JSON via fetch (resolves regardless of Vite base path).
+    // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
+    const [krakenProgData, boxesData, runesData] = await Promise.all([
+      fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
+    ]);
 
     // ============================================================
     //  STATE
@@ -703,7 +943,9 @@
       return { ctx, w: cssW, h: cssH };
     }
 
-    function drawAxes(ctx, x0, y0, w, h, xMin, xMax, yMin, yMax, xLabel, yLabel) {
+    function drawAxes(ctx, x0, y0, w, h, xMin, xMax, yMin, yMax, xLabel, yLabel, opts) {
+      const suppressBottomLabels = !!(opts && opts.suppressBottomLabels);
+      const suppressBottomBorder = !!(opts && opts.suppressBottomBorder);
       const axis = getCssColor('--chart-axis', '#666');
       const grid = getCssColor('--chart-grid', '#222');
       const labelColor = getCssColor('--text-tertiary', '#888');
@@ -739,12 +981,23 @@
         ctx.moveTo(x, y0);
         ctx.lineTo(x, y0 + h);
         ctx.stroke();
-        ctx.fillStyle = labelColor;
-        ctx.fillText(String(Math.round(xVal)), x, y0 + h + 2);
+        if (!suppressBottomLabels) {
+          ctx.fillStyle = labelColor;
+          ctx.fillText(String(Math.round(xVal)), x, y0 + h + 2);
+        }
       }
-      // Border
+      // Border (skip bottom side when requested — used when this chart visually merges with one below it).
       ctx.strokeStyle = axis;
-      ctx.strokeRect(x0, y0, w, h);
+      if (suppressBottomBorder) {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0 + h);
+        ctx.lineTo(x0, y0);             // left
+        ctx.lineTo(x0 + w, y0);         // top
+        ctx.lineTo(x0 + w, y0 + h);     // right
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(x0, y0, w, h);
+      }
     }
 
     function drawLine(ctx, points, x0, y0, w, h, xMin, xMax, yMin, yMax, color, dashed) {
@@ -820,6 +1073,14 @@
       renderTable(result.generators);
       renderCharts(result.generators);
       renderJSON(result);
+      // If runes panel is active, re-render its charts so the Required curve
+      // reflects the updated params (MC data stays cached — only the required
+      // curve depends on params).
+      const active = document.querySelector('.cm-tab[aria-selected="true"]');
+      if (active && active.dataset.tab === 'runes' && runesState.data) {
+        const required = computeRequiredCurves(runesState.data, result.generators);
+        renderRunesCharts(runesState.data, required);
+      }
     }
 
     // ============================================================
@@ -834,6 +1095,9 @@
       if (name === 'charts') {
         const result = computeGenerators(params);
         renderCharts(result.generators);
+      }
+      if (name === 'runes') {
+        renderRunes();
       }
     }
     document.querySelectorAll('.cm-tab').forEach(t => {
@@ -885,6 +1149,789 @@
     document.getElementById('btn-copy-inline').addEventListener('click', (e) => copyJSON(e.currentTarget));
 
     // ============================================================
+    //  RUNES TAB
+    // ============================================================
+
+    // ---- RNG ----
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    // ---- Box index ----
+    const BOXES_BY_ID = (() => {
+      const map = {};
+      for (const b of boxesData.boxes) map[b.id] = b;
+      return map;
+    })();
+
+    const RUNE_FEEDS = {
+      r1: runesData.rune1RedemptionByLevel || [2, 5, 12],
+      r2: runesData.rune2RedemptionByLevel || [2, 5, 12],
+    };
+
+    const RUNE_KEYS = ['Rune1_1', 'Rune1_2', 'Rune1_3', 'Rune2_1', 'Rune2_2', 'Rune2_3'];
+
+    /**
+     * Sample box.items items independently from categorical distribution box.contents.
+     * Returns counts object keyed by rune key (only known keys; Hard_* counted but ignored).
+     */
+    function sampleBox(box, rng) {
+      const counts = {
+        Rune1_1: 0, Rune1_2: 0, Rune1_3: 0,
+        Rune2_1: 0, Rune2_2: 0, Rune2_3: 0,
+      };
+      const keys = Object.keys(box.contents);
+      const probs = keys.map(k => box.contents[k]);
+      // Cumulative
+      const cum = [];
+      let s = 0;
+      for (const p of probs) { s += p; cum.push(s); }
+      const total = s;
+      for (let i = 0; i < box.items; i++) {
+        const r = rng() * total;
+        let pick = keys[keys.length - 1];
+        for (let j = 0; j < cum.length; j++) {
+          if (r < cum[j]) { pick = keys[j]; break; }
+        }
+        if (pick in counts) counts[pick]++;
+        // Hard_* ignored intentionally
+      }
+      return counts;
+    }
+
+    /**
+     * Eager strategy: cascade-merge within batch only, feed all.
+     */
+    function applyEager(items, cum) {
+      for (const family of ['Rune1', 'Rune2']) {
+        let n1 = items[`${family}_1`] || 0;
+        let n2 = items[`${family}_2`] || 0;
+        let n3 = items[`${family}_3`] || 0;
+        // tier1 -> tier2
+        n2 += Math.floor(n1 / 2);
+        n1 = n1 % 2;
+        // tier2 -> tier3
+        n3 += Math.floor(n2 / 2);
+        n2 = n2 % 2;
+        const feed = RUNE_FEEDS[family === 'Rune1' ? 'r1' : 'r2'];
+        const pts = n1 * feed[0] + n2 * feed[1] + n3 * feed[2];
+        cum[family === 'Rune1' ? 'r1' : 'r2'] += pts;
+      }
+    }
+
+    /**
+     * Maximizer strategy: global pool of tier1/tier2; only newly-formed tier3 gets fed.
+     */
+    function applyMaximizer(items, pool, cum) {
+      for (const family of ['Rune1', 'Rune2']) {
+        pool[`${family}_1`] += items[`${family}_1`] || 0;
+        pool[`${family}_2`] += items[`${family}_2`] || 0;
+        let extraT3 = items[`${family}_3`] || 0;
+        // tier1 -> tier2 in pool
+        const promote12 = Math.floor(pool[`${family}_1`] / 2);
+        pool[`${family}_1`] -= promote12 * 2;
+        pool[`${family}_2`] += promote12;
+        // tier2 -> tier3 (only feed these)
+        const promote23 = Math.floor(pool[`${family}_2`] / 2);
+        pool[`${family}_2`] -= promote23 * 2;
+        extraT3 += promote23;
+        const feed = RUNE_FEEDS[family === 'Rune1' ? 'r1' : 'r2'];
+        cum[family === 'Rune1' ? 'r1' : 'r2'] += extraT3 * feed[2];
+      }
+    }
+
+    /**
+     * Run K Monte Carlo trials. Returns array indexed [level] with mean cumulative values.
+     */
+    function runMonteCarlo(K, seed) {
+      const progression = krakenProgData.progression;
+      // Group entries by level (in original order within level)
+      const byLevel = new Map();
+      let minLevel = Infinity, maxLevel = -Infinity;
+      for (const entry of progression) {
+        if (!byLevel.has(entry.level)) byLevel.set(entry.level, []);
+        byLevel.get(entry.level).push(entry);
+        if (entry.level < minLevel) minLevel = entry.level;
+        if (entry.level > maxLevel) maxLevel = entry.level;
+      }
+      const levels = [];
+      for (let L = minLevel; L <= maxLevel; L++) levels.push(L);
+
+      // accumulators
+      const sums = {};
+      for (const L of levels) sums[L] = { s1r1: 0, s1r2: 0, s2r1: 0, s2r2: 0 };
+
+      const rng = mulberry32(seed);
+      for (let trial = 0; trial < K; trial++) {
+        const cumS1 = { r1: 0, r2: 0 };
+        const cumS2 = { r1: 0, r2: 0 };
+        const pool = { Rune1_1: 0, Rune1_2: 0, Rune2_1: 0, Rune2_2: 0 };
+
+        for (const L of levels) {
+          const entries = byLevel.get(L) || [];
+          for (const entry of entries) {
+            for (const rew of (entry.rewards || [])) {
+              if (rew.type !== 'res_box') continue;
+              const box = BOXES_BY_ID[rew.value];
+              if (!box) continue;
+              const items = sampleBox(box, rng);
+              applyEager(items, cumS1);
+              applyMaximizer(items, pool, cumS2);
+            }
+          }
+          const acc = sums[L];
+          acc.s1r1 += cumS1.r1;
+          acc.s1r2 += cumS1.r2;
+          acc.s2r1 += cumS2.r1;
+          acc.s2r2 += cumS2.r2;
+        }
+      }
+
+      // mean
+      const out = [];
+      for (const L of levels) {
+        const a = sums[L];
+        out.push({
+          level: L,
+          s1: { r1: a.s1r1 / K, r2: a.s1r2 / K },
+          s2: { r1: a.s2r1 / K, r2: a.s2r2 / K },
+        });
+      }
+      return out;
+    }
+
+    // ---- Rendering ----
+    const RUNE1_COLOR = '#2ad4b3';
+    const RUNE2_COLOR = '#6aa3ff';
+    const REQUIRED_COLOR = '#ff9d4d';
+
+    // Geometry of each rendered rune chart (used by hover overlay).
+    // Keyed by base canvas id ("chart-rune1" / "chart-rune2").
+    const runesChartGeom = {};
+    // Geometry of each rendered delta chart (used by hover overlay).
+    // Keyed by delta canvas id ("chart-rune1-delta" / "chart-rune2-delta").
+    const runesDeltaChartGeom = {};
+
+    /**
+     * Compute cumulative rune demand by Kraken Level.
+     * For each kraken level L from xMin..xMax, sum up runeCost across all
+     * generators g with g.krakenRequired <= L (sum of all upgrade costs to
+     * fully take that generator from L1 to maxLevel). Step function — jumps
+     * at each new generator unlock.
+     *
+     * @param {Array<{level: number}>} data MC data (defines level domain).
+     * @param {Array} generators Output of computeGenerators(params).generators.
+     * @returns {{ r1: number[], r2: number[] }} Aligned 1:1 with `data`.
+     */
+    function computeRequiredCurves(data, generators) {
+      // Per-generator total cost (rune1 + rune2 separately).
+      const perGen = generators.map(g => {
+        let r1 = 0, r2 = 0;
+        for (const lvl of g.levels) {
+          if (!lvl.upgrade) continue;
+          if (lvl.upgrade.runeType === 'rune1') r1 += lvl.upgrade.runeCost;
+          else if (lvl.upgrade.runeType === 'rune2') r2 += lvl.upgrade.runeCost;
+        }
+        return { krakenRequired: g.krakenRequired, r1, r2 };
+      });
+
+      const r1 = [];
+      const r2 = [];
+      for (const d of data) {
+        let s1 = 0, s2 = 0;
+        for (const g of perGen) {
+          if (g.krakenRequired <= d.level) { s1 += g.r1; s2 += g.r2; }
+        }
+        r1.push(s1);
+        r2.push(s2);
+      }
+      return { r1, r2 };
+    }
+
+    /**
+     * Render a cumulative rune chart with arbitrary line series.
+     * @param {string} canvasId
+     * @param {Array<{level: number}>} data Domain (provides level axis).
+     * @param {Array<{label: string, values: number[], color: string, dashed?: boolean, lineWidth?: number}>} lines
+     */
+    function renderRunesChart(canvasId, data, lines) {
+      const canvas = document.getElementById(canvasId);
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+      // Bottom pad small (4): X-axis labels live on the merged delta chart below.
+      const pad = { l: 44, r: 10, t: 10, b: 4 };
+      const x0 = pad.l, y0 = pad.t, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+
+      const xMin = data[0].level;
+      const xMax = data[data.length - 1].level;
+
+      let yMax = 0;
+      for (const ln of lines) {
+        if (!ln.values) continue;
+        for (const v of ln.values) {
+          if (v > yMax) yMax = v;
+        }
+      }
+      yMax = Math.max(yMax * 1.1, 1);
+
+      drawAxes(ctx, x0, y0, plotW, plotH, xMin, xMax, 0, yMax, undefined, undefined, {
+        suppressBottomLabels: true,
+        suppressBottomBorder: true,
+      });
+
+      // Draw each line. Use drawLine for plain lines (S1 dashed/solid) and a
+      // direct path for explicit lineWidth (e.g. Required at width 2).
+      for (const ln of lines) {
+        if (!ln.values || ln.values.length !== data.length) continue;
+        if (ln.lineWidth && ln.lineWidth !== (ln.dashed ? 1 : 1.5)) {
+          ctx.save();
+          ctx.strokeStyle = ln.color;
+          ctx.lineWidth = ln.lineWidth;
+          ctx.setLineDash(ln.dashed ? [4, 3] : []);
+          ctx.beginPath();
+          for (let i = 0; i < data.length; i++) {
+            const px = data[i].level;
+            const py = ln.values[i];
+            const x = x0 + ((px - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
+            const y = y0 + plotH - (py / Math.max(1e-9, yMax)) * plotH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          const pts = data.map((d, i) => [d.level, ln.values[i]]);
+          drawLine(ctx, pts, x0, y0, plotW, plotH, xMin, xMax, 0, yMax, ln.color, !!ln.dashed);
+        }
+      }
+
+      // Sync overlay canvas dimensions, then store geometry for hover.
+      const overlay = document.getElementById(canvasId + '-overlay');
+      if (overlay) {
+        const o = setCanvasDpi(overlay);
+        o.ctx.clearRect(0, 0, w, h);
+      }
+      runesChartGeom[canvasId] = {
+        w, h, x0, y0, plotW, plotH,
+        xMin, xMax, yMin: 0, yMax,
+        data, lines,
+      };
+    }
+
+    /**
+     * Render delta bar chart: single series of precomputed deltas.
+     * Visually merged with the cumulative chart above — suppresses its top border, keeps
+     * X-axis tick labels at the bottom (these label both charts in the merged block).
+     * X plot domain matches the cumulative chart so vertical guides align across both.
+     *
+     * @param {HTMLCanvasElement} canvas
+     * @param {Array<{level: number}>} data Domain (for x-axis).
+     * @param {number[]} deltaValues Aligned 1:1 with data.
+     * @param {string} color
+     * @param {string} label Tooltip label for the delta value (e.g. "ΔS2-S1", "Gap (Req-S1)").
+     */
+    function renderRunesDeltaChart(canvas, data, deltaValues, color, label) {
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+      // Match cumulative chart's left/right padding (same plot W) so X positions align.
+      // Top pad small (4): no border at the top, this chart sits flush against the one above.
+      const pad = { l: 44, r: 10, t: 4, b: 22 };
+      const x0 = pad.l, y0 = pad.t, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+
+      if (!data || data.length === 0 || !deltaValues || deltaValues.length !== data.length) {
+        runesDeltaChartGeom[canvas.id] = null;
+        return;
+      }
+
+      const xMin = data[0].level;
+      const xMax = data[data.length - 1].level;
+
+      const deltas = [];
+      for (let i = 0; i < data.length; i++) {
+        deltas.push({ level: data[i].level, diff: deltaValues[i] });
+      }
+
+      // Y range: include 0. Be defensive about negatives.
+      let yMin = 0, yMax = 0;
+      for (const d of deltas) {
+        if (d.diff > yMax) yMax = d.diff;
+        if (d.diff < yMin) yMin = d.diff;
+      }
+      yMax = Math.max(yMax * 1.1, 1);
+      if (yMin < 0) yMin = yMin * 1.1;
+
+      const axis = getCssColor('--chart-axis', '#666');
+      const grid = getCssColor('--chart-grid', '#222');
+      const labelColor = getCssColor('--text-tertiary', '#888');
+      ctx.lineWidth = 1;
+      ctx.font = '10px monospace';
+
+      // Y ticks (3 values).
+      const yToCanvas = (v) => y0 + plotH - ((v - yMin) / Math.max(1e-9, yMax - yMin)) * plotH;
+      const yTickValues = yMin < 0 ? [yMin, 0, yMax] : [0, yMax / 2, yMax];
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (const yVal of yTickValues) {
+        const y = yToCanvas(yVal);
+        ctx.strokeStyle = grid;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x0 + plotW, y);
+        ctx.stroke();
+        ctx.fillStyle = labelColor;
+        ctx.fillText(`${yVal.toFixed(yMax > 100 ? 0 : 1)}`, x0 - 4, y);
+      }
+
+      // X axis tick labels (level numbers) along the bottom — they label BOTH charts
+      // since this is the bottom of the merged block.
+      // Map levels onto the SAME linear scale as the cumulative chart (xMin..xMax → x0..x0+plotW),
+      // so guide lines align 1:1 across the two canvases.
+      const xToCanvas = (lvl) => x0 + ((lvl - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      // X ticks: same density as cumulative drawAxes (Math.min(10, Math.max(2, range))).
+      const xTicks = Math.min(10, Math.max(2, Math.round(xMax - xMin)));
+      for (let i = 0; i <= xTicks; i++) {
+        const xVal = xMin + (i / xTicks) * (xMax - xMin);
+        const x = x0 + (i / xTicks) * plotW;
+        ctx.strokeStyle = grid;
+        ctx.beginPath();
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y0 + plotH);
+        ctx.stroke();
+        ctx.fillStyle = labelColor;
+        ctx.fillText(String(Math.round(xVal)), x, y0 + plotH + 2);
+      }
+
+      // Highlighted baseline at y=0.
+      const yZero = yToCanvas(0);
+      ctx.strokeStyle = axis;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x0, yZero);
+      ctx.lineTo(x0 + plotW, yZero);
+      ctx.stroke();
+
+      // Border: left + right + bottom (no top — visually merges with cumulative above).
+      ctx.strokeStyle = axis;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0, y0 + plotH);          // left
+      ctx.lineTo(x0 + plotW, y0 + plotH);  // bottom
+      ctx.lineTo(x0 + plotW, y0);          // right
+      ctx.stroke();
+
+      // Bars: single series, full-opacity color, centered on each level.
+      const slotW = plotW / Math.max(1, deltas.length);
+      const barW = Math.min(slotW * 0.7, 18);
+      ctx.fillStyle = color;
+      for (const d of deltas) {
+        const xc = xToCanvas(d.level);
+        const yT = yToCanvas(d.diff);
+        const hPx = yZero - yT; // positive when diff > 0
+        if (Math.abs(hPx) >= 0.5) {
+          ctx.fillRect(xc - barW / 2, Math.min(yT, yZero), barW, Math.abs(hPx));
+        }
+      }
+
+      // Sync overlay canvas dimensions and stash geometry for hover.
+      const overlay = document.getElementById(canvas.id + '-overlay');
+      if (overlay) {
+        const o = setCanvasDpi(overlay);
+        o.ctx.clearRect(0, 0, w, h);
+      }
+      runesDeltaChartGeom[canvas.id] = {
+        w, h, x0, y0, plotW, plotH,
+        xMin, xMax,
+        deltas,
+        color,
+        label: label || 'Δ',
+      };
+    }
+
+    function renderRunesCharts(data, required) {
+      if (!data || data.length === 0) return;
+      const reqR1 = required ? required.r1 : null;
+      const reqR2 = required ? required.r2 : null;
+
+      // Build per-key value arrays once (1:1 with data).
+      const s1R1 = data.map(d => d.s1.r1);
+      const s2R1 = data.map(d => d.s2.r1);
+      const s1R2 = data.map(d => d.s1.r2);
+      const s2R2 = data.map(d => d.s2.r2);
+
+      // ---------- Row 1: Strategies (S1 vs S2) ----------
+      renderRunesChart('chart-rune1', data, [
+        { label: 'S1', values: s1R1, color: RUNE1_COLOR, dashed: false },
+        { label: 'S2', values: s2R1, color: RUNE1_COLOR, dashed: true },
+      ]);
+      renderRunesChart('chart-rune2', data, [
+        { label: 'S1', values: s1R2, color: RUNE2_COLOR, dashed: false },
+        { label: 'S2', values: s2R2, color: RUNE2_COLOR, dashed: true },
+      ]);
+      const d1 = document.getElementById('chart-rune1-delta');
+      const d2 = document.getElementById('chart-rune2-delta');
+      if (d1) renderRunesDeltaChart(d1, data, s2R1.map((v, i) => v - s1R1[i]), RUNE1_COLOR, 'ΔS2-S1');
+      if (d2) renderRunesDeltaChart(d2, data, s2R2.map((v, i) => v - s1R2[i]), RUNE2_COLOR, 'ΔS2-S1');
+
+      // ---------- Row 2: Supply vs Demand (S1 vs Required) ----------
+      const sd1Lines = [
+        { label: 'S1', values: s1R1, color: RUNE1_COLOR, dashed: false },
+      ];
+      if (reqR1 && reqR1.length === data.length) {
+        sd1Lines.push({ label: 'Req', values: reqR1, color: REQUIRED_COLOR, dashed: false, lineWidth: 2 });
+      }
+      renderRunesChart('chart-rune1-sd', data, sd1Lines);
+
+      const sd2Lines = [
+        { label: 'S1', values: s1R2, color: RUNE2_COLOR, dashed: false },
+      ];
+      if (reqR2 && reqR2.length === data.length) {
+        sd2Lines.push({ label: 'Req', values: reqR2, color: REQUIRED_COLOR, dashed: false, lineWidth: 2 });
+      }
+      renderRunesChart('chart-rune2-sd', data, sd2Lines);
+
+      const sd1d = document.getElementById('chart-rune1-sd-delta');
+      const sd2d = document.getElementById('chart-rune2-sd-delta');
+      if (sd1d && reqR1) renderRunesDeltaChart(sd1d, data, reqR1.map((v, i) => v - s1R1[i]), REQUIRED_COLOR, 'Gap (Req-S1)');
+      if (sd2d && reqR2) renderRunesDeltaChart(sd2d, data, reqR2.map((v, i) => v - s1R2[i]), REQUIRED_COLOR, 'Gap (Req-S1)');
+    }
+
+    // ---- Hover overlay ----
+    function clearRunesOverlay(canvasId) {
+      const overlay = document.getElementById(canvasId + '-overlay');
+      if (!overlay) return;
+      const oCtx = overlay.getContext('2d');
+      // Clear in CSS pixel space — setCanvasDpi already applied a DPR transform.
+      const geom = runesChartGeom[canvasId] || runesDeltaChartGeom[canvasId];
+      if (geom) oCtx.clearRect(0, 0, geom.w, geom.h);
+      else oCtx.clearRect(0, 0, overlay.width, overlay.height);
+    }
+
+    function clearMergedOverlays(cumCanvasId, deltaCanvasId) {
+      clearRunesOverlay(cumCanvasId);
+      clearRunesOverlay(deltaCanvasId);
+    }
+
+    function projectPoint(geom, level, value) {
+      const x = geom.x0 + ((level - geom.xMin) / Math.max(1e-9, geom.xMax - geom.xMin)) * geom.plotW;
+      const y = geom.y0 + geom.plotH - ((value - geom.yMin) / Math.max(1e-9, geom.yMax - geom.yMin)) * geom.plotH;
+      return { x, y };
+    }
+
+    function findEntryByLevel(data, level) {
+      // Data is dense (one entry per level in [xMin..xMax]). Linear scan is fine.
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].level === level) return data[i];
+      }
+      // Fallback: nearest at-or-below.
+      let best = data[0];
+      for (const d of data) {
+        if (d.level <= level && d.level >= best.level) best = d;
+      }
+      return best;
+    }
+
+    /**
+     * Draw hover guide + dots on the cumulative chart, AND a vertical guide on the
+     * paired delta chart so the cursor visually spans the merged block.
+     * Iterates geom.lines (arbitrary set of labelled series).
+     * Returns hover info (xPos, hits per line, delta) for tooltip rendering.
+     */
+    function drawHoverHighlight(cumCanvasId, deltaCanvasId, level) {
+      const geom = runesChartGeom[cumCanvasId];
+      if (!geom) return null;
+      const overlay = document.getElementById(cumCanvasId + '-overlay');
+      if (!overlay) return null;
+      const oCtx = overlay.getContext('2d');
+      oCtx.clearRect(0, 0, geom.w, geom.h);
+
+      // Locate index of the hovered level in the data array.
+      let idx = -1;
+      for (let i = 0; i < geom.data.length; i++) {
+        if (geom.data[i].level === level) { idx = i; break; }
+      }
+      if (idx < 0) {
+        let bestI = 0;
+        for (let i = 0; i < geom.data.length; i++) {
+          if (geom.data[i].level <= level && geom.data[i].level >= geom.data[bestI].level) bestI = i;
+        }
+        idx = bestI;
+      }
+
+      const xPos = geom.x0 + ((level - geom.xMin) / Math.max(1e-9, geom.xMax - geom.xMin)) * geom.plotW;
+
+      // Vertical guide on cumulative.
+      const guideColor = getCssColor('--text-tertiary', '#888');
+      oCtx.save();
+      oCtx.strokeStyle = guideColor;
+      oCtx.lineWidth = 1;
+      oCtx.setLineDash([3, 3]);
+      oCtx.globalAlpha = 0.7;
+      oCtx.beginPath();
+      oCtx.moveTo(xPos, geom.y0);
+      oCtx.lineTo(xPos, geom.y0 + geom.plotH);
+      oCtx.stroke();
+      oCtx.restore();
+
+      // Dots on each line. Solid = filled disc, dashed = ring.
+      const surfaceFill = getCssColor('--surface-2', '#181818');
+      const hits = [];
+      let topY = Infinity;
+      for (const ln of geom.lines) {
+        if (!ln.values || idx >= ln.values.length) continue;
+        const val = ln.values[idx];
+        const pt = projectPoint(geom, level, val);
+        if (ln.dashed) {
+          oCtx.save();
+          oCtx.fillStyle = surfaceFill;
+          oCtx.strokeStyle = ln.color;
+          oCtx.lineWidth = 1.5;
+          oCtx.beginPath();
+          oCtx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+          oCtx.fill();
+          oCtx.stroke();
+          oCtx.restore();
+        } else {
+          oCtx.save();
+          oCtx.fillStyle = ln.color;
+          oCtx.strokeStyle = '#000';
+          oCtx.lineWidth = 1;
+          oCtx.beginPath();
+          oCtx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+          oCtx.fill();
+          oCtx.stroke();
+          oCtx.restore();
+        }
+        if (pt.y < topY) topY = pt.y;
+        hits.push({ label: ln.label, value: val, color: ln.color, dashed: !!ln.dashed, pt });
+      }
+
+      // Vertical guide on the paired delta chart so the cursor spans both.
+      let deltaInfo = null;
+      const dGeom = runesDeltaChartGeom[deltaCanvasId];
+      const dOverlay = document.getElementById(deltaCanvasId + '-overlay');
+      if (dGeom && dOverlay) {
+        const dCtx = dOverlay.getContext('2d');
+        dCtx.clearRect(0, 0, dGeom.w, dGeom.h);
+        // Map level to delta x using delta geom (matches cumulative since same xMin..xMax → x0..x0+plotW).
+        const dxPos = dGeom.x0 + ((level - dGeom.xMin) / Math.max(1e-9, dGeom.xMax - dGeom.xMin)) * dGeom.plotW;
+        dCtx.save();
+        dCtx.strokeStyle = guideColor;
+        dCtx.lineWidth = 1;
+        dCtx.setLineDash([3, 3]);
+        dCtx.globalAlpha = 0.7;
+        dCtx.beginPath();
+        dCtx.moveTo(dxPos, dGeom.y0);
+        dCtx.lineTo(dxPos, dGeom.y0 + dGeom.plotH);
+        dCtx.stroke();
+        dCtx.restore();
+        // Find the matching delta value for this level.
+        let dIdx = -1;
+        for (let i = 0; i < dGeom.deltas.length; i++) {
+          if (dGeom.deltas[i].level === level) { dIdx = i; break; }
+        }
+        if (dIdx < 0) dIdx = idx;
+        const diffVal = dGeom.deltas[dIdx] ? dGeom.deltas[dIdx].diff : null;
+        deltaInfo = { label: dGeom.label, color: dGeom.color, value: diffVal };
+      }
+
+      return { xPos, topY: Number.isFinite(topY) ? topY : geom.y0, hits, delta: deltaInfo };
+    }
+
+    function showRunesTooltip(tooltipId, hostEl, info, level) {
+      const tip = document.getElementById(tooltipId);
+      if (!tip || !info) return;
+      let html = `<div class="ttl">Kraken Lvl ${level}</div>`;
+      for (const hit of info.hits) {
+        const swatchClass = hit.dashed ? 'swatch dashed' : 'swatch';
+        const styleAttr = hit.dashed
+          ? `color:${hit.color}`
+          : `background:${hit.color}`;
+        html += `<div class="row"><span class="${swatchClass}" style="${styleAttr}"></span><span>${hit.label}: ${hit.value.toFixed(1)} pts</span></div>`;
+      }
+      if (info.delta && info.delta.value != null) {
+        const dv = info.delta.value;
+        const dvStr = Math.abs(dv) >= 100 ? Math.round(dv).toString() : dv.toFixed(1);
+        html += `<div class="row"><span class="swatch" style="background:${info.delta.color}"></span><span>${info.delta.label}: ${dvStr} pts</span></div>`;
+      }
+      tip.innerHTML = html;
+      tip.classList.add('is-visible');
+
+      // Position relative to host (the merged container).
+      const hostRect = hostEl.getBoundingClientRect();
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      const anchorY = info.topY - 8;
+      let x = info.xPos + 10;
+      let y = anchorY;
+      if (x + tipW > hostRect.width - 4) x = info.xPos - tipW - 10;
+      if (x < 4) x = 4;
+      if (y + tipH > hostRect.height - 4) y = hostRect.height - tipH - 4;
+      if (y < 4) y = 4;
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    }
+
+    function hideRunesTooltip(tooltipId) {
+      const tip = document.getElementById(tooltipId);
+      if (tip) tip.classList.remove('is-visible');
+    }
+
+    /**
+     * Wire hover for one merged rune block. Mousemove anywhere inside the merged
+     * container (cumulative wrap OR delta wrap) drives the same tooltip + guides.
+     */
+    function wireRunesHover(mergedId, cumCanvasId, deltaCanvasId, tooltipId) {
+      const host = document.getElementById(mergedId);
+      const cumCanvas = document.getElementById(cumCanvasId);
+      if (!host || !cumCanvas) return;
+
+      const onMove = (e) => {
+        const geom = runesChartGeom[cumCanvasId];
+        if (!geom) return;
+        // Use the cumulative canvas's bounding rect for x mapping. Both canvases share
+        // the same width and same x0/plotW, so this single mapping works for both wraps.
+        const rect = cumCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        if (mx < geom.x0 - 4 || mx > geom.x0 + geom.plotW + 4) {
+          clearMergedOverlays(cumCanvasId, deltaCanvasId);
+          hideRunesTooltip(tooltipId);
+          return;
+        }
+        const t = (mx - geom.x0) / Math.max(1e-9, geom.plotW);
+        const rawLvl = geom.xMin + t * (geom.xMax - geom.xMin);
+        const level = Math.max(geom.xMin, Math.min(geom.xMax, Math.round(rawLvl)));
+        const info = drawHoverHighlight(cumCanvasId, deltaCanvasId, level);
+        if (info) showRunesTooltip(tooltipId, host, info, level);
+      };
+      const onLeave = (e) => {
+        // Only clear when leaving the merged container itself (mousemove between
+        // child wraps fires leave on the wrap but not the host — we listen on host).
+        clearMergedOverlays(cumCanvasId, deltaCanvasId);
+        hideRunesTooltip(tooltipId);
+      };
+      host.addEventListener('mousemove', onMove);
+      host.addEventListener('mouseleave', onLeave);
+    }
+
+    // Wire hover once for all 4 merged cards — geometry/data are read live from
+    // runesChartGeom / runesDeltaChartGeom on each mousemove.
+    wireRunesHover('merged-rune1', 'chart-rune1', 'chart-rune1-delta', 'tooltip-rune1');
+    wireRunesHover('merged-rune2', 'chart-rune2', 'chart-rune2-delta', 'tooltip-rune2');
+    wireRunesHover('merged-rune1-sd', 'chart-rune1-sd', 'chart-rune1-sd-delta', 'tooltip-rune1-sd');
+    wireRunesHover('merged-rune2-sd', 'chart-rune2-sd', 'chart-rune2-sd-delta', 'tooltip-rune2-sd');
+
+    function fmtRune(v) {
+      if (!Number.isFinite(v)) return '—';
+      return v.toFixed(1);
+    }
+
+    function renderRunesTable(data) {
+      const table = document.getElementById('runes-table');
+      let head = '<thead><tr>';
+      head += '<th rowspan="2">Lvl</th>';
+      head += '<th colspan="2" class="group-head">Rune I</th>';
+      head += '<th colspan="2" class="group-head">Rune II</th>';
+      head += '</tr><tr>';
+      head += '<th class="group-start">S1</th><th>S2</th>';
+      head += '<th class="group-start">S1</th><th>S2</th>';
+      head += '</tr></thead>';
+
+      let body = '<tbody>';
+      for (const d of data) {
+        body += '<tr>';
+        body += `<td class="lvl-cell">L${d.level}</td>`;
+        body += `<td class="num group-start">${fmtRune(d.s1.r1)}</td>`;
+        body += `<td class="num">${fmtRune(d.s2.r1)}</td>`;
+        body += `<td class="num group-start">${fmtRune(d.s1.r2)}</td>`;
+        body += `<td class="num">${fmtRune(d.s2.r2)}</td>`;
+        body += '</tr>';
+      }
+      body += '</tbody>';
+      table.innerHTML = head + body;
+    }
+
+    // ---- Orchestration ----
+    const runesState = {
+      seed: 0xC0FFEE,
+      trials: 2000,
+      data: null, // cached MC result
+      lastKey: null, // signature of last compute (to skip recompute)
+    };
+
+    function setStatus(msg) {
+      const el = document.getElementById('runes-status');
+      if (el) el.textContent = msg;
+    }
+
+    function computeRunes() {
+      const key = `${runesState.trials}|${runesState.seed}`;
+      if (runesState.data && runesState.lastKey === key) return runesState.data;
+      setStatus('computing…');
+      const t0 = performance.now();
+      runesState.data = runMonteCarlo(runesState.trials, runesState.seed);
+      runesState.lastKey = key;
+      const dt = (performance.now() - t0).toFixed(0);
+      setStatus(`K=${runesState.trials}, ${dt}ms`);
+      return runesState.data;
+    }
+
+    function renderRunes() {
+      const data = computeRunes();
+      const result = computeGenerators(params);
+      const required = computeRequiredCurves(data, result.generators);
+      renderRunesCharts(data, required);
+      renderRunesTable(data);
+    }
+
+    function invalidateRunes() {
+      runesState.data = null;
+      runesState.lastKey = null;
+    }
+
+    function updateSeedLabel() {
+      const el = document.getElementById('runes-seed-label');
+      if (el) el.textContent = '0x' + (runesState.seed >>> 0).toString(16).toUpperCase();
+    }
+
+    // Wire up controls
+    (function wireRunes() {
+      const trialsRange = document.getElementById('runes-trials');
+      const trialsNum = document.getElementById('runes-trials-num');
+      const reroll = document.getElementById('btn-runes-reroll');
+
+      const onChange = (v) => {
+        const n = Math.max(100, Math.min(10000, Math.round(v / 100) * 100));
+        runesState.trials = n;
+        trialsRange.value = n;
+        trialsNum.value = n;
+        invalidateRunes();
+        // Only re-render if runes panel is active
+        const active = document.querySelector('.cm-tab[aria-selected="true"]');
+        if (active && active.dataset.tab === 'runes') renderRunes();
+      };
+      trialsRange.addEventListener('change', () => onChange(parseFloat(trialsRange.value)));
+      trialsNum.addEventListener('change', () => onChange(parseFloat(trialsNum.value)));
+
+      reroll.addEventListener('click', () => {
+        runesState.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+        updateSeedLabel();
+        invalidateRunes();
+        renderRunes();
+      });
+
+      updateSeedLabel();
+    })();
+
+    // ============================================================
     //  INIT
     // ============================================================
     buildControls();
@@ -892,9 +1939,14 @@
     // Re-render charts on resize
     window.addEventListener('resize', () => {
       const active = document.querySelector('.cm-tab[aria-selected="true"]');
-      if (active && active.dataset.tab === 'charts') {
+      if (!active) return;
+      if (active.dataset.tab === 'charts') {
         const result = computeGenerators(params);
         renderCharts(result.generators);
+      } else if (active.dataset.tab === 'runes' && runesState.data) {
+        const result = computeGenerators(params);
+        const required = computeRequiredCurves(runesState.data, result.generators);
+        renderRunesCharts(runesState.data, required);
       }
     });
   </script>
