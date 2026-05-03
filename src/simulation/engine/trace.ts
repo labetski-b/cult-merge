@@ -1,0 +1,75 @@
+// Нейтральный trace-модуль (§ 5.1 spec rev 6).
+// Импортирует ТОЛЬКО из ./actions, чтобы не создавать цикл с ./types.
+// Сюда же вынесен GoalCategory, потому что он попадает в GoalSnapshot.
+
+import type { SimulationAction } from './actions';
+
+/** Категория goal'а в scheduler'е (см. § 5.4 spec). */
+export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
+
+/** Снимок goal'а на одной inner-iteration. */
+export interface GoalSnapshot {
+  id: string;
+  basePriority: number;
+  category: GoalCategory;
+  urgency: number;
+  /** basePriority * urgency, либо PREREQ_BOOST_PRIORITY если promoted. */
+  finalPriority: number;
+  /** Если goal promoted из prereq-цепочки — id той goal, для которой эта была prereq. */
+  promotedFromPrereq?: string;
+  /** Динамическое описание из Goal.describe(state, ctx). */
+  describe: string;
+}
+
+/** Связка `prereq goal X нужен для goal Y` (в trace.prerequisiteChain). */
+export interface PrereqLink {
+  fromGoalId: string;
+  toGoalId: string;
+  reason: string;
+}
+
+/** Снимок одного предложения tactic'а. */
+export interface ProposedActionSnapshot {
+  tacticId: string;
+  goalId: string;
+  actionType: string; // SimulationAction['type']
+  reasoning: string;
+  expectedProgress: number;
+}
+
+/** Запись о guard-rejection одного предложения. */
+export interface GuardRejection {
+  tacticId: string;
+  actionType: string;
+  guardId: string;
+  reason: string;
+}
+
+/** Запись одного inner-iteration (один вызов decide()). */
+export interface IterationDecision {
+  iteration: number;
+  activeGoals: GoalSnapshot[];
+  /** Непустой если в этой итерации развернулась prereq-цепочка. */
+  prerequisiteChain?: PrereqLink[];
+  selectedGoalId: string | null;
+  proposedActions: ProposedActionSnapshot[];
+  rejectedByGuards: GuardRejection[];
+  selectedAction: SimulationAction | null;
+  /** Заполняется когда стратегия не смогла выбрать действие (cycle, budget exhausted, all rejected). */
+  stuckReason?: string;
+}
+
+/** Метка ветки, по которой engine закрыл outer-tick. */
+export type TickEndReason =
+  | 'done'           // engine ушёл по `decision.done === true`
+  | 'idle'           // engine ушёл по `!iterAdvanced` (line 230 SimulationEngine)
+  | 'max_iterations'; // inner-loop упёрся в MAX_ITERATIONS=500 без done и без idle
+
+/** Агрегат всех iteration'ов одного outer-tick. */
+export interface TickTrace {
+  tick: number;
+  iterations: IterationDecision[];
+  endReason: TickEndReason;
+  /** Сумма selectedAction !== null по итерациям. */
+  outerActionsCount: number;
+}
