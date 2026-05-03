@@ -1,6 +1,6 @@
 # Modular Strategy — Design Spec
 
-**Дата:** 2026-05-03 (rev 5 после четвёртого ревью)
+**Дата:** 2026-05-03 (rev 6 после пятого ревью)
 **Ветка:** `new_simulator` (target: `3.23/1-generators-without-merge`)
 **Статус:** дизайн зафиксирован; ждёт финального approve → план → имплементация
 
@@ -85,12 +85,30 @@
 
 **Outer-tick** — границу фиксирует **engine**, не стратегия. Это важно: trace агрегируется на границе тика *по сигналу engine*, не на `done=true`. Иначе теряются кейсы `idle` (стратегия ничего не делает 0 actions, но тик прошёл) и `max_iterations` (safety limit без `done`).
 
-**Где живут trace-типы.** Все типы, используемые в trace, плюс `GoalCategory` (он попадает в `GoalSnapshot.category`) находятся в **нейтральном модуле** `src/simulation/engine/trace.ts`: `TickTrace`, `IterationDecision`, `TickEndReason`, `GoalSnapshot`, `PrereqLink`, `ProposedActionSnapshot`, `GuardRejection`, `GoalCategory`. И `engine/types.ts` (для сигнатуры `AIStrategy.closeTickTrace`), и `modular/types.ts` (для самой стратегии) импортируют их оттуда. Это исключает циклическую зависимость engine ↔ modular: нейтральный модуль не зависит ни от того, ни от другого, только от базовых типов (`SimulationAction`). `modular/types.ts` **не объявляет** `GoalCategory`, а реэкспортирует его из `engine/trace.ts` для удобства внутренних модулей стратегии.
+**Где живут trace-типы.** Все типы, используемые в trace, плюс `GoalCategory` (он попадает в `GoalSnapshot.category`) находятся в **нейтральном модуле** `src/simulation/engine/trace.ts`: `TickTrace`, `IterationDecision`, `TickEndReason`, `GoalSnapshot`, `PrereqLink`, `ProposedActionSnapshot`, `GuardRejection`, `GoalCategory`. И `engine/types.ts` (для сигнатуры `AIStrategy.closeTickTrace`), и `modular/types.ts` (для самой стратегии) импортируют их оттуда. `modular/types.ts` **не объявляет** `GoalCategory`, а реэкспортирует его из `engine/trace.ts` для удобства внутренних модулей стратегии.
+
+**Чтобы избежать цикла `types.ts ↔ trace.ts` на type-уровне**, `SimulationAction` выносится из `engine/types.ts` в отдельный **leaf-модуль** `src/simulation/engine/actions.ts`, который ни на что внутри `engine/` не ссылается:
+
+```
+engine/actions.ts      ← leaf: SimulationAction и связанные action-типы
+       ↑
+engine/trace.ts        ← импортирует SimulationAction из ./actions; всё trace-API
+       ↑
+engine/types.ts        ← импортирует SimulationAction из ./actions, импортирует
+                          TickTrace/TickEndReason из ./trace для AIStrategy
+                          (плюс реэкспорт SimulationAction для обратной совместимости
+                          существующего кода — это не ломающее изменение)
+       ↑
+modular/types.ts       ← импортирует из всех трёх; ничего обратно вверх не отдаёт
+```
+
+Цикла больше нет. `engine/actions.ts` — pure-types файл без импортов из engine-слоёв (только базовые JS-типы). Реэкспорт `SimulationAction` из `engine/types.ts` сохраняет всех текущих потребителей (`RealisticStrategy`, `SimulationEngine`, etc.) без правок.
 
 ```typescript
 // src/simulation/engine/trace.ts — нейтральный модуль, без зависимостей на стратегию
+// и без импорта из ./types (иначе type-cycle types ↔ trace).
 
-import type { SimulationAction } from './types';
+import type { SimulationAction } from './actions';
 
 /** Lane scheduling categories (используется в GoalSnapshot, см. § 5.4). */
 export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
@@ -388,7 +406,8 @@ decide(state, rng) -> StrategyDecision:
 ```typescript
 // src/simulation/strategies/modular/types.ts
 
-import type { GameSnapshot, SimulationAction, SeededRng } from '../../engine/types';
+import type { GameSnapshot, SeededRng } from '../../engine/types';
+import type { SimulationAction } from '../../engine/actions';
 import type { GoalCategory } from '../../engine/trace';
 // Trace-типы — из нейтрального модуля (см. § 5.1), не дублируем здесь
 // import type { TickTrace, IterationDecision, ... } from '../../engine/trace';
@@ -489,7 +508,7 @@ export interface StrategyContext {
 | id | trigger | reason text |
 |----|---------|-------------|
 | `DontFeedQuestTargets` | `feed` для существа, нужного активному квесту | "Creature5 L2 нужен для квеста (3 из 5 готовы)" |
-| `ProtectFPNeighbors` | **Цель guard'а: сохранять свободные spawn-slots вокруг активного timer-генератора при активном квесте на его существо.** Блокирует только те действия, что реально **уменьшают** число свободных соседей FP. **Точная семантика:** `move_entity` — блокировать если **TARGET** клетка является свободным соседом FP (двигать что-либо в этот слот = занять spawn-slot). `spawn_generator`, размещающий **новый генератор** (не итерация существующего FP) — блокировать если TARGET — свободный сосед FP. **`feed` не блокируется** (он освобождает source — если source был соседом FP, число свободных соседей растёт). **`merge` не блокируется** (merge освобождает source и оставляет target — net change ≥ 0 свободных соседей). Защиту fresh-quest существ от feed обеспечивает отдельный `DontFeedQuestTargets`, не этот guard. **Сам спавн из FP в свободного соседа** — желаемое поведение, не блокируется. | "Соседняя с Gen3 клетка (1,0) — последний свободный spawn-slot, занимать нельзя" |
+| `ProtectFPNeighbors` | **Цель guard'а: сохранять свободные spawn-slots вокруг активного timer-генератора при активном квесте на его существо.** В текущем `SimulationAction` API единственное действие, которое явно занимает указанную свободную клетку, — это `move_entity { source, target }`. **Точная семантика (в рамках существующих actions):** блокировать `move_entity`, если `target` — свободный сосед активного timer-генератора, на чьё существо есть активный квест. **Не блокирует** `feed` (он освобождает source — если source был соседом FP, число свободных соседей растёт), `merge` (net non-negative по соседям), `spawn_generator` (его действие — `{ generatorId }` без явного target; engine сам выбирает свободного соседа конкретного генератора, и для самой FP это и есть желаемое поведение; для других генераторов цель совпадёт со свободным соседом FP только случайно — guard это не моделирует, чтобы не делать ложных срабатываний). Защиту fresh-quest существ от feed обеспечивает отдельный `DontFeedQuestTargets`, не этот guard. | "(1,0) — последний свободный spawn-slot Gen3; move_entity Creature4→(1,0) блокируется" |
 | `NoUpgradeWithoutFullRunes` | `start_upgrade` без полного покрытия рун | "Не хватает 3× Rune2 для апгрейда Gen2" |
 | `NoSpawnIntoFullGrid` | `spawn_generator` при `freeCells == 0` и невозможности освободить | "Грид полон, освободить нельзя" |
 | `DontWasteUpgradeSlot` | `start_upgrade` пока `state.activeUpgrade !== null` | "Слот апгрейда занят" |
@@ -568,8 +587,10 @@ Hotkeys: ←/→ — соседний тик, ↓ — следующая ите�
 
 ```
 src/simulation/engine/
+├── actions.ts                    # НОВЫЙ leaf-модуль: SimulationAction (§ 5.1)
 ├── trace.ts                      # НОВЫЙ — нейтральный модуль с trace-типами (§ 5.1)
-├── types.ts                      # +closeTickTrace?() в AIStrategy
+├── types.ts                      # импортирует из ./actions и ./trace; реэкспортит
+│                                 # SimulationAction для совместимости; +closeTickTrace?()
 └── ...
 
 src/simulation/strategies/modular/
@@ -687,7 +708,7 @@ ModularStrategy переходит в дефолт **только** когда �
 
 ### Что важно
 - `BoardLayout` НЕ всегда промоутится — только при динамическом запросе. Тесты прогона на других seed (где Gen3 уже в центре) показывают пустой `prerequisiteChain` и нормальную работу.
-- `ProtectFPNeighborsGuard` **охраняет именно свободные spawn-slots**, не "fresh quest creatures". Он не блокирует FP-spawn (это его желаемая работа), не блокирует `feed`/`merge` (они не занимают свободных соседей). Блокирует только `move_entity TARGET → free FP neighbor` и `spawn_generator (новый генератор) TARGET → free FP neighbor`. Защиту fresh-quest существ от feed выполняет отдельный `DontFeedQuestTargets`.
+- `ProtectFPNeighborsGuard` **охраняет именно свободные spawn-slots**, не "fresh quest creatures". В рамках текущего `SimulationAction` API он блокирует только `move_entity` где `target` = свободный сосед FP. Не блокирует `feed`/`merge` (они не занимают свободных соседей) и `spawn_generator` (action не имеет TARGET — engine сам выбирает; для самого FP это желаемое поведение). Защиту fresh-quest существ от feed выполняет отдельный `DontFeedQuestTargets`.
 - Выбор decision на каждой iteration виден в trace — для дебага достаточно открыть Inspector → Live Trace → нужный тик.
 
 ---
@@ -706,8 +727,8 @@ ModularStrategy переходит в дефолт **только** когда �
 
 ## Изменяемые файлы
 
-- **Создать:** `src/simulation/engine/trace.ts` (нейтральный модуль с trace-типами, см. § 5.1), `src/simulation/strategies/modular/**` (~40 модулей, см. § 9), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts` (runtime collector), `scripts/run-sim.ts` дополнить флагом `--strategy` и записью артефактов.
-- **Дополнить:** `src/simulation/engine/types.ts` — единственное добавление в `AIStrategy`: опциональный метод `closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace`. Импорт типов из `./trace`. Никаких `getTrace?()`.
+- **Создать:** `src/simulation/engine/actions.ts` (leaf-модуль с `SimulationAction`, см. § 5.1), `src/simulation/engine/trace.ts` (нейтральный модуль с trace-типами, импортирует только из `./actions`), `src/simulation/strategies/modular/**` (~40 модулей, см. § 9), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts` (runtime collector), `scripts/run-sim.ts` дополнить флагом `--strategy` и записью артефактов.
+- **Дополнить:** `src/simulation/engine/types.ts` — два изменения, оба не ломающие: (a) перенести объявление `SimulationAction` в `./actions` и оставить `export type { SimulationAction } from './actions'` для совместимости текущих потребителей (`RealisticStrategy`, `SimulationEngine` и др.); (b) добавить в `AIStrategy` опциональный метод `closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace` (импорт типов из `./trace`). Никаких `getTrace?()`.
 - **Дополнить:** `src/simulation/engine/SimulationEngine.ts` — фиксация границ outer-tick + вызов `closeTickTrace` если стратегия его реализует. Это минимальная правка движка, не переделка.
 - **Дополнить:** `src/simulation/main.ts` (select стратегии в `simulation.html`, кнопка Download trace для browser-run).
 - **Не трогать:** `RealisticStrategy.ts`, `engine/metrics.ts`, `chartAggregation.ts`, `actionTime.ts`.
