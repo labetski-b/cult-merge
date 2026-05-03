@@ -1,6 +1,6 @@
 # Modular Strategy — Design Spec
 
-**Дата:** 2026-05-03 (rev 4 после третьего ревью)
+**Дата:** 2026-05-03 (rev 5 после четвёртого ревью)
 **Ветка:** `new_simulator` (target: `3.23/1-generators-without-merge`)
 **Статус:** дизайн зафиксирован; ждёт финального approve → план → имплементация
 
@@ -85,12 +85,15 @@
 
 **Outer-tick** — границу фиксирует **engine**, не стратегия. Это важно: trace агрегируется на границе тика *по сигналу engine*, не на `done=true`. Иначе теряются кейсы `idle` (стратегия ничего не делает 0 actions, но тик прошёл) и `max_iterations` (safety limit без `done`).
 
-**Где живут trace-типы.** Все типы (`TickTrace`, `IterationDecision`, `TickEndReason`, `GoalSnapshot`, `PrereqLink`, `ProposedActionSnapshot`, `GuardRejection`) находятся в **нейтральном модуле** `src/simulation/engine/trace.ts`. И `engine/types.ts` (для сигнатуры `AIStrategy.closeTickTrace`), и `modular/types.ts` (для самой стратегии) импортируют их оттуда. Это исключает циклическую зависимость engine ↔ modular: нейтральный модуль не зависит ни от того, ни от другого, только от базовых типов (`SimulationAction`).
+**Где живут trace-типы.** Все типы, используемые в trace, плюс `GoalCategory` (он попадает в `GoalSnapshot.category`) находятся в **нейтральном модуле** `src/simulation/engine/trace.ts`: `TickTrace`, `IterationDecision`, `TickEndReason`, `GoalSnapshot`, `PrereqLink`, `ProposedActionSnapshot`, `GuardRejection`, `GoalCategory`. И `engine/types.ts` (для сигнатуры `AIStrategy.closeTickTrace`), и `modular/types.ts` (для самой стратегии) импортируют их оттуда. Это исключает циклическую зависимость engine ↔ modular: нейтральный модуль не зависит ни от того, ни от другого, только от базовых типов (`SimulationAction`). `modular/types.ts` **не объявляет** `GoalCategory`, а реэкспортирует его из `engine/trace.ts` для удобства внутренних модулей стратегии.
 
 ```typescript
 // src/simulation/engine/trace.ts — нейтральный модуль, без зависимостей на стратегию
 
 import type { SimulationAction } from './types';
+
+/** Lane scheduling categories (используется в GoalSnapshot, см. § 5.4). */
+export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
 
 /** Запись одного inner-iteration. */
 export interface IterationDecision {
@@ -291,7 +294,10 @@ finalPriority(goal, state, ctx) =
 
 #### B. Goal category — default scheduling lane
 
+`GoalCategory` объявлен в `engine/trace.ts` (см. § 5.1):
+
 ```typescript
+// src/simulation/engine/trace.ts
 export type GoalCategory =
   | 'blocking'        // обязательно отрабатывать пока inner-loop активен
   | 'opportunistic'   // выполнить ≤ N действий (default 1) и закрыть тик
@@ -383,10 +389,12 @@ decide(state, rng) -> StrategyDecision:
 // src/simulation/strategies/modular/types.ts
 
 import type { GameSnapshot, SimulationAction, SeededRng } from '../../engine/types';
+import type { GoalCategory } from '../../engine/trace';
 // Trace-типы — из нейтрального модуля (см. § 5.1), не дублируем здесь
 // import type { TickTrace, IterationDecision, ... } from '../../engine/trace';
 
-export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
+// Реэкспорт для удобства внутренних модулей стратегии (goals/tactics/guards):
+export type { GoalCategory } from '../../engine/trace';
 
 export interface Goal {
   readonly meta: GoalMeta;       // ссылка на статический META
@@ -481,7 +489,7 @@ export interface StrategyContext {
 | id | trigger | reason text |
 |----|---------|-------------|
 | `DontFeedQuestTargets` | `feed` для существа, нужного активному квесту | "Creature5 L2 нужен для квеста (3 из 5 готовы)" |
-| `ProtectFPNeighbors` | Защищает свободность соседних клеток активного timer-генератора при активном квесте на его существо. **Точная семантика по action.type:** `feed` — блокировать если **source-клетка** (та, где скармливаемая цель) соседняя с timer-gen; `move_entity` — блокировать если **source-клетка** соседняя (target можно куда угодно, включая пустого соседа FP — это не освобождает соседа, а занимает); `merge` — блокировать если **обе** клетки (source И target) соседние, потому что merge освобождает source но оставляет target занятым (если только одна из них — потеря компенсируется освобождением). **НЕ блокирует сам `spawn_generator`**: spawn заполняет свободного соседа, это и есть желаемое поведение. | "Соседняя с Gen3 клетка (1,0) нужна для следующего спавна" |
+| `ProtectFPNeighbors` | **Цель guard'а: сохранять свободные spawn-slots вокруг активного timer-генератора при активном квесте на его существо.** Блокирует только те действия, что реально **уменьшают** число свободных соседей FP. **Точная семантика:** `move_entity` — блокировать если **TARGET** клетка является свободным соседом FP (двигать что-либо в этот слот = занять spawn-slot). `spawn_generator`, размещающий **новый генератор** (не итерация существующего FP) — блокировать если TARGET — свободный сосед FP. **`feed` не блокируется** (он освобождает source — если source был соседом FP, число свободных соседей растёт). **`merge` не блокируется** (merge освобождает source и оставляет target — net change ≥ 0 свободных соседей). Защиту fresh-quest существ от feed обеспечивает отдельный `DontFeedQuestTargets`, не этот guard. **Сам спавн из FP в свободного соседа** — желаемое поведение, не блокируется. | "Соседняя с Gen3 клетка (1,0) — последний свободный spawn-slot, занимать нельзя" |
 | `NoUpgradeWithoutFullRunes` | `start_upgrade` без полного покрытия рун | "Не хватает 3× Rune2 для апгрейда Gen2" |
 | `NoSpawnIntoFullGrid` | `spawn_generator` при `freeCells == 0` и невозможности освободить | "Грид полон, освободить нельзя" |
 | `DontWasteUpgradeSlot` | `start_upgrade` пока `state.activeUpgrade !== null` | "Слот апгрейда занят" |
@@ -667,17 +675,19 @@ ModularStrategy переходит в дефолт **только** когда �
 **Iteration 1:**
 - Gen3 теперь в (2,2). `CompleteActiveQuest.getPrerequisites()` → `[]` (все условия ок).
 - Scheduler: `[CompleteActiveQuest, ...]`
-- `QuestSpawnTactic.propose()` → `spawn_generator` Gen3
-- `ProtectFPNeighborsGuard.check()` → `allow: true` (соседи свободны, и guard защищает не сам spawn, а `feed`/`merge` соседей)
+- `QuestSpawnTactic.propose()` → `spawn_generator` Gen3 (FP-итерация, target — свободный сосед FP)
+- `ProtectFPNeighborsGuard.check()` → `allow: true` (FP сама заполняет свой свободный сосед — это и есть желаемое поведение, guard явно не блокирует FP-spawn)
 - Selected: `spawn_generator`
 
-**Iteration 2+:** существо появилось рядом. `MaintainFreeGrid` хочет его скормить (как мусор). `DontFeedQuestTargets.check()` → `deny: "Creature5 L1 нужен для квеста"`. Существо сохраняется.
+**Iteration 2+:** существо появилось рядом с FP. Появляются два разных guard-кейса:
+- `MaintainFreeGrid` хочет скормить это существо как мусор. `DontFeedQuestTargets.check()` → `deny: "Creature5 L1 нужен для квеста"`. Существо сохраняется. (`ProtectFPNeighbors` не вмешивается — он не блокирует `feed` принципиально, потому что feed освобождает соседа FP, а не занимает.)
+- Если бы какая-то tactic предложила `move_entity` другого существа в **другой** свободный сосед FP — это бы блокировал `ProtectFPNeighbors` ("(1,2) — последний свободный spawn-slot Gen3, занимать нельзя").
 
 **Результат:** прогресс по квесту без зацикливания, FP в оптимальной позиции, всё трассируется.
 
 ### Что важно
 - `BoardLayout` НЕ всегда промоутится — только при динамическом запросе. Тесты прогона на других seed (где Gen3 уже в центре) показывают пустой `prerequisiteChain` и нормальную работу.
-- `ProtectFPNeighborsGuard` **не режет сам spawn**. Он защищает соседей от случайного destruction другими tactics. Это важная переформулировка по сравнению с rev 1.
+- `ProtectFPNeighborsGuard` **охраняет именно свободные spawn-slots**, не "fresh quest creatures". Он не блокирует FP-spawn (это его желаемая работа), не блокирует `feed`/`merge` (они не занимают свободных соседей). Блокирует только `move_entity TARGET → free FP neighbor` и `spawn_generator (новый генератор) TARGET → free FP neighbor`. Защиту fresh-quest существ от feed выполняет отдельный `DontFeedQuestTargets`.
 - Выбор decision на каждой iteration виден в trace — для дебага достаточно открыть Inspector → Live Trace → нужный тик.
 
 ---
