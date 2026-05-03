@@ -23,6 +23,26 @@ describe('GridFreeFeedTactic', () => {
     expect(proposals.some(p => p.action.type === 'feed' && p.expectedProgress < 0.5)).toBe(true);
   });
 
+  it('предлагает feed Lv>=3 если тип не нужен квесту (с пониженным priority)', () => {
+    const tactic = new GridFreeFeedTactic();
+    const goal = new MaintainFreeGridGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 4 };
+    state.grid.cells[0] = 'c1';
+    state.currentAutoTask = {
+      id: 't',
+      creatures: [{ type: 'X', level: 5, count: 1 }],
+      expMultiplier: 1,
+      resMultiplier: 1,
+    };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]!.action.type).toBe('feed');
+    expect(proposals[0]!.expectedProgress).toBeLessThan(0.25);
+  });
+
   it('не предлагает feed creature нужного квесту', () => {
     const tactic = new GridFreeFeedTactic();
     const goal = new MaintainFreeGridGoal();
