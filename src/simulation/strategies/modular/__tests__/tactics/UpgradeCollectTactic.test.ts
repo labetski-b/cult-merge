@@ -1,0 +1,33 @@
+import { describe, it, expect } from 'vitest';
+import { UpgradeCollectTactic, META } from '../../tactics/UpgradeCollectTactic';
+import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
+import { BALANCE } from '@data/loadBalance';
+import { SeededRng } from '@infra/rng';
+import { buildContext } from '../../context';
+import { UpgradeGeneratorGoal } from '../../goals/UpgradeGeneratorGoal';
+
+describe('UpgradeCollectTactic', () => {
+  it('META: serves=[UpgradeGenerator], produces=[collect_upgrade]', () => {
+    expect(META.serves).toEqual(['UpgradeGenerator']);
+    expect(META.produces).toEqual(['collect_upgrade']);
+  });
+
+  it('activeUpgrade с finishesAt прошёл → предлагает collect_upgrade', () => {
+    const tactic = new UpgradeCollectTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.activeUpgrade = { entityId: 'g1', generatorId: 1, startedAt: 0, finishesAt: 100 };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    expect(proposals.some(p => p.action.type === 'collect_upgrade')).toBe(true);
+  });
+
+  it('activeUpgrade=null → []', () => {
+    const tactic = new UpgradeCollectTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.activeUpgrade = null;
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    expect(tactic.propose(state, goal, ctx)).toEqual([]);
+  });
+});
