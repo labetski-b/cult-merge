@@ -1,6 +1,6 @@
 # Modular Strategy — Design Spec
 
-**Дата:** 2026-05-03 (rev 3 после второго ревью)
+**Дата:** 2026-05-03 (rev 4 после третьего ревью)
 **Ветка:** `new_simulator` (target: `3.23/1-generators-without-merge`)
 **Статус:** дизайн зафиксирован; ждёт финального approve → план → имплементация
 
@@ -31,7 +31,7 @@
 ## 3. Не-цели
 
 - Не переписываем `RealisticStrategy`. Она остаётся работать параллельно как baseline.
-- Не делаем ломающих изменений в интерфейсе `AIStrategy` (`src/simulation/engine/types.ts`). Допустимо добавление опционального метода (например, `getTrace?()`).
+- Не делаем ломающих изменений в интерфейсе `AIStrategy` (`src/simulation/engine/types.ts`). Допустимо добавление одного опционального метода `closeTickTrace?(tick, endReason): TickTrace` (см. § 5.1). Никаких других trace-API (например, `getTrace?()`) не вводим.
 - Не меняем **игровую семантику** `SimulationEngine` (логика выполнения действий, MAX_ITERATIONS, idle-detection через `!iterAdvanced`, набор `SimulationAction`, метрики). Допустимы **минимальные trace-hooks**: вызов опционального `closeTickTrace(tick, endReason)` на границе outer-tick, фиксация `endReason` исходя из существующих веток `executeTick()`. Без правок самих условий завершения.
 - Не реализуем сложный планировщик (GOAP). Решения принимаются жадно, по одной активной цели за inner-iteration.
 - Не делаем UI-редактор стратегии (диаграмма пока read-only).
@@ -85,8 +85,12 @@
 
 **Outer-tick** — границу фиксирует **engine**, не стратегия. Это важно: trace агрегируется на границе тика *по сигналу engine*, не на `done=true`. Иначе теряются кейсы `idle` (стратегия ничего не делает 0 actions, но тик прошёл) и `max_iterations` (safety limit без `done`).
 
+**Где живут trace-типы.** Все типы (`TickTrace`, `IterationDecision`, `TickEndReason`, `GoalSnapshot`, `PrereqLink`, `ProposedActionSnapshot`, `GuardRejection`) находятся в **нейтральном модуле** `src/simulation/engine/trace.ts`. И `engine/types.ts` (для сигнатуры `AIStrategy.closeTickTrace`), и `modular/types.ts` (для самой стратегии) импортируют их оттуда. Это исключает циклическую зависимость engine ↔ modular: нейтральный модуль не зависит ни от того, ни от другого, только от базовых типов (`SimulationAction`).
+
 ```typescript
-// src/simulation/strategies/modular/types.ts
+// src/simulation/engine/trace.ts — нейтральный модуль, без зависимостей на стратегию
+
+import type { SimulationAction } from './types';
 
 /** Запись одного inner-iteration. */
 export interface IterationDecision {
@@ -379,6 +383,8 @@ decide(state, rng) -> StrategyDecision:
 // src/simulation/strategies/modular/types.ts
 
 import type { GameSnapshot, SimulationAction, SeededRng } from '../../engine/types';
+// Trace-типы — из нейтрального модуля (см. § 5.1), не дублируем здесь
+// import type { TickTrace, IterationDecision, ... } from '../../engine/trace';
 
 export type GoalCategory = 'blocking' | 'opportunistic' | 'background';
 
@@ -475,7 +481,7 @@ export interface StrategyContext {
 | id | trigger | reason text |
 |----|---------|-------------|
 | `DontFeedQuestTargets` | `feed` для существа, нужного активному квесту | "Creature5 L2 нужен для квеста (3 из 5 готовы)" |
-| `ProtectFPNeighbors` | `feed`/`merge`/`move_entity` **в соседнюю с активным timer-генератором клетку** при активном квесте на его существо. **НЕ блокирует сам spawn**. | "Соседняя клетка Gen3 нужна для следующего спавна" |
+| `ProtectFPNeighbors` | Защищает свободность соседних клеток активного timer-генератора при активном квесте на его существо. **Точная семантика по action.type:** `feed` — блокировать если **source-клетка** (та, где скармливаемая цель) соседняя с timer-gen; `move_entity` — блокировать если **source-клетка** соседняя (target можно куда угодно, включая пустого соседа FP — это не освобождает соседа, а занимает); `merge` — блокировать если **обе** клетки (source И target) соседние, потому что merge освобождает source но оставляет target занятым (если только одна из них — потеря компенсируется освобождением). **НЕ блокирует сам `spawn_generator`**: spawn заполняет свободного соседа, это и есть желаемое поведение. | "Соседняя с Gen3 клетка (1,0) нужна для следующего спавна" |
 | `NoUpgradeWithoutFullRunes` | `start_upgrade` без полного покрытия рун | "Не хватает 3× Rune2 для апгрейда Gen2" |
 | `NoSpawnIntoFullGrid` | `spawn_generator` при `freeCells == 0` и невозможности освободить | "Грид полон, освободить нельзя" |
 | `DontWasteUpgradeSlot` | `start_upgrade` пока `state.activeUpgrade !== null` | "Слот апгрейда занят" |
@@ -553,6 +559,11 @@ Hotkeys: ←/→ — соседний тик, ↓ — следующая ите�
 Полная раскладка — в implementation plan. Здесь только верхнеуровневые папки:
 
 ```
+src/simulation/engine/
+├── trace.ts                      # НОВЫЙ — нейтральный модуль с trace-типами (§ 5.1)
+├── types.ts                      # +closeTickTrace?() в AIStrategy
+└── ...
+
 src/simulation/strategies/modular/
 ├── ModularStrategy.ts            # orchestrator
 ├── types.ts                      # все 4 контракта + интерфейсы
@@ -641,7 +652,7 @@ ModularStrategy переходит в дефолт **только** когда �
 ## 13. Решённый кейс (FP) под dynamic prerequisites
 
 ### Ситуация
-Активный квест требует существо из Gen3 (timer-mode), Gen3 расположен в (0,0) с 3 свободными соседями. Грид заполнен на 70%.
+Активный квест требует существо из Gen3 (timer-mode). Gen3 стоит в углу (0,0) — у этой клетки 3 соседних клетки: (0,1), (1,0), (1,1). Из них две заняты (Creature4 L1 в (0,1) и Box в (1,1)), свободна только (1,0). Итого `freeNeighbors(Gen3) = 1`. Грид суммарно заполнен на 70%.
 
 ### Поведение по контрактам
 
@@ -685,8 +696,8 @@ ModularStrategy переходит в дефолт **только** когда �
 
 ## Изменяемые файлы
 
-- **Создать:** `src/simulation/strategies/modular/**` (~40 модулей, см. § 9), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts` (runtime collector), `scripts/run-sim.ts` дополнить флагом `--strategy` и записью артефактов.
-- **Дополнить:** `src/simulation/engine/types.ts` (опциональные `getTrace?()` и `closeTickTrace?(tick, endReason)` в `AIStrategy`).
+- **Создать:** `src/simulation/engine/trace.ts` (нейтральный модуль с trace-типами, см. § 5.1), `src/simulation/strategies/modular/**` (~40 модулей, см. § 9), `public/strategy-inspector.html`, `scripts/build-inspector-data.ts` (runtime collector), `scripts/run-sim.ts` дополнить флагом `--strategy` и записью артефактов.
+- **Дополнить:** `src/simulation/engine/types.ts` — единственное добавление в `AIStrategy`: опциональный метод `closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace`. Импорт типов из `./trace`. Никаких `getTrace?()`.
 - **Дополнить:** `src/simulation/engine/SimulationEngine.ts` — фиксация границ outer-tick + вызов `closeTickTrace` если стратегия его реализует. Это минимальная правка движка, не переделка.
 - **Дополнить:** `src/simulation/main.ts` (select стратегии в `simulation.html`, кнопка Download trace для browser-run).
 - **Не трогать:** `RealisticStrategy.ts`, `engine/metrics.ts`, `chartAggregation.ts`, `actionTime.ts`.
