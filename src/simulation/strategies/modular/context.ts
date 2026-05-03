@@ -35,9 +35,10 @@ function buildCreatureGenMap(state: GameSnapshot): ReadonlyMap<string, Generator
     if (entity.kind !== 'generator') continue;
     const cfg = genConfig.find(g => g.id === entity.generatorId);
     if (!cfg) continue;
-    // Берём первый creatureType из outputs (в реальности у каждого gen один outputCreatureType
-    // в большинстве конфигов; если несколько — берём первый).
-    const out = cfg.outputs?.[0];
+    // Берём первый creatureType из outputs текущего уровня (в реальности у каждого
+    // gen один outputCreatureType в большинстве конфигов; если несколько — берём первый).
+    const lvlCfg = cfg.levels[entity.level - 1] ?? cfg.levels[0];
+    const out = lvlCfg?.outputs?.[0];
     if (!out) continue;
     const creatureType = out.creatureType;
     const existing = map.get(creatureType);
