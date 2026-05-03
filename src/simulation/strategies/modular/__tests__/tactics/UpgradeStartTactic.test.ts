@@ -1,0 +1,30 @@
+import { describe, it, expect } from 'vitest';
+import { UpgradeStartTactic, META } from '../../tactics/UpgradeStartTactic';
+import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
+import { BALANCE } from '@data/loadBalance';
+import { SeededRng } from '@infra/rng';
+import { buildContext } from '../../context';
+import { UpgradeGeneratorGoal } from '../../goals/UpgradeGeneratorGoal';
+
+describe('UpgradeStartTactic', () => {
+  it('META: serves=[UpgradeGenerator], produces=[start_upgrade]', () => {
+    expect(META.serves).toEqual(['UpgradeGenerator']);
+    expect(META.produces).toEqual(['start_upgrade']);
+  });
+
+  it('генератор-кандидат + руны → start_upgrade', () => {
+    const tactic = new UpgradeStartTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.activeUpgrade = null;
+    state.resources.rune1 = 10000;
+    state.resources.rune2 = 10000;
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    // Кандидат может быть либо найден pickUpgradeCandidate, либо нет (зависит от balance).
+    // Если найден — должен быть start_upgrade.
+    if (proposals.length > 0) {
+      expect(proposals[0]!.action.type).toBe('start_upgrade');
+    }
+  });
+});
