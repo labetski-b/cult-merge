@@ -91,6 +91,69 @@ describe('DontFeedQuestTargetsGuard', () => {
     expect(guard.check(proposal, state, ctx).allow).toBe(true);
   });
 
+  it('РАЗРЕШАЕТ feed merge-ingredient одиночки при deadlock (grid full, нет пары)', () => {
+    // Quest = X Lv5. На гриде: X Lv1 + X Lv2 + X Lv3 (все одиночки), grid full.
+    // Без feed стратегия зависает: spawn нельзя, merge нельзя, exact level не на доске.
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    // Заполним grid полностью существами разных уровней — никаких пар.
+    state.entities = {
+      'g1': { id: 'g1', kind: 'generator', generatorId: 1, level: 1, charges: [] },
+      'c1': { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 },
+      'c2': { id: 'c2', kind: 'creature', creatureType: 'X', level: 2 },
+      'c3': { id: 'c3', kind: 'creature', creatureType: 'X', level: 3 },
+    };
+    // Сделаем grid 2×2: 4 cells, все заполнены (free=0).
+    state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposal: ProposedAction = {
+      action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+    };
+    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+  });
+
+  it('всё ещё блокирует feed merge-ingredient если есть пара (мерджить можно)', () => {
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    // Полный grid, но с парой Lv1+Lv1 → мерджить, не feed.
+    state.entities = {
+      'g1': { id: 'g1', kind: 'generator', generatorId: 1, level: 1, charges: [] },
+      'c1': { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 },
+      'c2': { id: 'c2', kind: 'creature', creatureType: 'X', level: 1 },
+      'c3': { id: 'c3', kind: 'creature', creatureType: 'X', level: 2 },
+    };
+    state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposal: ProposedAction = {
+      action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+    };
+    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+  });
+
+  it('всё ещё блокирует feed merge-ingredient если есть свободная клетка (можно spawn)', () => {
+    const guard = new DontFeedQuestTargetsGuard();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
+    state.entities = {
+      'g1': { id: 'g1', kind: 'generator', generatorId: 1, level: 1, charges: [] },
+      'c1': { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 },
+    };
+    state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', null, null] };
+    const ctx = buildContext(state, new SeededRng(1), 50);
+    const proposal: ProposedAction = {
+      action: { type: 'feed', entityId: 'c1' }, reasoning: '',
+      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+    };
+    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+  });
+
   it('пропускает feed quest-target если goalId=CompleteActiveQuest (намеренный feed для прогресса)', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
