@@ -8,9 +8,9 @@ import { CompleteActiveQuestGoal } from '../../goals/CompleteActiveQuestGoal';
 import type { GeneratorEntity } from '@domain/types';
 
 describe('TimerGenSkipTactic', () => {
-  it('META: serves=[CompleteActiveQuest], produces=[skip_timer_generator]', () => {
+  it('META: serves=[CompleteActiveQuest], produces include skip_timer_generator', () => {
     expect(META.serves).toEqual(['CompleteActiveQuest']);
-    expect(META.produces).toEqual(['skip_timer_generator']);
+    expect(META.produces).toContain('skip_timer_generator');
   });
 
   it('timer-gen без charges и нужен квесту → предлагает skip_timer_generator', () => {

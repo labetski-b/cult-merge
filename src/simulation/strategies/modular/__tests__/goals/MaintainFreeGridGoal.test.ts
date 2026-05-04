@@ -19,21 +19,21 @@ function fillToRatio(state: ReturnType<typeof createInitialSnapshot>, ratio: num
 }
 
 describe('MaintainFreeGridGoal', () => {
-  it('META: id=MaintainFreeGrid, basePri=60, opportunistic', () => {
+  it('META: id=MaintainFreeGrid, basePri=50, opportunistic', () => {
     expect(META.id).toBe('MaintainFreeGrid');
-    expect(META.basePriority).toBe(60);
+    expect(META.basePriority).toBe(50);
     expect(META.category).toBe('opportunistic');
   });
 
-  it('isActive=true когда freeCells/total < 0.4', () => {
+  it('isActive=true когда freeCells/total < 0.2 (грид >80% занят)', () => {
     const goal = new MaintainFreeGridGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    fillToRatio(state, 0.7); // 70% занято → свободно 30% < 40%
+    fillToRatio(state, 0.95); // 95% занято — точно <20% свободных
     const ctx = buildContext(state, new SeededRng(1), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
-  it('isActive=false когда свободно >= 40%', () => {
+  it('isActive=false когда свободно >= 20%', () => {
     const goal = new MaintainFreeGridGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     // По дефолту почти пусто — свободно ~99%

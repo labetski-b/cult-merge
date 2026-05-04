@@ -28,11 +28,11 @@ export class UpgradeGeneratorGoal implements Goal {
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
     // Active upgrade — высокая urgency (collect его).
     if (state.activeUpgrade !== null) return 1.5;
-    // Без active upgrade в фоне: 0.3 — совсем низкая, чтобы не выигрывать
-    // у CompleteActiveQuest (basePriority=80×urgency≈0.4 = 32). Старт нового
-    // upgrade — действительно background, только когда quest не активен или
-    // прогрессирует.
-    return 0.3;
+    // Без active upgrade: если квест активен — почти 0 (чтобы не запускать
+    // каскад апгрейдов вместо прогресса по квесту). Только когда квест
+    // closed — поднимаем до 0.5.
+    const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
+    return hasActiveQuest ? 0.05 : 0.5;
   }
   describe(state: GameSnapshot, _ctx: StrategyContext): string {
     return `r1=${state.resources.rune1} r2=${state.resources.rune2} activeUpgrade=${state.activeUpgrade ? 'busy' : 'free'}`;
