@@ -438,24 +438,27 @@ function showFieldPopup(entry: ActionLogEntry) {
     let inner = '';
     let cls = 'cm-field-cell';
 
+    const TYPE_STYLE = 'font-weight:700;font-size:13px;';
+    const LVL_STYLE = 'font-weight:400;font-size:11px;opacity:0.65;';
+
     if (!cell) {
       cls += ' empty';
     } else if (cell.kind === 'creature') {
       cls += ' creature';
       const num = cell.type.replace('Creature', '');
-      inner = `<div style="font-size:11px;line-height:1.2;">C${escapeHtml(num)}<br/>L${cell.level}</div>`;
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">C${escapeHtml(num)}</span><br/><span style="${LVL_STYLE}">L${cell.level}</span></div>`;
     } else if (cell.kind === 'generator') {
       cls += ' generator';
-      inner = `<div style="font-size:11px;line-height:1.2;">G${cell.genId}<br/>L${cell.level}<br/><span style="opacity:0.6;">×${cell.charges}</span></div>`;
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">G${cell.genId}</span><br/><span style="${LVL_STYLE}">L${cell.level}</span><br/><span style="font-size:10px;opacity:0.55;">×${cell.charges}</span></div>`;
     } else if (cell.kind === 'box') {
       cls += ' box';
-      inner = `<div style="font-size:14px;">B</div>`;
+      inner = `<div style="${TYPE_STYLE}font-size:15px;">B</div>`;
     } else if (cell.kind === 'rune') {
       cls += ' rune';
       const m = cell.runeType.match(/^Rune(\d+)_(\d+)$/);
       const tier = m ? m[1] : '?';
       const level = m ? m[2] : '?';
-      inner = `<div style="font-size:11px;">R${escapeHtml(tier)}<br/>L${escapeHtml(level)}</div>`;
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">R${escapeHtml(tier)}</span><br/><span style="${LVL_STYLE}">L${escapeHtml(level)}</span></div>`;
     }
 
     const tooltip = escapeHtml(cellTooltip(cell, i));
