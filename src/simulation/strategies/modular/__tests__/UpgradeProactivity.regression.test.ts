@@ -354,4 +354,56 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
     // Productive selection: quest goal wins, action serves CompleteActiveQuest.
     expect(selected!.goalId).toBe('CompleteActiveQuest');
   });
+
+  // ─── Scenario 5b ─────────────────────────────────────────────────────────
+  it('not-ready upgrade does not spam collect_upgrade in the no-quest case (T2b)', () => {
+    // Setup: activeUpgrade exists but finishesAt > env.nowMs, AND no active
+    // quest is present (`currentAutoTask = null`, mandatory tasks cleared).
+    //
+    // T2b production bug: in this exact state,
+    //   - UpgradeGeneratorGoal.urgency() returns 1.0 (the not-ready dampener
+    //     only fires when `hasActiveQuest`, leaving the no-quest branch at
+    //     `if (state.activeUpgrade !== null) return 1.0`),
+    //   - UpgradeCollectTactic.propose() emits a singleton `collect_upgrade`
+    //     plan unconditionally on `activeUpgrade !== null`,
+    //   - the scheduler permits singleton no-op plans,
+    //   - applyActionCore advances `nowMs` for `collect_upgrade` even on no-op.
+    // Net effect: every tick emits a no-op `collect_upgrade`, time creeps,
+    // zero productive work.
+    //
+    // After T2b, with no quest, `collect_upgrade` MUST NOT appear in the
+    // emitted actions or the selectedPlan's actionTypes when the upgrade is
+    // not yet ready.
+    const state = makeMidGameSnapshot();
+    const gen1 = findGen1(state);
+    // Charges so QuestSpawn-style productive tactics could in principle act
+    // (irrelevant here: no quest, no rune budget — selectedPlan may be null).
+    gen1.charges = [{ creatureType: 'Creature1', level: 1 }];
+    state.activeUpgrade = {
+      entityId: gen1.id,
+      generatorId: 1,
+      startedAt: 0,
+      finishesAt: 10_000, // far in the future relative to env.nowMs below
+    };
+    // Explicit no-quest setup — makeMidGameSnapshot already nulls
+    // currentAutoTask and clears mandatories, but pin it explicitly here.
+    state.currentAutoTask = null;
+    state.currentTaskFed = [];
+    // Zero rune budget so UpgradeStartTactic / UpgradeMergeFarmTactic don't
+    // spawn unrelated proposals — keeps the test focused on the
+    // collect_upgrade no-op emission path.
+    state.resources.rune1 = 0;
+    state.resources.rune2 = 0;
+
+    const { decision, trace } = runOneIteration(state, 0); // nowMs ≪ finishesAt
+
+    // Critical: NO collect_upgrade in emitted actions.
+    expect(decision.actions.some(a => a.type === 'collect_upgrade')).toBe(false);
+
+    // Critical: NO collect_upgrade in the selected plan's actionTypes.
+    const selected = trace.iterations[0]!.selectedPlan;
+    if (selected !== null) {
+      expect(selected.actionTypes).not.toContain('collect_upgrade');
+    }
+  });
 });

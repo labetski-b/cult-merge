@@ -11,8 +11,13 @@ export const META: TacticMeta = {
 
 export class UpgradeCollectTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedPlan[] {
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
     if (state.activeUpgrade === null) return [];
+    // Don't emit a no-op when timer hasn't elapsed yet (T2b): the engine
+    // would still advance nowMs on a no-op collect, leading to per-tick
+    // spam in the no-quest case where UpgradeGeneratorGoal's not-ready
+    // dampener also gates the urgency.
+    if (state.activeUpgrade.finishesAt > ctx.env.nowMs) return [];
     return [singletonPlan(
       { type: 'collect_upgrade' },
       {

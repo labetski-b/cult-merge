@@ -32,10 +32,11 @@ export class UpgradeGeneratorGoal implements Goal {
     if (state.activeUpgrade !== null && state.activeUpgrade.finishesAt <= ctx.env.nowMs) {
       return 3.0; // finalPri=90 > quest 80
     }
-    // Active upgrade ещё не готов (timer не истёк) — не конкурируем с
-    // квестом: collect не сможет fire всё равно.
-    if (state.activeUpgrade !== null && hasActiveQuest) return 0.1;
-    if (state.activeUpgrade !== null) return 1.0;
+    // Active upgrade ещё не готов (timer не истёк) — дампим urgency и в
+    // no-quest случае тоже (T2b): collect не сможет fire всё равно, а
+    // если оставить 1.0, scheduler выберет no-op collect_upgrade тик за
+    // тиком (engine продвигает nowMs даже на no-op).
+    if (state.activeUpgrade !== null) return 0.1;
 
     // Pro-active upgrade: если pickUpgradeCandidate возвращает feasible
     // candidate (есть gen с накопленными merges + рунами на upgrade), это
