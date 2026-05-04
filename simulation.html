@@ -328,6 +328,10 @@
     }
     #action-log-body tr { cursor: pointer; }
     #action-log-body tr:hover { background: var(--accent-primary-soft); }
+    /* Compact entity ref styling — type bold, level dim, counts faded */
+    .note-cell b { font-weight: 700; }
+    .note-cell .alog-dim { opacity: 0.6; font-weight: 400; }
+    .note-cell .alog-fade { opacity: 0.45; font-weight: 400; }
 
     /* Field popup (action-log row details) */
     #field-popup-overlay {

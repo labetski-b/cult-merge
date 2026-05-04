@@ -309,6 +309,34 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Compact + visually-graded HTML for entity refs in action log Detail / Task cells.
+ *
+ * Replacements (escape source first to avoid XSS):
+ *   "Creature5 Lv7"   → <b>C5</b><span dim>-L7</span>
+ *   "Gen3 Lv2"        → <b>G3</b><span dim>-L2</span>
+ *   "Rune1_2" / "R1²" → <b>R1</b><span dim>-L2</span>
+ *   "Lv2" / "Lv 2"    → <span dim>L2</span>  (без типа — ослабляем)
+ *   "x3" / "×3"       → <span fade>×3</span>
+ */
+function emphasiseEntityRefs(raw: string): string {
+  let s = escapeHtml(raw);
+  // Тип + уровень: Creature1 Lv5 / Gen3 Lv2 / Rune1_2 — bold type, dim level
+  s = s.replace(/Creature(\d+)\s*Lv\s*(\d+)/g, '<b>C$1</b><span class="alog-dim">-L$2</span>');
+  s = s.replace(/Gen(\d+)\s*Lv\s*(\d+)/g, '<b>G$1</b><span class="alog-dim">-L$2</span>');
+  s = s.replace(/Rune(\d+)_(\d+)/g, '<b>R$1</b><span class="alog-dim">-L$2</span>');
+  // "from Gen3" без уровня
+  s = s.replace(/from\s+Gen(\d+)/g, 'from <b>G$1</b>');
+  // одиночные тип-нейминги без уровня (после reшения уровня выше)
+  s = s.replace(/\bCreature(\d+)\b/g, '<b>C$1</b>');
+  s = s.replace(/\bGen(\d+)\b/g, '<b>G$1</b>');
+  // counts: x3 / ×3 — ещё бледнее
+  s = s.replace(/([x×])\s*(\d+)/g, '<span class="alog-fade">×$2</span>');
+  // одинокие "Lv5" → дим
+  s = s.replace(/\bLv\s*(\d+)/g, '<span class="alog-dim">L$1</span>');
+  return s;
+}
+
 function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
   refs.body.innerHTML = '';
 
@@ -363,7 +391,7 @@ function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
       <td class="left idx">${entry.actionIndex}</td>
       <td>${entry.taskNumber}</td>
       <td class="left gsep"><span class="${actionCls}">${escapeHtml(actionType)}</span></td>
-      <td class="left cm-logtable__detail note-cell">${escapeHtml(entry.note)}</td>
+      <td class="left cm-logtable__detail note-cell">${emphasiseEntityRefs(entry.note)}</td>
       ${numCell(s.krakenLevel, true)}
       ${numCell(s.krakenStep)}
       ${numCell(s.krakenExp)}
@@ -380,7 +408,7 @@ function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
       ${numCell(s.session)}
       ${numCell(s.meatButtonPresses)}
       <td class="cm-logtable__time gsep">${formatTimeSec(s.totalTimeSec)}</td>
-      <td class="left gsep cm-logtable__detail note-cell">${escapeHtml(s.currentTask)}</td>
+      <td class="left gsep cm-logtable__detail note-cell">${emphasiseEntityRefs(s.currentTask)}</td>
     `;
     row.addEventListener('click', () => showFieldPopup(entry));
     refs.body.appendChild(row);
