@@ -12,17 +12,27 @@ export const META: GoalMeta = {
 
 export class UpgradeGeneratorGoal implements Goal {
   meta: GoalMeta = META;
-  isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
-    // Активен и когда upgrade in progress (нужно collect), и когда есть руны для start.
+  isActive(state: GameSnapshot, ctx: StrategyContext): boolean {
+    // Активен когда upgrade in progress (надо collect).
     if (state.activeUpgrade !== null) return true;
-    return (state.resources.rune1 + state.resources.rune2) > 0;
+    // Активен когда есть руны — но ТОЛЬКО если квест не блокирует и
+    // ресурс рун обильный (≥ 10 каждого типа). Это предотвращает
+    // ситуацию "квест Creature5 Lv4, апгрейдим всё подряд, тратим r1=0".
+    const hasRunes = (state.resources.rune1 + state.resources.rune2) > 0;
+    if (!hasRunes) return false;
+    const enoughR1 = state.resources.rune1 >= 10;
+    const enoughR2 = state.resources.rune2 >= 10;
+    if (!enoughR1 && !enoughR2) return false;
+    return true;
   }
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
-    // Если есть active upgrade — высокая urgency (нужно collect, чтобы не блокировать дальнейший прогресс).
+    // Active upgrade — высокая urgency (collect его).
     if (state.activeUpgrade !== null) return 1.5;
-    // Поднять до 1.0 если активен квест на существо уровня ≥ 3
-    const highLevelNeed = ctx.activeQuestNeeds.some(n => n.level >= 3);
-    return highLevelNeed ? 1.0 : 0.5;
+    // Без active upgrade в фоне: 0.3 — совсем низкая, чтобы не выигрывать
+    // у CompleteActiveQuest (basePriority=80×urgency≈0.4 = 32). Старт нового
+    // upgrade — действительно background, только когда quest не активен или
+    // прогрессирует.
+    return 0.3;
   }
   describe(state: GameSnapshot, _ctx: StrategyContext): string {
     return `r1=${state.resources.rune1} r2=${state.resources.rune2} activeUpgrade=${state.activeUpgrade ? 'busy' : 'free'}`;
