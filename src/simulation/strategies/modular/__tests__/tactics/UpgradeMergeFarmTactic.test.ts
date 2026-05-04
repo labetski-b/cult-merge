@@ -7,6 +7,7 @@ import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { UpgradeGeneratorGoal } from '../../goals/UpgradeGeneratorGoal';
 import { pickUpgradeCandidate } from '../../../pickUpgradeCandidate';
+import { createChargedGenerator } from '@domain/generator';
 import type {
   CreatureEntity,
   GameSnapshot,
@@ -216,6 +217,98 @@ describe('UpgradeMergeFarmTactic', () => {
     const proposals = tactic.propose(state, goal, ctx);
 
     // No mergeable pair, no free cell → must NOT emit a synthetic plan.
+    expect(proposals).toEqual([]);
+  });
+
+  // ─── Flood guard — parity with RealisticStrategy.farmMergesForLine ─────
+  it('flood guard: 6 line-creatures of distinct levels (no pair) + free cells → returns []', () => {
+    // Parity with RealisticStrategy.farmMergesForLine line-flood guard
+    // (`if (creatures.length >= 6) return [];`). Without this guard, T4
+    // would happily emit a productive spawn on Path B and pile a 7th
+    // creature onto the line — wasting meat and clogging the grid.
+    const tactic = new UpgradeMergeFarmTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const { state, gen1 } = makeBlockedByMergesSnapshot();
+
+    // Six Creature1 at distinct levels (L1..L6) — all on the blocked line,
+    // none mergeable as a pair. Path A must find nothing → without the flood
+    // guard, Path B would emit a spawn (charges ready + free cells + plenty
+    // of meat).
+    const rng = new SeededRng(202);
+    for (let lvl = 1; lvl <= 6; lvl += 1) {
+      addCreatureToGrid(state, 'Creature1', lvl, rng);
+    }
+    gen1.charges = [{ creatureType: 'Creature1', level: 1 }];
+    state.resources.meat = 100; // plenty for any spawn/charge
+
+    // Premise sanity: grid still has free cells (default grid is 5x6 = 30,
+    // we placed Gen1 + 6 creatures = 7 cells used).
+    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const ctx = buildContext(state, env, 50);
+    expect(ctx.freeCellCount).toBeGreaterThan(0);
+
+    // Premise sanity: no Path-A pair exists (six distinct-level creatures).
+    const lineLevels = new Set<number>();
+    for (const id of state.grid.cells) {
+      if (!id) continue;
+      const e = state.entities[id];
+      if (!e || e.kind !== 'creature') continue;
+      const c = e as CreatureEntity;
+      if (c.creatureType !== 'Creature1') continue;
+      lineLevels.add(c.level);
+    }
+    expect(lineLevels.size).toBe(6);
+
+    const proposals = tactic.propose(state, goal, ctx);
+    expect(proposals).toEqual([]);
+  });
+
+  // ─── Defensive — all line gens are timer-mode ──────────────────────────
+  it('defensive: blocked gen has only timer-mode peers on its line → returns []', () => {
+    // Gen3 (Flower Pot) is `spawnMode: 'timer'`, lines [Creature5, Creature6].
+    // No other generator covers those lines. If Gen3 is the merges-blocked
+    // candidate, Path B's timer-mode filter strips all peers → return [].
+    // The tactic must NOT crash or emit a non-productive action.
+    const tactic = new UpgradeMergeFarmTactic();
+    const goal = new UpgradeGeneratorGoal();
+
+    // Build a Gen3-only snapshot: replace Gen1 with a Gen3@L1.
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 10; // Gen3 krakenRequired=10
+    state.activeUpgrade = null;
+    state.pendingRewards = [];
+    state.currentAutoTask = null;
+    state.currentTaskFed = [];
+
+    // Wipe entities and grid; place a fresh Gen3@L1 in cell 0.
+    state.entities = {};
+    state.grid.cells.fill(null);
+    const rng = new SeededRng(303);
+    const gen3Id = rng.nextId();
+    const gen3 = createChargedGenerator(rng, gen3Id, 3, 1, BALANCE);
+    state.entities[gen3Id] = gen3;
+    state.grid.cells[0] = gen3Id;
+
+    state.mergeCountByLine = {};
+    state.mergesSpentByGen = {};
+    // Gen3 L1→L2: mergesRequired=20, runeCost=4 (rune1).
+    state.resources.rune1 = 10; // above runeCost so picker flags merges-blocked
+    state.resources.rune2 = 0;
+    state.resources.meat = 100;
+
+    // Premise sanity: picker reports Gen3 merges-blocked.
+    const pick = pickUpgradeCandidate(state, BALANCE);
+    expect(pick.candidate).toBeNull();
+    expect(pick.blockedBy?.reason).toBe('merges');
+    expect(pick.blockedBy?.generatorId).toBe(3);
+
+    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const ctx = buildContext(state, env, 50);
+    const proposals = tactic.propose(state, goal, ctx);
+
+    // Path A: no creatures on grid → no pair.
+    // Path B: only line gen is Gen3 (timer-mode) → filtered out → 0 candidates.
+    // → defensive [] return.
     expect(proposals).toEqual([]);
   });
 

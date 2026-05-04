@@ -79,6 +79,13 @@ export class UpgradeMergeFarmTactic implements Tactic {
       }
     }
 
+    // Parity with RealisticStrategy.farmMergesForLine — limit line spawn-flood.
+    // If ≥6 line-creatures already sit on the grid without a Path-A pair,
+    // piling on a 7th via Path B wastes meat and clogs the board.
+    let lineCreatureCount = 0;
+    for (const arr of buckets.values()) lineCreatureCount += arr.length;
+    if (lineCreatureCount >= 6) return [];
+
     // ─── Path B — productive spawn-fallback ──────────────────────────────
     // Найти lowest-level sacrifice gen, который покрывает эту линию.
     // Timer-mode gens исключаем: chargeGenerator/spawnFromGenerator no-op для
