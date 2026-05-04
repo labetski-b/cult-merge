@@ -387,50 +387,92 @@ function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
   }
 }
 
+type FieldCell = NonNullable<ActionLogEntry['fieldSnapshot']>['grid']['cells'][number];
+
+function cellColor(cell: FieldCell): string {
+  if (!cell) return '#0f1a2e';
+  switch (cell.kind) {
+    case 'creature': return '#1a4a3e';
+    case 'generator': return '#3e1a4a';
+    case 'box': return '#4a3e1a';
+    case 'rune': return '#1a3e4a';
+  }
+}
+
+function cellBorder(cell: FieldCell): string {
+  if (!cell) return '#2a3a4a';
+  switch (cell.kind) {
+    case 'creature': return '#4dff8a';
+    case 'generator': return '#ff4da9';
+    case 'box': return '#ffb84d';
+    case 'rune': return '#4da9ff';
+  }
+}
+
+function cellTooltip(cell: FieldCell, idx: number): string {
+  if (!cell) return `cell ${idx}: empty`;
+  if (cell.kind === 'creature') return `cell ${idx}: ${cell.type} Lv${cell.level}`;
+  if (cell.kind === 'generator') return `cell ${idx}: Gen${cell.genId} Lv${cell.level} (×${cell.charges} charges)`;
+  if (cell.kind === 'box') return `cell ${idx}: Box`;
+  if (cell.kind === 'rune') return `cell ${idx}: ${cell.runeType}`;
+  return `cell ${idx}`;
+}
+
 function showFieldPopup(entry: ActionLogEntry) {
   const fs = entry.fieldSnapshot;
-  if (!fs) return;
-
-  const crMap: Record<string, number> = {};
-  for (const c of fs.creatures) {
-    const key = `${c.type} Lv${c.level}`;
-    crMap[key] = (crMap[key] ?? 0) + 1;
+  if (!fs || !fs.grid) {
+    fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex}`;
+    fieldPopupContent.innerHTML = '<i>No grid snapshot</i>';
+    fieldPopupOverlay.classList.add('open');
+    return;
   }
 
-  let html = '';
-  if (fs.creatures.length > 0) {
-    html += '<b>Creatures</b><table><tr><th>Type</th><th>Lv</th><th>Count</th></tr>';
-    for (const [key, cnt] of Object.entries(crMap).sort()) {
-      const parts = key.split(' ');
-      html += `<tr><td>${parts[0]}</td><td>${parts[1]}</td><td>${cnt}</td></tr>`;
+  const { cols, rows, cells } = fs.grid;
+  const cellSize = 56;
+  const gap = 4;
+
+  let gridHtml = `<div class="cm-field-grid" style="display:grid;grid-template-columns:repeat(${cols}, ${cellSize}px);grid-auto-rows:${cellSize}px;gap:${gap}px;background:#1a1a2e;padding:12px;border-radius:8px;margin:0 auto;width:max-content;">`;
+
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    let inner = '';
+    let cls = 'cm-field-cell';
+
+    if (!cell) {
+      cls += ' empty';
+    } else if (cell.kind === 'creature') {
+      cls += ' creature';
+      const num = cell.type.replace('Creature', '');
+      inner = `<div style="font-size:11px;line-height:1.2;">C${escapeHtml(num)}<br/>L${cell.level}</div>`;
+    } else if (cell.kind === 'generator') {
+      cls += ' generator';
+      inner = `<div style="font-size:11px;line-height:1.2;">G${cell.genId}<br/>L${cell.level}<br/><span style="opacity:0.6;">×${cell.charges}</span></div>`;
+    } else if (cell.kind === 'box') {
+      cls += ' box';
+      inner = `<div style="font-size:14px;">B</div>`;
+    } else if (cell.kind === 'rune') {
+      cls += ' rune';
+      const m = cell.runeType.match(/^Rune(\d+)_(\d+)$/);
+      const tier = m ? m[1] : '?';
+      const level = m ? m[2] : '?';
+      inner = `<div style="font-size:11px;">R${escapeHtml(tier)}<br/>L${escapeHtml(level)}</div>`;
     }
-    html += '</table>';
-  }
-  if (fs.generators.length > 0) {
-    html += '<b>Generators</b><table><tr><th>GenId</th><th>Lv</th><th>Charges</th></tr>';
-    for (const g of fs.generators) {
-      html += `<tr><td>Gen${g.genId}</td><td>${g.level}</td><td>${g.charges}</td></tr>`;
-    }
-    html += '</table>';
-  }
-  if (fs.runes > 0) html += `<b>Runes: ${fs.runes}</b>`;
-  if (fs.boxes > 0) html += `<b>Boxes: ${fs.boxes}</b>`;
 
-  // Creature → Generator Map (from invest phase)
-  if (fs.creatureGenMap && fs.creatureGenMap.length > 0) {
-    const creatureNum = (ct: string) => parseInt(ct.replace('Creature', ''), 10);
-    const sorted = [...fs.creatureGenMap].sort((a, b) => creatureNum(b.creatureType) - creatureNum(a.creatureType));
-    html += '<b>Creature \u2192 Generator Map (Invest)</b><table><tr><th>Creature</th><th>Gen</th><th>Level</th><th>l1/meat</th></tr>';
-    for (const row of sorted) {
-      html += `<tr><td>${row.creatureType}</td><td>Gen${row.genId}</td><td>${row.genLevel}</td><td>${row.l1PerMeat.toFixed(1)}</td></tr>`;
-    }
-    html += '</table>';
+    const tooltip = escapeHtml(cellTooltip(cell, i));
+    gridHtml += `<div class="${cls}" data-idx="${i}" style="width:${cellSize}px;height:${cellSize}px;background:${cellColor(cell)};border:1px solid ${cellBorder(cell)};border-radius:4px;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;cursor:default;" title="${tooltip}">${inner}</div>`;
   }
+  gridHtml += '</div>';
 
-  if (!html) html = '<i>Field is empty</i>';
+  const creatureCount = cells.filter(c => c?.kind === 'creature').length;
+  const generatorCount = cells.filter(c => c?.kind === 'generator').length;
+  const runeCount = cells.filter(c => c?.kind === 'rune').length;
+  const boxCount = cells.filter(c => c?.kind === 'box').length;
+  const freeCount = cells.filter(c => c === null).length;
 
-  fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex}`;
-  fieldPopupContent.innerHTML = html;
+  const summary = `<div style="margin-top:12px;font-size:12px;color:var(--text-secondary, #888);text-align:center;">${creatureCount} creatures, ${generatorCount} generators, ${runeCount} runes, ${boxCount} boxes, ${freeCount} free</div>`;
+
+  fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex} — ${rows}×${cols}`;
+  fieldPopupContent.innerHTML = gridHtml + summary;
   fieldPopupOverlay.classList.add('open');
 }
 

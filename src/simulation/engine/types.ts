@@ -205,6 +205,18 @@ export interface ActionLogEntry {
     runes: number;
     boxes: number;
     creatureGenMap?: { creatureType: string; genId: number; genLevel: number; l1PerMeat: number }[];
+    /** Cell-by-cell grid map for visual popup (rev: minimalist field map). */
+    grid: {
+      cols: number;
+      rows: number;
+      cells: Array<
+        | { kind: 'creature'; type: string; level: number }
+        | { kind: 'generator'; genId: number; level: number; charges: number }
+        | { kind: 'box' }
+        | { kind: 'rune'; runeType: string }
+        | null
+      >;
+    };
   };
   note: string;
 }

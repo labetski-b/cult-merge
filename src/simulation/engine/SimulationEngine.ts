@@ -625,6 +625,30 @@ export class SimulationEngine {
   private captureFieldSnapshot(): ActionLogEntry['fieldSnapshot'] {
     const entities = Object.values(this.state.entities);
     const creatureGenMap = this.config.strategy.getCreatureGenMap?.() ?? [];
+
+    type GridCell = NonNullable<ActionLogEntry['fieldSnapshot']>['grid']['cells'][number];
+    const cells: GridCell[] = this.state.grid.cells.map((id): GridCell => {
+      if (id === null) return null;
+      const e = this.state.entities[id];
+      if (!e) return null;
+      if (e.kind === 'creature') {
+        const c = e as CreatureEntity;
+        return { kind: 'creature', type: c.creatureType, level: c.level };
+      }
+      if (e.kind === 'generator') {
+        const g = e as GeneratorEntity;
+        return { kind: 'generator', genId: g.generatorId, level: g.level, charges: g.charges.length };
+      }
+      if (e.kind === 'box') {
+        return { kind: 'box' };
+      }
+      if (e.kind === 'rune') {
+        const r = e as RuneEntity;
+        return { kind: 'rune', runeType: r.runeType };
+      }
+      return null;
+    });
+
     return {
       creatures: (entities.filter(e => e.kind === 'creature') as CreatureEntity[])
         .map(c => ({ type: c.creatureType, level: c.level })),
@@ -633,6 +657,11 @@ export class SimulationEngine {
       runes: entities.filter(e => e.kind === 'rune').length,
       boxes: entities.filter(e => e.kind === 'box').length,
       creatureGenMap: creatureGenMap.length > 0 ? creatureGenMap : undefined,
+      grid: {
+        cols: this.state.grid.cols,
+        rows: this.state.grid.rows,
+        cells,
+      },
     };
   }
 
