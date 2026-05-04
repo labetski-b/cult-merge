@@ -12,27 +12,38 @@ export const META: GoalMeta = {
 
 export class UpgradeGeneratorGoal implements Goal {
   meta: GoalMeta = META;
-  isActive(state: GameSnapshot, ctx: StrategyContext): boolean {
+  isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
     // Активен когда upgrade in progress (надо collect).
     if (state.activeUpgrade !== null) return true;
-    // Без активного квеста и при наличии рун (≥10 хоть одного типа) —
-    // запускаем апгрейды (это invest-фаза, mirrors RealisticStrategy.investStep).
-    const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
-    if (hasActiveQuest) return false;
-    const hasRunes = (state.resources.rune1 + state.resources.rune2) > 0;
-    if (!hasRunes) return false;
+    // При наличии достаточных рун (≥10 хоть одного типа) — активен.
+    // Не гасим во время активного квеста: scheduler идёт по goal priority,
+    // CompleteActiveQuest (basePri=80) обрабатывается раньше UpgradeGenerator
+    // (basePri=30, background). Если quest tactics предлагают живой plan —
+    // upgrade автоматически уступает. Если квест зазажат (все proposals
+    // отвергнуты, нет рун или поле забито) — это окно где апгрейд уместен.
     const enoughR1 = state.resources.rune1 >= 10;
     const enoughR2 = state.resources.rune2 >= 10;
-    if (!enoughR1 && !enoughR2) return false;
-    return true;
+    return enoughR1 || enoughR2;
   }
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
     const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
-    // С активным квестом цель НЕ активна (см. isActive выше) — кроме случая
-    // активного апгрейда (нужно collect_upgrade чтобы освободить slot).
-    // В этом случае urgency низкий — collect fire через category fallback.
     if (state.activeUpgrade !== null && hasActiveQuest) return 0.1;
     if (state.activeUpgrade !== null) return 1.0;
+    // Rune surplus override: если рун накопилось много (≥20), форсируем
+    // upgrade — иначе CompleteActiveQuest (priority 80) монополизирует
+    // scheduler и руны просто гниют. finalPriority = 30 * surplus_factor;
+    // при r1=20 → factor=3.0 → 90 > 80 → UpgradeGenerator выигрывает раз
+    // и тратит руны, потом surplus падает и quest снова доминирует.
+    const r1 = state.resources.rune1;
+    const r2 = state.resources.rune2;
+    const surplus = Math.max(r1, r2);
+    if (surplus >= 15) {
+      // Линейно: 15 → 3.0 (30*3=90), 25 → 4.0. Перебивает CompleteActiveQuest
+      // (priority 80*1.0=80) когда руны накопились — иначе строго блокирующий
+      // quest монополизирует scheduler и руны не тратятся.
+      return 3.0 + (surplus - 15) * 0.1;
+    }
+    if (hasActiveQuest) return 0.2;
     return 0.5;
   }
   describe(state: GameSnapshot, _ctx: StrategyContext): string {
