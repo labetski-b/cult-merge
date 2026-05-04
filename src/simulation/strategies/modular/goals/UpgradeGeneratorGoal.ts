@@ -27,6 +27,13 @@ export class UpgradeGeneratorGoal implements Goal {
   }
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
     const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
+    // Active upgrade ready to collect — форсим над квестом. Иначе слот
+    // упгрейда занят и следующий start_upgrade невозможен.
+    if (state.activeUpgrade !== null && state.activeUpgrade.finishesAt <= ctx.env.nowMs) {
+      return 3.0; // finalPri=90 > quest 80
+    }
+    // Active upgrade ещё не готов (timer не истёк) — не конкурируем с
+    // квестом: collect не сможет fire всё равно.
     if (state.activeUpgrade !== null && hasActiveQuest) return 0.1;
     if (state.activeUpgrade !== null) return 1.0;
 
