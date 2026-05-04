@@ -3,8 +3,9 @@ import { DontFeedQuestTargetsGuard, META } from '../../guards/DontFeedQuestTarge
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import type { ProposedAction } from '../../types';
+import type { ProposedPlanStep } from '../../types';
 
 describe('DontFeedQuestTargetsGuard', () => {
   it('META: blocksActionTypes=[feed]', () => {
@@ -17,12 +18,13 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 2, count: 5 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    const result = guard.check(proposal, state, ctx);
+    const result = guard.check(step, state, ctx);
     expect(result.allow).toBe(false);
     if (!result.allow) expect(result.reason).toMatch(/quest/i);
   });
@@ -35,12 +37,13 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    const result = guard.check(proposal, state, ctx);
+    const result = guard.check(step, state, ctx);
     expect(result.allow).toBe(false);
     if (!result.allow) {
       expect(result.reason).toMatch(/merge-ingredient/i);
@@ -54,14 +57,15 @@ describe('DontFeedQuestTargetsGuard', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     for (const lvl of [2, 3, 4]) {
       state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: lvl };
-      const proposal: ProposedAction = {
+      const step: ProposedPlanStep = {
         action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-        expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
       };
-      expect(guard.check(proposal, state, ctx).allow).toBe(false);
+      expect(guard.check(step, state, ctx).allow).toBe(false);
     }
   });
 
@@ -71,24 +75,26 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 1 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('пропускает feed runes (не creature)', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['r1'] = { id: 'r1', kind: 'rune', runeType: 'rune1' };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'r1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'RuneFeed', goalId: 'ManageRunes',
+
+      stepIndex: 0, planLength: 1, tacticId: 'RuneFeed', goalId: 'ManageRunes',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('РАЗРЕШАЕТ feed merge-ingredient одиночки при deadlock (grid full, нет пары)', () => {
@@ -107,12 +113,13 @@ describe('DontFeedQuestTargetsGuard', () => {
     };
     // Сделаем grid 2×2: 4 cells, все заполнены (free=0).
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('всё ещё блокирует feed merge-ingredient если есть пара (мерджить можно)', () => {
@@ -128,12 +135,13 @@ describe('DontFeedQuestTargetsGuard', () => {
       'c3': { id: 'c3', kind: 'creature', creatureType: 'X', level: 2 },
     };
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    expect(guard.check(step, state, ctx).allow).toBe(false);
   });
 
   it('всё ещё блокирует feed merge-ingredient если есть свободная клетка (можно spawn)', () => {
@@ -146,12 +154,13 @@ describe('DontFeedQuestTargetsGuard', () => {
       'c1': { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 },
     };
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', null, null] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    expect(guard.check(step, state, ctx).allow).toBe(false);
   });
 
   it('пропускает feed quest-target если goalId=CompleteActiveQuest (намеренный feed для прогресса)', () => {
@@ -160,11 +169,12 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 2, count: 5 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.95, tacticId: 'QuestFeed', goalId: 'CompleteActiveQuest',
+
+      stepIndex: 0, planLength: 1, tacticId: 'QuestFeed', goalId: 'CompleteActiveQuest',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 });

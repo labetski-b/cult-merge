@@ -3,8 +3,9 @@ import { NoSpawnIntoFullGridGuard, META } from '../../guards/NoSpawnIntoFullGrid
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import type { ProposedAction } from '../../types';
+import type { ProposedPlanStep } from '../../types';
 
 describe('NoSpawnIntoFullGridGuard', () => {
   it('META: blocksActionTypes=[spawn_generator]', () => {
@@ -22,22 +23,24 @@ describe('NoSpawnIntoFullGridGuard', () => {
         state.grid.cells[i] = id;
       }
     }
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'spawn_generator', generatorId: 'g1' }, reasoning: '',
-      expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    expect(guard.check(step, state, ctx).allow).toBe(false);
   });
 
   it('freeCellCount>0 → allow', () => {
     const guard = new NoSpawnIntoFullGridGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'spawn_generator', generatorId: 'g1' }, reasoning: '',
-      expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 });

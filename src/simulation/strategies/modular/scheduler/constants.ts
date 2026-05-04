@@ -25,3 +25,11 @@ export const TICK_ACTION_BUDGET = 250;
 
 /** Hard limit глубины prereq-цепочки (защита от патологий). */
 export const PREREQ_MAX_DEPTH = 5;
+
+/**
+ * Максимальная длина одного ProposedPlan. Plan'ы длиннее этого порога
+ * отбрасываются scheduler'ом до валидации. На этапе T6+T7+T8 все tactics
+ * возвращают singleton plans (длина 1), но порог уже задан для будущих
+ * multi-step plans. См. spec rev 2 § 5.7 / § 7.4.
+ */
+export const MAX_PLAN_STEPS = 5;

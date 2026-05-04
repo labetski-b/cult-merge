@@ -1,5 +1,6 @@
 import type { GameSnapshot, RuneEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import { canMergeRunes } from '@domain/merge';
 
 export const META: TacticMeta = {
@@ -11,8 +12,8 @@ export const META: TacticMeta = {
 
 export class RuneMergeTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     const byType = new Map<string, RuneEntity[]>();
     for (const e of Object.values(state.entities)) {
       if (e.kind !== 'rune') continue;
@@ -25,14 +26,16 @@ export class RuneMergeTactic implements Tactic {
       if (arr.length < 2) continue;
       // Проверим что domain считает их сливаемыми
       if (!canMergeRunes(arr[0]!, arr[1]!)) continue;
-      proposals.push({
-        action: { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
-        reasoning: `merge ${arr[0]!.runeType}×2`,
-        expectedProgress: 0.7,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
+      plans.push(singletonPlan(
+        { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
+        {
+          reasoning: `merge ${arr[0]!.runeType}×2`,
+          expectedProgress: 0.7,
+          tacticId: META.id,
+          goalId: goal.meta.id,
+        },
+      ));
     }
-    return proposals;
+    return plans;
   }
 }

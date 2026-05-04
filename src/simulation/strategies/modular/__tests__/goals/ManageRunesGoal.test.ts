@@ -3,6 +3,7 @@ import { ManageRunesGoal, META } from '../../goals/ManageRunesGoal';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 
 describe('ManageRunesGoal', () => {
@@ -16,7 +17,7 @@ describe('ManageRunesGoal', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['r1'] = { id: 'r1', kind: 'rune', runeType: 'Rune1_1' };
     state.entities['r2'] = { id: 'r2', kind: 'rune', runeType: 'Rune2_1' };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -24,14 +25,14 @@ describe('ManageRunesGoal', () => {
     const goal = new ManageRunesGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['r1'] = { id: 'r1', kind: 'rune', runeType: 'Rune1_1' };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
   it('isActive=false если рун нет', () => {
     const goal = new ManageRunesGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 });

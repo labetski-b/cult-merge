@@ -1,5 +1,6 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import { BALANCE } from '@data/loadBalance';
 import { findEntityCell, getNeighborCellIndexes } from '@domain/grid';
 
@@ -32,8 +33,8 @@ function findBestFreeCell(state: GameSnapshot): number | null {
 
 export class BoardPlacementTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     for (const need of ctx.activeQuestNeeds) {
       const assignment = ctx.creatureGenMap.get(need.creatureType);
       if (!assignment) continue;
@@ -50,14 +51,16 @@ export class BoardPlacementTactic implements Tactic {
       if (target === null) continue;
       const targetTotal = totalNeighborCount(state.grid, target);
       if (targetTotal <= currentTotal) continue;
-      proposals.push({
-        action: { type: 'move_entity', entityId: gen.id, targetCellIndex: target },
-        reasoning: `move Gen${(gen as GeneratorEntity).generatorId} from cell ${cellIdx} (${currentTotal} neighbors) → ${target} (${targetTotal} neighbors)`,
-        expectedProgress: 0.85,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
+      plans.push(singletonPlan(
+        { type: 'move_entity', entityId: gen.id, targetCellIndex: target },
+        {
+          reasoning: `move Gen${(gen as GeneratorEntity).generatorId} from cell ${cellIdx} (${currentTotal} neighbors) → ${target} (${targetTotal} neighbors)`,
+          expectedProgress: 0.85,
+          tacticId: META.id,
+          goalId: goal.meta.id,
+        },
+      ));
     }
-    return proposals;
+    return plans;
   }
 }

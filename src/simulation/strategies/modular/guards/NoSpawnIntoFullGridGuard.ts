@@ -1,5 +1,5 @@
 import type { GameSnapshot } from '@domain/types';
-import type { Guard, GuardMeta, GuardResult, ProposedAction, StrategyContext } from '../types';
+import type { Guard, GuardMeta, GuardResult, ProposedPlanStep, StrategyContext } from '../types';
 
 export const META: GuardMeta = {
   id: 'NoSpawnIntoFullGrid',
@@ -10,8 +10,8 @@ export const META: GuardMeta = {
 
 export class NoSpawnIntoFullGridGuard implements Guard {
   meta: GuardMeta = META;
-  check(action: ProposedAction, _state: GameSnapshot, ctx: StrategyContext): GuardResult {
-    if (action.action.type !== 'spawn_generator') return { allow: true };
+  check(step: ProposedPlanStep, _state: GameSnapshot, ctx: StrategyContext): GuardResult {
+    if (step.action.type !== 'spawn_generator') return { allow: true };
     if (ctx.freeCellCount === 0) {
       return { allow: false, reason: 'грид заполнен, спавнить некуда' };
     }

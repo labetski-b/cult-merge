@@ -3,6 +3,7 @@ import { UpgradeGeneratorGoal, META } from '../../goals/UpgradeGeneratorGoal';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 
 describe('UpgradeGeneratorGoal', () => {
@@ -18,7 +19,7 @@ describe('UpgradeGeneratorGoal', () => {
     state.activeUpgrade = { entityId: 'g1', generatorId: 1, startedAt: 0, finishesAt: 1000 };
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
     // urgency высокая — нужно collect
     expect(goal.urgency(state, ctx)).toBeGreaterThanOrEqual(1.0);
@@ -30,7 +31,7 @@ describe('UpgradeGeneratorGoal', () => {
     state.activeUpgrade = null;
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -40,7 +41,7 @@ describe('UpgradeGeneratorGoal', () => {
     state.activeUpgrade = null;
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 });

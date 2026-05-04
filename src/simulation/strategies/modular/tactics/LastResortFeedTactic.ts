@@ -1,5 +1,6 @@
 import type { GameSnapshot, CreatureEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 
 export const META: TacticMeta = {
   id: 'LastResortFeed',
@@ -22,7 +23,7 @@ export const META: TacticMeta = {
  */
 export class LastResortFeedTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
     if (ctx.freeCellCount > 0) return [];
     if (ctx.activeQuestNeeds.length === 0) return [];
     const questTypes = new Set(ctx.activeQuestNeeds.filter(n => n.fed < n.count).map(n => n.creatureType));
@@ -59,12 +60,14 @@ export class LastResortFeedTactic implements Tactic {
       }
     }
     if (!target) return [];
-    return [{
-      action: { type: 'feed', entityId: target.id },
-      reasoning: `last-resort feed ${target.creatureType} L${target.level} to break full-grid deadlock`,
-      expectedProgress: 0.02,
-      tacticId: META.id,
-      goalId: goal.meta.id,
-    }];
+    return [singletonPlan(
+      { type: 'feed', entityId: target.id },
+      {
+        reasoning: `last-resort feed ${target.creatureType} L${target.level} to break full-grid deadlock`,
+        expectedProgress: 0.02,
+        tacticId: META.id,
+        goalId: goal.meta.id,
+      },
+    )];
   }
 }

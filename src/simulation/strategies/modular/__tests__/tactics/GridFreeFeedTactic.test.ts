@@ -3,6 +3,7 @@ import { GridFreeFeedTactic, META } from '../../tactics/GridFreeFeedTactic';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { MaintainFreeGridGoal } from '../../goals/MaintainFreeGridGoal';
 
@@ -18,9 +19,9 @@ describe('GridFreeFeedTactic', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
     state.grid.cells[0] = 'c1';
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
-    expect(proposals.some(p => p.action.type === 'feed' && p.expectedProgress < 0.5)).toBe(true);
+    expect(proposals.some(p => p.actions[0]!.type === 'feed' && p.expectedProgress < 0.5)).toBe(true);
   });
 
   it('предлагает feed Lv>=3 если тип не нужен квесту (с пониженным priority)', () => {
@@ -36,10 +37,10 @@ describe('GridFreeFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals).toHaveLength(1);
-    expect(proposals[0]!.action.type).toBe('feed');
+    expect(proposals[0]!.actions[0]!.type).toBe('feed');
     expect(proposals[0]!.expectedProgress).toBeLessThan(0.25);
   });
 
@@ -56,7 +57,7 @@ describe('GridFreeFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
 });

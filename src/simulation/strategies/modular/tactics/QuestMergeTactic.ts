@@ -1,5 +1,6 @@
 import type { GameSnapshot, CreatureEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 
 export const META: TacticMeta = {
   id: 'QuestMerge',
@@ -10,8 +11,8 @@ export const META: TacticMeta = {
 
 export class QuestMergeTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     // Соберём creatures по type+level
     const byKey = new Map<string, CreatureEntity[]>();
     for (const e of Object.values(state.entities)) {
@@ -34,15 +35,17 @@ export class QuestMergeTactic implements Tactic {
         if (!arr || arr.length < 2) continue;
         // Прогресс: чем ближе к target, тем выше.
         const progress = 0.4 + 0.4 * (k / (need.level - 1));
-        proposals.push({
-          action: { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
-          reasoning: `merge ${need.creatureType} L${k}×2 → L${k + 1} (target L${need.level})`,
-          expectedProgress: progress,
-          tacticId: META.id,
-          goalId: goal.meta.id,
-        });
+        plans.push(singletonPlan(
+          { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
+          {
+            reasoning: `merge ${need.creatureType} L${k}×2 → L${k + 1} (target L${need.level})`,
+            expectedProgress: progress,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          },
+        ));
       }
     }
-    return proposals;
+    return plans;
   }
 }

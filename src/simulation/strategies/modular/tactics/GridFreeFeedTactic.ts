@@ -1,5 +1,6 @@
 import type { GameSnapshot, CreatureEntity, RuneEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 
 export const META: TacticMeta = {
   id: 'GridFreeFeed',
@@ -10,8 +11,8 @@ export const META: TacticMeta = {
 
 export class GridFreeFeedTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     for (const e of Object.values(state.entities)) {
       if (e.kind === 'creature') {
         const c = e as CreatureEntity;
@@ -22,13 +23,15 @@ export class GridFreeFeedTactic implements Tactic {
         // но не-quest-type Lv≥3 разрешён (creature другой линии — «лишняя»).
         // Lower expectedProgress для Lv≥3 чтобы merge-options всегда побеждали.
         const expectedProgress = c.level >= 3 ? 0.15 : 0.3;
-        proposals.push({
-          action: { type: 'feed', entityId: c.id },
-          reasoning: `feed ${c.creatureType} L${c.level} to free cell`,
-          expectedProgress,
-          tacticId: META.id,
-          goalId: goal.meta.id,
-        });
+        plans.push(singletonPlan(
+          { type: 'feed', entityId: c.id },
+          {
+            reasoning: `feed ${c.creatureType} L${c.level} to free cell`,
+            expectedProgress,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          },
+        ));
       } else if (e.kind === 'rune') {
         // Руна — feed-able. Капнет ресурс, освободит клетку.
         // expectedProgress зависит от давления грида:
@@ -38,15 +41,17 @@ export class GridFreeFeedTactic implements Tactic {
         const r = e as RuneEntity;
         const freeCount = ctx.freeCellCount;
         const expectedProgress = freeCount <= 1 ? 0.7 : freeCount <= 3 ? 0.35 : 0.1;
-        proposals.push({
-          action: { type: 'feed', entityId: r.id },
-          reasoning: `feed ${r.runeType} to free cell (freeCells=${freeCount})`,
-          expectedProgress,
-          tacticId: META.id,
-          goalId: goal.meta.id,
-        });
+        plans.push(singletonPlan(
+          { type: 'feed', entityId: r.id },
+          {
+            reasoning: `feed ${r.runeType} to free cell (freeCells=${freeCount})`,
+            expectedProgress,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          },
+        ));
       }
     }
-    return proposals;
+    return plans;
   }
 }

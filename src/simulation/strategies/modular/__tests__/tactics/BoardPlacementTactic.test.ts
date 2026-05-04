@@ -3,6 +3,7 @@ import { BoardPlacementTactic, META } from '../../tactics/BoardPlacementTactic';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { BoardLayoutGoal } from '../../goals/BoardLayoutGoal';
 import type { GeneratorEntity } from '@domain/types';
@@ -43,8 +44,8 @@ describe('BoardPlacementTactic', () => {
       delete state.entities[cExisting];
       state.grid.cells[center] = null;
     }
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
-    expect(proposals.some(p => p.action.type === 'move_entity' && (p.action as { entityId: string }).entityId === 'GT')).toBe(true);
+    expect(proposals.some(p => p.actions[0]!.type === 'move_entity' && (p.actions[0]! as { entityId: string }).entityId === 'GT')).toBe(true);
   });
 });

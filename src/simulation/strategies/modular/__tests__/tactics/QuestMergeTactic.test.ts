@@ -3,6 +3,7 @@ import { QuestMergeTactic, META } from '../../tactics/QuestMergeTactic';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { CompleteActiveQuestGoal } from '../../goals/CompleteActiveQuestGoal';
 
@@ -27,9 +28,9 @@ describe('QuestMergeTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
-    expect(proposals.some(p => p.action.type === 'merge')).toBe(true);
+    expect(proposals.some(p => p.actions[0]!.type === 'merge')).toBe(true);
   });
 
   it('нет пары → []', () => {
@@ -44,7 +45,7 @@ describe('QuestMergeTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
 });

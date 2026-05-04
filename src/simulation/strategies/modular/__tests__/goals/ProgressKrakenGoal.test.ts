@@ -3,6 +3,7 @@ import { ProgressKrakenGoal, META } from '../../goals/ProgressKrakenGoal';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 
 describe('ProgressKrakenGoal', () => {
@@ -22,7 +23,7 @@ describe('ProgressKrakenGoal', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -31,7 +32,7 @@ describe('ProgressKrakenGoal', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 });

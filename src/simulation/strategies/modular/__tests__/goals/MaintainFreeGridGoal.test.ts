@@ -3,6 +3,7 @@ import { MaintainFreeGridGoal, META } from '../../goals/MaintainFreeGridGoal';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 
 function fillToRatio(state: ReturnType<typeof createInitialSnapshot>, ratio: number) {
@@ -29,7 +30,7 @@ describe('MaintainFreeGridGoal', () => {
     const goal = new MaintainFreeGridGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     fillToRatio(state, 0.95); // 95% занято — точно <20% свободных
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -37,7 +38,7 @@ describe('MaintainFreeGridGoal', () => {
     const goal = new MaintainFreeGridGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     // По дефолту почти пусто — свободно ~99%
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -45,12 +46,12 @@ describe('MaintainFreeGridGoal', () => {
     const goal = new MaintainFreeGridGoal();
     const state1 = createInitialSnapshot(BALANCE, { seed: 1 });
     fillToRatio(state1, 0.7);
-    const ctx1 = buildContext(state1, new SeededRng(1), 50);
+    const ctx1 = buildContext(state1, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const u1 = goal.urgency(state1, ctx1);
 
     const state2 = createInitialSnapshot(BALANCE, { seed: 1 });
     fillToRatio(state2, 0.9);
-    const ctx2 = buildContext(state2, new SeededRng(1), 50);
+    const ctx2 = buildContext(state2, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const u2 = goal.urgency(state2, ctx2);
 
     expect(u2).toBeGreaterThan(u1);

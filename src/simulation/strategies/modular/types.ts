@@ -1,9 +1,9 @@
-// Контракты ModularStrategy (§ 6 spec rev 6).
+// Контракты ModularStrategy (§ 6 spec rev 2 — batch actions).
 
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
 import type { SimulationAction } from '../../engine/actions';
 import type { GoalCategory } from '../../engine/trace';
+import type { EngineEnv } from '../../engine/env';
 
 // Реэкспорт для удобства внутренних модулей стратегии.
 export type { GoalCategory } from '../../engine/trace';
@@ -63,22 +63,63 @@ export interface GoalPrerequisite {
 
 export interface Tactic {
   readonly meta: TacticMeta;
-  /** Возвращает массив предложений (может быть пустым). */
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[];
+  /** Возвращает массив plan-предложений (может быть пустым). */
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[];
 }
 
 export interface Guard {
   readonly meta: GuardMeta;
-  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult;
+  /** Проверяется per step plan'а (см. spec rev 2 § 5.7). */
+  check(step: ProposedPlanStep, state: GameSnapshot, ctx: StrategyContext): GuardResult;
 }
 
-export interface ProposedAction {
-  action: SimulationAction;
+/**
+ * Plan — упорядоченная последовательность действий, предлагаемая одной tactic
+ * для одной goal. Spec rev 2 § 5.1.
+ *
+ * На этапе T6+T7 все tactics возвращают plans длины 1 (singleton plans);
+ * multi-step plans вводятся отдельной задачей.
+ */
+export interface ProposedPlan {
+  /** Длина 1..MAX_PLAN_STEPS. */
+  actions: SimulationAction[];
   reasoning: string;
-  /** 0..1 — насколько сильно это действие продвигает goal. */
+  /** 0..1 — насколько сильно plan продвигает goal. */
   expectedProgress: number;
   tacticId: string;
   goalId: string;
+}
+
+/** Один шаг plan'а с метаданными. Используется guard'ами и trace'ом. */
+export interface ProposedPlanStep {
+  action: SimulationAction;
+  reasoning: string;
+  tacticId: string;
+  goalId: string;
+  stepIndex: number;
+  planLength: number;
+}
+
+/**
+ * Helper: построить singleton plan из единственного action.
+ * Используется всеми tactics на этапе T7 (behavior preservation).
+ */
+export function singletonPlan(
+  action: SimulationAction,
+  meta: {
+    tacticId: string;
+    goalId: string;
+    reasoning: string;
+    expectedProgress: number;
+  },
+): ProposedPlan {
+  return {
+    actions: [action],
+    tacticId: meta.tacticId,
+    goalId: meta.goalId,
+    reasoning: meta.reasoning,
+    expectedProgress: meta.expectedProgress,
+  };
 }
 
 export type GuardResult =
@@ -111,5 +152,9 @@ export interface StrategyContext {
   readonly freeCellCount: number;
   /** Сколько ещё actions можно потратить в этом тике (см. § 5.4 D). */
   readonly remainingTickBudget: number;
-  readonly rng: SeededRng;
+  /**
+   * Engine env — содержит rng, nowMs, totalEyesGained, nextEntityId.
+   * Заменил старый `rng: SeededRng` (spec rev 2 § 6.2).
+   */
+  readonly env: EngineEnv;
 }

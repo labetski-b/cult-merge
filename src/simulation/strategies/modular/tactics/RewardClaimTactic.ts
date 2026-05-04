@@ -1,5 +1,6 @@
 import type { GameSnapshot } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 
 export const META: TacticMeta = {
   id: 'RewardClaim',
@@ -10,28 +11,32 @@ export const META: TacticMeta = {
 
 export class RewardClaimTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
-    if (state.pendingRewards.length === 0) return proposals;
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
+    if (state.pendingRewards.length === 0) return plans;
 
     if (ctx.freeCellCount === 0) {
-      proposals.push({
-        action: { type: 'free_cells', reason: 'reward_drop_needs_slot', freed: 0 },
-        reasoning: 'pendingReward есть, но нет свободной клетки',
-        expectedProgress: 0.4,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
-      return proposals;
+      plans.push(singletonPlan(
+        { type: 'free_cells', reason: 'reward_drop_needs_slot', freed: 0 },
+        {
+          reasoning: 'pendingReward есть, но нет свободной клетки',
+          expectedProgress: 0.4,
+          tacticId: META.id,
+          goalId: goal.meta.id,
+        },
+      ));
+      return plans;
     }
 
-    proposals.push({
-      action: { type: 'claim_reward' },
-      reasoning: `claim ${state.pendingRewards.length} pending reward(s)`,
-      expectedProgress: 0.9,
-      tacticId: META.id,
-      goalId: goal.meta.id,
-    });
-    return proposals;
+    plans.push(singletonPlan(
+      { type: 'claim_reward' },
+      {
+        reasoning: `claim ${state.pendingRewards.length} pending reward(s)`,
+        expectedProgress: 0.9,
+        tacticId: META.id,
+        goalId: goal.meta.id,
+      },
+    ));
+    return plans;
   }
 }

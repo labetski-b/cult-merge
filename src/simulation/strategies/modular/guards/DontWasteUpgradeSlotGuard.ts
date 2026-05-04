@@ -1,5 +1,5 @@
 import type { GameSnapshot } from '@domain/types';
-import type { Guard, GuardMeta, GuardResult, ProposedAction, StrategyContext } from '../types';
+import type { Guard, GuardMeta, GuardResult, ProposedPlanStep, StrategyContext } from '../types';
 
 export const META: GuardMeta = {
   id: 'DontWasteUpgradeSlot',
@@ -10,8 +10,8 @@ export const META: GuardMeta = {
 
 export class DontWasteUpgradeSlotGuard implements Guard {
   meta: GuardMeta = META;
-  check(action: ProposedAction, state: GameSnapshot, _ctx: StrategyContext): GuardResult {
-    if (action.action.type !== 'start_upgrade') return { allow: true };
+  check(step: ProposedPlanStep, state: GameSnapshot, _ctx: StrategyContext): GuardResult {
+    if (step.action.type !== 'start_upgrade') return { allow: true };
     if (state.activeUpgrade !== null) {
       return { allow: false, reason: `слот апгрейда занят (${state.activeUpgrade.entityId})` };
     }

@@ -1,30 +1,43 @@
 import type { GameSnapshot } from '@domain/types';
-import type { Goal, Tactic, Guard, ProposedAction, StrategyContext } from '../types';
-import type { IterationDecision, GoalSnapshot, ProposedActionSnapshot, GuardRejection } from '../../../engine/trace';
+import type { BalanceConfig } from '@data/schemas';
+import type { Goal, Tactic, Guard, ProposedPlan, ProposedPlanStep, StrategyContext } from '../types';
+import type {
+  IterationDecision, GoalSnapshot, ProposedActionSnapshot, GuardRejection, SelectedPlanTrace,
+} from '../../../engine/trace';
 import type { TraceBuffer } from '../trace/buffer';
 import type { StrategyDecision } from '../../../engine/types';
+import type { EngineEnv } from '../../../engine/env';
+import { cloneEngineEnv } from '../../../engine/env';
+import { applyActionCore } from '../../../engine/applyActionCore';
 import { resolvePrereqChain } from './prerequisites';
-import { PREREQ_BOOST_PRIORITY } from './constants';
+import { PREREQ_BOOST_PRIORITY, MAX_PLAN_STEPS } from './constants';
 
 export interface SchedulerInput {
   goals: readonly Goal[];
   tactics: readonly Tactic[];
   guards: readonly Guard[];
   state: GameSnapshot;
+  /** Engine env — нужен для step-by-step preview (cloneEngineEnv + applyActionCore). */
+  env: EngineEnv;
   ctx: StrategyContext;
   buffer: TraceBuffer;
   remainingBudget: number;
+  /** Balance config — applyActionCore требует его для preview. */
+  config: BalanceConfig;
 }
 
 /**
  * Один inner-iteration: собрать active goals, развернуть prereqs,
- * собрать proposals, прогнать через guards, выбрать лучший action.
+ * собрать proposals (plans), провалидировать каждый plan step-by-step через
+ * applyActionCore + cloneEngineEnv, выбрать best surviving plan.
  *
- * Возвращает StrategyDecision (один action или done=true).
- * Пишет IterationDecision в TraceBuffer.
+ * Возвращает StrategyDecision с actions=plan.actions (длина 1..MAX_PLAN_STEPS)
+ * или done=true. Пишет IterationDecision в TraceBuffer.
+ *
+ * Spec rev 2 § 5.7, 5.8, 7.1, 7.3, 7.4.
  */
 export function runScheduler(input: SchedulerInput): StrategyDecision {
-  const { goals, tactics, guards, state, ctx, buffer, remainingBudget } = input;
+  const { goals, tactics, guards, state, env, ctx, buffer, remainingBudget, config } = input;
   const iterIndex = buffer.nextIterationIndex();
 
   // Budget check (§ 5.4 D)
@@ -35,7 +48,8 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       selectedGoalId: null,
       proposedActions: [],
       rejectedByGuards: [],
-      selectedAction: null,
+      selectedPlan: null,
+      executedActions: [],
       stuckReason: 'tick budget exhausted',
     };
     buffer.recordIteration(iter);
@@ -56,7 +70,8 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       selectedGoalId: null,
       proposedActions: [],
       rejectedByGuards: [],
-      selectedAction: null,
+      selectedPlan: null,
+      executedActions: [],
       stuckReason: resolved.cycleDetected,
     };
     buffer.recordIteration(iter);
@@ -74,68 +89,151 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
 
   const goalSnapshots: GoalSnapshot[] = sortedQueue.map(entry => goalSnapshot(entry, state, ctx));
 
-  // 4. Walk queue and try to find an action.
-  //    BUT: tick_idle proposals from CompleteActiveQuest are deferred — пытаемся
+  // 4. Walk queue and try to find a plan.
+  //    BUT: tick_idle plans from CompleteActiveQuest are deferred — пытаемся
   //    fall through к OpenBoxes/MaintainFreeGrid/etc. сначала. Если ни одна
   //    другая goal не предложит — берём tick_idle как последний resort.
+  //    (Поведение preserved из rev 1 для FP stuck scenario.)
   const allProposed: ProposedActionSnapshot[] = [];
   const allRejected: GuardRejection[] = [];
-  let deferredIdle: { proposal: ProposedAction; goal: Goal } | null = null;
+  let deferredIdle: { plan: ProposedPlan; goal: Goal } | null = null;
 
   for (const entry of sortedQueue) {
     const goal = entry.goal;
-    const goalProposals: ProposedAction[] = [];
+    const goalPlans: ProposedPlan[] = [];
     for (const tactic of tactics) {
       if (!tactic.meta.serves.includes(goal.meta.id)) continue;
-      const proposed = tactic.propose(state, goal, ctx);
-      goalProposals.push(...proposed);
+      const plans = tactic.propose(state, goal, ctx);
+      goalPlans.push(...plans);
     }
-    for (const p of goalProposals) {
-      allProposed.push({
-        tacticId: p.tacticId,
-        goalId: p.goalId,
-        actionType: p.action.type,
-        reasoning: p.reasoning,
-        expectedProgress: p.expectedProgress,
-      });
+    // Snapshot всех предложенных plan'ов (по step'ам) в trace.
+    for (const plan of goalPlans) {
+      for (let i = 0; i < plan.actions.length; i++) {
+        allProposed.push({
+          tacticId: plan.tacticId,
+          goalId: plan.goalId,
+          actionType: plan.actions[i]!.type,
+          reasoning: plan.reasoning,
+          expectedProgress: plan.expectedProgress,
+          stepIndex: i,
+          planLength: plan.actions.length,
+        });
+      }
     }
-    if (goalProposals.length === 0) continue;
+    if (goalPlans.length === 0) continue;
 
-    // Filter through guards
-    const survivors: ProposedAction[] = [];
-    for (const p of goalProposals) {
-      let blocked = false;
-      for (const guard of guards) {
-        if (!guard.meta.blocksActionTypes.includes(p.action.type)) continue;
-        const result = guard.check(p, state, ctx);
-        if (!result.allow) {
-          allRejected.push({
-            tacticId: p.tacticId, actionType: p.action.type,
-            guardId: guard.meta.id, reason: result.reason,
-          });
-          blocked = true;
+    // 5. Step-by-step preview validation на projected state/env.
+    const survivors: ProposedPlan[] = [];
+    for (const plan of goalPlans) {
+      // Plan length cap (§ 7.1).
+      if (plan.actions.length === 0 || plan.actions.length > MAX_PLAN_STEPS) {
+        continue;
+      }
+
+      let projectedState = state;
+      let projectedEnv = cloneEngineEnv(env);
+      let valid = true;
+
+      for (let i = 0; i < plan.actions.length; i++) {
+        const action = plan.actions[i]!;
+        const step: ProposedPlanStep = {
+          action,
+          reasoning: plan.reasoning,
+          tacticId: plan.tacticId,
+          goalId: plan.goalId,
+          stepIndex: i,
+          planLength: plan.actions.length,
+        };
+
+        // § 7.4: tick_idle разрешён только как top-level singleton (i === 0
+        // и planLength === 1). Для multi-step plans tick_idle inner step
+        // запрещён. Реально на T6+T7+T8 все plans singleton, но правило
+        // нужно для forward-compat и тестов.
+        if (action.type === 'tick_idle' && plan.actions.length > 1) {
+          valid = false;
           break;
         }
+
+        // Run guards на projected state.
+        let blocked = false;
+        for (const guard of guards) {
+          if (!guard.meta.blocksActionTypes.includes(action.type)) continue;
+          const result = guard.check(step, projectedState, ctx);
+          if (!result.allow) {
+            allRejected.push({
+              tacticId: plan.tacticId,
+              actionType: action.type,
+              guardId: guard.meta.id,
+              reason: result.reason,
+              stepIndex: i,
+            });
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) {
+          valid = false;
+          break;
+        }
+
+        // § 7.3: Structural no-op rejection. Если step не меняет state —
+        // plan отбрасывается. Исключение: tick_idle (synthetic top-level
+        // signal "advance time", structurally no-op by design — § 7.4).
+        // Также free_cells/quest_completed/new_quest/expand_board synthetic
+        // log-only events — они part of legitimate top-level singletons и
+        // не должны фильтроваться structural no-op.
+        if (action.type === 'tick_idle') {
+          // Не вызываем applyActionCore вовсе — engine handles tick_idle
+          // synthetically (skipped from execution loop). Projected state
+          // и env не меняются.
+          continue;
+        }
+
+        const applied = applyActionCore(projectedState, action, projectedEnv, config);
+
+        // Synthetic log-only events (free_cells, quest_completed, new_quest,
+        // expand_board) tolerated, остальные отбрасываем при stateChanged=false.
+        const isSynthetic =
+          action.type === 'free_cells' ||
+          action.type === 'quest_completed' ||
+          action.type === 'new_quest' ||
+          action.type === 'expand_board';
+        // § 7.3 уточнение: structural no-op rejection применяется ТОЛЬКО к
+        // multi-step plans (planLength > 1) — там no-op в середине ломает
+        // projected state для следующего шага. Singleton plans с no-op
+        // допустимы (legacy semantics: engine исполнял такие actions
+        // идемпотентно — gather_meat при достигнутом target, charge без
+        // ресурсов, etc., — стратегия просто двигалась дальше).
+        if (!applied.stateChanged && !isSynthetic && plan.actions.length > 1) {
+          valid = false;
+          break;
+        }
+
+        projectedState = applied.nextState;
+        projectedEnv = applied.nextEnv;
       }
-      if (!blocked) survivors.push(p);
+
+      if (valid) survivors.push(plan);
     }
+
     if (survivors.length === 0) continue;
 
-    // Pick best — max expectedProgress, alphabetic tacticId tie-break
+    // 6. Pick best surviving plan: progress > planLength (короче лучше) > tacticId.
+    //    Spec rev 2 § 5.8.
     survivors.sort((a, b) => {
       if (b.expectedProgress !== a.expectedProgress) return b.expectedProgress - a.expectedProgress;
+      if (a.actions.length !== b.actions.length) return a.actions.length - b.actions.length;
       return a.tacticId.localeCompare(b.tacticId);
     });
     const best = survivors[0]!;
 
-    // Если best — это tick_idle (нет настоящего progress), отложим: может,
-    // более низкая goal сможет сделать что-то полезное (open_box, merge runes,
-    // free up grid). Если никто другой не предложит — вернёмся к этой idle.
-    if (best.action.type === 'tick_idle') {
-      if (!deferredIdle) deferredIdle = { proposal: best, goal };
+    // tick_idle singleton — defer (preserved from rev 1 scheduler).
+    if (best.actions.length === 1 && best.actions[0]!.type === 'tick_idle') {
+      if (!deferredIdle) deferredIdle = { plan: best, goal };
       continue;
     }
 
+    // Real plan picked.
     const iter: IterationDecision = {
       iteration: iterIndex,
       activeGoals: goalSnapshots,
@@ -143,13 +241,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       selectedGoalId: goal.meta.id,
       proposedActions: allProposed,
       rejectedByGuards: allRejected,
-      selectedAction: best.action,
+      selectedPlan: makeSelectedPlanTrace(best),
+      executedActions: best.actions.slice(),
     };
     buffer.recordIteration(iter);
-    return { actions: [best.action], done: false };
+    return { actions: best.actions.slice(), done: false };
   }
 
-  // Нет реального action ни у одной goal — берём deferred tick_idle если был.
+  // Никто не дал реального plan'а — берём deferred tick_idle если был.
   if (deferredIdle) {
     const iter: IterationDecision = {
       iteration: iterIndex,
@@ -158,13 +257,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       selectedGoalId: deferredIdle.goal.meta.id,
       proposedActions: allProposed,
       rejectedByGuards: allRejected,
-      selectedAction: deferredIdle.proposal.action,
+      selectedPlan: makeSelectedPlanTrace(deferredIdle.plan),
+      executedActions: deferredIdle.plan.actions.slice(),
     };
     buffer.recordIteration(iter);
-    return { actions: [deferredIdle.proposal.action], done: false };
+    return { actions: deferredIdle.plan.actions.slice(), done: false };
   }
 
-  // No goal produced an action
+  // No goal produced a surviving plan — stuck.
   const stuckReason = inferStuckReason(allRejected, allProposed);
   const iter: IterationDecision = {
     iteration: iterIndex,
@@ -173,7 +273,8 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
     selectedGoalId: null,
     proposedActions: allProposed,
     rejectedByGuards: allRejected,
-    selectedAction: null,
+    selectedPlan: null,
+    executedActions: [],
     stuckReason,
   };
   buffer.recordIteration(iter);
@@ -182,6 +283,17 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
   // потому что engine иначе зациклится). Если только opportunistic/background — это normal close.
   const hasUnsatisfiedBlocking = sortedQueue.some(e => e.goal.meta.category === 'blocking');
   return { actions: [], done: !hasUnsatisfiedBlocking || true };
+}
+
+function makeSelectedPlanTrace(plan: ProposedPlan): SelectedPlanTrace {
+  return {
+    tacticId: plan.tacticId,
+    goalId: plan.goalId,
+    actionTypes: plan.actions.map(a => a.type),
+    stepCount: plan.actions.length,
+    reasoning: plan.reasoning,
+    expectedProgress: plan.expectedProgress,
+  };
 }
 
 function computeFinalPriority(

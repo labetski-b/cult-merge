@@ -3,8 +3,9 @@ import { DontWasteUpgradeSlotGuard, META } from '../../guards/DontWasteUpgradeSl
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import type { ProposedAction } from '../../types';
+import type { ProposedPlanStep } from '../../types';
 
 describe('DontWasteUpgradeSlotGuard', () => {
   it('META: blocksActionTypes=[start_upgrade]', () => {
@@ -15,23 +16,25 @@ describe('DontWasteUpgradeSlotGuard', () => {
     const guard = new DontWasteUpgradeSlotGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.activeUpgrade = { entityId: 'g1', generatorId: 1, startedAt: 0, finishesAt: 1000 };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'start_upgrade', entityId: 'g2' }, reasoning: '',
-      expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    expect(guard.check(step, state, ctx).allow).toBe(false);
   });
 
   it('activeUpgrade=null → allow', () => {
     const guard = new DontWasteUpgradeSlotGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.activeUpgrade = null;
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'start_upgrade', entityId: 'g1' }, reasoning: '',
-      expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 });

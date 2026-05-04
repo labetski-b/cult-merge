@@ -3,8 +3,9 @@ import { PreserveHighLevelCreaturesGuard, META } from '../../guards/PreserveHigh
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import type { ProposedAction } from '../../types';
+import type { ProposedPlanStep } from '../../types';
 
 describe('PreserveHighLevelCreaturesGuard', () => {
   it('META: blocksActionTypes=[feed]', () => {
@@ -17,12 +18,13 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 4 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(false);
+    expect(guard.check(step, state, ctx).allow).toBe(false);
   });
 
   it('feed L>=3 не-quest-type → allow (это «лишняя» creature)', () => {
@@ -31,47 +33,51 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 4 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('feed L>=3 без активного квеста → allow', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 4 };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('feed L=2 → allow (не high-level)', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.3, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
+
+      stepIndex: 0, planLength: 1, tacticId: 'GridFreeFeed', goalId: 'MaintainFreeGrid',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('feed L>=3 при goalId=CompleteActiveQuest → allow', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 4 };
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
-      expectedProgress: 0.95, tacticId: 'QuestFeed', goalId: 'CompleteActiveQuest',
+
+      stepIndex: 0, planLength: 1, tacticId: 'QuestFeed', goalId: 'CompleteActiveQuest',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 });

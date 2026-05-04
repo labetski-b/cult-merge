@@ -1,5 +1,5 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
-import type { Guard, GuardMeta, GuardResult, ProposedAction, StrategyContext } from '../types';
+import type { Guard, GuardMeta, GuardResult, ProposedPlanStep, StrategyContext } from '../types';
 import { BALANCE } from '@data/loadBalance';
 import { findEntityCell, getNeighborCellIndexes } from '@domain/grid';
 
@@ -12,9 +12,9 @@ export const META: GuardMeta = {
 
 export class ProtectFPNeighborsGuard implements Guard {
   meta: GuardMeta = META;
-  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult {
-    if (action.action.type !== 'move_entity') return { allow: true };
-    const target = action.action.targetCellIndex;
+  check(step: ProposedPlanStep, state: GameSnapshot, ctx: StrategyContext): GuardResult {
+    if (step.action.type !== 'move_entity') return { allow: true };
+    const target = step.action.targetCellIndex;
     // Найдём все timer-FP с активным quest need
     for (const need of ctx.activeQuestNeeds) {
       const assignment = ctx.creatureGenMap.get(need.creatureType);

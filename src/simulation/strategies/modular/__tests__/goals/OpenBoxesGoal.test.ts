@@ -3,6 +3,7 @@ import { OpenBoxesGoal, META } from '../../goals/OpenBoxesGoal';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 
 describe('OpenBoxesGoal', () => {
@@ -16,14 +17,14 @@ describe('OpenBoxesGoal', () => {
     const goal = new OpenBoxesGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['b1'] = { id: 'b1', kind: 'box', boxId: 1, contents: ['Rune1_1'] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
   it('isActive=false если боксов нет', () => {
     const goal = new OpenBoxesGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -31,7 +32,7 @@ describe('OpenBoxesGoal', () => {
     const goal = new OpenBoxesGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['b1'] = { id: 'b1', kind: 'box', boxId: 1, contents: ['Rune1_1'] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.urgency(state, ctx)).toBeCloseTo(1.0, 5);
     state.entities['b2'] = { id: 'b2', kind: 'box', boxId: 1, contents: ['Rune1_1'] };
     state.entities['b3'] = { id: 'b3', kind: 'box', boxId: 1, contents: ['Rune1_1'] };
@@ -50,7 +51,7 @@ describe('OpenBoxesGoal', () => {
         state.grid.cells[i] = id;
       }
     }
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     expect(goal.getPrerequisites(state, ctx)).toEqual([
       { goalId: 'MaintainFreeGrid', reason: expect.stringContaining('no free cell') },
     ]);

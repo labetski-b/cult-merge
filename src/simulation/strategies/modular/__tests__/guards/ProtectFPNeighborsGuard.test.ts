@@ -3,8 +3,9 @@ import { ProtectFPNeighborsGuard, META } from '../../guards/ProtectFPNeighborsGu
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import type { ProposedAction } from '../../types';
+import type { ProposedPlanStep } from '../../types';
 import type { GeneratorEntity } from '@domain/types';
 
 describe('ProtectFPNeighborsGuard', () => {
@@ -45,12 +46,13 @@ describe('ProtectFPNeighborsGuard', () => {
     }
     state.grid.cells[100] = 'mover'; // mover вообще где-то ещё (в углу)
     // (упрощённо — не важно, главное чтобы action.targetCellIndex был соседом FP)
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'move_entity', entityId: 'mover', targetCellIndex: targetCell },
-      reasoning: '', expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+      reasoning: '',
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    const result = guard.check(proposal, state, ctx);
+    const result = guard.check(step, state, ctx);
     expect(result.allow).toBe(false);
   });
 
@@ -67,24 +69,26 @@ describe('ProtectFPNeighborsGuard', () => {
     } as GeneratorEntity;
     state.grid.cells[0] = 'GT';
     state.currentAutoTask = { id: 't', creatures: [{ type: out.creatureType, level: 1, count: 1 }] };
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     // Far-away cell (не сосед 0)
     const farCell = state.grid.cells.length - 1;
-    const proposal: ProposedAction = {
+    const step: ProposedPlanStep = {
       action: { type: 'move_entity', entityId: 'mover', targetCellIndex: farCell },
-      reasoning: '', expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+      reasoning: '',
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 
   it('пропускает не-move_entity actions', () => {
     const guard = new ProtectFPNeighborsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, new SeededRng(1), 50);
-    const proposal: ProposedAction = {
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'x' }, reasoning: '',
-      expectedProgress: 0.5, tacticId: 'X', goalId: 'X',
+
+      stepIndex: 0, planLength: 1, tacticId: 'X', goalId: 'X',
     };
-    expect(guard.check(proposal, state, ctx).allow).toBe(true);
+    expect(guard.check(step, state, ctx).allow).toBe(true);
   });
 });

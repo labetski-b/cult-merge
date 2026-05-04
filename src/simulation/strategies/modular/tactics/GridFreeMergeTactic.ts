@@ -1,5 +1,6 @@
 import type { GameSnapshot, CreatureEntity, RuneEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import { canMergeRunes } from '@domain/merge';
 
 export const META: TacticMeta = {
@@ -11,8 +12,8 @@ export const META: TacticMeta = {
 
 export class GridFreeMergeTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     // 1) Creatures
     const creaByKey = new Map<string, CreatureEntity[]>();
     for (const e of Object.values(state.entities)) {
@@ -25,13 +26,15 @@ export class GridFreeMergeTactic implements Tactic {
     }
     for (const [, arr] of creaByKey) {
       if (arr.length < 2) continue;
-      proposals.push({
-        action: { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
-        reasoning: `merge ${arr[0]!.creatureType} L${arr[0]!.level}×2 to free a cell`,
-        expectedProgress: 0.6,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
+      plans.push(singletonPlan(
+        { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
+        {
+          reasoning: `merge ${arr[0]!.creatureType} L${arr[0]!.level}×2 to free a cell`,
+          expectedProgress: 0.6,
+          tacticId: META.id,
+          goalId: goal.meta.id,
+        },
+      ));
     }
     // 2) Runes (mergeable pairs only — max-level отсечётся canMergeRunes)
     const runeByType = new Map<string, RuneEntity[]>();
@@ -45,14 +48,16 @@ export class GridFreeMergeTactic implements Tactic {
     for (const arr of runeByType.values()) {
       if (arr.length < 2) continue;
       if (!canMergeRunes(arr[0]!, arr[1]!)) continue;
-      proposals.push({
-        action: { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
-        reasoning: `merge ${arr[0]!.runeType}×2 to free a cell`,
-        expectedProgress: 0.6,
-        tacticId: META.id,
-        goalId: goal.meta.id,
-      });
+      plans.push(singletonPlan(
+        { type: 'merge', sourceId: arr[0]!.id, targetId: arr[1]!.id },
+        {
+          reasoning: `merge ${arr[0]!.runeType}×2 to free a cell`,
+          expectedProgress: 0.6,
+          tacticId: META.id,
+          goalId: goal.meta.id,
+        },
+      ));
     }
-    return proposals;
+    return plans;
   }
 }

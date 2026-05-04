@@ -1,5 +1,5 @@
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
+import type { EngineEnv } from '../../engine/env';
 import { getFreeCellIndexes } from '@domain/grid';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { BALANCE } from '@data/loadBalance';
@@ -8,10 +8,14 @@ import type { StrategyContext, GeneratorAssignment, QuestNeed } from './types';
 /**
  * Собрать derived-данные из snapshot для одного inner-iteration.
  * Чистая функция — никакой мутации state.
+ *
+ * Spec rev 2 § 6.2: ctx несёт env (rng + nowMs + totalEyesGained + nextEntityId),
+ * не голый rng — это нужно scheduler'у для step-by-step preview через
+ * applyActionCore + cloneEngineEnv.
  */
 export function buildContext(
   state: GameSnapshot,
-  rng: SeededRng,
+  env: EngineEnv,
   remainingTickBudget: number,
 ): StrategyContext {
   const freeCellCount = getFreeCellIndexes(state.grid).length;
@@ -22,7 +26,7 @@ export function buildContext(
     activeQuestNeeds,
     freeCellCount,
     remainingTickBudget,
-    rng,
+    env,
   };
 }
 

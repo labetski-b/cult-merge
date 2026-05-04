@@ -1,5 +1,5 @@
 import type { GameSnapshot, CreatureEntity } from '@domain/types';
-import type { Guard, GuardMeta, GuardResult, ProposedAction, StrategyContext } from '../types';
+import type { Guard, GuardMeta, GuardResult, ProposedPlanStep, StrategyContext } from '../types';
 
 export const META: GuardMeta = {
   id: 'PreserveHighLevelCreatures',
@@ -10,10 +10,10 @@ export const META: GuardMeta = {
 
 export class PreserveHighLevelCreaturesGuard implements Guard {
   meta: GuardMeta = META;
-  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult {
-    if (action.action.type !== 'feed') return { allow: true };
-    if (action.goalId === 'CompleteActiveQuest') return { allow: true };
-    const e = state.entities[action.action.entityId];
+  check(step: ProposedPlanStep, state: GameSnapshot, ctx: StrategyContext): GuardResult {
+    if (step.action.type !== 'feed') return { allow: true };
+    if (step.goalId === 'CompleteActiveQuest') return { allow: true };
+    const e = state.entities[step.action.entityId];
     if (!e || e.kind !== 'creature') return { allow: true };
     const c = e as CreatureEntity;
     if (c.level < 3) return { allow: true };

@@ -1,6 +1,6 @@
 import type { GameSnapshot, CreatureEntity } from '@domain/types';
 import { getFreeCellIndexes } from '@domain/grid';
-import type { Guard, GuardMeta, GuardResult, ProposedAction, StrategyContext } from '../types';
+import type { Guard, GuardMeta, GuardResult, ProposedPlanStep, StrategyContext } from '../types';
 
 export const META: GuardMeta = {
   id: 'DontFeedQuestTargets',
@@ -11,10 +11,10 @@ export const META: GuardMeta = {
 
 export class DontFeedQuestTargetsGuard implements Guard {
   meta: GuardMeta = META;
-  check(action: ProposedAction, state: GameSnapshot, ctx: StrategyContext): GuardResult {
-    if (action.action.type !== 'feed') return { allow: true };
-    if (action.goalId === 'CompleteActiveQuest') return { allow: true }; // намеренный feed для квеста
-    const entity = state.entities[action.action.entityId];
+  check(step: ProposedPlanStep, state: GameSnapshot, ctx: StrategyContext): GuardResult {
+    if (step.action.type !== 'feed') return { allow: true };
+    if (step.goalId === 'CompleteActiveQuest') return { allow: true }; // намеренный feed для квеста
+    const entity = state.entities[step.action.entityId];
     if (!entity || entity.kind !== 'creature') return { allow: true };
     const c = entity as CreatureEntity;
     // Точное совпадение type+level — защита уже-готового quest-target существа

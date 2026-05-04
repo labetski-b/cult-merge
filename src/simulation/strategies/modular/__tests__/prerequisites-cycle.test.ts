@@ -3,6 +3,9 @@ import { runScheduler } from '../scheduler/scheduler';
 import { TraceBuffer } from '../trace/buffer';
 import type { Goal, GoalMeta, GoalPrerequisite, StrategyContext, Guard, GuardMeta } from '../types';
 import type { GameSnapshot } from '@domain/types';
+import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../engine/env';
+import { BALANCE } from '@data/loadBalance';
 
 const m = (id: string): GoalMeta => ({ id, description: '', basePriority: 50, category: 'blocking', activationCondition: '', urgencyFormula: '' });
 
@@ -31,10 +34,13 @@ describe('Prerequisites cycle integration (spec § 10.5)', () => {
     const a = new CyclicGoal('A', 'B');
     const b = new CyclicGoal('B', 'A');
     const buf = new TraceBuffer();
+    const env = makeEngineEnv(new SeededRng(1), 0, 0);
     runScheduler({
       goals: [a, b], tactics: [], guards: [new AllowGuard()],
-      state: {} as GameSnapshot, ctx: { remainingTickBudget: 50 } as StrategyContext,
+      state: {} as GameSnapshot, env,
+      ctx: { remainingTickBudget: 50, env } as StrategyContext,
       buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
     const trace = buf.closeTick(0, 'done');
     expect(trace.iterations[0]!.stuckReason).toMatch(/cycle/i);

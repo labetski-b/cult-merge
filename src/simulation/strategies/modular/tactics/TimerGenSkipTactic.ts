@@ -1,5 +1,6 @@
 import type { GameSnapshot, GeneratorEntity, CreatureEntity, RuneEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import { BALANCE } from '@data/loadBalance';
 import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
@@ -127,8 +128,8 @@ function pickFreeingActionForNeighbors(
 
 export class TimerGenSkipTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     const taskTypes = new Set<string>();
     for (const n of ctx.activeQuestNeeds) taskTypes.add(n.creatureType);
 
@@ -148,41 +149,47 @@ export class TimerGenSkipTactic implements Tactic {
 
       if (hasFreeNeighbor) {
         // Свободный сосед есть — обычный skip.
-        proposals.push({
-          action: { type: 'skip_timer_generator', entityId: g.id },
-          reasoning: `skip timer Gen${g.generatorId} for quest`,
-          expectedProgress: 0.7,
-          tacticId: META.id,
-          goalId: goal.meta.id,
-        });
+        plans.push(singletonPlan(
+          { type: 'skip_timer_generator', entityId: g.id },
+          {
+            reasoning: `skip timer Gen${g.generatorId} for quest`,
+            expectedProgress: 0.7,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          },
+        ));
       } else {
         // Соседи заняты — попробовать освободить.
         const freeing = pickFreeingActionForNeighbors(state, g, taskTypes);
         if (freeing) {
-          proposals.push({
-            action: freeing,
-            reasoning: `clear neighbor of Gen${g.generatorId} (${freeing.type})`,
-            // Higher than plain skip — критично для разблокировки.
-            expectedProgress: 0.8,
-            tacticId: META.id,
-            goalId: goal.meta.id,
-          });
+          plans.push(singletonPlan(
+            freeing,
+            {
+              reasoning: `clear neighbor of Gen${g.generatorId} (${freeing.type})`,
+              // Higher than plain skip — критично для разблокировки.
+              expectedProgress: 0.8,
+              tacticId: META.id,
+              goalId: goal.meta.id,
+            },
+          ));
         } else {
           // Все соседи заняты quest-creatures, нечем освобождать.
           // Эмитим tick_idle (как RealisticStrategy) чтобы game time прошёл
           // и timer-gen смог пассивно spawn'нуть в свободную клетку (если на
           // других целях освободятся места). Без этого мы стоим в done=true
           // 0 actions — passive tick не двигает время.
-          proposals.push({
-            action: { type: 'tick_idle', reason: 'fp:no_space' },
-            reasoning: `Gen${g.generatorId} timer-blocked, idle to advance time`,
-            expectedProgress: 0.05,
-            tacticId: META.id,
-            goalId: goal.meta.id,
-          });
+          plans.push(singletonPlan(
+            { type: 'tick_idle', reason: 'fp:no_space' },
+            {
+              reasoning: `Gen${g.generatorId} timer-blocked, idle to advance time`,
+              expectedProgress: 0.05,
+              tacticId: META.id,
+              goalId: goal.meta.id,
+            },
+          ));
         }
       }
     }
-    return proposals;
+    return plans;
   }
 }

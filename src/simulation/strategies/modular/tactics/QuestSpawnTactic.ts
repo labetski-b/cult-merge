@@ -1,5 +1,6 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import { BALANCE } from '@data/loadBalance';
 
 export const META: TacticMeta = {
@@ -30,8 +31,8 @@ function pickFocusNeed(
 
 export class QuestSpawnTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
-    const proposals: ProposedAction[] = [];
+  propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
+    const plans: ProposedPlan[] = [];
     // Pick focus type (mirrors RealisticStrategy.pickFocusType): для dual-quests
     // фокусируемся на нужде, ближайшей к завершению. Минимизирует распыление
     // эффорта по двум линиям и ускоряет квест.
@@ -51,33 +52,39 @@ export class QuestSpawnTactic implements Tactic {
       const cfg = BALANCE.generators.generators.find(c => c.id === g.generatorId);
       if (!cfg) continue;
       if (g.charges.length > 0) {
-        proposals.push({
-          action: { type: 'spawn_generator', generatorId: g.id },
-          reasoning: `Gen${g.generatorId} → ${need.creatureType} (need ${need.fed}/${need.count})`,
-          expectedProgress: 0.85,
-          tacticId: META.id,
-          goalId: goal.meta.id,
-        });
+        plans.push(singletonPlan(
+          { type: 'spawn_generator', generatorId: g.id },
+          {
+            reasoning: `Gen${g.generatorId} → ${need.creatureType} (need ${need.fed}/${need.count})`,
+            expectedProgress: 0.85,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          },
+        ));
       } else if (cfg.spawnMode !== 'timer') {
         if (state.resources.meat >= CHARGE_MEAT_TARGET) {
-          proposals.push({
-            action: { type: 'charge_generator', generatorId: g.id },
-            reasoning: `charge Gen${g.generatorId} for quest`,
-            expectedProgress: 0.6,
-            tacticId: META.id,
-            goalId: goal.meta.id,
-          });
+          plans.push(singletonPlan(
+            { type: 'charge_generator', generatorId: g.id },
+            {
+              reasoning: `charge Gen${g.generatorId} for quest`,
+              expectedProgress: 0.6,
+              tacticId: META.id,
+              goalId: goal.meta.id,
+            },
+          ));
         } else {
-          proposals.push({
-            action: { type: 'gather_meat', targetCost: CHARGE_MEAT_TARGET },
-            reasoning: `farm meat for quest charge`,
-            expectedProgress: 0.4,
-            tacticId: META.id,
-            goalId: goal.meta.id,
-          });
+          plans.push(singletonPlan(
+            { type: 'gather_meat', targetCost: CHARGE_MEAT_TARGET },
+            {
+              reasoning: `farm meat for quest charge`,
+              expectedProgress: 0.4,
+              tacticId: META.id,
+              goalId: goal.meta.id,
+            },
+          ));
         }
       }
     }
-    return proposals;
+    return plans;
   }
 }

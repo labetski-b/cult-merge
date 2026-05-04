@@ -2,8 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { runScheduler } from '../scheduler/scheduler';
 import { TraceBuffer } from '../trace/buffer';
 import { PREREQ_BOOST_PRIORITY } from '../scheduler/constants';
-import type { Goal, Tactic, Guard, GoalMeta, TacticMeta, GuardMeta, ProposedAction, StrategyContext } from '../types';
+import type { Goal, Tactic, Guard, GoalMeta, TacticMeta, GuardMeta, ProposedPlan, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 import type { GameSnapshot } from '@domain/types';
+import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../engine/env';
+import { BALANCE } from '@data/loadBalance';
 
 const goalMeta = (id: string, basePri: number, cat: 'blocking'|'opportunistic'|'background' = 'opportunistic'): GoalMeta => ({
   id, description: '', basePriority: basePri, category: cat,
@@ -27,12 +31,12 @@ class StubGoal implements Goal {
 
 class StubTactic implements Tactic {
   meta: TacticMeta;
-  private _proposals: ProposedAction[];
-  constructor(id: string, serves: string[], proposals: ProposedAction[] = []) {
+  private _plans: ProposedPlan[];
+  constructor(id: string, serves: string[], plans: ProposedPlan[] = []) {
     this.meta = { id, description: '', serves, produces: ['feed'] };
-    this._proposals = proposals;
+    this._plans = plans;
   }
-  propose() { return this._proposals; }
+  propose() { return this._plans; }
 }
 
 class AllowGuard implements Guard {
@@ -41,7 +45,8 @@ class AllowGuard implements Guard {
 }
 
 const fakeState = {} as GameSnapshot;
-const fakeCtx = { remainingTickBudget: 50 } as StrategyContext;
+const fakeEnv = makeEngineEnv(new SeededRng(1), 0, 0);
+const fakeCtx = { remainingTickBudget: 50, env: fakeEnv } as StrategyContext;
 
 describe('runScheduler', () => {
   it('finalPriority = basePriority * urgency для не-promoted goals', () => {
@@ -51,7 +56,8 @@ describe('runScheduler', () => {
     const buf = new TraceBuffer();
     const decision = runScheduler({
       goals: [a, b], tactics: [], guards: [new AllowGuard()],
-      state: fakeState, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
     expect(decision.actions).toEqual([]);
     const iter = buf.closeTick(0, 'idle').iterations[0]!;
@@ -74,7 +80,8 @@ describe('runScheduler', () => {
     const buf = new TraceBuffer();
     runScheduler({
       goals: [a, b], tactics: [], guards: [new AllowGuard()],
-      state: fakeState, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
     const iter = buf.closeTick(0, 'idle').iterations[0]!;
     const bSnap = iter.activeGoals.find(g => g.id === 'B')!;
@@ -94,7 +101,9 @@ describe('runScheduler', () => {
     const buf = new TraceBuffer();
     const decision = runScheduler({
       goals: [a], tactics: [], guards: [new AllowGuard()],
-      state: fakeState, ctx: { ...fakeCtx, remainingTickBudget: 0 } as StrategyContext, buffer: buf, remainingBudget: 0,
+      state: fakeState, env: fakeEnv,
+      ctx: { ...fakeCtx, remainingTickBudget: 0 } as StrategyContext, buffer: buf, remainingBudget: 0,
+      config: BALANCE,
     });
     expect(decision.done).toBe(true);
     expect(decision.actions).toEqual([]);
@@ -102,22 +111,28 @@ describe('runScheduler', () => {
     expect(iter.stuckReason).toBe('tick budget exhausted');
   });
 
-  it('выбирает proposal с максимальным expectedProgress, alphabetic tie-break по tacticId', () => {
+  it('выбирает plan с максимальным expectedProgress, alphabetic tie-break по tacticId', () => {
+    // Используем синтетический action 'free_cells' — он synthetic log-only,
+    // не отбрасывается structural no-op rejection (см. scheduler § 7.3).
     const a = new StubGoal('A', 80);
-    const t1 = new StubTactic('Z_tactic', ['A'], [{
-      action: { type: 'feed', entityId: 'e1' }, reasoning: '', expectedProgress: 0.5,
-      tacticId: 'Z_tactic', goalId: 'A',
-    }]);
-    const t2 = new StubTactic('A_tactic', ['A'], [{
-      action: { type: 'feed', entityId: 'e2' }, reasoning: '', expectedProgress: 0.5,
-      tacticId: 'A_tactic', goalId: 'A',
-    }]);
+    const t1 = new StubTactic('Z_tactic', ['A'], [singletonPlan(
+      { type: 'free_cells', reason: 'r', freed: 0 },
+      { reasoning: '', expectedProgress: 0.5, tacticId: 'Z_tactic', goalId: 'A' },
+    )]);
+    const t2 = new StubTactic('A_tactic', ['A'], [singletonPlan(
+      { type: 'free_cells', reason: 'r', freed: 0 },
+      { reasoning: '', expectedProgress: 0.5, tacticId: 'A_tactic', goalId: 'A' },
+    )]);
     const buf = new TraceBuffer();
     const decision = runScheduler({
       goals: [a], tactics: [t1, t2], guards: [new AllowGuard()],
-      state: fakeState, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
-    expect(decision.actions[0]).toEqual({ type: 'feed', entityId: 'e2' }); // A_tactic выиграл алфавитно
+    // A_tactic выиграл алфавитно — selectedPlan.tacticId должен быть 'A_tactic'.
+    expect(decision.actions.length).toBe(1);
+    const iter = buf.closeTick(0, 'done').iterations[0]!;
+    expect(iter.selectedPlan?.tacticId).toBe('A_tactic');
   });
 
   it('cycle in prereqs → done с stuckReason про cycle', () => {
@@ -138,7 +153,8 @@ describe('runScheduler', () => {
     const buf = new TraceBuffer();
     const decision = runScheduler({
       goals: [new GoalA(), new GoalB()], tactics: [], guards: [new AllowGuard()],
-      state: fakeState, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
     expect(decision.done).toBe(true);
     const iter = buf.closeTick(0, 'done').iterations[0]!;
@@ -151,17 +167,19 @@ describe('runScheduler', () => {
       check() { return { allow: false, reason: 'no feed' } as const; }
     }
     const a = new StubGoal('A', 80);
-    const t = new StubTactic('TA', ['A'], [{
-      action: { type: 'feed', entityId: 'e1' }, reasoning: '', expectedProgress: 0.5,
-      tacticId: 'TA', goalId: 'A',
-    }]);
+    const t = new StubTactic('TA', ['A'], [singletonPlan(
+      { type: 'feed', entityId: 'e1' },
+      { reasoning: '', expectedProgress: 0.5, tacticId: 'TA', goalId: 'A' },
+    )]);
     const buf = new TraceBuffer();
     runScheduler({
       goals: [a], tactics: [t], guards: [new DenyGuard()],
-      state: fakeState, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
     });
     const iter = buf.closeTick(0, 'idle').iterations[0]!;
     expect(iter.rejectedByGuards.length).toBe(1);
     expect(iter.rejectedByGuards[0]!.reason).toBe('no feed');
+    expect(iter.rejectedByGuards[0]!.stepIndex).toBe(0);
   });
 });

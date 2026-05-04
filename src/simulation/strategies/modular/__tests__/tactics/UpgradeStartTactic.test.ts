@@ -3,6 +3,7 @@ import { UpgradeStartTactic, META } from '../../tactics/UpgradeStartTactic';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { UpgradeGeneratorGoal } from '../../goals/UpgradeGeneratorGoal';
 
@@ -19,12 +20,12 @@ describe('UpgradeStartTactic', () => {
     state.activeUpgrade = null;
     state.resources.rune1 = 10000;
     state.resources.rune2 = 10000;
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     // Кандидат может быть либо найден pickUpgradeCandidate, либо нет (зависит от balance).
     // Если найден — должен быть start_upgrade.
     if (proposals.length > 0) {
-      expect(proposals[0]!.action.type).toBe('start_upgrade');
+      expect(proposals[0]!.actions[0]!.type).toBe('start_upgrade');
     }
   });
 });

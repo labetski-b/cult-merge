@@ -3,6 +3,7 @@ import { RuneFeedTactic, META } from '../../tactics/RuneFeedTactic';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { ManageRunesGoal } from '../../goals/ManageRunesGoal';
 
@@ -18,8 +19,8 @@ describe('RuneFeedTactic', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['r1'] = { id: 'r1', kind: 'rune', runeType: 'Rune1_1' };
     state.grid.cells[0] = 'r1';
-    const ctx = buildContext(state, new SeededRng(1), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
-    expect(proposals.some(p => p.action.type === 'feed' && (p.action as { entityId: string }).entityId === 'r1')).toBe(true);
+    expect(proposals.some(p => p.actions[0]!.type === 'feed' && (p.actions[0]! as { entityId: string }).entityId === 'r1')).toBe(true);
   });
 });

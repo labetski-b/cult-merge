@@ -1,4 +1,4 @@
-// Нейтральный trace-модуль (§ 5.1 spec rev 6).
+// Нейтральный trace-модуль (§ 5.1 spec rev 2 — batch actions).
 // Импортирует ТОЛЬКО из ./actions, чтобы не создавать цикл с ./types.
 // Сюда же вынесен GoalCategory, потому что он попадает в GoalSnapshot.
 
@@ -28,21 +28,38 @@ export interface PrereqLink {
   reason: string;
 }
 
-/** Снимок одного предложения tactic'а. */
+/** Снимок одного предложенного step'а tactic'а (по plan'ам). */
 export interface ProposedActionSnapshot {
   tacticId: string;
   goalId: string;
   actionType: string; // SimulationAction['type']
   reasoning: string;
   expectedProgress: number;
+  /** 0-based позиция step'а внутри plan'а. */
+  stepIndex: number;
+  /** Длина plan'а из которого этот step. */
+  planLength: number;
 }
 
-/** Запись о guard-rejection одного предложения. */
+/** Запись о guard-rejection одного step'а plan'а. */
 export interface GuardRejection {
   tacticId: string;
   actionType: string;
   guardId: string;
   reason: string;
+  /** 0-based индекс step'а внутри plan'а на котором guard сработал. */
+  stepIndex: number;
+}
+
+/** Снимок выбранного plan'а на iteration'е (replaces selectedAction). */
+export interface SelectedPlanTrace {
+  tacticId: string;
+  goalId: string;
+  /** Action.type для каждого step'а plan'а (по порядку). */
+  actionTypes: SimulationAction['type'][];
+  stepCount: number;
+  reasoning: string;
+  expectedProgress: number;
 }
 
 /** Запись одного inner-iteration (один вызов decide()). */
@@ -54,7 +71,10 @@ export interface IterationDecision {
   selectedGoalId: string | null;
   proposedActions: ProposedActionSnapshot[];
   rejectedByGuards: GuardRejection[];
-  selectedAction: SimulationAction | null;
+  /** Выбранный plan; null если ничего не вышло из этой итерации. */
+  selectedPlan: SelectedPlanTrace | null;
+  /** Действия выбранного plan'а, переданные engine'у на исполнение. */
+  executedActions: SimulationAction[];
   /** Заполняется когда стратегия не смогла выбрать действие (cycle, budget exhausted, all rejected). */
   stuckReason?: string;
 }
@@ -70,6 +90,6 @@ export interface TickTrace {
   tick: number;
   iterations: IterationDecision[];
   endReason: TickEndReason;
-  /** Сумма selectedAction !== null по итерациям. */
+  /** Сумма executedActions.length по итерациям. */
   outerActionsCount: number;
 }

@@ -1,5 +1,6 @@
 import type { GameSnapshot } from '@domain/types';
-import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
+import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
+import { singletonPlan } from '../types';
 
 export const META: TacticMeta = {
   id: 'UpgradeCollect',
@@ -10,14 +11,16 @@ export const META: TacticMeta = {
 
 export class UpgradeCollectTactic implements Tactic {
   meta: TacticMeta = META;
-  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedAction[] {
+  propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedPlan[] {
     if (state.activeUpgrade === null) return [];
-    return [{
-      action: { type: 'collect_upgrade' },
-      reasoning: `collect active upgrade for ${state.activeUpgrade.entityId}`,
-      expectedProgress: 0.9,
-      tacticId: META.id,
-      goalId: goal.meta.id,
-    }];
+    return [singletonPlan(
+      { type: 'collect_upgrade' },
+      {
+        reasoning: `collect active upgrade for ${state.activeUpgrade.entityId}`,
+        expectedProgress: 0.9,
+        tacticId: META.id,
+        goalId: goal.meta.id,
+      },
+    )];
   }
 }
