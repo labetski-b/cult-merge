@@ -178,11 +178,25 @@ function renderTraceTab(idx) {
       html += `</tbody></table></details>`;
     }
     if (it.rejectedByGuards.length) {
-      html += `<details><summary style="color:#ff8a4d">Rejected (${it.rejectedByGuards.length})</summary><table class="cm-table"><thead><tr><th>tactic</th><th>action</th><th>guard</th><th>reason</th></tr></thead><tbody>`;
-      for (const r of it.rejectedByGuards) html += `<tr><td>${r.tacticId}</td><td>${r.actionType}</td><td>${r.guardId}</td><td>${r.reason}</td></tr>`;
+      html += `<details><summary style="color:#ff8a4d">Rejected (${it.rejectedByGuards.length})</summary><table class="cm-table"><thead><tr><th>tactic</th><th>action</th><th>step</th><th>guard</th><th>reason</th></tr></thead><tbody>`;
+      for (const r of it.rejectedByGuards) html += `<tr><td>${r.tacticId}</td><td>${r.actionType}</td><td>${r.stepIndex ?? 0}</td><td>${r.guardId}</td><td>${r.reason}</td></tr>`;
       html += `</tbody></table></details>`;
     }
-    if (it.selectedAction) html += `<div class="selected-action">SELECTED: ${JSON.stringify(it.selectedAction)}</div>`;
+    if (it.selectedPlan) {
+      const p = it.selectedPlan;
+      const steps = it.executedActions ?? [];
+      const stepsHtml = steps.map((a, i) =>
+        `<li>step ${i}: ${a.type}${a.entityId ? ' '+a.entityId : ''}${a.targetId ? ' → '+a.targetId : ''}${a.targetCellIndex !== undefined ? ' → cell '+a.targetCellIndex : ''}</li>`
+      ).join('');
+      html += `<div class="selected-action">
+        <b>SELECTED PLAN</b>: ${p.tacticId} (${p.stepCount} step${p.stepCount === 1 ? '' : 's'}, progress=${p.expectedProgress.toFixed(2)})
+        <br/><small>${p.reasoning}</small>
+        <ol style="margin: 4px 0;">${stepsHtml}</ol>
+      </div>`;
+    } else if (it.selectedAction) {
+      // Legacy fallback for older trace files.
+      html += `<div class="selected-action">SELECTED: ${JSON.stringify(it.selectedAction)}</div>`;
+    }
     if (it.stuckReason) html += `<div class="stuck-banner">STUCK: ${it.stuckReason}</div>`;
     html += `</div>`;
   }
