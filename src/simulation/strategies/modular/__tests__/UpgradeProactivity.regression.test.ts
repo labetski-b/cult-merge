@@ -248,11 +248,14 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
 
   // ─── Scenario 3 ──────────────────────────────────────────────────────────
   it('blocked-by-merges with rune budget but no existing pair: UpgradeMergeFarmTactic stalls (BASELINE — to be rewritten in T4)', () => {
-    // BASELINE: this test asserts the CURRENT stall behavior of
-    // UpgradeMergeFarmTactic. Per plan T4, the tactic will be expanded to a
-    // productive-path fallback (gather_meat / charge_generator /
-    // spawn_generator on the blocked line). At that point this test must be
-    // rewritten to assert the new productive plan instead of [].
+    // BASELINE — pins the current "no productive plan" stall.
+    // MUST FAIL after T4: at that point DELETE this `it(...)` block entirely
+    // and write the new productive-fallback assertion in
+    // `tactics/UpgradeMergeFarmTactic.test.ts` (the spawn-fallback path).
+    // Do NOT relax this assertion to keep it green (e.g. by switching to
+    // `.toBeGreaterThanOrEqual(0)` or wrapping in `.length >= 0`) — the
+    // failure here is the success signal that T4 has shipped, and softening
+    // it silently destroys the regression value of this whole suite.
     //
     // Setup: Gen1 L2 (so mergesRequired=2 for L2→L3). rune1 sufficient,
     // mergeCountByLine[Creature1]=0 → merges=0 < 2 → blocked by merges.
