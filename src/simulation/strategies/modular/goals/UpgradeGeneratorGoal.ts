@@ -10,7 +10,7 @@ export const META: GoalMeta = {
   basePriority: 30,
   category: 'background',
   activationCondition: 'есть руны (rune1+rune2 > 0) ИЛИ state.activeUpgrade !== null (нужно забрать)',
-  urgencyFormula: '0.5 базово; 1.0 при активном upgrade или квесте на high-level существо',
+  urgencyFormula: '3.0 при ready-collect / feasible candidate / surplus≥15; 1.0 если blocked-by-merges с affordable runes (T5); 0.1 при not-ready upgrade; 0.2 (with quest) / 0.5 (no quest) baseline',
 };
 
 export class UpgradeGeneratorGoal implements Goal {
@@ -59,6 +59,23 @@ export class UpgradeGeneratorGoal implements Goal {
     if (surplus >= 15) {
       return 3.0 + (surplus - 15) * 0.1;
     }
+
+    // T5 anti-hoarding lane: surplus ≥ 15 — слишком blunt как единственный
+    // anti-hoarding trigger. Когда есть generator blocked-by-merges с уже
+    // affordable runes (`pickUpgradeCandidate` возвращает blockedBy), дружим
+    // urgency до уровня "above background nothingness" — даёт
+    // UpgradeMergeFarmTactic intermittent turn'ы для накопления merges.
+    // pickUpgradeCandidate уже включает affordability check внутри, так что
+    // blockedBy.reason==='merges' гарантирует что руны хватает на cost upgrade
+    // → имеет смысл фармить merges. finalPri = 30 * 1.0 = 30:
+    //   - выше background no-quest 15 ⇒ tactic получает turn'ы;
+    //   - выше background with-quest 6 ⇒ когда quest stalled, fallback на
+    //     productive merge-farm вместо tick_idle;
+    //   - ниже CompleteActiveQuest 80 ⇒ feasible quest action всё ещё wins.
+    if (result.blockedBy?.reason === 'merges') {
+      return 1.0;
+    }
+
     if (hasActiveQuest) return 0.2;
     return 0.5;
   }
