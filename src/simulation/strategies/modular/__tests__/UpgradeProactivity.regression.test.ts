@@ -246,6 +246,8 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
     // 4. Expected toLevel = currentLevel + 1.
     expect(reason).toMatch(new RegExp(`\\b${currentLevel + 1}\\b`));
     expect(reason.toLowerCase()).toMatch(/upgrade/);
+    // T6: machine-readable tag prefix.
+    expect(reason).toMatch(/\bquest_requires_upgrade\b/);
 
     // Scheduler-level: trace must contain the prerequisiteChain link
     // CompleteActiveQuest → UpgradeGenerator on the chosen iteration.

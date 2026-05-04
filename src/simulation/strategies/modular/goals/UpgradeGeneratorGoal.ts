@@ -13,6 +13,34 @@ export const META: GoalMeta = {
   urgencyFormula: '3.0 при ready-collect / feasible candidate / surplus≥15; 1.0 если blocked-by-merges с affordable runes (T5); 0.1 при not-ready upgrade; 0.2 (with quest) / 0.5 (no quest) baseline',
 };
 
+/**
+ * T6: machine-readable describe() tags so Inspector / log analysis can
+ * group decisions by the urgency branch that fired.
+ *
+ * Format: leading lowercase snake_case token, optionally followed by ":"
+ * + free-form context (Gen id, levels, surplus value, have/need numbers).
+ *
+ * Tags are also surfaced via tactic.reasoning (UpgradeStartTactic emits
+ * `feasible_upgrade: ...`, UpgradeMergeFarmTactic emits `blocked_by_merges
+ * ...`) and via prereq.reason (CompleteActiveQuestGoal emits
+ * `quest_requires_upgrade: ...`). Goal.describe() is the single side-channel
+ * that captures the surplus_trigger branch which has no tactic of its own.
+ */
+type UrgencyTag =
+  | 'ready_collect'
+  | 'not_ready_dampener'
+  | 'feasible_upgrade'
+  | 'rune_surplus_trigger'
+  | 'blocked_by_merges'
+  | 'idle';
+
+interface Classification {
+  tag: UrgencyTag;
+  urgency: number;
+  /** Free-form text appended to `tag` in describe() / inspector. */
+  detail: string;
+}
+
 export class UpgradeGeneratorGoal implements Goal {
   meta: GoalMeta = META;
   isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
@@ -25,63 +53,87 @@ export class UpgradeGeneratorGoal implements Goal {
     // tactic решает feasibility.
     return state.resources.rune1 > 0 || state.resources.rune2 > 0;
   }
-  urgency(state: GameSnapshot, ctx: StrategyContext): number {
-    const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
-    // Active upgrade ready to collect — форсим над квестом. Иначе слот
-    // упгрейда занят и следующий start_upgrade невозможен.
-    if (state.activeUpgrade !== null && state.activeUpgrade.finishesAt <= ctx.env.nowMs) {
-      return 3.0; // finalPri=90 > quest 80
-    }
-    // Active upgrade ещё не готов (timer не истёк) — дампим urgency и в
-    // no-quest случае тоже (T2b): collect не сможет fire всё равно, а
-    // если оставить 1.0, scheduler выберет no-op collect_upgrade тик за
-    // тиком (engine продвигает nowMs даже на no-op).
-    if (state.activeUpgrade !== null) return 0.1;
 
-    // Pro-active upgrade: если pickUpgradeCandidate возвращает feasible
-    // candidate (есть gen с накопленными merges + рунами на upgrade), это
-    // означает все условия совпали ПРЯМО СЕЙЧАС — перебиваем quest, делаем
-    // upgrade. Иначе условия пропадут (руны потратятся на другое, грид
-    // забьётся). Mirrors RealisticStrategy: invest phase fires когда есть
-    // на что инвестировать, не ждёт rune-overflow.
+  /**
+   * Single source of truth for the urgency branch decision and the
+   * accompanying T6 reasoning tag. Both `urgency()` and `describe()` call
+   * this so the tag visible in trace.activeGoals[*].describe always matches
+   * the urgency that the scheduler used.
+   */
+  private classify(state: GameSnapshot, ctx: StrategyContext): Classification {
+    const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
+
+    // Active upgrade ready to collect — форсим над квестом.
+    if (state.activeUpgrade !== null && state.activeUpgrade.finishesAt <= ctx.env.nowMs) {
+      return {
+        tag: 'ready_collect',
+        urgency: 3.0,
+        detail: `entity=${state.activeUpgrade.entityId} (timer expired)`,
+      };
+    }
+    // Active upgrade ещё не готов (timer не истёк).
+    if (state.activeUpgrade !== null) {
+      return {
+        tag: 'not_ready_dampener',
+        urgency: 0.1,
+        detail: `entity=${state.activeUpgrade.entityId} finishesAt=${state.activeUpgrade.finishesAt} nowMs=${ctx.env.nowMs}`,
+      };
+    }
+
     const result = pickUpgradeCandidate(state, BALANCE);
     if (result.candidate !== null) {
-      // finalPriority = 30 * 3.0 = 90 > 80 (CompleteActiveQuest).
-      return 3.0;
+      return {
+        tag: 'feasible_upgrade',
+        urgency: 3.0,
+        detail: `Gen${result.candidate.generatorId} → L${result.candidate.toLevel}`,
+      };
     }
 
-    // Rune surplus override: если рун накопилось много но candidate нет
-    // (например, blocked by merges), всё равно поднимаем urgency — даст
-    // turn UpgradeMergeFarmTactic, которая фармит merges на нужной line.
     const r1 = state.resources.rune1;
     const r2 = state.resources.rune2;
     const surplus = Math.max(r1, r2);
     if (surplus >= 15) {
-      return 3.0 + (surplus - 15) * 0.1;
+      // Rune surplus override: рун накопилось много но candidate нет.
+      // Поднимаем urgency — даст turn UpgradeMergeFarmTactic.
+      return {
+        tag: 'rune_surplus_trigger',
+        urgency: 3.0 + (surplus - 15) * 0.1,
+        detail: `surplus=${surplus} (r1=${r1}, r2=${r2})`,
+      };
     }
 
-    // T5 anti-hoarding lane: surplus ≥ 15 — слишком blunt как единственный
-    // anti-hoarding trigger. Когда есть generator blocked-by-merges с уже
-    // affordable runes (`pickUpgradeCandidate` возвращает blockedBy), дружим
-    // urgency до уровня "above background nothingness" — даёт
-    // UpgradeMergeFarmTactic intermittent turn'ы для накопления merges.
-    // pickUpgradeCandidate уже включает affordability check внутри, так что
-    // blockedBy.reason==='merges' гарантирует что руны хватает на cost upgrade
-    // → имеет смысл фармить merges. finalPri = 30 * 1.0 = 30:
-    //   - выше background no-quest 15 ⇒ tactic получает turn'ы;
-    //   - выше background with-quest 6 ⇒ когда quest stalled, fallback на
-    //     productive merge-farm вместо tick_idle;
-    //   - ниже CompleteActiveQuest 80 ⇒ feasible quest action всё ещё wins.
+    // T5 anti-hoarding lane.
     if (result.blockedBy?.reason === 'merges') {
-      return 1.0;
+      const b = result.blockedBy;
+      return {
+        tag: 'blocked_by_merges',
+        urgency: 1.0,
+        detail: `Gen${b.generatorId}: have ${b.have}, need ${b.needed}`,
+      };
     }
 
-    if (hasActiveQuest) return 0.2;
-    return 0.5;
+    return {
+      tag: 'idle',
+      urgency: hasActiveQuest ? 0.2 : 0.5,
+      detail: `r1=${r1} r2=${r2} ${hasActiveQuest ? 'with-quest' : 'no-quest'}`,
+    };
   }
-  describe(state: GameSnapshot, _ctx: StrategyContext): string {
-    return `r1=${state.resources.rune1} r2=${state.resources.rune2} activeUpgrade=${state.activeUpgrade ? 'busy' : 'free'}`;
+
+  urgency(state: GameSnapshot, ctx: StrategyContext): number {
+    return this.classify(state, ctx).urgency;
   }
+
+  describe(state: GameSnapshot, ctx: StrategyContext): string {
+    // T6: leading machine-readable tag (lowercase snake_case) + free-form
+    // context. Captured into IterationDecision.activeGoals[*].describe by
+    // scheduler — Inspector / log analysis can group decisions by this tag.
+    const c = this.classify(state, ctx);
+    const r1 = state.resources.rune1;
+    const r2 = state.resources.rune2;
+    const slot = state.activeUpgrade ? 'busy' : 'free';
+    return `${c.tag}: ${c.detail} | r1=${r1} r2=${r2} activeUpgrade=${slot}`;
+  }
+
   getPrerequisites(_state: GameSnapshot, _ctx: StrategyContext): GoalPrerequisite[] {
     return [];
   }

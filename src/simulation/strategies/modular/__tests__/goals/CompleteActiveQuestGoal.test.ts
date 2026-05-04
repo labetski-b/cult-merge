@@ -168,6 +168,9 @@ describe('CompleteActiveQuestGoal', () => {
     expect(reason).toMatch(new RegExp(`\\b${currentLevel + 1}\\b`));
     // Sanity: reason mentions upgrade.
     expect(reason.toLowerCase()).toMatch(/upgrade/);
+    // T6: machine-readable tag prefix so Inspector / log analysis can group
+    // decisions by tag.
+    expect(reason).toMatch(/\bquest_requires_upgrade\b/);
   });
 
   it('urgency = 1.0 константа когда квест активен (после tuning pass 3)', () => {

@@ -95,10 +95,12 @@ export class CompleteActiveQuestGoal implements Goal {
         // Цепочка апгрейдов может потребовать несколько шагов до фактического
         // unlock'а нужного типа, поэтому фиксируем именно immediate next level
         // — это то, что промоутится через UpgradeGenerator на этом тике.
+        // T6: leading `quest_requires_upgrade` tag — Inspector / log analysis
+        // can group decisions by tag without parsing the rest of the string.
         const toLevel = g.level + 1;
         return [{
           goalId: 'UpgradeGenerator',
-          reason: `Gen${g.generatorId} (level ${g.level}) cannot produce ${need.creatureType}; upgrade to level ${toLevel} to unlock`,
+          reason: `quest_requires_upgrade: Gen${g.generatorId} (level ${g.level}) cannot produce ${need.creatureType}; upgrade to level ${toLevel} to unlock`,
         }];
       }
     }

@@ -149,4 +149,77 @@ describe('UpgradeGeneratorGoal', () => {
       expect(u).toBeGreaterThanOrEqual(3.0);
     });
   });
+
+  // ─── T6: explicit reasoning tags via Goal.describe() ─────────────────────
+  // Goal.describe(state, ctx) is recorded in IterationDecision.activeGoals[*].describe
+  // (see scheduler.ts goalSnapshot). T6 attaches a machine-readable tag prefix
+  // for each urgency branch so Inspector can group decisions by tag and humans
+  // can see WHY runes are piling up — intentionally waiting, blocked by merges,
+  // blocked by grid, surplus trigger, or never considering upgrade.
+  describe('T6 describe() reasoning tags', () => {
+    it('T6-A: feasible candidate branch → describe() includes tag "feasible_upgrade"', () => {
+      const goal = new UpgradeGeneratorGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.activeUpgrade = null;
+      // Same setup as Scenario 1 in regression suite — pickUpgradeCandidate
+      // returns a real candidate.
+      state.mergeCountByLine = { Creature1: 1 };
+      state.mergesSpentByGen = {};
+      state.resources.rune1 = 10;
+      state.resources.rune2 = 0;
+      state.currentAutoTask = null;
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      // Sanity: urgency must indeed fire feasible branch.
+      expect(goal.urgency(state, ctx)).toBe(3.0);
+      const desc = goal.describe(state, ctx);
+      expect(desc).toMatch(/\bfeasible_upgrade\b/);
+      // Must include generator id and toLevel for actionable diagnostics.
+      expect(desc).toMatch(/Gen\d+/);
+      expect(desc).toMatch(/L\d+/);
+    });
+
+    it('T6-B: T5 lane (blocked-by-merges + affordable) → describe() includes tag "blocked_by_merges" with have/need', () => {
+      const goal = new UpgradeGeneratorGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.activeUpgrade = null;
+      state.mergeCountByLine = {};
+      state.mergesSpentByGen = {};
+      state.resources.rune1 = 10;
+      state.resources.rune2 = 0;
+      state.currentAutoTask = null;
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      // Sanity: urgency must fire T5 lane (1.0).
+      expect(goal.urgency(state, ctx)).toBe(1.0);
+      const desc = goal.describe(state, ctx);
+      expect(desc).toMatch(/\bblocked_by_merges\b/);
+      // have/need numbers must be present.
+      expect(desc).toMatch(/have\s+\d+/);
+      expect(desc).toMatch(/need\s+\d+/);
+      expect(desc).toMatch(/Gen\d+/);
+    });
+
+    it('T6-C: surplus ≥ 15 branch → describe() includes tag "rune_surplus_trigger" with surplus value', () => {
+      const goal = new UpgradeGeneratorGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.activeUpgrade = null;
+      // Configure a state where pickUpgradeCandidate returns NEITHER candidate
+      // NOR blockedBy-merges, but surplus >= 15. We achieve this by clearing
+      // all generators (so withBudget=[], blockedByMerges=[]) and bumping
+      // rune1.
+      state.entities = {};
+      state.grid.cells.fill(null);
+      state.mergeCountByLine = {};
+      state.mergesSpentByGen = {};
+      state.resources.rune1 = 18; // surplus >= 15
+      state.resources.rune2 = 0;
+      state.currentAutoTask = null;
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      // Sanity: urgency must fire surplus branch (>= 3.0).
+      expect(goal.urgency(state, ctx)).toBeGreaterThanOrEqual(3.0);
+      const desc = goal.describe(state, ctx);
+      expect(desc).toMatch(/\brune_surplus_trigger\b/);
+      // surplus value present.
+      expect(desc).toMatch(/surplus\s*=\s*18/);
+    });
+  });
 });

@@ -70,7 +70,9 @@ export class UpgradeMergeFarmTactic implements Tactic {
         return [singletonPlan(
           { type: 'merge', sourceId: a!.id, targetId: b!.id },
           {
-            reasoning: `farm merges для unblock upgrade Gen${result.blockedBy.generatorId} (have ${result.blockedBy.have}/${result.blockedBy.needed})`,
+            // T6: leading `blocked_by_merges` tag with explicit have/need
+            // numbers so trace consumers can group and triage hoarding cases.
+            reasoning: `blocked_by_merges Gen${result.blockedBy.generatorId}: have ${result.blockedBy.have}, need ${result.blockedBy.needed} (Path A — merge existing pair)`,
             expectedProgress: 0.5,
             tacticId: META.id,
             goalId: goal.meta.id,
@@ -123,7 +125,7 @@ export class UpgradeMergeFarmTactic implements Tactic {
         return [singletonPlan(
           { type: 'spawn_generator', generatorId: gen.id },
           {
-            reasoning: `farm merges Gen${blockedRef.generatorId}: spawn from Gen${gen.generatorId} (have ${blockedRef.have}/${blockedRef.needed})`,
+            reasoning: `blocked_by_merges Gen${blockedRef.generatorId}: have ${blockedRef.have}, need ${blockedRef.needed} (Path B3 — spawn from Gen${gen.generatorId})`,
             expectedProgress: 0.4,
             tacticId: META.id,
             goalId: goal.meta.id,
@@ -139,7 +141,7 @@ export class UpgradeMergeFarmTactic implements Tactic {
       return [singletonPlan(
         { type: 'gather_meat', targetCost: chargeCost },
         {
-          reasoning: `farm merges Gen${blockedRef.generatorId}: gather_meat for Gen${gen.generatorId} charge (have ${blockedRef.have}/${blockedRef.needed})`,
+          reasoning: `blocked_by_merges Gen${blockedRef.generatorId}: have ${blockedRef.have}, need ${blockedRef.needed} (Path B1 — gather_meat for Gen${gen.generatorId} charge)`,
           expectedProgress: 0.3,
           tacticId: META.id,
           goalId: goal.meta.id,
@@ -149,7 +151,7 @@ export class UpgradeMergeFarmTactic implements Tactic {
     return [singletonPlan(
       { type: 'charge_generator', generatorId: gen.id },
       {
-        reasoning: `farm merges Gen${blockedRef.generatorId}: charge Gen${gen.generatorId} (have ${blockedRef.have}/${blockedRef.needed})`,
+        reasoning: `blocked_by_merges Gen${blockedRef.generatorId}: have ${blockedRef.have}, need ${blockedRef.needed} (Path B2 — charge Gen${gen.generatorId})`,
         expectedProgress: 0.35,
         tacticId: META.id,
         goalId: goal.meta.id,

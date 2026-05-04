@@ -125,6 +125,28 @@ describe('UpgradeMergeFarmTactic', () => {
       expect(ids.has(a)).toBe(true);
       expect(ids.has(b)).toBe(true);
     }
+    // T6: reasoning carries machine-readable tag with have/need numbers.
+    expect(proposals[0]!.reasoning).toMatch(/\bblocked_by_merges\b/);
+    expect(proposals[0]!.reasoning).toMatch(/have\s+\d+/);
+    expect(proposals[0]!.reasoning).toMatch(/need\s+\d+/);
+    expect(proposals[0]!.reasoning.startsWith('blocked_by_merges')).toBe(true);
+  });
+
+  // T6: tag check on Path B variants too (gather_meat, charge, spawn).
+  it('T6: Path B gather_meat reasoning has tag "blocked_by_merges"', () => {
+    const tactic = new UpgradeMergeFarmTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const { state, gen1 } = makeBlockedByMergesSnapshot();
+    gen1.charges = [];
+    state.resources.meat = 0;
+    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const ctx = buildContext(state, env, 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    expect(proposals.length).toBeGreaterThan(0);
+    expect(proposals[0]!.actions[0]!.type).toBe('gather_meat');
+    expect(proposals[0]!.reasoning.startsWith('blocked_by_merges')).toBe(true);
+    expect(proposals[0]!.reasoning).toMatch(/have\s+\d+/);
+    expect(proposals[0]!.reasoning).toMatch(/need\s+\d+/);
   });
 
   // ─── Path B — productive fallback when no pair exists ──────────────────

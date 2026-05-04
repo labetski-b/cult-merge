@@ -22,7 +22,9 @@ export class UpgradeStartTactic implements Tactic {
     plans.push(singletonPlan(
       { type: 'start_upgrade', entityId: candidate.entityId },
       {
-        reasoning: `upgrade Gen${candidate.generatorId} → L${candidate.toLevel}`,
+        // T6: leading tag prefix `feasible_upgrade` so trace consumers can
+        // group decisions by branch. Detail keeps the original Gen/L info.
+        reasoning: `feasible_upgrade: Gen${candidate.generatorId} → L${candidate.toLevel}`,
         expectedProgress: 0.7,
         tacticId: META.id,
         goalId: goal.meta.id,
