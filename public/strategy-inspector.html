@@ -120,8 +120,14 @@ function renderStructure() {
     }
   }
   // Possible prereq edges (статически — только наблюдаемые)
-  mmd += `  G_CompleteActiveQuest -.->|"possible prereq<br/>(dynamic, see runtime)"| G_BoardLayout\n`;
-  mmd += `  G_OpenBoxes -.->|"possible prereq"| G_MaintainFreeGrid\n`;
+  // Dynamic prereqs (CompleteActiveQuestGoal.getPrerequisites). Pass 0:
+  // reward cycle (boxes → ManageRunes); Pass 1: UpgradeGenerator если gen
+  // не выдаёт нужный тип; Pass 2: BoardLayout для FP.
+  mmd += `  G_CompleteActiveQuest -.->|"prereq: box on grid"| G_OpenBoxes\n`;
+  mmd += `  G_CompleteActiveQuest -.->|"prereq: rune on grid"| G_ManageRunes\n`;
+  mmd += `  G_CompleteActiveQuest -.->|"prereq: gen wrong-type"| G_UpgradeGenerator\n`;
+  mmd += `  G_CompleteActiveQuest -.->|"prereq: FP at edge"| G_BoardLayout\n`;
+  mmd += `  G_OpenBoxes -.->|"prereq: grid full"| G_MaintainFreeGrid\n`;
   const elem = document.getElementById('structure-mermaid');
   elem.removeAttribute('data-processed');
   elem.textContent = mmd;
