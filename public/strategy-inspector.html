@@ -69,13 +69,13 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 let inspectorData = null;
 let trace = null;
 
-// Load latest run
+// Load latest run — use relative paths so Vite base URL prefix (/cult-merge/) works automatically
 async function loadData() {
   try {
-    const manifestResp = await fetch('/sim-runs/latest.json');
+    const manifestResp = await fetch('sim-runs/latest.json');
     if (!manifestResp.ok) throw new Error('no latest.json');
     const manifest = await manifestResp.json();
-    const base = `/sim-runs/${manifest.latestRunPath}`;
+    const base = `sim-runs/${manifest.latestRunPath}`;
     const [d, t] = await Promise.all([
       fetch(`${base}/inspector-data.json`).then(r => r.json()),
       fetch(`${base}/decision-trace.json`).then(r => r.json()),

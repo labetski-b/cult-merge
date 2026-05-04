@@ -44,12 +44,36 @@ const progressText = document.getElementById('progress-text') as HTMLSpanElement
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
 
 // Action Log UI Elements
-const logTickInput = document.getElementById('log-tick') as HTMLInputElement;
-const logPrevBtn = document.getElementById('log-prev-tick') as HTMLButtonElement;
-const logNextBtn = document.getElementById('log-next-tick') as HTMLButtonElement;
-const logFilterType = document.getElementById('log-filter-type') as HTMLSelectElement;
-const logTickInfo = document.getElementById('log-tick-info') as HTMLSpanElement;
-const logBody = document.getElementById('action-log-body') as HTMLTableSectionElement;
+type ActionLogRefs = {
+  tickInput: HTMLInputElement;
+  prevBtn: HTMLButtonElement;
+  nextBtn: HTMLButtonElement;
+  filterType: HTMLSelectElement;
+  tickInfo: HTMLSpanElement;
+  body: HTMLTableSectionElement;
+  /** Index in `currentResults` to render. */
+  resultIndex: number;
+};
+
+const LOG_REFS_1: ActionLogRefs = {
+  tickInput: document.getElementById('log-tick') as HTMLInputElement,
+  prevBtn: document.getElementById('log-prev-tick') as HTMLButtonElement,
+  nextBtn: document.getElementById('log-next-tick') as HTMLButtonElement,
+  filterType: document.getElementById('log-filter-type') as HTMLSelectElement,
+  tickInfo: document.getElementById('log-tick-info') as HTMLSpanElement,
+  body: document.getElementById('action-log-body') as HTMLTableSectionElement,
+  resultIndex: 0,
+};
+
+const LOG_REFS_2: ActionLogRefs = {
+  tickInput: document.getElementById('log-tick-2') as HTMLInputElement,
+  prevBtn: document.getElementById('log-prev-tick-2') as HTMLButtonElement,
+  nextBtn: document.getElementById('log-next-tick-2') as HTMLButtonElement,
+  filterType: document.getElementById('log-filter-type-2') as HTMLSelectElement,
+  tickInfo: document.getElementById('log-tick-info-2') as HTMLSpanElement,
+  body: document.getElementById('action-log-body-2') as HTMLTableSectionElement,
+  resultIndex: 1,
+};
 
 // Field Popup Elements
 const fieldPopupOverlay = document.getElementById('field-popup-overlay')!;
@@ -109,17 +133,21 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') fieldPopupOverlay.classList.remove('open');
 });
 
-// Action Log navigation
-logTickInput.addEventListener('change', () => renderActionLog(currentResults));
-logFilterType.addEventListener('change', () => renderActionLog(currentResults));
-logPrevBtn.addEventListener('click', () => {
-  logTickInput.value = String(Math.max(0, parseInt(logTickInput.value) - 1));
-  renderActionLog(currentResults);
-});
-logNextBtn.addEventListener('click', () => {
-  logTickInput.value = String(parseInt(logTickInput.value) + 1);
-  renderActionLog(currentResults);
-});
+// Action Log navigation — wire both tabs (refs1 = first strategy, refs2 = second)
+function wireActionLogControls(refs: ActionLogRefs) {
+  refs.tickInput.addEventListener('change', () => renderActionLog(currentResults, refs));
+  refs.filterType.addEventListener('change', () => renderActionLog(currentResults, refs));
+  refs.prevBtn.addEventListener('click', () => {
+    refs.tickInput.value = String(Math.max(0, parseInt(refs.tickInput.value) - 1));
+    renderActionLog(currentResults, refs);
+  });
+  refs.nextBtn.addEventListener('click', () => {
+    refs.tickInput.value = String(parseInt(refs.tickInput.value) + 1);
+    renderActionLog(currentResults, refs);
+  });
+}
+wireActionLogControls(LOG_REFS_1);
+wireActionLogControls(LOG_REFS_2);
 
 async function handleRunSimulation(e: Event) {
   e.preventDefault();
@@ -204,7 +232,8 @@ async function handleRunSimulation(e: Event) {
   if (currentResults.length > 0) {
     renderSummaryTable(currentResults);
     renderCharts(currentResults);
-    renderActionLog(currentResults);
+    renderActionLog(currentResults, LOG_REFS_1);
+    renderActionLog(currentResults, LOG_REFS_2);
   }
 
   // Re-enable controls
@@ -280,17 +309,26 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function renderActionLog(results: SimulationResult[]) {
-  logBody.innerHTML = '';
-  if (results.length === 0) return;
+function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
+  refs.body.innerHTML = '';
 
-  const log = results[0]!.actionLog;
-  const tick = parseInt(logTickInput.value) || 0;
-  const filterType = logFilterType.value;
+  // No results, or this slot doesn't have a strategy run
+  if (results.length === 0 || results.length <= refs.resultIndex) {
+    const placeholder = refs.resultIndex === 0
+      ? 'Run simulation first'
+      : 'Run two strategies to see comparison';
+    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">${placeholder}</td></tr>`;
+    refs.tickInfo.textContent = 'Tick 0/0 — 0 actions';
+    return;
+  }
+
+  const log = results[refs.resultIndex]!.actionLog;
+  const tick = parseInt(refs.tickInput.value) || 0;
+  const filterType = refs.filterType.value;
 
   // Find max tick for info display
   const maxTick = log.length > 0 ? log[log.length - 1]!.tick : 0;
-  logTickInput.max = String(maxTick);
+  refs.tickInput.max = String(maxTick);
 
   // Filter entries for this tick
   let entries = log.filter(e => e.tick === tick);
@@ -300,10 +338,10 @@ function renderActionLog(results: SimulationResult[]) {
 
   // Show tick info
   const totalActionsThisTick = log.filter(e => e.tick === tick).length;
-  logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
+  refs.tickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
 
   if (entries.length === 0) {
-    logBody.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">No actions for tick ${tick}</td></tr>`;
+    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">No actions for tick ${tick}</td></tr>`;
     return;
   }
 
@@ -345,7 +383,7 @@ function renderActionLog(results: SimulationResult[]) {
       <td class="left gsep cm-logtable__detail note-cell">${escapeHtml(s.currentTask)}</td>
     `;
     row.addEventListener('click', () => showFieldPopup(entry));
-    logBody.appendChild(row);
+    refs.body.appendChild(row);
   }
 }
 

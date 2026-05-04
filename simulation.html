@@ -517,6 +517,7 @@
       <button class="cm-tab" role="tab" aria-selected="true" data-tab="tab-summary">Summary</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-charts">Charts</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-action-log">Action Log</button>
+      <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-action-log-2">Action Log 2</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-quest-rewards" style="display:none">Quest Rewards</button>
     </div>
 
@@ -952,6 +953,100 @@
         </div>
         <footer class="cm-logtable__foot">
           <span id="log-tick-info" class="sim-log-tickinfo">Tick 0/0 — 0 actions</span>
+          <span class="spacer"></span>
+          <span>Click row for field snapshot</span>
+        </footer>
+      </section>
+    </div>
+
+    <div class="sim-tab-panel hidden" id="tab-action-log-2">
+      <section class="cm-logtable">
+        <header class="cm-logtable__head">
+          <h3>Action Log 2</h3>
+          <span></span>
+          <div class="cm-logtable__controls">
+            <div class="cm-logtable__tick">
+              <label for="log-tick-2">Tick</label>
+              <input id="log-tick-2" type="number" value="0" min="0">
+              <span class="cm-logtable__navbtns">
+                <button class="cm-btn cm-btn--ghost cm-btn--icon cm-btn--sm" id="log-prev-tick-2" type="button" aria-label="Previous tick">←</button>
+                <button class="cm-btn cm-btn--ghost cm-btn--icon cm-btn--sm" id="log-next-tick-2" type="button" aria-label="Next tick">→</button>
+              </span>
+            </div>
+          </div>
+          <div class="cm-logtable__filter">
+            <span>Filter</span>
+            <select id="log-filter-type-2">
+              <option value="">All actions</option>
+              <option value="gather_meat">gather_meat</option>
+              <option value="claim_reward">claim_reward</option>
+              <option value="open_box">open_box</option>
+              <option value="feed">feed</option>
+              <option value="merge">merge</option>
+              <option value="charge_generator">charge_generator</option>
+              <option value="spawn_generator">spawn_generator</option>
+              <option value="buy_generator">buy_generator</option>
+              <option value="new_quest">new_quest</option>
+            </select>
+          </div>
+        </header>
+        <div class="cm-logtable__scroll">
+          <table class="cm-logtable__t" id="action-log-table-2">
+            <colgroup>
+              <col style="width: 44px">   <!-- # -->
+              <col style="width: 40px">   <!-- Q# -->
+              <col style="width: 130px">  <!-- Action -->
+              <col style="width: 200px">  <!-- Detail -->
+              <col style="width: 44px">   <!-- Lvl -->
+              <col style="width: 44px">   <!-- Step -->
+              <col style="width: 56px">   <!-- EXP -->
+              <col style="width: 56px">   <!-- Meat -->
+              <col style="width: 64px">   <!-- Eyes -->
+              <col style="width: 44px">   <!-- R1 -->
+              <col style="width: 44px">   <!-- R2 -->
+              <col style="width: 44px">   <!-- Cr -->
+              <col style="width: 44px">   <!-- Gen -->
+              <col style="width: 56px">   <!-- Field -->
+              <col style="width: 52px">   <!-- Free -->
+              <col style="width: 48px">   <!-- Rew -->
+              <col style="width: 44px">   <!-- Fed -->
+              <col style="width: 44px">   <!-- Ses -->
+              <col style="width: 56px">   <!-- Press -->
+              <col style="width: 56px">   <!-- Time -->
+              <col style="width: 140px">  <!-- Task -->
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="left">#</th>
+                <th>Q#</th>
+                <th class="left gsep">Action</th>
+                <th class="left">Detail</th>
+                <th class="num-group gsep">Lvl</th>
+                <th>Step</th>
+                <th>EXP</th>
+                <th class="num-group gsep">Meat</th>
+                <th>Eyes</th>
+                <th class="num-group gsep">R1</th>
+                <th>R2</th>
+                <th>Cr</th>
+                <th class="num-group gsep">Gen</th>
+                <th>Field</th>
+                <th>Free</th>
+                <th class="num-group gsep">Rew</th>
+                <th>Fed</th>
+                <th>Ses</th>
+                <th>Press</th>
+                <th class="gsep">Time</th>
+                <th class="left gsep">Task</th>
+              </tr>
+            </thead>
+            <tbody id="action-log-body-2">
+              <tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">Run two strategies to see comparison</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <footer class="cm-logtable__foot">
+          <span id="log-tick-info-2" class="sim-log-tickinfo">Tick 0/0 — 0 actions</span>
           <span class="spacer"></span>
           <span>Click row for field snapshot</span>
         </footer>
