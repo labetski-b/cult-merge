@@ -115,6 +115,28 @@ Changes:
 Acceptance:
 - trace на synthetic scenario показывает `goal=UpgradeGenerator` до `CompleteActiveQuest`.
 
+### T2b — Fix Not-Ready Collect Spam (No-Quest Case)
+
+**Discovered while writing T1 regression scenario 5b.** Real production bug — observable through scheduler API.
+
+When `state.activeUpgrade !== null && finishesAt > nowMs && !hasActiveQuest`:
+1. `UpgradeGeneratorGoal.urgency()` returns `1.0` (the dampener at line ~37 only fires when `hasActiveQuest`).
+2. `UpgradeCollectTactic.propose()` does NOT check `finishesAt` — always emits `singletonPlan({ type: 'collect_upgrade' })` whenever `activeUpgrade !== null`.
+3. Scheduler explicitly permits singleton no-op plans (structural-no-op rejection applies only to multi-step plans).
+4. `applyActionCore` advances `nowMs` for `collect_upgrade` even on no-op (legacy contract — needed so the upgrade timer eventually crosses `finishesAt`).
+
+Net effect: every tick selects no-op `collect_upgrade`, time creeps forward, zero productive work until `finishesAt` is crossed. This is the exact Rule 4 footgun.
+
+Files:
+- `src/simulation/strategies/modular/tactics/UpgradeCollectTactic.ts` — gate emission on `state.activeUpgrade.finishesAt <= env.nowMs`; return `[]` when not ready.
+- `src/simulation/strategies/modular/goals/UpgradeGeneratorGoal.ts` — extend the not-ready dampener to also fire in the no-quest case (urgency `0.1` when `activeUpgrade && !ready`, regardless of quest).
+- `src/simulation/strategies/modular/__tests__/UpgradeProactivity.regression.test.ts` — add Scenario 5b: no-quest, not-ready ⇒ NO `collect_upgrade` in `decision.actions` and NO `collect_upgrade` in `selectedPlan?.actionTypes`.
+
+Acceptance:
+- Scenario 5b passes.
+- Existing scenarios 1, 4, 5 stay green.
+- No engine / domain / `applyActionCore` / RealisticStrategy changes.
+
 ### T3 — Harden Quest -> Upgrade Prerequisite Path
 
 Файлы:
@@ -216,10 +238,11 @@ Target checks:
 ## Suggested Commit Split
 
 1. `test(modular): lock upgrade priority and blocked-by-merges regressions`
-2. `feat(modular): strengthen quest-to-upgrade prerequisite reasoning`
-3. `feat(modular): add productive fallback to UpgradeMergeFarmTactic`
-4. `feat(modular): reduce rune hoarding via upgrade urgency policy`
-5. `feat(modular): improve upgrade trace reasoning`
+2. `fix(modular): not-ready collect_upgrade no longer spams in no-quest case` (T2b)
+3. `feat(modular): strengthen quest-to-upgrade prerequisite reasoning`
+4. `feat(modular): add productive fallback to UpgradeMergeFarmTactic`
+5. `feat(modular): reduce rune hoarding via upgrade urgency policy`
+6. `feat(modular): improve upgrade trace reasoning`
 
 ## Open Questions
 
