@@ -259,43 +259,9 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
   });
 
   // ─── Scenario 3 ──────────────────────────────────────────────────────────
-  it('blocked-by-merges with rune budget but no existing pair: UpgradeMergeFarmTactic stalls (BASELINE — to be rewritten in T4)', () => {
-    // BASELINE — pins the current "no productive plan" stall.
-    // MUST FAIL after T4: at that point DELETE this `it(...)` block entirely
-    // and write the new productive-fallback assertion in
-    // `tactics/UpgradeMergeFarmTactic.test.ts` (the spawn-fallback path).
-    // Do NOT relax this assertion to keep it green (e.g. by switching to
-    // `.toBeGreaterThanOrEqual(0)` or wrapping in `.length >= 0`) — the
-    // failure here is the success signal that T4 has shipped, and softening
-    // it silently destroys the regression value of this whole suite.
-    //
-    // Setup: Gen1 L2 (so mergesRequired=2 for L2→L3). rune1 sufficient,
-    // mergeCountByLine[Creature1]=0 → merges=0 < 2 → blocked by merges.
-    // No creatures on grid → UpgradeMergeFarmTactic has nothing to merge.
-    const state = makeMidGameSnapshot();
-    const gen1 = findGen1(state);
-    gen1.level = 2;                     // L2 → L3 needs mergesRequired=2
-    gen1.charges = [];
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
-    state.resources.rune1 = 10;         // far above runeCost=4 for L2→L3
-    state.resources.rune2 = 0;
-
-    // Sanity: picker reports merges-blocked, not feasible.
-    const pick = pickUpgradeCandidate(state, BALANCE);
-    expect(pick.candidate).toBeNull();
-    expect(pick.blockedBy).toBeDefined();
-    expect(pick.blockedBy!.reason).toBe('merges');
-    expect(pick.blockedBy!.generatorId).toBe(1);
-
-    // Tactic-level assertion: with no creatures on the line, propose() === [].
-    // This is the PRECISE "stall" the plan calls out.
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
-    const ctx = buildContext(state, env, 50);
-    const tactic = new UpgradeMergeFarmTactic();
-    const proposals = tactic.propose(state, new UpgradeGeneratorGoal(), ctx);
-    expect(proposals).toEqual([]);
-  });
+  // Removed by T4: the "blocked-by-merges + no existing pair" baseline that
+  // pinned the stall. The productive-fallback assertion lives in
+  // `tactics/UpgradeMergeFarmTactic.test.ts` (Path B, branches B1..B4).
 
   // ─── Scenario 4 ──────────────────────────────────────────────────────────
   it('ready-to-collect upgrade preempts an active quest (collect_upgrade selected)', () => {
