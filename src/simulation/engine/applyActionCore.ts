@@ -182,7 +182,25 @@ export function applyActionCore(
   }
 
   const stateChanged = JSON.stringify(workingState) !== before;
-  const nextNowMs = env.nowMs + getActionTimeSec(action) * 1000;
+
+  // Legacy timing semantics (mirrored from SimulationEngine.executeTick prior to
+  // the EngineEnv refactor): `currentGameTimeMs` advanced ONLY when the action
+  // actually changed state, OR was a `free_cells`/`collect_upgrade` synthetic.
+  // collect_upgrade must advance even on no-op so the upgrade timer eventually
+  // crosses `finishesAt`. All other no-op actions leave nowMs untouched —
+  // otherwise downstream timer-mode generators (Gen3) and upgrade timers would
+  // see a fast-forwarded clock relative to legacy behaviour.
+  //
+  // Synthetic log-only actions (tick_idle, new_quest, quest_completed,
+  // expand_board, free_cells, buy_runes, gather_meat with count=0) all have
+  // ACTION_TIME_SECONDS=0, so this guard collapses to a no-op for them too —
+  // we keep the explicit guard so the rule is obvious and survives future
+  // additions to ACTION_TIME_SECONDS.
+  const shouldAdvanceTime =
+    stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
+  const nextNowMs = shouldAdvanceTime
+    ? env.nowMs + getActionTimeSec(action) * 1000
+    : env.nowMs;
 
   return {
     nextState: workingState,
@@ -383,8 +401,13 @@ function applyMerge(
     events.push({ type: 'merge_completed', mergedKind: 'rune' });
   }
 
-  // Persist updated rngState so subsequent reads of state.rngState see what RNG advanced.
-  state.rngState = rng.getState();
+  // NOTE: legacy `SimulationEngine.mergeEntities` never wrote `state.rngState`
+  // — it advanced the engine's `this.rng` instance and left snapshot.rngState
+  // alone. `state.rngState` is the channel read by `tickTimerGenerators` for
+  // its own private RNG (see applyPassiveTickCore). Writing it here would
+  // diverge the timer-generator channel from the legacy run. Preserve legacy
+  // semantics: env.rng (returned via nextEnv) reflects the RNG advance,
+  // snapshot.rngState stays untouched by merge.
 }
 
 function applyFeed(

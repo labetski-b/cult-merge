@@ -201,8 +201,6 @@ export class SimulationEngine {
         }
 
         let result;
-        const envBeforeNowMs = this.env.nowMs;
-        const stateRngBefore = this.state.rngState;
         try {
           result = applyActionCore(this.state, action, this.env, this.config.balance);
         } catch (error) {
@@ -216,19 +214,6 @@ export class SimulationEngine {
         this.applyEvents(action, result.events);
         const stateChanged = result.stateChanged;
 
-        // Legacy parity: merge in the legacy engine did NOT persist
-        // state.rngState (only feed/charge/spawn did, via their domain helpers).
-        // applyActionCore's applyMerge unconditionally writes
-        // state.rngState = rng.getState() — fixes a hidden inconsistency but
-        // diverges from the legacy passive-tick RNG channel because
-        // tickTimerGenerators reads state.rngState to seed its own RNG. To
-        // preserve baseline behavior, restore state.rngState after a merge
-        // so passive ticks stay seed-aligned with the legacy run. This is
-        // engine-level scaffolding; pure-core remains untouched.
-        if (action.type === 'merge' && this.state.rngState !== stateRngBefore) {
-          this.state.rngState = stateRngBefore;
-        }
-
         // Sync env.totalEyesGained with cumulative.totalEyesGained: the
         // pure-core reads env.totalEyesGained for meat-drop calculations, but
         // the legacy engine reads cumulative.totalEyesGained for the same.
@@ -240,23 +225,12 @@ export class SimulationEngine {
         }
 
         // Mirror legacy timing semantics: legacy SimulationEngine advanced
-        // currentGameTimeMs only when an action actually changed state (or was
-        // a synthetic free_cells, or was collect_upgrade — even on no-op for
-        // the timer to cross finishesAt). applyActionCore unconditionally
-        // advances env.nowMs by getActionTimeSec(action) * 1000, so we
-        // selectively roll back env.nowMs when neither condition applies, to
-        // preserve legacy game-time progression and downstream behaviour
-        // (timer-mode generators, upgrade timers, etc.).
+        // game time only when stateChanged (or for free_cells/collect_upgrade
+        // synthetics). That logic now lives inside applyActionCore — the
+        // engine just reads result.stateChanged here to drive iterAdvanced
+        // and logging.
         const shouldAdvanceTime =
           stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
-        if (!shouldAdvanceTime && this.env.nowMs !== envBeforeNowMs) {
-          // Roll back nowMs while keeping the rng/totalEyesGained that
-          // applyActionCore returned (rng might have advanced even on no-op
-          // for some actions, e.g. feed of an absent entity short-circuits
-          // before consuming RNG; re-using nextEnv.rng/totalEyesGained
-          // captures whatever state pure-core finalised).
-          this.env = makeEngineEnv(this.env.rng, envBeforeNowMs, this.env.totalEyesGained);
-        }
         if (shouldAdvanceTime) {
           iterAdvanced = true;
           const dt = this.addActionTime(action);

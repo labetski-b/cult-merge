@@ -242,8 +242,13 @@ describe('applyActionCore — start_upgrade / collect_upgrade (env-sensitive)', 
     const env = makeEnv(42, NOW, 0);
     const result = applyActionCore(state, { type: 'start_upgrade', entityId: gen.id }, env, BALANCE);
 
-    // env.nowMs always advances regardless of success
-    expect(result.nextEnv.nowMs).toBe(NOW + getActionTimeSec({ type: 'start_upgrade', entityId: gen.id }) * 1000);
+    // Legacy timing semantics: nowMs advances iff stateChanged (start_upgrade
+    // is not in the always-advance list). On a successful start, finishesAt
+    // must be derived from env.nowMs; on a no-op rejection, nowMs stays put.
+    const expectedAdvance = result.stateChanged
+      ? getActionTimeSec({ type: 'start_upgrade', entityId: gen.id }) * 1000
+      : 0;
+    expect(result.nextEnv.nowMs).toBe(NOW + expectedAdvance);
 
     // If activeUpgrade was set, finishesAt must be derived from env.nowMs (not Date.now).
     if (result.nextState.activeUpgrade !== null) {
