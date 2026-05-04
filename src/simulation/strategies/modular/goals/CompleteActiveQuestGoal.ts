@@ -4,6 +4,7 @@ import { BALANCE } from '@data/loadBalance';
 import { findEntityCell, getNeighborCellIndexes } from '@domain/grid';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { FP_RELAYOUT_THRESHOLD } from '../scheduler/constants';
+import { genCurrentOutputTypes } from '../context';
 
 export const META: GoalMeta = {
   id: 'CompleteActiveQuest',
@@ -37,16 +38,34 @@ export class CompleteActiveQuestGoal implements Goal {
   }
 
   getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[] {
-    // FP-кейс: если квест требует существо, генерируемое timer-gen, и у этого
-    // gen свободных соседей < FP_RELAYOUT_THRESHOLD — запросить BoardLayout.
+    // Pass 1: UpgradeGenerator prereq — если для какой-то нужды
+    // ассоциированный gen НЕ выдаёт нужный тип на текущем уровне (только
+    // через cfg.lines после upgrade) → upgrade gen первым делом.
     for (const need of ctx.activeQuestNeeds) {
+      if (need.fed >= need.count) continue;
       const assignment = ctx.creatureGenMap.get(need.creatureType);
       if (!assignment) continue;
       const gen = state.entities[assignment.entityId];
       if (!gen || gen.kind !== 'generator') continue;
-      const cfg = BALANCE.generators.generators.find(
-        g => g.id === (gen as GeneratorEntity).generatorId,
-      );
+      const g = gen as GeneratorEntity;
+      if (!genCurrentOutputTypes(g).has(need.creatureType)) {
+        return [{
+          goalId: 'UpgradeGenerator',
+          reason: `Gen${g.generatorId} L${g.level} не выдаёт ${need.creatureType}; нужен upgrade`,
+        }];
+      }
+    }
+
+    // Pass 2: FP-кейс (BoardLayout prereq) — timer-gen у края с
+    // freeNeighbors < FP_RELAYOUT_THRESHOLD.
+    for (const need of ctx.activeQuestNeeds) {
+      if (need.fed >= need.count) continue;
+      const assignment = ctx.creatureGenMap.get(need.creatureType);
+      if (!assignment) continue;
+      const gen = state.entities[assignment.entityId];
+      if (!gen || gen.kind !== 'generator') continue;
+      const g = gen as GeneratorEntity;
+      const cfg = BALANCE.generators.generators.find(c => c.id === g.generatorId);
       if (!cfg || cfg.spawnMode !== 'timer') continue;
       const cellIdx = findEntityCell(state.grid, gen.id);
       if (cellIdx < 0) continue;
@@ -55,7 +74,7 @@ export class CompleteActiveQuestGoal implements Goal {
       if (freeNeighbors < FP_RELAYOUT_THRESHOLD) {
         return [{
           goalId: 'BoardLayout',
-          reason: `Gen${(gen as GeneratorEntity).generatorId} has ${freeNeighbors} free neighbor(s); threshold is ${FP_RELAYOUT_THRESHOLD}`,
+          reason: `Gen${g.generatorId} has ${freeNeighbors} free neighbor(s); threshold is ${FP_RELAYOUT_THRESHOLD}`,
         }];
       }
     }

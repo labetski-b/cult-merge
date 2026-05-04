@@ -11,6 +11,13 @@ import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 function makeStateWithTimerGenAtCorner(): GameSnapshot {
   const state = createInitialSnapshot(BALANCE, { seed: 1 });
   state.kraken.level = 5;
+  // Mark all mandatory tasks for current+lower kraken levels as completed
+  // (taskProgress[level] = total count → no current task), so getActiveTask
+  // returns currentAutoTask (Creature5 quest set below).
+  for (let lvl = 1; lvl <= 5; lvl++) {
+    const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
+    state.taskProgress[String(lvl)] = tasksAtLvl.length;
+  }
   // Установим timer-генератор Gen3 в углу (cell 0).
   // Найдём в balance конфиг с spawnMode='timer' и используем его id.
   const timerCfg = BALANCE.generators.generators.find(g => g.spawnMode === 'timer');
