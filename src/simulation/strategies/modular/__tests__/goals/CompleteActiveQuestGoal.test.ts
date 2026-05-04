@@ -116,6 +116,60 @@ describe('CompleteActiveQuestGoal', () => {
     expect(goal.getPrerequisites(state, ctx)).toEqual([]);
   });
 
+  it('Pass 1 prereq reason содержит generator id, current level, missing creature type, expected toLevel (T3)', () => {
+    // T3: Inspector trace должен видеть «UpgradeGenerator as prerequisite»
+    // с конкретными данными — не просто упоминание Gen/Creature/upgrade.
+    // Reason формат должен включать ВСЕ четыре поля, чтобы Inspector мог
+    // отрисовать осмысленную причину без обращения к state.
+    const goal = new CompleteActiveQuestGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
+      state.taskProgress[String(lvl)] = tasksAtLvl.length;
+    }
+    state.pendingRewards = [];
+    state.activeUpgrade = null;
+    state.currentTaskFed = [];
+    // Active quest на Creature2 — Gen1 L1 выдаёт только Creature1.
+    // creatureGenMap (через cfg.lines) свяжет Creature2 → Gen1, но
+    // genCurrentOutputTypes(Gen1@L1) = {Creature1} — нужен upgrade.
+    state.currentAutoTask = {
+      id: 'q-prereq',
+      creatures: [{ type: 'Creature2', level: 1, count: 3 }],
+      expMultiplier: 1,
+      resMultiplier: 1,
+    };
+
+    // Найдём существующий Gen1 в snapshot (createInitialSnapshot ставит его).
+    let gen1: GeneratorEntity | null = null;
+    for (const e of Object.values(state.entities)) {
+      if (e.kind === 'generator' && e.generatorId === 1) {
+        gen1 = e;
+        break;
+      }
+    }
+    expect(gen1).not.toBeNull();
+    const currentLevel = gen1!.level;
+
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const prereqs = goal.getPrerequisites(state, ctx);
+    expect(prereqs.length).toBe(1);
+    expect(prereqs[0]!.goalId).toBe('UpgradeGenerator');
+
+    const reason = prereqs[0]!.reason;
+    // 1. Generator id (Gen1).
+    expect(reason).toMatch(/Gen1\b/);
+    // 2. Current level — должен включать конкретное значение.
+    expect(reason).toMatch(new RegExp(`level\\s*${currentLevel}\\b`, 'i'));
+    // 3. Missing creature type.
+    expect(reason).toMatch(/Creature2\b/);
+    // 4. Expected toLevel — currentLevel + 1.
+    expect(reason).toMatch(new RegExp(`\\b${currentLevel + 1}\\b`));
+    // Sanity: reason mentions upgrade.
+    expect(reason.toLowerCase()).toMatch(/upgrade/);
+  });
+
   it('urgency = 1.0 константа когда квест активен (после tuning pass 3)', () => {
     // Tuning pass 3: urgency теперь constant 1.0 чтобы quest всегда top-priority,
     // 80*1.0=80 > 30*1.5=45 (UpgradeGenerator с активным upgrade).

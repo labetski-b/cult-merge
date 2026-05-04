@@ -87,9 +87,18 @@ export class CompleteActiveQuestGoal implements Goal {
       if (!gen || gen.kind !== 'generator') continue;
       const g = gen as GeneratorEntity;
       if (!genCurrentOutputTypes(g).has(need.creatureType)) {
+        // Reason несёт четыре опорных факта для Inspector trace и логов:
+        //   1. generator id (Gen{N}),
+        //   2. current level,
+        //   3. missing creature type,
+        //   4. expected toLevel (currentLevel + 1) — следующий шаг апгрейда.
+        // Цепочка апгрейдов может потребовать несколько шагов до фактического
+        // unlock'а нужного типа, поэтому фиксируем именно immediate next level
+        // — это то, что промоутится через UpgradeGenerator на этом тике.
+        const toLevel = g.level + 1;
         return [{
           goalId: 'UpgradeGenerator',
-          reason: `Gen${g.generatorId} L${g.level} не выдаёт ${need.creatureType}; нужен upgrade`,
+          reason: `Gen${g.generatorId} (level ${g.level}) cannot produce ${need.creatureType}; upgrade to level ${toLevel} to unlock`,
         }];
       }
     }

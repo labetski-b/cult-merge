@@ -231,9 +231,21 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
     const prereqs = questGoal.getPrerequisites(state, ctx);
     expect(prereqs.length).toBe(1);
     expect(prereqs[0]!.goalId).toBe('UpgradeGenerator');
-    expect(prereqs[0]!.reason).toMatch(/Gen1/);
-    expect(prereqs[0]!.reason).toMatch(/Creature2/);
-    expect(prereqs[0]!.reason.toLowerCase()).toMatch(/upgrade/);
+
+    // T3: reason must encode all four data points so Inspector trace shows a
+    // concrete prerequisite (not just a vague "upgrade" hint).
+    const reason = prereqs[0]!.reason;
+    const gen1 = findGen1(state);
+    const currentLevel = gen1.level;
+    // 1. Generator id.
+    expect(reason).toMatch(/Gen1\b/);
+    // 2. Current level.
+    expect(reason).toMatch(new RegExp(`level\\s*${currentLevel}\\b`, 'i'));
+    // 3. Missing creature type.
+    expect(reason).toMatch(/Creature2\b/);
+    // 4. Expected toLevel = currentLevel + 1.
+    expect(reason).toMatch(new RegExp(`\\b${currentLevel + 1}\\b`));
+    expect(reason.toLowerCase()).toMatch(/upgrade/);
 
     // Scheduler-level: trace must contain the prerequisiteChain link
     // CompleteActiveQuest → UpgradeGenerator on the chosen iteration.
