@@ -26,6 +26,12 @@ export class SeededRng {
   getState(): number {
     return this.state;
   }
+
+  clone(): SeededRng {
+    const c = new SeededRng(1); // dummy non-zero seed; state overwritten below
+    c.state = this.state;
+    return c;
+  }
 }
 
 export function randomSeed(): number {
