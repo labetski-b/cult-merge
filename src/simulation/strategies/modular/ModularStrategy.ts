@@ -1,6 +1,6 @@
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
 import type { AIStrategy, StrategyDecision } from '../../engine/types';
+import type { EngineEnv } from '../../engine/env';
 import type { TickEndReason, TickTrace } from '../../engine/trace';
 import { TraceBuffer } from './trace/buffer';
 import { runScheduler } from './scheduler/scheduler';
@@ -15,7 +15,7 @@ import { getGuards } from './guards';
  *
  * Glue: registry (Goals/Tactics/Guards) + scheduler + TraceBuffer.
  * Per outer-tick lifecycle:
- *   - engine calls decide(state, rng) repeatedly until done=true | idle | max_iterations.
+ *   - engine calls decide(state, env) repeatedly until done=true | idle | max_iterations.
  *   - каждая decide() — один inner-iteration: scheduler возвращает один action или done=true.
  *   - scheduler пишет IterationDecision в TraceBuffer.
  * После outer-tick:
@@ -40,11 +40,11 @@ export class ModularStrategy implements AIStrategy {
     // и scheduler в следующей итерации увидит другой набор active goals.
   }
 
-  decide(state: GameSnapshot, rng: SeededRng): StrategyDecision {
+  decide(state: GameSnapshot, env: EngineEnv): StrategyDecision {
     const usedSoFar = this.buffer.countActionsInCurrentTick();
     const remaining = TICK_ACTION_BUDGET - usedSoFar;
 
-    const ctx = buildContext(state, rng, remaining);
+    const ctx = buildContext(state, env.rng, remaining);
     return runScheduler({
       goals: this.goals,
       tactics: this.tactics,

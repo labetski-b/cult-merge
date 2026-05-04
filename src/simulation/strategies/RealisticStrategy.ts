@@ -2,8 +2,8 @@ import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEnti
 import { getFreeCellIndexes, getNeighborCellIndexes, findEntityCell } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
 import { getCurrentMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } from '@domain/tasks';
-import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
+import type { EngineEnv } from '../engine/env';
 import type { AIStrategy, SimulationAction, StrategyDecision } from './base';
 import { pickUpgradeCandidate } from './pickUpgradeCandidate';
 
@@ -44,7 +44,7 @@ export class RealisticStrategy implements AIStrategy {
     }));
   }
 
-  decide(state: GameSnapshot, _rng: SeededRng): StrategyDecision {
+  decide(state: GameSnapshot, _env: EngineEnv): StrategyDecision {
     // Early game (kraken < 2) — separate loop, no phases
     if (state.kraken.level < 2) {
       return this.earlyGameStep(state);
@@ -236,7 +236,7 @@ export class RealisticStrategy implements AIStrategy {
       const allNeighborsBlockedByTaskCreatures = neighborIdxs.length > 0
         && neighborIdxs.every(idx => {
           const id = state.grid.cells[idx];
-          if (id === null) return false; // free neighbor → not deadlocked
+          if (id == null) return false; // free or out-of-range neighbor → not deadlocked
           const ent = state.entities[id];
           if (!ent) return true; // dangling cell — from spawner's POV the cell is occupied, treat as blocked
           if (ent.kind !== 'creature') return false; // generator/rune neighbors don't trigger the loop

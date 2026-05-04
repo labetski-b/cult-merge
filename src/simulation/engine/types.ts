@@ -1,7 +1,7 @@
 import type { BalanceConfig } from '@data/schemas';
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
 import type { SimulationAction } from './actions';
+import type { EngineEnv } from './env';
 import type { TickEndReason, TickTrace } from './trace';
 
 // SimulationAction вынесен в ./actions для разрыва цикла type-импорта между
@@ -17,7 +17,12 @@ export interface StrategyDecision {
 export interface AIStrategy {
   name: string;
   description: string;
-  decide(state: GameSnapshot, rng: SeededRng): StrategyDecision;
+  /**
+   * Decides the next batch of actions given current state and the engine's env.
+   * `env.rng` is the live RNG channel; reading or advancing it consumes engine
+   * entropy. Spec rev 2 § 5.6 / § 6.1.
+   */
+  decide(state: GameSnapshot, env: EngineEnv): StrategyDecision;
   /** Called by engine when a task completes, so strategy can advance phase. */
   onQuestCompleted?(): void;
   /** Return current creature→generator mapping from invest phase. */

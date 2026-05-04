@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../engine/SimulationEngine';
+import type { EngineEnv } from '../engine/env';
+import { makeEngineEnv } from '../engine/env';
+import { SeededRng } from '@infra/rng';
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import { BALANCE } from '@data/loadBalance';
 
@@ -20,9 +23,9 @@ describe('currentGameTimeMs accumulation', () => {
       balance: BALANCE,
     });
     engine.run();
-    const eng = engine as unknown as { currentGameTimeMs: number };
-    // gather_meat pressed the button N times → currentGameTimeMs > 0
-    expect(eng.currentGameTimeMs).toBeGreaterThan(0);
+    const eng = engine as unknown as { env: EngineEnv };
+    // gather_meat pressed the button N times → env.nowMs (game time) > 0
+    expect(eng.env.nowMs).toBeGreaterThan(0);
   });
 });
 
@@ -44,9 +47,11 @@ describe('Passive Gen3 tick during simulation', () => {
       strategy: { name: 'noop', description: '', decide: () => ({ actions: [], done: true }) },
       balance: BALANCE,
     });
-    const eng = engine as unknown as { state: GameSnapshot; currentGameTimeMs: number };
-    // Seed currentGameTimeMs to one full interval so tickTimerGenerators fires on tick 0
-    eng.currentGameTimeMs = intervalMs;
+    const eng = engine as unknown as { state: GameSnapshot; env: EngineEnv };
+    // Seed env.nowMs to one full interval so applyPassiveTickCore fires on tick 0
+    eng.env = makeEngineEnv(new SeededRng(42), intervalMs, eng.env.totalEyesGained);
+    // Restore prior rng state so passive tick consumes the same RNG channel.
+    (eng.env.rng as unknown as { state: number }).state = eng.state.rngState >>> 0;
     const state = eng.state;
     state.entities['gen3-a'] = {
       id: 'gen3-a',

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../SimulationEngine';
 import { BALANCE } from '@data/loadBalance';
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
 import type { AIStrategy, StrategyDecision } from '../types';
+import type { EngineEnv } from '../env';
 import type { TickEndReason, TickTrace } from '../trace';
 
 interface CloseCall { tick: number; endReason: TickEndReason }
@@ -14,7 +14,7 @@ class RecordingStrategy implements AIStrategy {
   public closeCalls: CloseCall[] = [];
   private mode: 'done' | 'idle';
   constructor(mode: 'done' | 'idle') { this.mode = mode; }
-  decide(_state: GameSnapshot, _rng: SeededRng): StrategyDecision {
+  decide(_state: GameSnapshot, _env: EngineEnv): StrategyDecision {
     if (this.mode === 'done') return { actions: [], done: true };
     return { actions: [], done: false };
   }

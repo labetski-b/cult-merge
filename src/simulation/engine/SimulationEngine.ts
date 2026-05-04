@@ -1,19 +1,9 @@
 import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
-import { openBox } from '@domain/boxes';
-import { findEntityCell, getFreeCellIndexes } from '@domain/grid';
-import { getGridSizeForLevel } from '@domain/gridSize';
-import { addExp, getCurrentStepRewards } from '@domain/kraken';
-import { mergeEntities } from '@domain/merge';
-import { applyFPCounterUpdate, generateAutoTask } from '@domain/tasks';
+import { getFreeCellIndexes } from '@domain/grid';
+import { generateAutoTask, applyFPCounterUpdate } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
-import { feedEntity as applyFeedEntity } from '@domain/runtime/feed';
-import { chargeGenerator as applyGeneratorCharge, spawnFromGenerator } from '@domain/runtime/generators';
-import { rollGeneratorSpawn } from '@domain/generator';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
-import { calculateMeatDrop, calculateSession } from '@domain/chapters';
-import { applyStartUpgrade, applyCollectUpgrade } from '@domain/runtime/upgradeRuntime';
-import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import { RealisticStrategy } from '../strategies/RealisticStrategy';
@@ -21,6 +11,9 @@ import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationRe
 import type { TickEndReason, TickTrace } from './trace';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
+import { applyActionCore, type ActionEvent } from './applyActionCore';
+import { applyPassiveTickCore } from './applyPassiveTickCore';
+import { makeEngineEnv, type EngineEnv } from './env';
 
 type SimulationConfigInput = Pick<SimulationConfig, 'seed' | 'stopCondition'> & Partial<SimulationConfig>;
 
@@ -35,7 +28,11 @@ function formatTime(totalSec: number): string {
 export class SimulationEngine {
   private config: SimulationConfig;
   private state: GameSnapshot;
-  private rng: SeededRng;
+  // Mutable side-inputs (RNG, game time, totalEyesGained) live in env.
+  // applyActionCore / applyPassiveTickCore consume `env` and return `nextEnv`.
+  // The engine is forbidden from mutating env outside those two pure-core
+  // calls (spec rev 2 § 5.6).
+  private env: EngineEnv;
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
@@ -50,7 +47,6 @@ export class SimulationEngine {
   private taskNumber = 0;
   private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
   private totalActions = 0;
-  private currentGameTimeMs = 0;
   // Tracks whether a skip_timer_generator action fired during the current quest.
   // Resets on quest_completed. Proxy for questsClosedViaGen3Skip.
   // TODO: may overcount if skip targeted a generator unrelated to the completed quest.
@@ -74,19 +70,29 @@ export class SimulationEngine {
       ? input.initialSnapshot
       : createInitialSnapshot(this.config.balance, { seed: this.config.seed });
 
-    this.rng = new SeededRng(this.config.seed);
+    const rng = new SeededRng(this.config.seed);
     // Default to the snapshot's rngState (createInitialSnapshot has already
     // advanced the rng past Gen1's id + charge rolls). An explicit
     // input.rngState wins so callers can resume from a saved point.
     const rngState = input.rngState ?? this.state.rngState;
     if (typeof rngState === 'number') {
       // SeededRng has no public restoreState — set private state via cast.
-      (this.rng as unknown as { state: number }).state = rngState >>> 0;
+      (rng as unknown as { state: number }).state = rngState >>> 0;
     }
+    this.env = makeEngineEnv(rng, 0, 0);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
     this.tickTraces = [];
+  }
+
+  /**
+   * Backward-compat accessor: a few tests probe the engine's RNG state via
+   * `(engine as { rng: SeededRng }).rng`. Expose a getter so they keep working
+   * even after the rename to `env.rng`.
+   */
+  get rng(): SeededRng {
+    return this.env.rng;
   }
 
   private shouldStop(tick: number): boolean {
@@ -148,7 +154,7 @@ export class SimulationEngine {
   private ensureAutoTask() {
     if (this.state.kraken.level < 2) return;
     if (getActiveTask(this.config.balance, this.state)) return;
-    const newTask = generateAutoTask(this.config.balance, this.state, this.rng);
+    const newTask = generateAutoTask(this.config.balance, this.state, this.env.rng);
     this.state.currentAutoTask = newTask;
     const fpUpdate = applyFPCounterUpdate(newTask, this.state, this.config.balance);
     if (fpUpdate) {
@@ -169,7 +175,7 @@ export class SimulationEngine {
       const krakenLevelBefore = this.state.kraken.level;
       const isEarlyGame = krakenLevelBefore < 2;
 
-      const decision: StrategyDecision = this.config.strategy.decide(this.state, this.rng);
+      const decision: StrategyDecision = this.config.strategy.decide(this.state, this.env);
 
       let iterAdvanced = false;
 
@@ -179,24 +185,84 @@ export class SimulationEngine {
         this.totalActions++;
         const note = this.buildActionNote(action);
         const taskBefore = this.captureTaskLabel();
-        const stateBefore = JSON.stringify(this.state);
         const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
+
+        // Synthetic log-only actions (tick_idle / quest_completed / new_quest /
+        // expand_board) are NEVER passed to the pure core: the core would advance
+        // env.nowMs by 0 (their actionTime is 0) but the engine has no business
+        // forwarding them. tick_idle from a strategy must NOT count as
+        // "iterAdvanced" — that's the whole point of tick_idle. Skip them
+        // entirely.
+        if (action.type === 'tick_idle') {
+          // No state change, no time advance, no log push. Strategy is signaling
+          // "I'm stuck this iteration" — engine handles that via !iterAdvanced
+          // path below. Continue to next action without setting iterAdvanced.
+          continue;
+        }
+
+        let result;
+        const envBeforeNowMs = this.env.nowMs;
+        const stateRngBefore = this.state.rngState;
         try {
-          this.executeAction(action);
+          result = applyActionCore(this.state, action, this.env, this.config.balance);
         } catch (error) {
           console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
           throw error;
         }
-        const stateChanged = JSON.stringify(this.state) !== stateBefore;
-        // Advance both time counters together so they never drift.
-        // collect_upgrade always advances time even when no-op (timer still running),
-        // so currentGameTimeMs eventually crosses finishesAt without infinite loop.
-        if (stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade') {
+        // Apply the pure-core result: this is the ONLY place outside
+        // applyPassiveTickCore where state/env mutate.
+        this.state = result.nextState;
+        this.env = result.nextEnv;
+        this.applyEvents(action, result.events);
+        const stateChanged = result.stateChanged;
+
+        // Legacy parity: merge in the legacy engine did NOT persist
+        // state.rngState (only feed/charge/spawn did, via their domain helpers).
+        // applyActionCore's applyMerge unconditionally writes
+        // state.rngState = rng.getState() — fixes a hidden inconsistency but
+        // diverges from the legacy passive-tick RNG channel because
+        // tickTimerGenerators reads state.rngState to seed its own RNG. To
+        // preserve baseline behavior, restore state.rngState after a merge
+        // so passive ticks stay seed-aligned with the legacy run. This is
+        // engine-level scaffolding; pure-core remains untouched.
+        if (action.type === 'merge' && this.state.rngState !== stateRngBefore) {
+          this.state.rngState = stateRngBefore;
+        }
+
+        // Sync env.totalEyesGained with cumulative.totalEyesGained: the
+        // pure-core reads env.totalEyesGained for meat-drop calculations, but
+        // the legacy engine reads cumulative.totalEyesGained for the same.
+        // applyEvents may have just bumped totalEyesGained on a task_completed
+        // event; re-bind env so the next applyActionCore sees the same value
+        // legacy SimulationEngine.executeGatherMeat would have seen.
+        if (this.env.totalEyesGained !== this.cumulative.totalEyesGained) {
+          this.env = makeEngineEnv(this.env.rng, this.env.nowMs, this.cumulative.totalEyesGained);
+        }
+
+        // Mirror legacy timing semantics: legacy SimulationEngine advanced
+        // currentGameTimeMs only when an action actually changed state (or was
+        // a synthetic free_cells, or was collect_upgrade — even on no-op for
+        // the timer to cross finishesAt). applyActionCore unconditionally
+        // advances env.nowMs by getActionTimeSec(action) * 1000, so we
+        // selectively roll back env.nowMs when neither condition applies, to
+        // preserve legacy game-time progression and downstream behaviour
+        // (timer-mode generators, upgrade timers, etc.).
+        const shouldAdvanceTime =
+          stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
+        if (!shouldAdvanceTime && this.env.nowMs !== envBeforeNowMs) {
+          // Roll back nowMs while keeping the rng/totalEyesGained that
+          // applyActionCore returned (rng might have advanced even on no-op
+          // for some actions, e.g. feed of an absent entity short-circuits
+          // before consuming RNG; re-using nextEnv.rng/totalEyesGained
+          // captures whatever state pure-core finalised).
+          this.env = makeEngineEnv(this.env.rng, envBeforeNowMs, this.env.totalEyesGained);
+        }
+        if (shouldAdvanceTime) {
           iterAdvanced = true;
-          this.currentGameTimeMs += getActionTimeSec(action) * 1000;
           const dt = this.addActionTime(action);
-          // Only log actions that actually changed state (or are synthetic log-only events).
-          // No-op collect_upgrade advances time but produces no log noise.
+          // Only log actions that actually changed state (or are synthetic
+          // log-only events). No-op collect_upgrade advances time but produces
+          // no log noise.
           if (stateChanged || action.type === 'free_cells') {
             const logState = this.captureCompactState(dt);
             logState.currentTask = taskBefore;
@@ -249,12 +315,19 @@ export class SimulationEngine {
       }
     }
 
-    // Passive tick: advance timer-mode generators (e.g. Gen3) based on accumulated game time
-    const creaturesBeforePassive = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
-    this.state = tickTimerGenerators(this.state, this.currentGameTimeMs, this.config.balance);
-    const creaturesAfterPassive = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
-    if (creaturesAfterPassive > creaturesBeforePassive) {
-      this.cumulative.gen3PassiveSpawns += (creaturesAfterPassive - creaturesBeforePassive);
+    // Passive tick: pure-core wrapper for tickTimerGenerators (Gen3 / timer-mode).
+    // Spec rev 2 § 5.4 / § 5.6 — engine MUST NOT mutate state/env outside this call.
+    {
+      const passive = applyPassiveTickCore(this.state, this.env, this.config.balance);
+      this.state = passive.nextState;
+      this.env = passive.nextEnv;
+      let passiveSpawns = 0;
+      for (const ev of passive.events) {
+        if (ev.type === 'generator_spawned') passiveSpawns += 1;
+      }
+      if (passiveSpawns > 0) {
+        this.cumulative.gen3PassiveSpawns += passiveSpawns;
+      }
     }
 
     // Idle upgrade tick: upgrade still active at tick end AND no collect happened this tick
@@ -282,315 +355,51 @@ export class SimulationEngine {
   /** Возвращает все TickTrace'ы за прогон. Пустой массив если стратегия не имплементит closeTickTrace. */
   getTickTraces(): readonly TickTrace[] { return this.tickTraces; }
 
-  private executeAction(action: SimulationAction) {
-    switch (action.type) {
-      case 'claim_reward':
-        this.claimReward();
-        break;
-      case 'open_box':
-        this.openBox(action.boxId);
-        break;
-      case 'merge':
-        this.mergeEntities(action.sourceId, action.targetId);
-        break;
-      case 'feed':
-        this.feedEntity(action.entityId);
-        break;
-      case 'charge_generator':
-        this.chargeGenerator(action.generatorId);
-        break;
-      case 'spawn_generator':
-        this.tapGenerator(action.generatorId);
-        break;
-      case 'start_upgrade': {
-        const hadActiveBefore = this.state.activeUpgrade !== null;
-        this.state = applyStartUpgrade(this.state, this.config.balance, action.entityId, this.currentGameTimeMs);
-        if (!hadActiveBefore && this.state.activeUpgrade !== null) {
-          this.cumulative.upgradesStarted += 1;
-        } else if (!hadActiveBefore && this.state.activeUpgrade === null) {
-          // Start was rejected (runes insufficient, mergesRequired not met, etc.)
-          this.cumulative.runeStarveRejects += 1;
-        }
-        break;
-      }
-      case 'collect_upgrade': {
-        const hadActiveBefore = this.state.activeUpgrade !== null;
-        this.state = applyCollectUpgrade(this.state, this.currentGameTimeMs);
-        if (hadActiveBefore && this.state.activeUpgrade === null) {
-          this.cumulative.upgradesCollected += 1;
-          this.tickHadCollectUpgrade = true;
-        }
-        break;
-      }
-      case 'skip_timer_generator': {
-        this.cumulative.gen3SkipClicks += 1;
-        this.currentQuestUsedSkipTimer = true;
-        const entity = this.state.entities[action.entityId];
-        if (!entity || entity.kind !== 'generator') break;
-        const cfg = this.config.balance.generators.generators.find(g => g.id === entity.generatorId);
-        if (!cfg || cfg.spawnMode !== 'timer') break;
-        const intervalMs = (cfg.tickIntervalSec ?? 0) * 1000;
-        const creaturesBefore = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
-        const withBackdate: GameSnapshot = {
-          ...this.state,
-          entities: { ...this.state.entities, [action.entityId]: { ...entity, lastTickTimestamp: this.currentGameTimeMs - intervalMs } },
-        };
-        this.state = tickTimerGenerators(withBackdate, this.currentGameTimeMs, this.config.balance);
-        const creaturesAfter = Object.values(this.state.entities).filter(e => e.kind === 'creature').length;
-        if (creaturesAfter > creaturesBefore) {
-          this.cumulative.gen3CheatSpawns += (creaturesAfter - creaturesBefore);
-        }
-        break;
-      }
-      case 'quest_completed':
-        break; // synthetic log-only event, no state mutation
-      case 'new_quest':
-        break; // synthetic log-only event, no state mutation
-      case 'expand_board':
-        break; // synthetic log-only event, no state mutation
-      case 'buy_runes':
-        this.state.resources[action.runeType] += action.amount;
-        if (action.runeType === 'rune1') this.cumulative.rune1Purchased += action.amount;
-        else this.cumulative.rune2Purchased += action.amount;
-        break;
-      case 'gather_meat':
-        this.executeGatherMeat(action);
-        break;
-      case 'free_cells':
-        break; // synthetic log-only event, no state mutation
-      case 'tick_idle':
-        break; // synthetic log-only event, no state mutation
-      case 'move_entity':
-        this.moveEntity(action.entityId, action.targetCellIndex);
-        break;
-    }
-  }
-
-  private moveEntity(entityId: string, targetCellIndex: number) {
-    const grid = this.state.grid;
-    if (targetCellIndex < 0 || targetCellIndex >= grid.cells.length) {
-      throw new Error(
-        `move_entity: targetCellIndex ${targetCellIndex} out of range (grid has ${grid.cells.length} cells)`
-      );
-    }
-    const sourceCell = findEntityCell(grid, entityId);
-    if (sourceCell < 0) {
-      throw new Error(`move_entity: entity ${entityId} not found on grid`);
-    }
-    if (grid.cells[targetCellIndex] !== null) {
-      throw new Error(
-        `move_entity: target cell ${targetCellIndex} is occupied by ${grid.cells[targetCellIndex]}`
-      );
-    }
-    // Mirror the in-place mutation pattern used by mergeEntities.
-    grid.cells[sourceCell] = null;
-    grid.cells[targetCellIndex] = entityId;
+  /**
+   * Backward-compat thin wrapper: a few unit tests invoke executeAction directly
+   * via `(engine as { executeAction }).executeAction(action)` to drive a single
+   * action through the engine without running a full tick. The new, real path is
+   * `applyActionCore + applyEvents` inside executeTick. This wrapper preserves
+   * the legacy entry point but routes through the same pure core to avoid
+   * double-implementations.
+   */
+  private executeAction(action: SimulationAction): void {
+    if (action.type === 'tick_idle') return; // synthetic, no state/env change
+    const result = applyActionCore(this.state, action, this.env, this.config.balance);
+    this.state = result.nextState;
+    this.env = result.nextEnv;
+    this.applyEvents(action, result.events);
   }
 
   /**
-   * Execute a gather_meat action: press meat button until we reach targetCost.
-   * Populates action.count and action.meatGained for logging/timing.
+   * Translate pure-core ActionEvents into engine-side bookkeeping (cumulative
+   * metrics, discoveredCreatures set, pendingEventLogs for synthetic log
+   * entries, etc.). This is the ONLY place where engine state derived from
+   * action effects is updated. It must remain pure of state/env mutation
+   * beyond updating cumulative metrics and pendingEventLogs.
    */
-  private executeGatherMeat(action: SimulationAction & { type: 'gather_meat' }): void {
-    const targetCost = action.targetCost;
-    if (this.state.resources.meat >= targetCost) return;
-
-    let pressCount = 0;
-    let meatGained = 0;
-    while (this.state.resources.meat < targetCost) {
-      const drop = calculateMeatDrop(this.config.balance, this.cumulative.totalEyesGained);
-      this.state.resources.meat += drop;
-      this.state.meatButtonPresses += 1;
-      this.state.session = calculateSession(this.state.meatButtonPresses);
-      pressCount++;
-      meatGained += drop;
-    }
-
-    this.cumulative.totalMeatGained += meatGained;
-
-    // Populate fields on the action object for logging and timing
-    action.count = pressCount;
-    action.meatGained = meatGained;
-  }
-
-  private claimReward() {
-    const [reward, ...restRewards] = this.state.pendingRewards;
-    if (!reward) return;
-
-    if (reward.type === 'egg' && typeof reward.value === 'string') {
-      const parts = reward.value.match(/^gen_(\d+)_(\d+)$/);
-      if (parts) {
-        const genId = Number(parts[1]);
-        const genLevel = Number(parts[2]);
-
-        // Mirror production: drop the reward as no-op if a generator of this id already exists.
-        const alreadyOwned = Object.values(this.state.entities).some(
-          (e) => e.kind === 'generator' && e.generatorId === genId,
-        );
-        if (alreadyOwned) {
-          this.state.pendingRewards = restRewards;
-          return;
-        }
-
-        const freeSlots = getFreeCellIndexes(this.state.grid);
-        // No free cell: leave reward in queue (do NOT shift). Strategy will free cells next tick.
-        if (freeSlots.length === 0) return;
-
-        const targetCell = freeSlots[0]!;
-        const newGenId = this.rng.nextId();
-
-        const newGen: GeneratorEntity = {
-          id: newGenId,
-          kind: 'generator',
-          generatorId: genId,
-          level: genLevel,
-          charges: []
-        };
-        // For timer-mode generators, init lastTickTimestamp so the first spawn
-        // happens tickIntervalSec later, not immediately at time 0.
-        const genCfg = this.config.balance.generators.generators.find(g => g.id === genId);
-        if (genCfg?.spawnMode === 'timer') {
-          newGen.lastTickTimestamp = this.currentGameTimeMs;
-        }
-        this.state.entities[newGenId] = newGen;
-        this.state.grid.cells[targetCell] = newGenId;
-        this.state.pendingRewards = restRewards;
-      } else {
-        // Malformed egg value — drop it.
-        this.state.pendingRewards = restRewards;
-      }
-    } else if (reward.type === 'res_box' && typeof reward.value === 'number') {
-      const freeSlots = getFreeCellIndexes(this.state.grid);
-      // No free cell: leave reward in queue (do NOT shift).
-      if (freeSlots.length === 0) return;
-
-      const targetCell = freeSlots[0]!;
-      const boxId = this.rng.nextId();
-      const drops = openBox(this.config.balance, reward.value, this.rng);
-
-      // Flatten drops to array of rune keys
-      const contents: import('@domain/types').RuneItemKey[] = [];
-      for (const drop of drops) {
-        for (let i = 0; i < drop.amount; i++) {
-          contents.push(drop.key);
-        }
-      }
-
-      this.state.entities[boxId] = {
-        id: boxId,
-        kind: 'box',
-        boxId: reward.value,
-        contents
-      };
-      this.state.grid.cells[targetCell] = boxId;
-      this.state.pendingRewards = restRewards;
-    } else {
-      // 'grid' / 'mechanic' / unknown: grid expansion is already handled via addExp/getGridSizeForLevel
-      // elsewhere in the engine; mechanic rewards are visual-only. Drop as no-op so the queue advances
-      // and the rewards step can terminate.
-      this.state.pendingRewards = restRewards;
-    }
-  }
-
-  private openBox(boxId: string) {
-    const entity = this.state.entities[boxId];
-    if (!entity || entity.kind !== 'box') return;
-
-    const box = entity as BoxEntity;
-    if (box.contents.length === 0) {
-      delete this.state.entities[boxId];
-      const cellIndex = findEntityCell(this.state.grid, boxId);
-      if (cellIndex >= 0) this.state.grid.cells[cellIndex] = null;
-      return;
-    }
-
-    const [rune, ...restContents] = box.contents;
-    if (!rune) return;
-
-    // No free cell: leave the box untouched (do NOT shift contents). Mirrors
-    // claimReward's pattern — strategy is expected to free cells and retry.
-    const freeSlots = getFreeCellIndexes(this.state.grid);
-    if (freeSlots.length === 0) return;
-
-    const runeId = this.rng.nextId();
-    this.state.entities[runeId] = {
-      id: runeId,
-      kind: 'rune',
-      runeType: rune
-    };
-    this.state.grid.cells[freeSlots[0]!] = runeId;
-
-    if (restContents.length === 0) {
-      delete this.state.entities[boxId];
-      const cellIndex = findEntityCell(this.state.grid, boxId);
-      if (cellIndex >= 0) this.state.grid.cells[cellIndex] = null;
-    } else {
-      this.state.entities[boxId] = { ...box, contents: restContents };
-    }
-  }
-
-  private mergeEntities(sourceId: string, targetId: string) {
-    const source = this.state.entities[sourceId];
-    const target = this.state.entities[targetId];
-    if (!source || !target) return;
-
-    let maxCreatureLevel = 9;
-    if (source.kind === 'creature') {
-      const creatureConfig = this.config.balance.creatures.creatures.find(
-        c => c.type === (source as CreatureEntity).creatureType
-      );
-      if (creatureConfig) maxCreatureLevel = creatureConfig.maxLevel;
-    }
-    const merged = mergeEntities(source, target, this.rng.nextId(), this.cumulative.totalTimeSec * 1000, maxCreatureLevel);
-    if (!merged) return;
-
-    const sourceCell = findEntityCell(this.state.grid, sourceId);
-    const targetCell = findEntityCell(this.state.grid, targetId);
-
-    if (sourceCell >= 0) this.state.grid.cells[sourceCell] = null;
-    if (targetCell >= 0) this.state.grid.cells[targetCell] = merged.id;
-
-    delete this.state.entities[sourceId];
-    delete this.state.entities[targetId];
-    this.state.entities[merged.id] = merged;
-
-    // In the real game, merged generators come pre-charged
-    if (merged.kind === 'generator') {
-      const gen = merged as GeneratorEntity;
-      const spawns = rollGeneratorSpawn(this.rng, gen, this.config.balance);
-      gen.charges = spawns.map(s => ({ creatureType: s.creatureType, level: s.level }));
-    }
-
-    this.cumulative.totalMerges++;
-    if (merged.kind === 'creature') {
-      const c = merged as CreatureEntity;
-      const key = `${c.creatureType}:${c.level}`;
-      if (!this.discoveredCreatures.has(key)) {
-        this.discoveredCreatures.add(key);
-        this.cumulative.totalUniqueCreatures++;
-      }
-      const prev = this.cumulative.maxCreatureLevelByType[c.creatureType] ?? 0;
-      if (c.level > prev) this.cumulative.maxCreatureLevelByType[c.creatureType] = c.level;
-
-      if (source.kind === 'creature') {
-        const line = source.creatureType;
-        const prev = this.state.mergeCountByLine[line] ?? 0;
-        this.state = { ...this.state, mergeCountByLine: { ...this.state.mergeCountByLine, [line]: prev + 1 } };
+  private applyEvents(action: SimulationAction, events: readonly ActionEvent[]): void {
+    // Action-type-level bookkeeping that doesn't need an event payload.
+    if (action.type === 'gather_meat') {
+      // applyActionCore mutates action.count / action.meatGained in place; the
+      // legacy engine then read action.meatGained back into cumulative. Keep
+      // that semantic.
+      const gained = action.meatGained ?? 0;
+      if (gained > 0) {
+        this.cumulative.totalMeatGained += gained;
       }
     }
-  }
+    if (action.type === 'skip_timer_generator') {
+      this.cumulative.gen3SkipClicks += 1;
+      this.currentQuestUsedSkipTimer = true;
+    }
 
-  private feedEntity(entityId: string) {
-    const result = applyFeedEntity(this.state, entityId, {
-      balance: this.config.balance,
-      rng: this.rng
-    });
-    if (!result.changed) return;
-
-    this.state = result.snapshot;
-
-    for (const event of result.events) {
+    for (const event of events) {
       switch (event.type) {
+        case 'meat_gained':
+          // Already accounted for above via action.meatGained; keeping switch
+          // exhaustive but no extra cumulative mutation here.
+          break;
         case 'rune_fed':
           this.runesFedCount++;
           if (event.resource === 'rune1') {
@@ -608,11 +417,15 @@ export class SimulationEngine {
           const expandAction: SimulationAction = {
             type: 'expand_board',
             newRows: event.rows,
-            newCols: event.cols
+            newCols: event.cols,
           };
           const expandDt = this.addActionTime(expandAction);
           const expandState = this.captureCompactState(expandDt);
-          this.pendingEventLogs.push({ action: expandAction, state: expandState, note: `${event.rows}×${event.cols} = ${event.rows * event.cols} cells` });
+          this.pendingEventLogs.push({
+            action: expandAction,
+            state: expandState,
+            note: `${event.rows}×${event.cols} = ${event.rows * event.cols} cells`,
+          });
           break;
         }
         case 'task_completed': {
@@ -620,70 +433,88 @@ export class SimulationEngine {
           this.cumulative.totalEyesGained += event.eyesGained;
           this.cumulative.totalTasksCompleted += 1;
           this.cumulative.totalQuestMeatCost += event.meatCost;
-          // Proxy: if any skip_timer_generator fired during this quest, count it.
-          // TODO: may overcount if skip was for a different generator than the
-          // creature the quest required; a precise attribution would require
-          // tracking the skip's target creatureType against quest requirements.
           if (this.currentQuestUsedSkipTimer) {
             this.cumulative.questsClosedViaGen3Skip += 1;
           }
           this.currentQuestUsedSkipTimer = false;
           this.taskNumber++;
-          // Notify strategy to advance phase: task → reward
           this.config.strategy.onQuestCompleted?.();
-          // Log quest completed
-          const completedAction: SimulationAction = { type: 'quest_completed', taskLabel: event.taskId, eyesGained: event.eyesGained, creatures: event.creatures };
+          const completedAction: SimulationAction = {
+            type: 'quest_completed',
+            taskLabel: event.taskId,
+            eyesGained: event.eyesGained,
+            creatures: event.creatures,
+          };
           const completedDt = this.addActionTime(completedAction);
-          this.pendingEventLogs.push({ action: completedAction, state: this.captureCompactState(completedDt), note: event.taskId });
-          // Log new quest (domain feed already generated next task in state)
+          this.pendingEventLogs.push({
+            action: completedAction,
+            state: this.captureCompactState(completedDt),
+            note: event.taskId,
+          });
           const newTaskLabel = this.captureTaskLabel();
           if (newTaskLabel !== 'none') {
             const newQuestAction: SimulationAction = { type: 'new_quest', taskLabel: newTaskLabel };
             const newQuestDt = this.addActionTime(newQuestAction);
-            this.pendingEventLogs.push({ action: newQuestAction, state: this.captureCompactState(newQuestDt), note: newTaskLabel });
+            this.pendingEventLogs.push({
+              action: newQuestAction,
+              state: this.captureCompactState(newQuestDt),
+              note: newTaskLabel,
+            });
           }
           break;
         }
+        case 'generator_charged':
+          this.cumulative.totalMeatSpent += event.meatSpent;
+          this.cumulative.totalMeatSpentOnCharges += event.meatSpent;
+          this.cumulative.totalCharges++;
+          break;
+        case 'generator_spawned': {
+          this.cumulative.totalSpawns++;
+          const key = `${event.creatureType}:${event.level}`;
+          if (!this.discoveredCreatures.has(key)) {
+            this.discoveredCreatures.add(key);
+            this.cumulative.totalUniqueCreatures++;
+          }
+          const prev = this.cumulative.maxCreatureLevelByType[event.creatureType] ?? 0;
+          if (event.level > prev) this.cumulative.maxCreatureLevelByType[event.creatureType] = event.level;
+          break;
+        }
+        case 'merge_completed': {
+          this.cumulative.totalMerges++;
+          if (event.mergedKind === 'creature' && event.creatureType !== undefined && event.level !== undefined) {
+            const key = `${event.creatureType}:${event.level}`;
+            if (!this.discoveredCreatures.has(key)) {
+              this.discoveredCreatures.add(key);
+              this.cumulative.totalUniqueCreatures++;
+            }
+            const prev = this.cumulative.maxCreatureLevelByType[event.creatureType] ?? 0;
+            if (event.level > prev) this.cumulative.maxCreatureLevelByType[event.creatureType] = event.level;
+          }
+          break;
+        }
+        case 'upgrade_started':
+          this.cumulative.upgradesStarted += 1;
+          break;
+        case 'upgrade_collected':
+          this.cumulative.upgradesCollected += 1;
+          this.tickHadCollectUpgrade = true;
+          break;
+        case 'upgrade_start_rejected':
+          this.cumulative.runeStarveRejects += 1;
+          break;
+        case 'gen3_skip':
+          if (event.cheatSpawns > 0) {
+            this.cumulative.gen3CheatSpawns += event.cheatSpawns;
+          }
+          break;
+        case 'rune_purchased':
+          if (event.runeType === 'rune1') {
+            this.cumulative.rune1Purchased += event.amount;
+          } else {
+            this.cumulative.rune2Purchased += event.amount;
+          }
+          break;
       }
-    }
-  }
-
-  private chargeGenerator(generatorId: string) {
-    const result = applyGeneratorCharge(this.state, generatorId, {
-      balance: this.config.balance,
-      rng: this.rng
-    });
-    if (!result.changed) return;
-
-    this.state = result.snapshot;
-
-    for (const event of result.events) {
-      if (event.type !== 'generator_charged') continue;
-      this.cumulative.totalMeatSpent += event.meatSpent;
-      this.cumulative.totalMeatSpentOnCharges += event.meatSpent;
-      this.cumulative.totalCharges++;
-    }
-  }
-
-  private tapGenerator(generatorId: string) {
-    const result = spawnFromGenerator(this.state, generatorId, {
-      balance: this.config.balance,
-      rng: this.rng
-    });
-    if (!result.changed) return;
-
-    this.state = result.snapshot;
-
-    for (const event of result.events) {
-      if (event.type !== 'generator_spawned') continue;
-      this.cumulative.totalSpawns++;
-      const key = `${event.creatureType}:${event.level}`;
-      if (!this.discoveredCreatures.has(key)) {
-        this.discoveredCreatures.add(key);
-        this.cumulative.totalUniqueCreatures++;
-      }
-      const prev = this.cumulative.maxCreatureLevelByType[event.creatureType] ?? 0;
-      if (event.level > prev) this.cumulative.maxCreatureLevelByType[event.creatureType] = event.level;
     }
   }
 

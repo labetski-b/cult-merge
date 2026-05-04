@@ -3,6 +3,7 @@ import { RealisticStrategy } from '../RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv, type EngineEnv } from '../../engine/env';
 import type { GameSnapshot, CreatureEntity, GeneratorEntity, TaskDefinition } from '@domain/types';
 
 /**
@@ -170,11 +171,11 @@ function makeGen3State(opts: BuildOpts): GameSnapshot {
 
 describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
   let strategy: RealisticStrategy;
-  let rng: SeededRng;
+  let env: EngineEnv;
 
   beforeEach(() => {
     strategy = new RealisticStrategy(BALANCE);
-    rng = new SeededRng(42);
+    env = makeEngineEnv(new SeededRng(42), 0, 0);
   });
 
   it('emits skip_timer_generator when at least one Gen3 neighbor is free', () => {
@@ -191,7 +192,7 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
         { type: 'Creature7', level: 1 },
       ],
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const types = decision.actions.map(a => a.type);
     expect(types).toContain('skip_timer_generator');
     expect(decision.actions.some(a => a.type === 'merge')).toBe(false);
@@ -211,7 +212,7 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
         { type: 'Creature9', level: 1 },
       ],
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const mergeActions = decision.actions.filter(a => a.type === 'merge');
     expect(mergeActions).toHaveLength(1);
     expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
@@ -231,7 +232,7 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
         { type: 'Creature8', level: 1 },
       ],
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const feedActions = decision.actions.filter(a => a.type === 'feed');
     expect(feedActions).toHaveLength(1);
     expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
@@ -259,7 +260,7 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
         { type: 'Creature4', level: 1 },
       ],
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const feedActions = decision.actions.filter(a => a.type === 'feed');
     expect(feedActions).toHaveLength(1);
     expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
@@ -274,7 +275,7 @@ describe('RealisticStrategy clearNeighborCell (Gen3)', () => {
         { type: 'Creature4', level: 1 },
       ],
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const types = decision.actions.map(a => a.type);
     expect(types).toContain('skip_timer_generator');
   });
@@ -491,11 +492,11 @@ describe('RealisticStrategy clearNeighborCell — task-type protection + move-re
  */
 describe('RealisticStrategy questStep deadlock — no skip_timer_generator on unrecoverable FP', () => {
   let strategy: RealisticStrategy;
-  let rng: SeededRng;
+  let env: EngineEnv;
 
   beforeEach(() => {
     strategy = new RealisticStrategy(BALANCE);
-    rng = new SeededRng(42);
+    env = makeEngineEnv(new SeededRng(42), 0, 0);
   });
 
   it('does not emit skip_timer_generator when all neighbors are task-typed with no rescue option', () => {
@@ -515,7 +516,7 @@ describe('RealisticStrategy questStep deadlock — no skip_timer_generator on un
         15: { type: 'Creature5', level: 5 },
       },
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     expect(decision.actions.some(a => a.type === 'skip_timer_generator')).toBe(false);
     // And it should not waste a task-type creature.
     const fed = decision.actions.find(a => a.type === 'feed') as

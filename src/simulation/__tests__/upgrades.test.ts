@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../engine/SimulationEngine';
 import type { SimulationAction } from '../engine/types';
+import type { EngineEnv } from '../engine/env';
+import { makeEngineEnv } from '../engine/env';
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import { BALANCE } from '@data/loadBalance';
 
@@ -23,10 +25,12 @@ describe('Engine handles start_upgrade / collect_upgrade', () => {
     snapshot.resources.rune1 = 1000;
     snapshot.mergeCountByLine = { ...(snapshot.mergeCountByLine ?? {}), Creature1: 999, Creature2: 999 };
     // Execute start_upgrade at t=0, then advance past the upgrade timer before collect_upgrade
-    const eng = engine as unknown as { executeAction: (a: SimulationAction) => void; state: GameSnapshot; currentGameTimeMs: number };
+    const eng = engine as unknown as { executeAction: (a: SimulationAction) => void; state: GameSnapshot; env: EngineEnv };
     eng.executeAction(actions[0]!);
-    // Advance simulated time past finishesAt (upgrade duration is 3s = 3000ms in default balance)
-    eng.currentGameTimeMs = (eng.state.activeUpgrade?.finishesAt ?? 0) + 1;
+    // Advance simulated time past finishesAt (upgrade duration is 3s = 3000ms in default balance).
+    // Use makeEngineEnv to rebuild env with the new nowMs while preserving rng/totalEyesGained.
+    const finishesAt = (eng.state.activeUpgrade?.finishesAt ?? 0) + 1;
+    eng.env = makeEngineEnv(eng.env.rng, finishesAt, eng.env.totalEyesGained);
     eng.executeAction(actions[1]!);
     const afterState = (engine as unknown as { state: GameSnapshot }).state;
     expect(afterState.activeUpgrade).toBeNull();
@@ -65,7 +69,7 @@ describe('Engine handles skip_timer_generator', () => {
       balance: BALANCE,
     });
 
-    const eng = engine as unknown as { executeAction: (a: SimulationAction) => void; state: GameSnapshot; currentGameTimeMs: number };
+    const eng = engine as unknown as { executeAction: (a: SimulationAction) => void; state: GameSnapshot; env: EngineEnv };
     const snapshot = eng.state;
 
     // Place gen3 at cell index 1 (cell 0 already has the pre-seeded gen1 from createInitialSnapshot).
@@ -84,9 +88,9 @@ describe('Engine handles skip_timer_generator', () => {
 
     const entityCountBefore = Object.keys(eng.state.entities).length;
 
-    // currentGameTimeMs = intervalMs so that backdating to (now - interval) = 0 triggers one tick
+    // env.nowMs = intervalMs so that backdating to (now - interval) = 0 triggers one tick
     const intervalMs = (gen3Config.tickIntervalSec ?? 0) * 1000;
-    eng.currentGameTimeMs = intervalMs;
+    eng.env = makeEngineEnv(eng.env.rng, intervalMs, eng.env.totalEyesGained);
 
     eng.executeAction({ type: 'skip_timer_generator', entityId: genId });
 

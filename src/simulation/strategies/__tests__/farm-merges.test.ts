@@ -3,6 +3,7 @@ import { RealisticStrategy } from '../RealisticStrategy';
 import { BALANCE } from '@data/loadBalance';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { SeededRng } from '@infra/rng';
+import { makeEngineEnv, type EngineEnv } from '../../engine/env';
 import type { GameSnapshot, CreatureEntity, GeneratorEntity } from '@domain/types';
 
 /**
@@ -96,11 +97,11 @@ function makeBaselineStuckState(opts: {
 
 describe('RealisticStrategy farm-merges fallback', () => {
   let strategy: RealisticStrategy;
-  let rng: SeededRng;
+  let env: EngineEnv;
 
   beforeEach(() => {
     strategy = new RealisticStrategy(BALANCE);
-    rng = new SeededRng(42);
+    env = makeEngineEnv(new SeededRng(42), 0, 0);
   });
 
   it('Path B: emits merge action when mergeable pair exists on line', () => {
@@ -109,7 +110,7 @@ describe('RealisticStrategy farm-merges fallback', () => {
       charges: 1,
       meat: 100,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const mergeActions = decision.actions.filter(a => a.type === 'merge');
     expect(mergeActions).toHaveLength(1);
   });
@@ -120,7 +121,7 @@ describe('RealisticStrategy farm-merges fallback', () => {
       charges: 1,
       meat: 100,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const spawnActions = decision.actions.filter(a => a.type === 'spawn_generator');
     expect(spawnActions.length).toBeGreaterThanOrEqual(1);
   });
@@ -131,7 +132,7 @@ describe('RealisticStrategy farm-merges fallback', () => {
       charges: 0,
       meat: 0,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const gatherActions = decision.actions.filter(a => a.type === 'gather_meat');
     expect(gatherActions).toHaveLength(1);
   });
@@ -150,7 +151,7 @@ describe('RealisticStrategy farm-merges fallback', () => {
       charges: 1,
       meat: 100,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const spawnActions = decision.actions.filter(a => a.type === 'spawn_generator');
     expect(spawnActions).toHaveLength(0);
   });
@@ -254,11 +255,11 @@ function makeGen3StuckState(opts: {
 
 describe('RealisticStrategy farm-merges fallback — timer-mode generators', () => {
   let strategy: RealisticStrategy;
-  let rng: SeededRng;
+  let env: EngineEnv;
 
   beforeEach(() => {
     strategy = new RealisticStrategy(BALANCE);
-    rng = new SeededRng(42);
+    env = makeEngineEnv(new SeededRng(42), 0, 0);
   });
 
   it('Timer-mode-only line, no mergeable pair: returns no actions (no gather_meat/charge_generator)', () => {
@@ -266,7 +267,7 @@ describe('RealisticStrategy farm-merges fallback — timer-mode generators', () 
       creaturesOnGrid: [],
       meat: 0,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const forbidden = decision.actions.filter(
       a => a.type === 'gather_meat' || a.type === 'charge_generator' || a.type === 'spawn_generator'
     );
@@ -278,7 +279,7 @@ describe('RealisticStrategy farm-merges fallback — timer-mode generators', () 
       creaturesOnGrid: [{ type: 'Creature5', level: 1, count: 2 }],
       meat: 100,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const mergeActions = decision.actions.filter(a => a.type === 'merge');
     expect(mergeActions).toHaveLength(1);
   });
@@ -293,7 +294,7 @@ describe('RealisticStrategy farm-merges fallback — timer-mode generators', () 
       charges: 1,
       meat: 100,
     });
-    const decision = strategy.decide(state, rng);
+    const decision = strategy.decide(state, env);
     const spawnActions = decision.actions.filter(a => a.type === 'spawn_generator');
     expect(spawnActions.length).toBeGreaterThanOrEqual(1);
   });
