@@ -38,6 +38,21 @@ export class CompleteActiveQuestGoal implements Goal {
   }
 
   getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[] {
+    // Pass 0: OpenBoxes prereq — boxes на гриде это бесплатные ресурсы
+    // (руны), которые истекают если их не открыть. RealisticStrategy
+    // делает это в reward phase ДО task phase — реплицируем через
+    // dynamic prereq.
+    if (ctx.freeCellCount > 0) {
+      for (const e of Object.values(state.entities)) {
+        if (e.kind === 'box') {
+          return [{
+            goalId: 'OpenBoxes',
+            reason: `box on grid (id=${e.id}); collect reward before progressing quest`,
+          }];
+        }
+      }
+    }
+
     // Pass 1: UpgradeGenerator prereq — если для какой-то нужды
     // ассоциированный gen НЕ выдаёт нужный тип на текущем уровне (только
     // через cfg.lines после upgrade) → upgrade gen первым делом.
