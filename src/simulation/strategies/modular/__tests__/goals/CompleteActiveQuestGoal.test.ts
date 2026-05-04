@@ -108,16 +108,18 @@ describe('CompleteActiveQuestGoal', () => {
     expect(goal.getPrerequisites(state, ctx)).toEqual([]);
   });
 
-  it('urgency растёт с прогрессом квеста', () => {
+  it('urgency = 1.0 константа когда квест активен (после tuning pass 3)', () => {
+    // Tuning pass 3: urgency теперь constant 1.0 чтобы quest всегда top-priority,
+    // 80*1.0=80 > 30*1.5=45 (UpgradeGenerator с активным upgrade).
+    // Mirrors RealisticStrategy "task-focused only".
     const goal = new CompleteActiveQuestGoal();
     const state = makeStateWithTimerGenAtCorner();
     const questType = state.currentAutoTask!.creatures[0]!.type;
-    state.currentTaskFed = []; // 0 progress
+    state.currentTaskFed = [];
     const ctx0 = buildContext(state, new SeededRng(1), 50);
-    const u0 = goal.urgency(state, ctx0);
+    expect(goal.urgency(state, ctx0)).toBe(1);
     state.currentTaskFed = [{ type: questType, level: 1 }, { type: questType, level: 1 }];
     const ctx1 = buildContext(state, new SeededRng(1), 50);
-    const u1 = goal.urgency(state, ctx1);
-    expect(u1).toBeGreaterThan(u0);
+    expect(goal.urgency(state, ctx1)).toBe(1);
   });
 });

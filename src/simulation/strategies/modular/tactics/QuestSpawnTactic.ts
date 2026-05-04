@@ -11,14 +11,38 @@ export const META: TacticMeta = {
 
 const CHARGE_MEAT_TARGET = 50;
 
+/** Выбираем need, ближайший к завершению (минимум remaining), при равенстве —
+ *  с самым низким уровнем (дешевле собрать). null если ни один need не активен. */
+function pickFocusNeed(
+  needs: readonly { creatureType: string; level: number; count: number; fed: number }[],
+): { creatureType: string; level: number; count: number; fed: number } | null {
+  const unfulfilled = needs.filter(n => n.fed < n.count);
+  if (unfulfilled.length === 0) return null;
+  if (unfulfilled.length === 1) return unfulfilled[0]!;
+  return [...unfulfilled].sort((a, b) => {
+    const remA = a.count - a.fed;
+    const remB = b.count - b.fed;
+    if (remA !== remB) return remA - remB;
+    // tie-break by lower level — proxy for cheaper-to-collect
+    return a.level - b.level;
+  })[0]!;
+}
+
 export class QuestSpawnTactic implements Tactic {
   meta: TacticMeta = META;
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
     const proposals: ProposedAction[] = [];
+    // Pick focus type (mirrors RealisticStrategy.pickFocusType): для dual-quests
+    // фокусируемся на нужде, ближайшей к завершению. Минимизирует распыление
+    // эффорта по двум линиям и ускоряет квест.
+    const focused = pickFocusNeed(ctx.activeQuestNeeds);
+    const focusType = focused?.creatureType ?? null;
     for (const need of ctx.activeQuestNeeds) {
       // Не спавнить под уже-удовлетворённые need'ы (например, dual-quest где
       // одна часть закрыта). Иначе цикл spawn → feed_unused → spawn петля.
       if (need.fed >= need.count) continue;
+      // Сосредоточиться на одной нужде в dual-quest.
+      if (focusType !== null && need.creatureType !== focusType) continue;
       const assignment = ctx.creatureGenMap.get(need.creatureType);
       if (!assignment) continue;
       const gen = state.entities[assignment.entityId];
