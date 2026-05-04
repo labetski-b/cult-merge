@@ -38,18 +38,35 @@ export class CompleteActiveQuestGoal implements Goal {
   }
 
   getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[] {
-    // Pass 0: OpenBoxes prereq — boxes на гриде это бесплатные ресурсы
-    // (руны), которые истекают если их не открыть. RealisticStrategy
-    // делает это в reward phase ДО task phase — реплицируем через
-    // dynamic prereq.
+    // Pass 0: reward-phase prereqs — drain все free rewards before quest.
+    // Mirrors RealisticStrategy reward phase order:
+    //   on-grid → open boxes → merge runes maximally → feed runes.
+    // Через dynamic prereq на каждый sub-goal, который активен.
+    //
+    // CollectRewards (basePri=85) уже выше quest — claim_reward отдельно
+    // не нужен в этом списке, scheduler сам обработает первым.
+
+    // Box on grid → OpenBoxes (prereq, потому что 70 < 80 quest).
     if (ctx.freeCellCount > 0) {
       for (const e of Object.values(state.entities)) {
         if (e.kind === 'box') {
           return [{
             goalId: 'OpenBoxes',
-            reason: `box on grid (id=${e.id}); collect reward before progressing quest`,
+            reason: `box on grid (id=${e.id}); open before progressing quest`,
           }];
         }
+      }
+    }
+
+    // Rune on grid → ManageRunes (basePri=40 < 80) — мерджим и фидим
+    // ДО квеста, иначе теряем потенциальные руны (Rune1_1 ×2 → Rune1_2
+    // даёт больше r1 при feed чем feed ×2 одиночек).
+    for (const e of Object.values(state.entities)) {
+      if (e.kind === 'rune') {
+        return [{
+          goalId: 'ManageRunes',
+          reason: `rune on grid (id=${e.id}); merge/feed before progressing quest`,
+        }];
       }
     }
 
