@@ -24,6 +24,23 @@ export function getCurrentMandatoryTask(
   return tasks[currentIndex] ?? null;
 }
 
+export function getActiveMandatoryTask(
+  config: BalanceConfig,
+  snapshot: Pick<GameSnapshot, 'kraken' | 'taskProgress'>,
+): { level: number; task: TaskDefinition } | null {
+  const levels = Object.keys(config.tasks.mandatory)
+    .map((key) => parseInt(key, 10))
+    .filter((level) => Number.isFinite(level) && level <= snapshot.kraken.level)
+    .sort((a, b) => a - b);
+
+  for (const level of levels) {
+    const task = getCurrentMandatoryTask(config, level, snapshot.taskProgress);
+    if (task) return { level, task };
+  }
+
+  return null;
+}
+
 export function getCreaturePool(entities: Record<string, Entity>): CreatureEntity[] {
   return Object.values(entities).filter(
     (entity): entity is CreatureEntity => entity.kind === 'creature'

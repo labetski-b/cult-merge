@@ -2,7 +2,7 @@ import { findEntityCell, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp } from '@domain/kraken';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
-import { applyFPCounterUpdate, generateAutoTask, getCurrentMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { applyFPCounterUpdate, generateAutoTask, getActiveMandatoryTask, isTaskComplete } from '@domain/tasks';
 import type { GameSnapshot, Resources, RuneItemKey, TaskDefinition } from '@domain/types';
 import type { RuntimeContext, RuntimeResult } from './types';
 
@@ -203,7 +203,8 @@ export function feedEntity(
     });
   }
 
-  const mandatoryTask = getCurrentMandatoryTask(ctx.balance, snapshot.kraken.level, snapshot.taskProgress);
+  const activeMandatory = getActiveMandatoryTask(ctx.balance, snapshot);
+  const mandatoryTask = activeMandatory?.task ?? null;
   const isMandatory = mandatoryTask !== null;
   const task = mandatoryTask ?? snapshot.currentAutoTask;
 
@@ -244,17 +245,15 @@ export function feedEntity(
   };
 
   if (isMandatory) {
-    const levelKey = snapshot.kraken.level.toString();
+    const levelKey = String(activeMandatory!.level);
     const nextTaskProgress = {
       ...snapshot.taskProgress,
       [levelKey]: (snapshot.taskProgress[levelKey] ?? 0) + 1
     };
-    // Check old level first for remaining mandatory tasks
-    let nextMandatoryTask = getCurrentMandatoryTask(ctx.balance, snapshot.kraken.level, nextTaskProgress);
-    // If no more at old level and we leveled up, check new level
-    if (!nextMandatoryTask && expResult.newState.level > snapshot.kraken.level) {
-      nextMandatoryTask = getCurrentMandatoryTask(ctx.balance, expResult.newState.level, nextTaskProgress);
-    }
+    const nextMandatoryTask = getActiveMandatoryTask(ctx.balance, {
+      kraken: expResult.newState,
+      taskProgress: nextTaskProgress,
+    })?.task ?? null;
     const generationSnapshot: GameSnapshot = {
       ...nextSnapshot,
       taskProgress: nextTaskProgress,

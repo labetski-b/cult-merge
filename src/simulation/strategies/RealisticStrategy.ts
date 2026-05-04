@@ -1,7 +1,7 @@
 import type { GameSnapshot, CreatureEntity, GeneratorEntity, BoxEntity, RuneEntity, TaskDefinition } from '@domain/types';
 import { getFreeCellIndexes, getNeighborCellIndexes, findEntityCell } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
-import { getCurrentMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } from '@domain/tasks';
+import { getActiveMandatoryTask, getTaskFedProgress, getExpectedL1PerCharge } from '@domain/tasks';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import type { EngineEnv } from '../engine/env';
 import type { AIStrategy, SimulationAction, StrategyDecision } from './base';
@@ -60,8 +60,7 @@ export class RealisticStrategy implements AIStrategy {
 
     if (this.phase === 'task') {
       let task: TaskDefinition | null =
-        getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
-        ?? state.currentAutoTask;
+        getActiveMandatoryTask(this.balance, state)?.task ?? state.currentAutoTask;
 
       if (task) {
         const result = this.questStep(state, task);
@@ -286,8 +285,7 @@ export class RealisticStrategy implements AIStrategy {
     const usedIds = new Set<string>();
     const actions: SimulationAction[] = [];
     const task: TaskDefinition | null =
-      getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
-      ?? state.currentAutoTask;
+      getActiveMandatoryTask(this.balance, state)?.task ?? state.currentAutoTask;
 
     let virtualFree = getFreeCellIndexes(state.grid).length;
 
@@ -324,8 +322,7 @@ export class RealisticStrategy implements AIStrategy {
   private investStep(state: GameSnapshot): StrategyDecision {
     const usedIds = new Set<string>();
     const task: TaskDefinition | null =
-      getCurrentMandatoryTask(this.balance, state.kraken.level, state.taskProgress)
-      ?? state.currentAutoTask;
+      getActiveMandatoryTask(this.balance, state)?.task ?? state.currentAutoTask;
 
     const neededTypes = new Set<string>();
     if (task) {

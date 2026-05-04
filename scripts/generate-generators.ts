@@ -12,6 +12,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 // @ts-expect-error — .mjs без TS-типов, JSDoc-аннотации внутри модуля
 import { DEFAULTS, computeGenerators, interpolate } from '../public/generator-curves.mjs';
+import type { GeneratorsData } from '../src/data/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +33,36 @@ function main() {
   const DESIGN = DEFAULTS;
   const { generators: gens, stats } = computeGenerators(DESIGN);
 
-  const output = { generators: gens };
+  const output: GeneratorsData = {
+    generators: gens.map((gen) => ({
+      ...gen,
+      levels: gen.levels.map((lvl) => {
+        const upgrade =
+          lvl.upgrade &&
+          gen.id === 1 &&
+          (lvl.level === 1 || lvl.level === 2)
+            ? { ...lvl.upgrade, mergesRequired: lvl.level }
+            : lvl.upgrade;
+        if (gen.spawnMode === 'timer') {
+          return {
+            mode: 'timer',
+            level: lvl.level,
+            tickIntervalSec: gen.tickIntervalSec!,
+            outputs: lvl.outputs,
+            ...(upgrade ? { upgrade } : {}),
+          };
+        }
+        return {
+          mode: 'sacrifice',
+          level: lvl.level,
+          chargeCost: lvl.chargeCost,
+          numCreatures: lvl.numCreatures,
+          outputs: lvl.outputs,
+          ...(upgrade ? { upgrade } : {}),
+        };
+      }),
+    })),
+  };
   const outPath = path.join(__dirname, '..', 'src', 'data', 'generators.generated.json');
   fs.writeFileSync(outPath, JSON.stringify(output, null, 2) + '\n', 'utf8');
 

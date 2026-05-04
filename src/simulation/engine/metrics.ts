@@ -1,6 +1,6 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
-import { getCurrentMandatoryTask } from '@domain/tasks';
+import { getActiveMandatoryTask } from '@domain/tasks';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 
@@ -87,8 +87,7 @@ export function captureTickMetrics(
 
   // Current task creature requirements (mirrors strategy: mandatory → autoTask fallback)
   const currentTaskRequirements: Record<string, number> = {};
-  const task = getCurrentMandatoryTask(balance, state.kraken.level, state.taskProgress)
-    ?? state.currentAutoTask;
+  const task = getActiveMandatoryTask(balance, state)?.task ?? state.currentAutoTask;
   if (task) {
     for (const req of task.creatures) {
       currentTaskRequirements[req.type] = req.level;

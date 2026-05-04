@@ -4,6 +4,7 @@ import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
 import { findEntityCell } from '@domain/grid';
+import { getActiveTask } from '@domain/runtime/getActiveTask';
 import type { SimulationAction } from '../actions';
 import { makeEngineEnv } from '../env';
 import { applyActionCore } from '../applyActionCore';
@@ -141,6 +142,42 @@ describe('applyActionCore — feed', () => {
     expect(result.stateChanged).toBe(true);
     expect(result.nextState.entities['r']).toBeUndefined();
     expect(result.nextState.resources.rune1).toBeGreaterThan(beforeR1);
+  });
+
+  it('completes a lower-level mandatory task after kraken has already advanced past that level', () => {
+    const state = emptyGridSnapshot();
+    state.kraken.level = 5;
+    state.taskProgress = {
+      '2': BALANCE.tasks.mandatory['2']!.length,
+      '3': BALANCE.tasks.mandatory['3']!.length,
+      '4': 0,
+    };
+    state.currentAutoTask = null;
+
+    const task = getActiveTask(BALANCE, state);
+    expect(task?.id).toBe(BALANCE.tasks.mandatory['4']![0]!.id);
+
+    const missing = task!.creatures[0]!;
+    state.currentTaskFed = task!.creatures.flatMap((req, index) => {
+      const count = index === 0 ? req.count - 1 : req.count;
+      return Array.from({ length: count }, () => ({ type: req.type, level: req.level }));
+    });
+
+    const entity: CreatureEntity = {
+      id: 'missing',
+      kind: 'creature',
+      creatureType: missing.type,
+      level: missing.level,
+    };
+    state.entities = { missing: entity };
+    state.grid.cells[0] = 'missing';
+
+    const env = makeEnv();
+    const result = applyActionCore(state, { type: 'feed', entityId: 'missing' }, env, BALANCE);
+
+    expect(result.events.some((e) => e.type === 'task_completed')).toBe(true);
+    expect(result.nextState.taskProgress['4']).toBe(1);
+    expect(getActiveTask(BALANCE, result.nextState)).toBeTruthy();
   });
 });
 
