@@ -130,6 +130,12 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(proposals[0]!.reasoning).toMatch(/have\s+\d+/);
     expect(proposals[0]!.reasoning).toMatch(/need\s+\d+/);
     expect(proposals[0]!.reasoning.startsWith('blocked_by_merges')).toBe(true);
+    // T6 follow-up: tag must precede `:` directly (no embedded gen id).
+    // A naive `text.split(':', 1)[0].trim()` extractor must yield exactly
+    // 'blocked_by_merges' — same convention as `feasible_upgrade:`,
+    // `quest_requires_upgrade:`, `rune_surplus_trigger:`, and
+    // UpgradeGeneratorGoal.describe() (`${tag}: ${detail}`).
+    expect(proposals[0]!.reasoning.split(':', 1)[0]!.trim()).toBe('blocked_by_merges');
   });
 
   // T6: tag check on Path B variants too (gather_meat, charge, spawn).
@@ -147,6 +153,8 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(proposals[0]!.reasoning.startsWith('blocked_by_merges')).toBe(true);
     expect(proposals[0]!.reasoning).toMatch(/have\s+\d+/);
     expect(proposals[0]!.reasoning).toMatch(/need\s+\d+/);
+    // T6 follow-up: split-by-colon extractor yields exactly the tag.
+    expect(proposals[0]!.reasoning.split(':', 1)[0]!.trim()).toBe('blocked_by_merges');
   });
 
   // ─── Path B — productive fallback when no pair exists ──────────────────

@@ -171,8 +171,8 @@ function renderTraceTab(idx) {
     html += `<div style="border:1px solid #2a3a5a; padding:8px; margin:4px 0;">`;
     html += `<b>Iter ${it.iteration}</b> — selected: ${it.selectedGoalId ?? '<i>none</i>'}<br/>`;
     if (it.activeGoals.length) {
-      html += `<details><summary>Active goals (${it.activeGoals.length})</summary><table class="cm-table"><thead><tr><th>id</th><th>basePri</th><th>urg</th><th>final</th><th>cat</th><th>promoted</th></tr></thead><tbody>`;
-      for (const g of it.activeGoals) html += `<tr><td>${g.id}</td><td>${g.basePriority}</td><td>${g.urgency.toFixed(2)}</td><td>${g.finalPriority.toFixed(0)}</td><td>${g.category}</td><td>${g.promotedFromPrereq ?? ''}</td></tr>`;
+      html += `<details><summary>Active goals (${it.activeGoals.length})</summary><table class="cm-table"><thead><tr><th>id</th><th>basePri</th><th>urg</th><th>final</th><th>cat</th><th>promoted</th><th>describe</th></tr></thead><tbody>`;
+      for (const g of it.activeGoals) html += `<tr><td>${g.id}</td><td>${g.basePriority}</td><td>${g.urgency.toFixed(2)}</td><td>${g.finalPriority.toFixed(0)}</td><td>${g.category}</td><td>${g.promotedFromPrereq ?? ''}</td><td>${g.describe ?? ''}</td></tr>`;
       html += `</tbody></table></details>`;
     }
     if (it.prerequisiteChain && it.prerequisiteChain.length) {
