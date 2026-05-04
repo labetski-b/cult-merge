@@ -1,14 +1,14 @@
 import type { GameSnapshot, GeneratorEntity, CreatureEntity, RuneEntity } from '@domain/types';
 import type { Tactic, TacticMeta, ProposedAction, Goal, StrategyContext } from '../types';
 import { BALANCE } from '@data/loadBalance';
-import { findEntityCell, getNeighborCellIndexes } from '@domain/grid';
+import { findEntityCell, getFreeCellIndexes, getNeighborCellIndexes } from '@domain/grid';
 import { canMergeRunes } from '@domain/merge';
 
 export const META: TacticMeta = {
   id: 'TimerGenSkip',
-  description: 'Skip-tap timer-генератора (Gen3) для квестового спавна; если нет свободных соседей — освободить через merge/feed',
+  description: 'Skip-tap timer-генератора (Gen3) для квестового спавна; если нет свободных соседей — освободить через merge/feed/move',
   serves: ['CompleteActiveQuest'],
-  produces: ['skip_timer_generator', 'merge', 'feed'],
+  produces: ['skip_timer_generator', 'merge', 'feed', 'move_entity'],
 };
 
 /**
@@ -22,11 +22,16 @@ export const META: TacticMeta = {
  *   3. feed nontask соседа (минимальная creatureType, минимальный level).
  *   4. feed соседней руны (любой) — заодно ресурс капнет.
  */
+type FreeingAction =
+  | { type: 'merge'; sourceId: string; targetId: string }
+  | { type: 'feed'; entityId: string }
+  | { type: 'move_entity'; entityId: string; targetCellIndex: number };
+
 function pickFreeingActionForNeighbors(
   state: GameSnapshot,
   gen: GeneratorEntity,
   taskCreatureTypes: Set<string>,
-): { type: 'merge'; sourceId: string; targetId: string } | { type: 'feed'; entityId: string } | null {
+): FreeingAction | null {
   const cellIdx = findEntityCell(state.grid, gen.id);
   if (cellIdx < 0) return null;
   const neighbors = getNeighborCellIndexes(state.grid, cellIdx);
@@ -94,7 +99,27 @@ function pickFreeingActionForNeighbors(
     return { type: 'feed', entityId: neighborRunes[0]!.id };
   }
 
-  // 5) deadlock — все соседи task-creatures. Бросаем — пусть другие цели разрулят.
+  // 5) Direct move-rescue (mirrors RealisticStrategy step 3): все соседи —
+  //    task-typed creatures, но на гриде есть free far cell. Перемещаем
+  //    lowest-level task-typed neighbor в free cell — освобождаем neighbor
+  //    БЕЗ потери прогресса (move сохраняет creature).
+  if (neighborCreatures.length > 0) {
+    const neighborSet = new Set(neighbors);
+    const farFreeCells = getFreeCellIndexes(state.grid).filter(
+      i => i !== cellIdx && !neighborSet.has(i),
+    );
+    if (farFreeCells.length > 0) {
+      // Сортируем neighbors по level (предпочитаем low-level — меньше потерь)
+      const sorted = [...neighborCreatures].sort((a, b) => a.level - b.level);
+      return {
+        type: 'move_entity',
+        entityId: sorted[0]!.id,
+        targetCellIndex: farFreeCells[0]!,
+      };
+    }
+  }
+
+  // 6) deadlock — все соседи task-creatures, нет free far cell. Бросаем.
   return null;
 }
 
