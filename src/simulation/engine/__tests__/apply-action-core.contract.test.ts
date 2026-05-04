@@ -386,3 +386,134 @@ describe('applyActionCore — RNG isolation', () => {
     expect(result.nextEnv.rng.getState()).not.toBe(stateBefore);
   });
 });
+
+describe('applyActionCore — env semantics (regression for wrapper compensations)', () => {
+  it('no-op action with non-zero actionTime does not advance nextEnv.nowMs (except collect_upgrade)', () => {
+    // charge_generator on a generator without enough meat → no-op.
+    // applyCharge bails out early (changed=false), so the pure-core's
+    // shouldAdvanceTime guard must keep nowMs unchanged.
+    const state = freshSnapshot();
+    const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity;
+    expect(gen).toBeDefined();
+    state.resources.meat = 0; // no meat → charge cannot proceed
+    // Drain its charges so charge_generator at least attempts work
+    state.entities[gen.id] = { ...gen, charges: [] } as GeneratorEntity;
+
+    const NOW = 1000;
+    const env = makeEnv(42, NOW, 0);
+    const action: SimulationAction = { type: 'charge_generator', generatorId: gen.id };
+    const result = applyActionCore(state, action, env, BALANCE);
+
+    expect(result.stateChanged).toBe(false);
+    expect(result.nextEnv.nowMs).toBe(NOW); // not advanced
+  });
+
+  it('collect_upgrade no-op still advances nowMs (legacy edge case)', () => {
+    // collect_upgrade is in the always-advance list inside applyActionCore
+    // even when the action does not change state. This mirrors legacy
+    // SimulationEngine behaviour (so the upgrade timer can eventually cross
+    // finishesAt over a sequence of polled collects).
+    const state = emptyGridSnapshot();
+    state.activeUpgrade = null;
+
+    const NOW = 1000;
+    const env = makeEnv(42, NOW, 0);
+    const action: SimulationAction = { type: 'collect_upgrade' };
+    const result = applyActionCore(state, action, env, BALANCE);
+
+    expect(result.stateChanged).toBe(false);
+    // collect_upgrade advances nowMs by getActionTimeSec(action) * 1000 even
+    // when no upgrade is active.
+    expect(result.nextEnv.nowMs).toBe(NOW + getActionTimeSec(action) * 1000);
+    expect(result.nextEnv.nowMs).toBeGreaterThan(NOW);
+  });
+
+  it('merge advances nextEnv.rng but does not write nextState.rngState (legacy semantics)', () => {
+    const state = emptyGridSnapshot();
+    const a: CreatureEntity = { id: 'a', kind: 'creature', creatureType: 'Creature1', level: 1 };
+    const b: CreatureEntity = { id: 'b', kind: 'creature', creatureType: 'Creature1', level: 1 };
+    state.entities = { a, b };
+    state.grid.cells[0] = 'a';
+    state.grid.cells[1] = 'b';
+
+    const rngStateBefore = state.rngState;
+    const env = makeEnv(42, 0, 0);
+    const envRngBefore = env.rng.getState();
+
+    const result = applyActionCore(state, { type: 'merge', sourceId: 'a', targetId: 'b' }, env, BALANCE);
+
+    expect(result.stateChanged).toBe(true);
+    // env.rng was consumed (nextId() for merged entity) → nextEnv.rng diverges
+    expect(result.nextEnv.rng.getState()).not.toBe(envRngBefore);
+    // BUT snapshot.rngState is preserved (legacy SimulationEngine.mergeEntities
+    // never wrote state.rngState — that channel is owned by tickTimerGenerators).
+    expect(result.nextState.rngState).toBe(rngStateBefore);
+  });
+
+  it('feed-driven task_completed event accumulates eyesGained into nextEnv.totalEyesGained', () => {
+    // Build a state where feeding a single Creature1 Lv2 completes the
+    // mandatory task at kraken level 2 (which requires exactly that). The
+    // pure-core's applyFeed emits task_completed with the eye reward;
+    // applyActionCore must thread that delta into nextEnv.totalEyesGained
+    // (previously this was a wrapper compensation in SimulationEngine).
+    const state = emptyGridSnapshot();
+    state.kraken.level = 2; // >=2 so feed consults the task system
+    state.taskProgress = {}; // mandatory task at level 2 is index 0 (Creature1 Lv2 x1)
+    const c: CreatureEntity = { id: 'c', kind: 'creature', creatureType: 'Creature1', level: 2 };
+    state.entities = { c };
+    state.grid.cells[0] = 'c';
+    state.currentTaskFed = [];
+
+    const STARTING_EYES = 100;
+    const env = makeEnv(42, 0, STARTING_EYES);
+    const result = applyActionCore(state, { type: 'feed', entityId: 'c' }, env, BALANCE);
+
+    // Sanity: a task_completed event was emitted with a non-negative eyesGained
+    // (the mandatory Lv2 task may have eyeReward=0 in BALANCE, but the channel
+    // must still be threaded).
+    const completed = result.events.find(e => e.type === 'task_completed');
+    expect(completed).toBeDefined();
+    if (completed && completed.type === 'task_completed') {
+      // Pure-core threaded the eyesGained delta into nextEnv (no wrapper compensation).
+      expect(result.nextEnv.totalEyesGained).toBe(STARTING_EYES + completed.eyesGained);
+    }
+    // Original env not mutated.
+    expect(env.totalEyesGained).toBe(STARTING_EYES);
+  });
+
+  it('feed-driven task_completed updates totalEyesGained even with auto-task path', () => {
+    // Auto-task path: kraken.level high enough that no mandatory remains, then
+    // the auto-task is the source of eyes. We use a synthetic auto-task with
+    // an explicit eyeReward so the assertion is precise.
+    const state = emptyGridSnapshot();
+    state.kraken.level = 99; // far past any mandatory task entry
+    state.taskProgress = {};
+    const c: CreatureEntity = { id: 'c', kind: 'creature', creatureType: 'Creature1', level: 1 };
+    state.entities = { c };
+    state.grid.cells[0] = 'c';
+    state.currentTaskFed = [];
+    state.currentAutoTask = {
+      id: 'synthetic-eye-task',
+      creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+      eyeReward: 50,
+      expMultiplier: 0,
+      resMultiplier: 1,
+    };
+
+    const STARTING_EYES = 100;
+    const env = makeEnv(42, 0, STARTING_EYES);
+    const result = applyActionCore(state, { type: 'feed', entityId: 'c' }, env, BALANCE);
+
+    const completed = result.events.find(e => e.type === 'task_completed');
+    if (completed && completed.type === 'task_completed') {
+      // Explicit eyeReward=50 should be the eyesGained payload.
+      expect(completed.eyesGained).toBe(50);
+      expect(result.nextEnv.totalEyesGained).toBe(STARTING_EYES + 50);
+    } else {
+      // If task system rerouted (unexpected), at minimum confirm the input env
+      // is untouched. The accumulation pass is also a no-op when no
+      // task_completed is emitted.
+      expect(result.nextEnv.totalEyesGained).toBe(STARTING_EYES);
+    }
+  });
+});

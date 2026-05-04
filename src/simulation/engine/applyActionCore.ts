@@ -202,9 +202,21 @@ export function applyActionCore(
     ? env.nowMs + getActionTimeSec(action) * 1000
     : env.nowMs;
 
+  // Accumulate eyesGained from any task_completed events into nextEnv. This is
+  // the channel the legacy engine fed back into `cumulative.totalEyesGained`
+  // and then re-bound into `env.totalEyesGained` (third wrapper compensation,
+  // now removed). The pure-core is responsible for producing a fully resolved
+  // nextEnv — the wrapper only reads it. Spec rev 2 § 5.6.
+  let nextTotalEyesGained = env.totalEyesGained;
+  for (const ev of events) {
+    if (ev.type === 'task_completed') {
+      nextTotalEyesGained += ev.eyesGained;
+    }
+  }
+
   return {
     nextState: workingState,
-    nextEnv: makeEngineEnv(workingRng, nextNowMs, env.totalEyesGained),
+    nextEnv: makeEngineEnv(workingRng, nextNowMs, nextTotalEyesGained),
     stateChanged,
     events,
   };

@@ -208,21 +208,15 @@ export class SimulationEngine {
           throw error;
         }
         // Apply the pure-core result: this is the ONLY place outside
-        // applyPassiveTickCore where state/env mutate.
+        // applyPassiveTickCore where state/env mutate. After T6 the engine
+        // wrapper does NOT modify this.env beyond this assignment — pure-core
+        // is fully responsible for nextEnv (rng, nowMs, totalEyesGained). The
+        // applyEvents call below only updates cumulative metrics, log entries,
+        // and other engine-side bookkeeping. Spec rev 2 § 5.6.
         this.state = result.nextState;
         this.env = result.nextEnv;
         this.applyEvents(action, result.events);
         const stateChanged = result.stateChanged;
-
-        // Sync env.totalEyesGained with cumulative.totalEyesGained: the
-        // pure-core reads env.totalEyesGained for meat-drop calculations, but
-        // the legacy engine reads cumulative.totalEyesGained for the same.
-        // applyEvents may have just bumped totalEyesGained on a task_completed
-        // event; re-bind env so the next applyActionCore sees the same value
-        // legacy SimulationEngine.executeGatherMeat would have seen.
-        if (this.env.totalEyesGained !== this.cumulative.totalEyesGained) {
-          this.env = makeEngineEnv(this.env.rng, this.env.nowMs, this.cumulative.totalEyesGained);
-        }
 
         // Mirror legacy timing semantics: legacy SimulationEngine advanced
         // game time only when stateChanged (or for free_cells/collect_upgrade
