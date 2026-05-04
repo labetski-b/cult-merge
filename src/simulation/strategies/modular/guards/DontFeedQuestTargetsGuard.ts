@@ -36,11 +36,19 @@ export class DontFeedQuestTargetsGuard implements Guard {
       n => n.creatureType === c.creatureType && n.fed < n.count && c.level < n.level,
     );
     if (typeNeed) {
-      // КРИТИЧНО: feed quest-type ingredient НИКОГДА не проходит при активном
-      // квесте, даже при free=0. Если квест-тип занял весь грид одиночками —
-      // это значит другие goals должны освобождать место (через rune merge,
-      // non-quest feed, или skip_timer для нового spawn). Раньше был
-      // isDeadlockEscape — он провоцировал spawn→feed→spawn→feed петлю.
+      // Allowed only when:
+      //   1. Grid is fully blocked (free=0)
+      //   2. There's no merge-pair anywhere (creature OR rune)
+      //   3. There's no non-quest creature/rune to feed instead
+      //   4. `c` is the LOWEST-level singleton of its type (preserve higher
+      //      levels — feeding a higher-level merge ingredient destroys more
+      //      progress).
+      //
+      // This still allows breaking out of true deadlocks but blocks the
+      // spawn → feed → spawn → feed pumps.
+      if (isStrictDeadlockEscape(state, c, ctx)) {
+        return { allow: true };
+      }
       return {
         allow: false,
         reason: `${c.creatureType} Lv${c.level} needed as merge-ingredient for active quest (target Lv${typeNeed.level})`,
@@ -51,47 +59,58 @@ export class DontFeedQuestTargetsGuard implements Guard {
 }
 
 /**
- * Deadlock-escape проверка: feed quest-type ingredient допустим только если:
- *   1. Нет свободной клетки И
- *   2. Нет ни одной merge-пары на гриде (creature ИЛИ rune) И
- *   3. У `c` нет двух одноуровневых соседей (нельзя поднять уровень) И
- *   4. На гриде нет руны или non-quest creature чтобы освободить вместо
- *      этого quest-ingredient (приоритет освобождения от мусора).
- *
- * Без всех этих проверок strategy зацикливается: spawn → merge → feed Lv2 →
- * spawn → merge → feed Lv2 — никогда не накапливая chain до target level.
+ * Strict deadlock-escape: feed quest-type ingredient допустим только в
+ * настоящем тупике (см. документацию у вызова).
  */
-function isDeadlockEscape(state: GameSnapshot, c: CreatureEntity): boolean {
+function isStrictDeadlockEscape(
+  state: GameSnapshot,
+  c: CreatureEntity,
+  ctx: StrategyContext,
+): boolean {
   const freeCells = getFreeCellIndexes(state.grid).length;
   if (freeCells > 0) return false;
-  // Есть ли вообще ЛЮБАЯ merge-пара на гриде (не только этого type+level)?
-  // Если есть — не deadlock, нужно сделать merge вместо feed.
-  const byKey = new Map<string, number>();
-  let runeByType = new Map<string, number>();
+  // Соберём картину грида.
+  const creaByKey = new Map<string, CreatureEntity[]>();
+  const runeByType = new Map<string, number>();
   let nonQuestCreatureCount = 0;
-  // Quick: quest types
-  // (caller passes c — мы не имеем ctx тут, поэтому просто считаем pairs.)
+  const questTypes = new Set(ctx.activeQuestNeeds.filter(n => n.fed < n.count).map(n => n.creatureType));
   for (const e of Object.values(state.entities)) {
     if (e.kind === 'creature') {
       const x = e as CreatureEntity;
       const key = `${x.creatureType}:${x.level}`;
-      byKey.set(key, (byKey.get(key) ?? 0) + 1);
-      if (x.id !== c.id && x.creatureType !== c.creatureType) nonQuestCreatureCount += 1;
+      const arr = creaByKey.get(key) ?? [];
+      arr.push(x);
+      creaByKey.set(key, arr);
+      if (!questTypes.has(x.creatureType)) nonQuestCreatureCount += 1;
     } else if (e.kind === 'rune') {
-      runeByType.set((e as { runeType: string }).runeType,
-        (runeByType.get((e as { runeType: string }).runeType) ?? 0) + 1);
+      const rt = (e as { runeType: string }).runeType;
+      runeByType.set(rt, (runeByType.get(rt) ?? 0) + 1);
     }
   }
-  // Есть creature pair? → не deadlock
-  for (const v of byKey.values()) if (v >= 2) return false;
-  // Есть rune pair? → не deadlock (можно слить руны для освобождения)
+  // 1) Есть merge-пара любого creature type+level? → не deadlock.
+  for (const arr of creaByKey.values()) if (arr.length >= 2) return false;
+  // 2) Есть merge-пара рун? → не deadlock.
   for (const v of runeByType.values()) if (v >= 2) return false;
-  // Есть non-quest-type creature? feed его вместо quest ingredient.
+  // 3) Есть non-quest creature? feed его (а не quest ingredient).
   if (nonQuestCreatureCount > 0) return false;
-  // Есть хоть одна руна-одиночка? feed её первой (она ресурс капнет).
+  // 4) Есть руна-одиночка? feed её (заодно ресурс капнет).
   let runeCount = 0;
   for (const v of runeByType.values()) runeCount += v;
   if (runeCount > 0) return false;
-  // Truly deadlock — feed quest-type ingredient это единственный выход.
+  // 5) Каждый creature на гриде = одиночка quest-type. Допустим feed только
+  //    того, кто LOWEST-level в своём типе (минимизируем потерянный прогресс).
+  const myKey = `${c.creatureType}:${c.level}`;
+  for (const [key, arr] of creaByKey) {
+    if (arr.length === 0) continue;
+    const [type, lvlStr] = key.split(':');
+    const lvl = Number(lvlStr);
+    if (type !== c.creatureType) continue;
+    if (lvl < c.level) {
+      // Есть существо того же типа на меньшем уровне → его feed дешевле.
+      return false;
+    }
+  }
+  // c — действительно низший quest-singleton. Разрешаем feed.
+  void myKey;
   return true;
 }
