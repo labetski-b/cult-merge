@@ -3,11 +3,11 @@ import type { Goal, GoalMeta, GoalPrerequisite, StrategyContext } from '../types
 
 export const META: GoalMeta = {
   id: 'MaintainFreeGrid',
-  description: 'Освобождать клетки слиянием/feed когда грид заполнен > 80%',
+  description: 'Освобождать клетки слиянием/feed когда грид заполнен ≥ 60%',
   basePriority: 50,
   category: 'opportunistic',
-  activationCondition: 'freeCells / total < 0.2',
-  urgencyFormula: 'pow(1 - freeCells/total, 2) при заполнении > 80%',
+  activationCondition: 'freeCells / total < 0.4',
+  urgencyFormula: 'pow(1 - freeCells/total, 2) при заполнении > 60%',
 };
 
 function freeRatio(state: GameSnapshot): number {
@@ -21,7 +21,7 @@ function freeRatio(state: GameSnapshot): number {
 export class MaintainFreeGridGoal implements Goal {
   meta: GoalMeta = META;
   isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
-    return freeRatio(state) < 0.2;
+    return freeRatio(state) < 0.4;
   }
   urgency(state: GameSnapshot, _ctx: StrategyContext): number {
     const filled = 1 - freeRatio(state);

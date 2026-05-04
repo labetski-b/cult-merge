@@ -140,10 +140,20 @@ export class TimerGenSkipTactic implements Tactic {
             tacticId: META.id,
             goalId: goal.meta.id,
           });
+        } else {
+          // Все соседи заняты quest-creatures, нечем освобождать.
+          // Эмитим tick_idle (как RealisticStrategy) чтобы game time прошёл
+          // и timer-gen смог пассивно spawn'нуть в свободную клетку (если на
+          // других целях освободятся места). Без этого мы стоим в done=true
+          // 0 actions — passive tick не двигает время.
+          proposals.push({
+            action: { type: 'tick_idle', reason: 'fp:no_space' },
+            reasoning: `Gen${g.generatorId} timer-blocked, idle to advance time`,
+            expectedProgress: 0.05,
+            tacticId: META.id,
+            goalId: goal.meta.id,
+          });
         }
-        // Если pickFreeingActionForNeighbors вернул null — не предлагаем skip,
-        // потому что он бесполезен (зацикливание). Остальные goals попробуют
-        // что-то полезное.
       }
     }
     return proposals;

@@ -74,9 +74,13 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
 
   const goalSnapshots: GoalSnapshot[] = sortedQueue.map(entry => goalSnapshot(entry, state, ctx));
 
-  // 4. Walk queue and try to find an action
+  // 4. Walk queue and try to find an action.
+  //    BUT: tick_idle proposals from CompleteActiveQuest are deferred — пытаемся
+  //    fall through к OpenBoxes/MaintainFreeGrid/etc. сначала. Если ни одна
+  //    другая goal не предложит — берём tick_idle как последний resort.
   const allProposed: ProposedActionSnapshot[] = [];
   const allRejected: GuardRejection[] = [];
+  let deferredIdle: { proposal: ProposedAction; goal: Goal } | null = null;
 
   for (const entry of sortedQueue) {
     const goal = entry.goal;
@@ -124,6 +128,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
     });
     const best = survivors[0]!;
 
+    // Если best — это tick_idle (нет настоящего progress), отложим: может,
+    // более низкая goal сможет сделать что-то полезное (open_box, merge runes,
+    // free up grid). Если никто другой не предложит — вернёмся к этой idle.
+    if (best.action.type === 'tick_idle') {
+      if (!deferredIdle) deferredIdle = { proposal: best, goal };
+      continue;
+    }
+
     const iter: IterationDecision = {
       iteration: iterIndex,
       activeGoals: goalSnapshots,
@@ -135,6 +147,21 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
     };
     buffer.recordIteration(iter);
     return { actions: [best.action], done: false };
+  }
+
+  // Нет реального action ни у одной goal — берём deferred tick_idle если был.
+  if (deferredIdle) {
+    const iter: IterationDecision = {
+      iteration: iterIndex,
+      activeGoals: goalSnapshots,
+      prerequisiteChain: resolved.links.length > 0 ? resolved.links : undefined,
+      selectedGoalId: deferredIdle.goal.meta.id,
+      proposedActions: allProposed,
+      rejectedByGuards: allRejected,
+      selectedAction: deferredIdle.proposal.action,
+    };
+    buffer.recordIteration(iter);
+    return { actions: [deferredIdle.proposal.action], done: false };
   }
 
   // No goal produced an action
