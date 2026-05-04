@@ -13,6 +13,12 @@ export const META: GoalMeta = {
   category: 'blocking',
   activationCondition: 'getActiveTask(state) != null',
   urgencyFormula: '1.0 (constant) — quest всегда top-priority когда активен',
+  possiblePrereqs: [
+    { goalId: 'OpenBoxes', trigger: 'box on grid (Pass 0 — reward cycle)' },
+    { goalId: 'ManageRunes', trigger: 'rune on grid (Pass 0 — reward cycle)' },
+    { goalId: 'UpgradeGenerator', trigger: 'gen не выдаёт quest type на текущем уровне (Pass 1)' },
+    { goalId: 'BoardLayout', trigger: 'timer-gen у края с freeNeighbors < FP_RELAYOUT_THRESHOLD (Pass 2)' },
+  ],
 };
 
 export class CompleteActiveQuestGoal implements Goal {

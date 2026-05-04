@@ -15,6 +15,7 @@ export interface InspectorData {
   goals: Array<{
     id: string; description: string; basePriority: number; category: string;
     activationCondition: string; urgencyFormula: string; sourceFile?: string;
+    possiblePrereqs: ReadonlyArray<{ goalId: string; trigger: string }>;
   }>;
   tactics: Array<{
     id: string; description: string; serves: readonly string[]; produces: readonly string[]; sourceFile?: string;
@@ -32,6 +33,7 @@ export function buildInspectorData(): InspectorData {
       basePriority: e.meta.basePriority, category: e.meta.category,
       activationCondition: e.meta.activationCondition, urgencyFormula: e.meta.urgencyFormula,
       sourceFile: e.meta.sourceFile,
+      possiblePrereqs: e.meta.possiblePrereqs ?? [],
     })),
     tactics: tacticRegistry.map(e => ({
       id: e.meta.id, description: e.meta.description,

@@ -20,6 +20,13 @@ export interface ModuleMetaCommon {
   sourceFile?: string;
 }
 
+export interface PossiblePrereq {
+  /** id целевой goal которая может быть promoted как prereq. */
+  readonly goalId: string;
+  /** Человекочитаемое условие при котором prereq срабатывает. */
+  readonly trigger: string;
+}
+
 export interface GoalMeta extends ModuleMetaCommon {
   basePriority: number;
   category: GoalCategory;
@@ -27,6 +34,13 @@ export interface GoalMeta extends ModuleMetaCommon {
   activationCondition: string;
   /** Human-readable формула urgency. */
   urgencyFormula: string;
+  /**
+   * Опциональный список potential prereqs — fires dynamically via
+   * Goal.getPrerequisites(state, ctx). Inspector рендерит как пунктирные
+   * стрелки в Tab 1 Structure. Должен соответствовать реальной логике
+   * getPrerequisites.
+   */
+  readonly possiblePrereqs?: ReadonlyArray<PossiblePrereq>;
 }
 
 export interface TacticMeta extends ModuleMetaCommon {

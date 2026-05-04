@@ -8,6 +8,9 @@ export const META: GoalMeta = {
   category: 'opportunistic',
   activationCondition: 'есть entity типа box на гриде',
   urgencyFormula: '0.7 + 0.3 * boxCount',
+  possiblePrereqs: [
+    { goalId: 'MaintainFreeGrid', trigger: 'freeCellCount === 0 (no slot для box content)' },
+  ],
 };
 
 function countBoxes(state: GameSnapshot): number {
