@@ -1,5 +1,7 @@
 # ModularStrategy Batch Actions — Design Spec
 
+> **DEPRECATED.** Superseded by [`2026-05-04-batch-actions-rev2.md`](./2026-05-04-batch-actions-rev2.md). This rev 1 is kept for history only.
+
 **Дата:** 2026-05-04 (rev 1, draft for review)
 **Ветка:** `new_simulator`
 **Зависит от:** [`2026-05-03-modular-strategy-design.md`](./2026-05-03-modular-strategy-design.md) (rev 6) — четыре контракта оттуда (Trace, META, Dynamic Prerequisites, Scheduler) сохраняются и являются стартовой точкой этого спека.

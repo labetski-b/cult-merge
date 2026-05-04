@@ -1,5 +1,7 @@
 # ModularStrategy Batch Actions Implementation Plan
 
+> **DEPRECATED.** Superseded by [`2026-05-04-batch-actions-rev2.md`](./2026-05-04-batch-actions-rev2.md). This rev 1 is kept for history only.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) или superpowers:executing-plans для имплементации task-by-task. Steps используют checkbox (`- [ ]`) syntax.
 
 **Goal:** Поднять ModularStrategy на seed=100 с 41.9% до ≥60% от RealisticStrategy за счёт перехода с one-action-per-decide на batch plans (1..MAX_PLAN_STEPS=5 actions). Core invariant: identical preview/real execution через единый pure `applyActionCore`.
