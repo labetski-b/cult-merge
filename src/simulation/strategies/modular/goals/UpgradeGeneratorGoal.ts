@@ -1,5 +1,8 @@
-import type { GameSnapshot } from '@domain/types';
+import type { GameSnapshot, RuneEntity } from '@domain/types';
 import type { Goal, GoalMeta, GoalPrerequisite, StrategyContext } from '../types';
+import { canMergeRunes } from '@domain/merge';
+import { pickUpgradeCandidate } from '../../pickUpgradeCandidate';
+import { BALANCE } from '@data/loadBalance';
 
 export const META: GoalMeta = {
   id: 'UpgradeGenerator',
@@ -26,18 +29,26 @@ export class UpgradeGeneratorGoal implements Goal {
     const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
     if (state.activeUpgrade !== null && hasActiveQuest) return 0.1;
     if (state.activeUpgrade !== null) return 1.0;
-    // Rune surplus override: если рун накопилось много (≥20), форсируем
-    // upgrade — иначе CompleteActiveQuest (priority 80) монополизирует
-    // scheduler и руны просто гниют. finalPriority = 30 * surplus_factor;
-    // при r1=20 → factor=3.0 → 90 > 80 → UpgradeGenerator выигрывает раз
-    // и тратит руны, потом surplus падает и quest снова доминирует.
+
+    // Pro-active upgrade: если pickUpgradeCandidate возвращает feasible
+    // candidate (есть gen с накопленными merges + рунами на upgrade), это
+    // означает все условия совпали ПРЯМО СЕЙЧАС — перебиваем quest, делаем
+    // upgrade. Иначе условия пропадут (руны потратятся на другое, грид
+    // забьётся). Mirrors RealisticStrategy: invest phase fires когда есть
+    // на что инвестировать, не ждёт rune-overflow.
+    const result = pickUpgradeCandidate(state, BALANCE);
+    if (result.candidate !== null) {
+      // finalPriority = 30 * 3.0 = 90 > 80 (CompleteActiveQuest).
+      return 3.0;
+    }
+
+    // Rune surplus override: если рун накопилось много но candidate нет
+    // (например, blocked by merges), всё равно поднимаем urgency — даст
+    // turn UpgradeMergeFarmTactic, которая фармит merges на нужной line.
     const r1 = state.resources.rune1;
     const r2 = state.resources.rune2;
     const surplus = Math.max(r1, r2);
     if (surplus >= 15) {
-      // Линейно: 15 → 3.0 (30*3=90), 25 → 4.0. Перебивает CompleteActiveQuest
-      // (priority 80*1.0=80) когда руны накопились — иначе строго блокирующий
-      // quest монополизирует scheduler и руны не тратятся.
       return 3.0 + (surplus - 15) * 0.1;
     }
     if (hasActiveQuest) return 0.2;
