@@ -15,15 +15,12 @@ export class UpgradeGeneratorGoal implements Goal {
   isActive(state: GameSnapshot, _ctx: StrategyContext): boolean {
     // Активен когда upgrade in progress (надо collect).
     if (state.activeUpgrade !== null) return true;
-    // При наличии достаточных рун (≥10 хоть одного типа) — активен.
-    // Не гасим во время активного квеста: scheduler идёт по goal priority,
-    // CompleteActiveQuest (basePri=80) обрабатывается раньше UpgradeGenerator
-    // (basePri=30, background). Если quest tactics предлагают живой plan —
-    // upgrade автоматически уступает. Если квест зазажат (все proposals
-    // отвергнуты, нет рун или поле забито) — это окно где апгрейд уместен.
-    const enoughR1 = state.resources.rune1 >= 10;
-    const enoughR2 = state.resources.rune2 >= 10;
-    return enoughR1 || enoughR2;
+    // При наличии **любых** рун — активен. UpgradeStartTactic делегирует
+    // в pickUpgradeCandidate, который сам проверяет real cost конкретного
+    // upgrade vs available runes. Слишком высокий threshold (≥10) блокирует
+    // дешёвые ранние upgrades типа Gen1 L1→L2 (cost 2 rune1). Goal active —
+    // tactic решает feasibility.
+    return state.resources.rune1 > 0 || state.resources.rune2 > 0;
   }
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
     const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);

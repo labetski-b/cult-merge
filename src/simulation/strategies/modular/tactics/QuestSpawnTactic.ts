@@ -1,6 +1,7 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
 import { singletonPlan } from '../types';
+import { genCurrentOutputTypes } from '../context';
 import { BALANCE } from '@data/loadBalance';
 
 export const META: TacticMeta = {
@@ -112,6 +113,12 @@ export class QuestSpawnTactic implements Tactic {
       const g = gen as GeneratorEntity;
       const cfg = BALANCE.generators.generators.find(c => c.id === g.generatorId);
       if (!cfg) continue;
+      // Гард: creatureGenMap может ассоциировать gen с типом через cfg.lines
+      // (потенциальный output после upgrade). Но QuestSpawn должен звать gen
+      // ТОЛЬКО если current level действительно выдаёт нужный type. Иначе
+      // bug: QuestSpawn для C2 → Gen1 (lines=[C1,C2]) → spawn → C1 (current
+      // output) → infinite mismatch loop.
+      if (!genCurrentOutputTypes(g).has(need.creatureType)) continue;
       // GATING — explicit dominance над spawn'ом, не weight competition:
       // (1) если на поле уже есть пара уровня (target-1) — merge доминирует.
       // (2) если грид почти забит и есть любая chain-merge возможность по

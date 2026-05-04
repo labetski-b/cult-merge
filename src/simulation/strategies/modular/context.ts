@@ -32,10 +32,11 @@ export function buildContext(
 
 function buildCreatureGenMap(state: GameSnapshot): ReadonlyMap<string, GeneratorAssignment> {
   const map = new Map<string, GeneratorAssignment>();
-  // Mapping: creatureType → generator на гриде, который умеет его выдавать.
-  // Учитываем ВСЕ outputs текущего уровня генератора (не только первый), плюс
-  // "lines" из конфига (генератор может выдавать creature2 на более высоких уровнях,
-  // и линия отражает потенциал, который реализуется через upgrade).
+  // Mapping: creatureType → generator на гриде, который умеет (или потенциально
+  // сможет после upgrade) его выдавать. Включает текущие outputs + cfg.lines —
+  // это нужно для goal-планирования (BoardLayout, prereqs). Но потребители
+  // (QuestSpawn) обязаны проверять, что **текущий уровень** генератора реально
+  // выдаёт нужный тип через `genCurrentOutputs(...)` ниже.
   const genConfig = BALANCE.generators.generators;
   for (const entity of Object.values(state.entities)) {
     if (entity.kind !== 'generator') continue;
@@ -45,8 +46,7 @@ function buildCreatureGenMap(state: GameSnapshot): ReadonlyMap<string, Generator
     const outputs = lvlCfg?.outputs ?? [];
     const types = new Set<string>();
     for (const o of outputs) types.add(o.creatureType);
-    // Lines — потенциальные types если upgrade'нём генератор (нужно для quest planning,
-    // когда квест требует Creature2, а Gen1 пока выдаёт только Creature1, но lines=['C1','C2']).
+    // Lines добавляются как потенциальные (не текущие) outputs.
     for (const ln of cfg.lines) types.add(ln);
     for (const creatureType of types) {
       const existing = map.get(creatureType);
@@ -61,6 +61,18 @@ function buildCreatureGenMap(state: GameSnapshot): ReadonlyMap<string, Generator
     }
   }
   return map;
+}
+
+/** Текущие outputs генератора на его текущем уровне. Возвращает Set типов
+ *  существ. Используется QuestSpawn'ом чтобы не спавнить из gen, который
+ *  потенциально (через lines) ассоциирован с типом, но на текущем уровне
+ *  выдаёт другой выход. */
+export function genCurrentOutputTypes(gen: { generatorId: number; level: number }): ReadonlySet<string> {
+  const cfg = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
+  if (!cfg) return new Set();
+  const lvlCfg = cfg.levels[gen.level - 1] ?? cfg.levels[0];
+  const outputs = lvlCfg?.outputs ?? [];
+  return new Set(outputs.map(o => o.creatureType));
 }
 
 function buildQuestNeeds(state: GameSnapshot): readonly QuestNeed[] {
