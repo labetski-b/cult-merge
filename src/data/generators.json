@@ -26,7 +26,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "mergesRequired": 1,
             "runeType": "rune1",
             "runeCost": 2,
             "upgradeDurationSec": 3
@@ -50,7 +50,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "mergesRequired": 2,
             "runeType": "rune1",
             "runeCost": 4,
             "upgradeDurationSec": 6
