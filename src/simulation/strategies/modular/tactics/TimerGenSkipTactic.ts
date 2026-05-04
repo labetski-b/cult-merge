@@ -103,8 +103,8 @@ function pickFreeingActionForNeighbors(
   //    task-typed creatures, но на гриде есть free far cell. Перемещаем
   //    lowest-level task-typed neighbor в free cell — освобождаем neighbor
   //    БЕЗ потери прогресса (move сохраняет creature).
+  const neighborSet = new Set(neighbors);
   if (neighborCreatures.length > 0) {
-    const neighborSet = new Set(neighbors);
     const farFreeCells = getFreeCellIndexes(state.grid).filter(
       i => i !== cellIdx && !neighborSet.has(i),
     );
@@ -119,7 +119,9 @@ function pickFreeingActionForNeighbors(
     }
   }
 
-  // 6) deadlock — все соседи task-creatures, нет free far cell. Бросаем.
+  // 6) Truly stuck — все соседи task-typed creatures и нет free far cell.
+  //    Не пытаемся donor-feed (это часто backfires); вместо этого падаем
+  //    в tick_idle (caller).
   return null;
 }
 
