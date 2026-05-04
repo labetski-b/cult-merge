@@ -17,7 +17,6 @@ export class PreserveHighLevelCreaturesGuard implements Guard {
     if (!e || e.kind !== 'creature') return { allow: true };
     const c = e as CreatureEntity;
     if (c.level < 3) return { allow: true };
-    // L≥3, но тип не нужен квесту → можно feed (это «лишняя» creature другого типа)
     const isQuestType = ctx.activeQuestNeeds.some(
       n => n.creatureType === c.creatureType && n.fed < n.count,
     );
