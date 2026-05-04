@@ -11,7 +11,7 @@ export const META: GoalMeta = {
   basePriority: 80,
   category: 'blocking',
   activationCondition: 'getActiveTask(state) != null',
-  urgencyFormula: 'progress * 0.6 + 0.4',
+  urgencyFormula: '1.0 (constant) — quest всегда top-priority когда активен',
 };
 
 export class CompleteActiveQuestGoal implements Goal {
@@ -21,16 +21,12 @@ export class CompleteActiveQuestGoal implements Goal {
     return getActiveTask(BALANCE, state) !== null;
   }
 
-  urgency(_state: GameSnapshot, ctx: StrategyContext): number {
-    if (ctx.activeQuestNeeds.length === 0) return 0.4;
-    let needed = 0;
-    let fed = 0;
-    for (const n of ctx.activeQuestNeeds) {
-      needed += n.count;
-      fed += Math.min(n.fed, n.count);
-    }
-    const progress = needed > 0 ? fed / needed : 0;
-    return progress * 0.6 + 0.4;
+  urgency(_state: GameSnapshot, _ctx: StrategyContext): number {
+    // Constant 1.0 — пока квест активен, он top-priority.
+    // Mirrors RealisticStrategy "task-focused only" — пока phase=='task', все
+    // действия идут на квест. Активные UpgradeGenerator/ProgressKraken не должны
+    // перехватывать управление, потому что их background-priority < quest-blocking.
+    return 1.0;
   }
 
   describe(_state: GameSnapshot, ctx: StrategyContext): string {

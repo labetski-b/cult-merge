@@ -106,6 +106,7 @@ export class TimerGenSkipTactic implements Tactic {
     for (const n of ctx.activeQuestNeeds) taskTypes.add(n.creatureType);
 
     for (const need of ctx.activeQuestNeeds) {
+      if (need.fed >= need.count) continue; // уже удовлетворённые need'ы пропускаем
       const assignment = ctx.creatureGenMap.get(need.creatureType);
       if (!assignment) continue;
       const gen = state.entities[assignment.entityId];

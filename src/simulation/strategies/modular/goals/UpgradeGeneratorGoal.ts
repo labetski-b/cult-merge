@@ -15,9 +15,10 @@ export class UpgradeGeneratorGoal implements Goal {
   isActive(state: GameSnapshot, ctx: StrategyContext): boolean {
     // Активен когда upgrade in progress (надо collect).
     if (state.activeUpgrade !== null) return true;
-    // Активен когда есть руны — но ТОЛЬКО если квест не блокирует и
-    // ресурс рун обильный (≥ 10 каждого типа). Это предотвращает
-    // ситуацию "квест Creature5 Lv4, апгрейдим всё подряд, тратим r1=0".
+    // Без активного квеста и при наличии рун (≥10 хоть одного типа) —
+    // запускаем апгрейды (это invest-фаза, mirrors RealisticStrategy.investStep).
+    const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
+    if (hasActiveQuest) return false;
     const hasRunes = (state.resources.rune1 + state.resources.rune2) > 0;
     if (!hasRunes) return false;
     const enoughR1 = state.resources.rune1 >= 10;
@@ -26,13 +27,13 @@ export class UpgradeGeneratorGoal implements Goal {
     return true;
   }
   urgency(state: GameSnapshot, ctx: StrategyContext): number {
-    // Active upgrade — высокая urgency (collect его).
-    if (state.activeUpgrade !== null) return 1.5;
-    // Без active upgrade: если квест активен — почти 0 (чтобы не запускать
-    // каскад апгрейдов вместо прогресса по квесту). Только когда квест
-    // closed — поднимаем до 0.5.
     const hasActiveQuest = ctx.activeQuestNeeds.some(n => n.fed < n.count);
-    return hasActiveQuest ? 0.05 : 0.5;
+    // С активным квестом цель НЕ активна (см. isActive выше) — кроме случая
+    // активного апгрейда (нужно collect_upgrade чтобы освободить slot).
+    // В этом случае urgency низкий — collect fire через category fallback.
+    if (state.activeUpgrade !== null && hasActiveQuest) return 0.1;
+    if (state.activeUpgrade !== null) return 1.0;
+    return 0.5;
   }
   describe(state: GameSnapshot, _ctx: StrategyContext): string {
     return `r1=${state.resources.rune1} r2=${state.resources.rune2} activeUpgrade=${state.activeUpgrade ? 'busy' : 'free'}`;

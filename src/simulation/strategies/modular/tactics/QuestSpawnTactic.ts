@@ -16,6 +16,9 @@ export class QuestSpawnTactic implements Tactic {
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedAction[] {
     const proposals: ProposedAction[] = [];
     for (const need of ctx.activeQuestNeeds) {
+      // Не спавнить под уже-удовлетворённые need'ы (например, dual-quest где
+      // одна часть закрыта). Иначе цикл spawn → feed_unused → spawn петля.
+      if (need.fed >= need.count) continue;
       const assignment = ctx.creatureGenMap.get(need.creatureType);
       if (!assignment) continue;
       const gen = state.entities[assignment.entityId];
