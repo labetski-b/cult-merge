@@ -8,6 +8,9 @@ export const META: GoalMeta = {
   category: 'blocking',
   activationCondition: 'state.pendingRewards.length > 0',
   urgencyFormula: '1.0 (constant)',
+  possiblePrereqs: [
+    { goalId: 'MaintainFreeGrid', trigger: 'pendingRewards > 0 AND freeCellCount === 0' },
+  ],
 };
 
 export class CollectRewardsGoal implements Goal {
@@ -21,7 +24,14 @@ export class CollectRewardsGoal implements Goal {
   describe(state: GameSnapshot, _ctx: StrategyContext): string {
     return `pendingRewards: ${state.pendingRewards.length}`;
   }
-  getPrerequisites(_state: GameSnapshot, _ctx: StrategyContext): GoalPrerequisite[] {
+  getPrerequisites(_state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[] {
+    // Pre-T7-style fix: если есть pendingRewards но грид полный, claim_reward
+    // не сможет приземлить генератор. Promote MaintainFreeGrid (PREREQ_BOOST)
+    // чтобы освободить клетку через GridFreeFeed/Merge. Без этого
+    // RewardClaimTactic эмитит synthetic free_cells (freed=0) → infinite loop.
+    if (ctx.freeCellCount === 0) {
+      return [{ goalId: 'MaintainFreeGrid', reason: 'pendingReward needs slot; grid full' }];
+    }
     return [];
   }
 }

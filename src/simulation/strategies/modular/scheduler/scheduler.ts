@@ -189,6 +189,17 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           continue;
         }
 
+        // Hardening: free_cells с freed=0 — synthetic marker без реального
+        // прогресса. Раньше использовался RewardClaimTactic'ом как заглушка
+        // когда грид полный → infinite loop (scheduler допускал singleton
+        // no-op, action селектился, движок исполнял, ничего не менялось,
+        // следующий тик то же самое). Теперь явно отвергаем — иначе любой
+        // tactic, эмиттящий "freed: 0" footgun, снова откроет этот баг.
+        if (action.type === 'free_cells' && action.freed === 0) {
+          valid = false;
+          break;
+        }
+
         const applied = applyActionCore(projectedState, action, projectedEnv, config);
 
         // Synthetic log-only events (free_cells, quest_completed, new_quest,
