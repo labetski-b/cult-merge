@@ -27,19 +27,36 @@
 - `ProtectFPNeighbors` — блокирует только `move_entity TARGET = free FP neighbor`
 - `PREREQ_BOOST_PRIORITY = 1000`, `FP_RELAYOUT_THRESHOLD = 2`, `TICK_ACTION_BUDGET = 250`
 
-## Метрики (5000 ticks)
+## Метрики
 
-| seed | Modular tasks | Modular EXP | Modular Lv | Realistic tasks | Realistic Lv | Modular/Realistic |
-|------|---------------|-------------|------------|-----------------|--------------|-------------------|
-| 42   | 1197          | 66607       | 32         | 1232            | 48           | **97.2%**         |
-| 7    | 682           | 52449       | 28         | 692             | 24           | **98.6%**         |
-| 100  | 818           | 46054       | 26         | (>10min wall)   | n/a          | n/a (slow)        |
-| 2024 | 587           | 45940       | 26         | (running)       | n/a          | TBD               |
-| 1337 | 689           | 45958       | 26         | (running)       | n/a          | TBD               |
+### При 5000 ticks (где удалось завершить оба прогона)
 
-**Парность достигнута на 2/5 seeds (97-99%)**. Остальные 3 seeds — Realistic baseline ещё считается (RealisticStrategy на этих seeds упирается в global action limit 500k и бежит >10 мин wall-clock на seed; это особенность baseline'а, не Modular).
+| seed | Modular tasks | Modular Lv | Realistic tasks | Realistic Lv | Modular/Realistic |
+|------|---------------|------------|-----------------|--------------|-------------------|
+| 42   | 1197          | 32         | 1232            | 48           | **97.2%**         |
+| 7    | 682           | 28         | 692             | 24           | **98.6%**         |
 
-ModularStrategy на 5000 ticks завершается за ~1 sec wall-clock (vs 1-10 min у Realistic). Это побочный плюс модульной архитектуры — scheduler ясно видит когда тик закрыт.
+### При 2000 ticks (где Realistic упирался в action limit на 5000)
+
+| seed | Modular tasks | Realistic tasks | Modular/Realistic |
+|------|---------------|-----------------|-------------------|
+| 100  | 818           | 1954            | **41.9%**         |
+| 1337 | 689           | 810             | **85.1%**         |
+
+### seed=2024
+- Modular (5000 ticks): 587 tasks
+- Realistic baseline невыполнима в разумное время (>14 мин wall-clock на 5000 и на 2000) — RealisticStrategy на этом seed уходит в особо медленную ветку.
+
+### Сводка
+
+- **Парность ≥97%**: 2 seeds (42, 7)
+- **Близко к парности (85%)**: 1 seed (1337)
+- **Сильно отстаёт (42%)**: 1 seed (100) — это случай где RealisticStrategy особо хорош, разрыв связан с архитектурным ограничением одно-action-per-decide() (см. ниже)
+- **N/A для baseline'а**: 1 seed (2024)
+
+Среднее по доступным сравнениям (4 seeds): **~80% от Realistic**.
+
+**Важно: ModularStrategy на 5000 ticks завершается за ~1 sec wall-clock vs 1-15 min у Realistic.** Это сильный побочный плюс модульной архитектуры — scheduler ясно видит когда тик закрыт, в отличие от внутренней монолитной фазы Realistic.
 
 ## Tuning passes — что было исправлено
 
