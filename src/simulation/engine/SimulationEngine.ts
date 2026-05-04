@@ -53,6 +53,16 @@ export class SimulationEngine {
   private currentQuestUsedSkipTimer = false;
   // Tracks whether a collect_upgrade action changed state this tick (used for idleUpgradeTicks)
   private tickHadCollectUpgrade = false;
+  // Stuck-cycle detector: если engine закрывает тик с endReason='idle' AND state
+  // fingerprint не меняется N раз подряд → симуляция в петле (стратегия не может
+  // продвинуть progress). Чтобы не крутиться до maxTicks (часто 5000) на повторе
+  // одного и того же idle-state — останавливаемся раньше.
+  private static readonly STUCK_CYCLE_THRESHOLD = 3;
+  private consecutiveIdleSameState = 0;
+  private lastIdleFingerprint: string | null = null;
+  /** Set после executeTick если последний tick был idle. Используется для
+   *  fingerprint сравнения после tick boundary. */
+  private lastTickWasIdle = false;
 
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
@@ -119,6 +129,26 @@ export class SimulationEngine {
       if (this.totalActions >= MAX_TOTAL_ACTIONS) {
         console.warn(`Global action limit reached (${MAX_TOTAL_ACTIONS}), stopping simulation`);
         break;
+      }
+      // Stuck-cycle detector: idle тик с тем же fingerprint что в прошлый раз.
+      // RNG state и nowMs из fingerprint исключены — иначе одинаковый тупик
+      // никогда не поймается (RNG продвигается даже без полезного прогресса).
+      if (this.lastTickWasIdle) {
+        const fp = this.computeStuckFingerprint();
+        if (fp === this.lastIdleFingerprint) {
+          this.consecutiveIdleSameState += 1;
+          if (this.consecutiveIdleSameState >= SimulationEngine.STUCK_CYCLE_THRESHOLD) {
+            console.warn(`Stuck cycle detected at tick ${tick + 1}: state unchanged ${this.consecutiveIdleSameState} consecutive idle ticks. Stopping.`);
+            break;
+          }
+        } else {
+          this.consecutiveIdleSameState = 1;
+          this.lastIdleFingerprint = fp;
+        }
+      } else {
+        // Не-idle тик — сбрасываем счётчик и fingerprint.
+        this.consecutiveIdleSameState = 0;
+        this.lastIdleFingerprint = null;
       }
       if (this.shouldStop(tick)) break;
     }
@@ -279,9 +309,13 @@ export class SimulationEngine {
         const lvl = this.state.kraken.level;
         this.cumulative.idleByKrakenLevel[lvl] = (this.cumulative.idleByKrakenLevel[lvl] ?? 0) + 1;
         endReason = 'idle';
+        this.lastTickWasIdle = true;
         break;
       }
     }
+    // executeTick exit point: если выходим не через idle (done или max_iter) —
+    // сбросить флаг чтобы run() не считал stuck.
+    if (endReason !== 'idle') this.lastTickWasIdle = false;
 
     // Passive tick: pure-core wrapper for tickTimerGenerators (Gen3 / timer-mode).
     // Spec rev 2 § 5.4 / § 5.6 — engine MUST NOT mutate state/env outside this call.
@@ -558,6 +592,51 @@ export class SimulationEngine {
         this.pushLog(chapterAction, logState, note);
       }
     }
+  }
+
+  /**
+   * Stuck-cycle fingerprint: компактная подпись игрового state без RNG/nowMs.
+   * Если эта подпись повторяется на N idle тиках подряд — стратегия точно
+   * не способна продвинуть progress, и run должен остановиться.
+   *
+   * Включаем то, что определяет «настоящий» game state:
+   *   kraken (level, step), task (label, fed counts), pendingRewards count,
+   *   freeCells, entities (kind+type+level+чарджи для gens), ресурсы,
+   *   activeUpgrade.
+   * Исключаем: nowMs, rngState — это «ползёт» даже без полезного прогресса.
+   */
+  private computeStuckFingerprint(): string {
+    const s = this.state;
+    const parts: string[] = [];
+    parts.push(`k${s.kraken.level}.${s.kraken.step}`);
+    const task = s.currentAutoTask;
+    if (task) {
+      const fed = (s.currentTaskFed ?? []).map(f => `${f.type}L${f.level}`).sort().join(',');
+      parts.push(`t:${task.id}:${fed}`);
+    } else {
+      parts.push('t:none');
+    }
+    parts.push(`pr${s.pendingRewards.length}`);
+    parts.push(`au${s.activeUpgrade ? `${s.activeUpgrade.generatorId}` : 'no'}`);
+    parts.push(`m${s.resources.meat.toFixed(0)}`);
+    parts.push(`r1${s.resources.rune1}`);
+    parts.push(`r2${s.resources.rune2}`);
+    parts.push(`e${s.resources.eyes}`);
+    // Compact entity layout — sorted (kind, type, level, charges) + cell index
+    const ents: string[] = [];
+    for (let i = 0; i < s.grid.cells.length; i++) {
+      const id = s.grid.cells[i];
+      if (!id) { ents.push(`${i}:_`); continue; }
+      const e = s.entities[id];
+      if (!e) { ents.push(`${i}:?`); continue; }
+      if (e.kind === 'creature') ents.push(`${i}:c${e.creatureType}L${e.level}`);
+      else if (e.kind === 'generator') ents.push(`${i}:g${e.generatorId}L${e.level}c${e.charges.length}`);
+      else if (e.kind === 'rune') ents.push(`${i}:r${e.runeType}`);
+      else if (e.kind === 'box') ents.push(`${i}:b`);
+      else ents.push(`${i}:${e.kind}`);
+    }
+    parts.push(ents.join('|'));
+    return parts.join(';');
   }
 
   private captureTaskLabel(): string {
