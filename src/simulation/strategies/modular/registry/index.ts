@@ -20,10 +20,25 @@ export interface RegistryEntry<TInstance, TMeta> {
   instance: TInstance;
 }
 
+/**
+ * Detect ES class constructors. ES `class X {}` desugars to a function whose
+ * `prototype` descriptor is non-writable, while plain `function f() {}` (and
+ * arrow functions) are writable / undefined. This avoids picking up exported
+ * helper functions (e.g. `hasExactQuestMergeOpportunityForType` in
+ * `QuestSpawnTactic.ts`) and trying to `new` them — which used to crash
+ * registry load when ESM module-export iteration order surfaced helpers
+ * before the class.
+ */
+function isClassConstructor(value: unknown): value is new () => unknown {
+  if (typeof value !== 'function') return false;
+  const desc = Object.getOwnPropertyDescriptor(value, 'prototype');
+  return desc !== undefined && desc.writable === false;
+}
+
 function findClassExport<T>(module: Record<string, unknown>): T {
   for (const [key, value] of Object.entries(module)) {
     if (key === 'META') continue;
-    if (typeof value === 'function') {
+    if (isClassConstructor(value)) {
       // Это класс/конструктор — инстанцируем.
       const Ctor = value as new () => T;
       return new Ctor();
