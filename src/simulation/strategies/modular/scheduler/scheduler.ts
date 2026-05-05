@@ -94,9 +94,16 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
   //    fall through к OpenBoxes/MaintainFreeGrid/etc. сначала. Если ни одна
   //    другая goal не предложит — берём tick_idle как последний resort.
   //    (Поведение preserved из rev 1 для FP stuck scenario.)
+  //
+  //    The same defer mechanism is reused — narrowly — for
+  //    `wait_for_upgrade_ready` from `UpgradeWaitTactic`: it is captured here
+  //    as a fallback and only selected if no other goal yields a surviving
+  //    non-wait plan. See plan §97–127 / §284–303
+  //    (docs/superpowers/plans/2026-05-06-sim-upgrade-wait-action.md).
   const allProposed: ProposedActionSnapshot[] = [];
   const allRejected: GuardRejection[] = [];
   let deferredIdle: { plan: ProposedPlan; goal: Goal } | null = null;
+  let deferredWait: { plan: ProposedPlan; goal: Goal } | null = null;
 
   for (const entry of sortedQueue) {
     const goal = entry.goal;
@@ -154,6 +161,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           break;
         }
 
+        // wait_for_upgrade_ready follows the same singleton-only rule as
+        // tick_idle: it's a synthetic fallback whose only effect is advancing
+        // env.nowMs. Forbidden as inner step of a multi-step plan.
+        if (action.type === 'wait_for_upgrade_ready' && plan.actions.length > 1) {
+          valid = false;
+          break;
+        }
+
         // Run guards на projected state.
         let blocked = false;
         for (const guard of guards) {
@@ -186,6 +201,21 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           // Не вызываем applyActionCore вовсе — engine handles tick_idle
           // synthetically (skipped from execution loop). Projected state
           // и env не меняются.
+          continue;
+        }
+
+        // wait_for_upgrade_ready preview: pure-core advances env.nowMs but
+        // never the gameplay state. Skip the structural no-op rejection path —
+        // for a singleton plan that's the whole point. Otherwise applyActionCore
+        // would return stateChanged=false and (in multi-step plans) trip the
+        // structural-no-op gate; here it is a top-level singleton fallback.
+        if (action.type === 'wait_for_upgrade_ready') {
+          // Still let applyActionCore run so projectedEnv.nowMs advances if a
+          // future multi-step variant ever needed it. For singleton plans this
+          // is a no-op for the survivors check.
+          const applied = applyActionCore(projectedState, action, projectedEnv, config);
+          projectedState = applied.nextState;
+          projectedEnv = applied.nextEnv;
           continue;
         }
 
@@ -244,6 +274,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       continue;
     }
 
+    // wait_for_upgrade_ready singleton — defer with the same mechanism. Wait
+    // is a fallback: any other goal that produces a surviving non-wait plan
+    // wins. Captured here, selected below only if no real plan is found.
+    if (best.actions.length === 1 && best.actions[0]!.type === 'wait_for_upgrade_ready') {
+      if (!deferredWait) deferredWait = { plan: best, goal };
+      continue;
+    }
+
     // Real plan picked.
     const iter: IterationDecision = {
       iteration: iterIndex,
@@ -259,7 +297,27 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
     return { actions: best.actions.slice(), done: false };
   }
 
-  // Никто не дал реального plan'а — берём deferred tick_idle если был.
+  // Никто не дал реального plan'а — выбираем deferred fallback.
+  // Priority among fallbacks:
+  //   1. wait_for_upgrade_ready — продвигает env.nowMs так, чтобы collect_upgrade
+  //      стал ready на следующей итерации. Это реальный progress (в отличие от
+  //      pure tick_idle), поэтому имеет приоритет над idle.
+  //   2. tick_idle — сигнал «strategy stuck this iteration» (preserved
+  //      original FP-stuck behaviour).
+  if (deferredWait) {
+    const iter: IterationDecision = {
+      iteration: iterIndex,
+      activeGoals: goalSnapshots,
+      prerequisiteChain: resolved.links.length > 0 ? resolved.links : undefined,
+      selectedGoalId: deferredWait.goal.meta.id,
+      proposedActions: allProposed,
+      rejectedByGuards: allRejected,
+      selectedPlan: makeSelectedPlanTrace(deferredWait.plan),
+      executedActions: deferredWait.plan.actions.slice(),
+    };
+    buffer.recordIteration(iter);
+    return { actions: deferredWait.plan.actions.slice(), done: false };
+  }
   if (deferredIdle) {
     const iter: IterationDecision = {
       iteration: iterIndex,
