@@ -230,6 +230,10 @@ export class SimulationEngine {
           continue;
         }
 
+        // Capture nowMs before pure-core mutates env — wait_for_upgrade_ready
+        // resolves its dynamic dt as (nextEnv.nowMs - prevNowMs) / 1000.
+        const prevNowMs = this.env.nowMs;
+
         let result;
         try {
           result = applyActionCore(this.state, action, this.env, this.config.balance);
@@ -247,6 +251,31 @@ export class SimulationEngine {
         this.env = result.nextEnv;
         this.applyEvents(action, result.events);
         const stateChanged = result.stateChanged;
+
+        // wait_for_upgrade_ready — special time-advancing synthetic action.
+        // stateChanged is always false (gameplay snapshot is unchanged), but
+        // env.nowMs jumps to finishesAt. Engine MUST treat this as iter-
+        // advancing AND emit a log row with actionTimeSec = real wait dt.
+        // If preconditions failed in pure-core, env.nowMs is unchanged and
+        // we treat the action as a no-op (mirrors collect_upgrade no-op).
+        if (action.type === 'wait_for_upgrade_ready') {
+          const waitDtMs = this.env.nowMs - prevNowMs;
+          if (waitDtMs > 0) {
+            iterAdvanced = true;
+            const dt = this.addActionTime(action, waitDtMs / 1000);
+            const logState = this.captureCompactState(dt);
+            logState.currentTask = taskBefore;
+            this.pushLog(action, logState, note);
+          }
+          // Flush event logs even on no-op — keep parity with other branches.
+          for (const pending of this.pendingEventLogs) {
+            this.pushLog(pending.action, pending.state, pending.note);
+          }
+          this.pendingEventLogs.length = 0;
+          this.syncCumulativeStats();
+          this.evaluateAndLogQuests();
+          continue;
+        }
 
         // Mirror legacy timing semantics: legacy SimulationEngine advanced
         // game time only when stateChanged (or for free_cells/collect_upgrade
@@ -657,14 +686,23 @@ export class SimulationEngine {
     });
   }
 
-  /** Add estimated play time for an action. Resets session timer on session change. */
-  private addActionTime(action: SimulationAction): number {
+  /**
+   * Add estimated play time for an action. Resets session timer on session
+   * change.
+   *
+   * @param action  The action being timed.
+   * @param overrideSec  Optional explicit duration in seconds. Used by the
+   *   `wait_for_upgrade_ready` path where the duration is dynamic
+   *   (`(finishesAt - prevNowMs) / 1000`) and cannot be looked up from the
+   *   static `ACTION_TIME_SECONDS` table.
+   */
+  private addActionTime(action: SimulationAction, overrideSec?: number): number {
     const currentSession = this.state.session;
     if (currentSession !== this.lastSession) {
       this.sessionTimeSec = 0;
       this.lastSession = currentSession;
     }
-    const dt = getActionTimeSec(action);
+    const dt = overrideSec !== undefined ? overrideSec : getActionTimeSec(action);
     this.cumulative.totalTimeSec += dt;
     this.sessionTimeSec += dt;
     return dt;
