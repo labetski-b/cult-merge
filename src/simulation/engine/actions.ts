@@ -19,4 +19,11 @@ export type SimulationAction =
   | { type: 'expand_board'; newRows: number; newCols: number }
   | { type: 'free_cells'; reason: string; freed: number }
   | { type: 'tick_idle'; reason: string }
-  | { type: 'move_entity'; entityId: string; targetCellIndex: number };
+  | { type: 'move_entity'; entityId: string; targetCellIndex: number }
+  // Simulator-only synthetic action: deferred-fallback for ModularStrategy when
+  // an in-flight upgrade blocks progress and no other goal can advance state.
+  // Engine fast-forwards env.nowMs to state.activeUpgrade.finishesAt so the next
+  // iteration can normally collect_upgrade. Duration is dynamic (computed by
+  // engine from finishesAt - prevNowMs); see `actionTime.ts`. Spec:
+  // docs/superpowers/plans/2026-05-06-sim-upgrade-wait-action.md.
+  | { type: 'wait_for_upgrade_ready' };

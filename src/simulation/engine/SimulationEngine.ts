@@ -826,6 +826,21 @@ export class SimulationEngine {
         }
         return `${e.kind} → cell ${action.targetCellIndex}`;
       }
+      case 'wait_for_upgrade_ready': {
+        // Canonical note shape (plan §202–217):
+        //   "wait until upgrade ready: entity=<entityId>, gen=<generatorId>, deltaMs=<deltaMs>"
+        // Computed from the pre-action snapshot — the engine has not yet
+        // advanced env.nowMs at this point.
+        const au = this.state.activeUpgrade;
+        if (!au) return 'wait until upgrade ready: no active upgrade';
+        const deltaMs = Math.max(0, au.finishesAt - this.env.nowMs);
+        const ent = this.state.entities[au.entityId];
+        const generatorId =
+          ent && ent.kind === 'generator'
+            ? (ent as GeneratorEntity).generatorId
+            : au.generatorId;
+        return `wait until upgrade ready: entity=${au.entityId}, gen=${generatorId}, deltaMs=${deltaMs}`;
+      }
     }
   }
 

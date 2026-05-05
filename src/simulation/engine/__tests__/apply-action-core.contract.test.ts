@@ -554,3 +554,62 @@ describe('applyActionCore — env semantics (regression for wrapper compensation
     }
   });
 });
+
+describe('applyActionCore — wait_for_upgrade_ready', () => {
+  it('no-ops when no active upgrade (precondition fails)', () => {
+    const state = emptyGridSnapshot();
+    state.activeUpgrade = null;
+    const env = makeEnv(42, 5_000, 0);
+
+    const before = JSON.stringify(state);
+    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
+
+    expect(JSON.stringify(state)).toBe(before); // input untouched
+    expect(result.stateChanged).toBe(false);
+    expect(result.nextEnv.nowMs).toBe(5_000);   // env.nowMs unchanged on no-op
+    expect(result.events.find(e => e.type === 'upgrade_waited')).toBeUndefined();
+  });
+
+  it('no-ops when upgrade already finished (env.nowMs >= finishesAt)', () => {
+    const state = emptyGridSnapshot();
+    state.activeUpgrade = {
+      entityId: 'e1',
+      generatorId: 1,
+      startedAt: 0,
+      finishesAt: 1_000,
+    };
+    const env = makeEnv(42, 5_000, 0); // already past finishesAt
+
+    const before = JSON.stringify(state);
+    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
+
+    expect(JSON.stringify(state)).toBe(before);
+    expect(result.stateChanged).toBe(false);
+    expect(result.nextEnv.nowMs).toBe(5_000);
+    expect(result.events.find(e => e.type === 'upgrade_waited')).toBeUndefined();
+  });
+
+  it('fast-forwards env.nowMs to finishesAt when in-flight; state untouched', () => {
+    const state = emptyGridSnapshot();
+    state.activeUpgrade = {
+      entityId: 'e1',
+      generatorId: 2,
+      startedAt: 0,
+      finishesAt: 60_000,
+    };
+    const env = makeEnv(42, 1_500, 0);
+
+    const before = JSON.stringify(state);
+    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
+
+    expect(JSON.stringify(state)).toBe(before);              // input snapshot intact
+    expect(JSON.stringify(result.nextState)).toBe(before);    // gameplay state unchanged
+    expect(result.stateChanged).toBe(false);
+    expect(result.nextEnv.nowMs).toBe(60_000);                // advanced to finishesAt
+    const wait = result.events.find(e => e.type === 'upgrade_waited');
+    expect(wait).toBeDefined();
+    if (wait && wait.type === 'upgrade_waited') {
+      expect(wait.deltaMs).toBe(60_000 - 1_500);
+    }
+  });
+});

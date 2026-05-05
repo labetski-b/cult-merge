@@ -22,12 +22,24 @@ export const ACTION_TIME_SECONDS: Record<SimulationAction['type'], number> = {
   free_cells:            0,     // synthetic: actual time is in the merge/feed actions
   tick_idle:             0,     // synthetic: log-only marker for an idle inner-loop iteration
   move_entity:           0.4,
+  // Special-case: dynamic duration computed by the engine from
+  // (state.activeUpgrade.finishesAt - prevEnv.nowMs) / 1000. The static entry
+  // is 0 only as an unused fallback; do NOT consume it as an actual time
+  // value. See `getActionTimeSec` and `SimulationEngine.addActionTime`.
+  wait_for_upgrade_ready: 0,
 };
 
 /** Return estimated seconds for a single action. */
 export function getActionTimeSec(action: SimulationAction): number {
   if (action.type === 'gather_meat') {
     return (action.count ?? 0) * MEAT_PRESS_SECONDS;
+  }
+  if (action.type === 'wait_for_upgrade_ready') {
+    // Dynamic — engine resolves from env transition. Callers that need the
+    // real wait duration must use the engine-side helper that diffs
+    // (finishesAt - prevNowMs). This static path returns 0 so accidental use
+    // doesn't poison metrics.
+    return 0;
   }
   return ACTION_TIME_SECONDS[action.type];
 }

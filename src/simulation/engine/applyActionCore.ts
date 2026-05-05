@@ -66,7 +66,8 @@ export type ActionEvent =
   | { type: 'upgrade_collected' }
   | { type: 'upgrade_start_rejected' }
   | { type: 'gen3_skip'; cheatSpawns: number }
-  | { type: 'rune_purchased'; runeType: 'rune1' | 'rune2'; amount: number };
+  | { type: 'rune_purchased'; runeType: 'rune1' | 'rune2'; amount: number }
+  | { type: 'upgrade_waited'; deltaMs: number };
 
 export interface ApplyActionResult {
   nextState: GameSnapshot;
@@ -172,6 +173,14 @@ export function applyActionCore(
     case 'move_entity':
       applyMoveEntity(workingState, action.entityId, action.targetCellIndex);
       break;
+    case 'wait_for_upgrade_ready':
+      // Synthetic time-advancing action: state never mutates here. The env
+      // transition (nextNowMs) is computed below in the dedicated wait-branch
+      // so the wrapper / metrics machinery sees the dynamic dt = (finishesAt -
+      // prevNowMs) / 1000. If the precondition isn't met (no in-flight upgrade
+      // or already finished), the action degrades to a no-op — env unchanged,
+      // state unchanged.
+      break;
     case 'quest_completed':
     case 'new_quest':
     case 'expand_board':
@@ -183,24 +192,41 @@ export function applyActionCore(
 
   const stateChanged = JSON.stringify(workingState) !== before;
 
-  // Legacy timing semantics (mirrored from SimulationEngine.executeTick prior to
-  // the EngineEnv refactor): `currentGameTimeMs` advanced ONLY when the action
-  // actually changed state, OR was a `free_cells`/`collect_upgrade` synthetic.
-  // collect_upgrade must advance even on no-op so the upgrade timer eventually
-  // crosses `finishesAt`. All other no-op actions leave nowMs untouched —
-  // otherwise downstream timer-mode generators (Gen3) and upgrade timers would
-  // see a fast-forwarded clock relative to legacy behaviour.
-  //
-  // Synthetic log-only actions (tick_idle, new_quest, quest_completed,
-  // expand_board, free_cells, buy_runes, gather_meat with count=0) all have
-  // ACTION_TIME_SECONDS=0, so this guard collapses to a no-op for them too —
-  // we keep the explicit guard so the rule is obvious and survives future
-  // additions to ACTION_TIME_SECONDS.
-  const shouldAdvanceTime =
-    stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
-  const nextNowMs = shouldAdvanceTime
-    ? env.nowMs + getActionTimeSec(action) * 1000
-    : env.nowMs;
+  // wait_for_upgrade_ready — special time-advancing synthetic action.
+  // - Precondition: state.activeUpgrade !== null AND env.nowMs < finishesAt.
+  // - Effect: nextEnv.nowMs := finishesAt; state never mutates (stateChanged
+  //   stays false). On precondition failure → no-op (env.nowMs unchanged).
+  // Engine wrapper detects this via action.type and computes dynamic dt for
+  // metrics / log row. See `SimulationEngine.addActionTime`.
+  let nextNowMs: number;
+  if (action.type === 'wait_for_upgrade_ready') {
+    const au = workingState.activeUpgrade;
+    if (au !== null && env.nowMs < au.finishesAt) {
+      nextNowMs = au.finishesAt;
+      events.push({ type: 'upgrade_waited', deltaMs: au.finishesAt - env.nowMs });
+    } else {
+      nextNowMs = env.nowMs;
+    }
+  } else {
+    // Legacy timing semantics (mirrored from SimulationEngine.executeTick prior to
+    // the EngineEnv refactor): `currentGameTimeMs` advanced ONLY when the action
+    // actually changed state, OR was a `free_cells`/`collect_upgrade` synthetic.
+    // collect_upgrade must advance even on no-op so the upgrade timer eventually
+    // crosses `finishesAt`. All other no-op actions leave nowMs untouched —
+    // otherwise downstream timer-mode generators (Gen3) and upgrade timers would
+    // see a fast-forwarded clock relative to legacy behaviour.
+    //
+    // Synthetic log-only actions (tick_idle, new_quest, quest_completed,
+    // expand_board, free_cells, buy_runes, gather_meat with count=0) all have
+    // ACTION_TIME_SECONDS=0, so this guard collapses to a no-op for them too —
+    // we keep the explicit guard so the rule is obvious and survives future
+    // additions to ACTION_TIME_SECONDS.
+    const shouldAdvanceTime =
+      stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
+    nextNowMs = shouldAdvanceTime
+      ? env.nowMs + getActionTimeSec(action) * 1000
+      : env.nowMs;
+  }
 
   // Accumulate eyesGained from any task_completed events into nextEnv. This is
   // the channel the legacy engine fed back into `cumulative.totalEyesGained`
