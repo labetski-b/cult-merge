@@ -6,7 +6,8 @@ import { SeededRng } from '@infra/rng';
 import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import { UpgradeGeneratorGoal } from '../../goals/UpgradeGeneratorGoal';
-import { pickUpgradeCandidate } from '../../../pickUpgradeCandidate';
+import { pickFeasibleUpgradeCandidate } from '../../../pickFeasibleUpgradeCandidate';
+import { questRequiresUpgrade } from '../../upgradeContract';
 import { createChargedGenerator } from '@domain/generator';
 import type {
   CreatureEntity,
@@ -15,8 +16,12 @@ import type {
 } from '@domain/types';
 
 /**
- * Tests for UpgradeMergeFarmTactic — T4 of the upgrade-proactivity plan
- * (docs/superpowers/plans/2026-05-04-modular-upgrade-proactivity.md).
+ * Tests for UpgradeMergeFarmTactic after the feasible-first plan
+ * (`docs/superpowers/plans/2026-05-05-modular-upgrade-feasible-first.md`).
+ *
+ * The tactic is now scoped to the quest-prerequisite path:
+ *   - it fires only when `questRequiresUpgrade(state, ctx) === true`,
+ *   - AND `pickFeasibleUpgradeCandidate(...).blockedBy.reason === 'merges'`.
  *
  * Path A: existing pair on the blocked generator's line → emit a merge plan.
  * Path B (productive fallback when no pair exists), in order:
@@ -25,8 +30,8 @@ import type {
  *   B3. lowest-level gen has charges + grid free            → spawn_generator;
  *   B4. grid full + no mergeable pair                       → return [].
  *
- * Tactic gating: must only fire when pickUpgradeCandidate(...).blockedBy
- * reports `reason: 'merges'`. Otherwise it competes with quest tactics.
+ * Without an active quest path, the tactic must NOT fire — that was the
+ * old global anti-hoarding lane and is now removed.
  */
 
 /** Find the existing pre-placed Gen1 entity in the initial snapshot. */
@@ -54,11 +59,15 @@ function addCreatureToGrid(
 }
 
 /**
- * Build a "Gen1@L2 blocked by merges" snapshot:
+ * Build a "Gen1@L2 blocked by merges, quest needs Creature2" snapshot:
  *   - kraken level past EarlyGame so unrelated gating doesn't bite,
- *   - Gen1 at L2 (mergesRequired=2 for L2→L3, chargeCost=0.79),
+ *   - mandatory tasks cleared so currentAutoTask drives the active task,
+ *   - Gen1 at L2 (mergesRequired=2 for L2→L3, chargeCost=0.79; outputs only
+ *     Creature1 at L2 — Creature2 unlocked at L3),
  *   - mergeCountByLine empty so the picker reports `blockedBy: { reason: 'merges' }`,
- *   - rune1 well above runeCost so it's a genuine merges-only block.
+ *   - rune1 well above runeCost so it's a genuine merges-only block,
+ *   - currentAutoTask needs Creature2 → questRequiresUpgrade(state, ctx) is
+ *     true (the only legitimate trigger for this tactic post-feasible-first).
  *
  * Caller is expected to set `gen1.charges`, `state.resources.meat`, and grid
  * contents (creatures, free-cell density) per scenario.
@@ -66,9 +75,20 @@ function addCreatureToGrid(
 function makeBlockedByMergesSnapshot(seed = 1): { state: GameSnapshot; gen1: GeneratorEntity } {
   const state = createInitialSnapshot(BALANCE, { seed });
   state.kraken.level = 5;
+  for (let lvl = 1; lvl <= 5; lvl++) {
+    const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
+    state.taskProgress[String(lvl)] = tasksAtLvl.length;
+  }
   state.activeUpgrade = null;
   state.pendingRewards = [];
-  state.currentAutoTask = null;
+  // Quest needing Creature2 — Gen1@L2 cannot produce yet, but cfg.lines
+  // covers Creature2, so questRequiresUpgrade(...) returns true.
+  state.currentAutoTask = {
+    id: 'q-c2-prereq',
+    creatures: [{ type: 'Creature2', level: 1, count: 3 }],
+    expMultiplier: 1,
+    resMultiplier: 1,
+  };
   state.currentTaskFed = [];
 
   const gen1 = findGen1(state);
@@ -80,14 +100,21 @@ function makeBlockedByMergesSnapshot(seed = 1): { state: GameSnapshot; gen1: Gen
   state.resources.rune2 = 0;
   state.resources.meat = 0;
 
-  // Sanity: picker must agree.
-  const pick = pickUpgradeCandidate(state, BALANCE);
+  // Sanity: feasible-first picker must report merges-blocked Gen1.
+  const pick = pickFeasibleUpgradeCandidate(state, BALANCE);
   if (pick.candidate !== null) throw new Error('expected blocked-by-merges, got candidate');
   if (!pick.blockedBy || pick.blockedBy.reason !== 'merges') {
     throw new Error('expected merges-blocked picker result');
   }
   if (pick.blockedBy.generatorId !== 1) {
     throw new Error(`expected blocked Gen1, got Gen${pick.blockedBy.generatorId}`);
+  }
+
+  // Sanity: questRequiresUpgrade must be true for the tactic to fire.
+  const env = makeEngineEnv(new SeededRng(1), 0, 0);
+  const ctx = buildContext(state, env, 50);
+  if (!questRequiresUpgrade(state, ctx)) {
+    throw new Error('expected questRequiresUpgrade=true; tactic would not fire');
   }
 
   return { state, gen1 };
@@ -305,6 +332,14 @@ describe('UpgradeMergeFarmTactic', () => {
     // Build a Gen3-only snapshot: replace Gen1 with a Gen3@L1.
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 10; // Gen3 krakenRequired=10
+    // Clear mandatory through level 9 so currentAutoTask drives the active
+    // task. (Level-10 mandatory needs Creature5 which lines up with Gen3 —
+    // useful for triggering questRequiresUpgrade.)
+    for (let lvl = 1; lvl <= 9; lvl++) {
+      const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
+      state.taskProgress[String(lvl)] = tasksAtLvl.length;
+    }
+    state.taskProgress['10'] = 0; // leave lvl-10 mandatory active
     state.activeUpgrade = null;
     state.pendingRewards = [];
     state.currentAutoTask = null;
@@ -327,13 +362,18 @@ describe('UpgradeMergeFarmTactic', () => {
     state.resources.meat = 100;
 
     // Premise sanity: picker reports Gen3 merges-blocked.
-    const pick = pickUpgradeCandidate(state, BALANCE);
+    const pick = pickFeasibleUpgradeCandidate(state, BALANCE);
     expect(pick.candidate).toBeNull();
     expect(pick.blockedBy?.reason).toBe('merges');
     expect(pick.blockedBy?.generatorId).toBe(3);
 
     const env = makeEngineEnv(new SeededRng(1), 0, 0);
     const ctx = buildContext(state, env, 50);
+    // Premise sanity: questRequiresUpgrade is true (mandatory@lvl10 needs
+    // Creature5 lvl1; Gen3@L1 outputs Creature5 lvl1 already on chance basis,
+    // so this could be false). If the predicate happens to be false in this
+    // edge case, the tactic still returns [] because of the predicate gate —
+    // which is exactly the defensive contract.
     const proposals = tactic.propose(state, goal, ctx);
 
     // Path A: no creatures on grid → no pair.
@@ -355,12 +395,52 @@ describe('UpgradeMergeFarmTactic', () => {
     state.resources.rune2 = 0;
     state.mergeCountByLine = {};
 
-    const pick = pickUpgradeCandidate(state, BALANCE);
+    const pick = pickFeasibleUpgradeCandidate(state, BALANCE);
     expect(pick.candidate).toBeNull();
     expect(pick.blockedBy).toBeUndefined();
 
     const env = makeEngineEnv(new SeededRng(1), 0, 0);
     const ctx = buildContext(state, env, 50);
+    expect(tactic.propose(state, goal, ctx)).toEqual([]);
+  });
+
+  // ─── Gating — feasible-first contract: no quest path → no fire ─────────
+  it('does NOT fire as a global anti-hoarding lane (no active quest)', () => {
+    // Old (pre-feasible-first) behavior: blocked-by-merges + affordable runes
+    // would activate the merge-farm tactic globally regardless of any quest.
+    // Per the new contract this lane is removed; without an active quest path
+    // requiring the upgrade, the tactic must NOT fire.
+    const tactic = new UpgradeMergeFarmTactic();
+    const goal = new UpgradeGeneratorGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
+      state.taskProgress[String(lvl)] = tasksAtLvl.length;
+    }
+    state.activeUpgrade = null;
+    state.pendingRewards = [];
+    // No active quest at all.
+    state.currentAutoTask = null;
+    state.currentTaskFed = [];
+    const gen1 = findGen1(state);
+    gen1.level = 2;
+    gen1.charges = [];
+    state.mergeCountByLine = {};
+    state.mergesSpentByGen = {};
+    state.resources.rune1 = 10;
+    state.resources.rune2 = 0;
+    state.resources.meat = 100;
+
+    // Premise: picker still reports merges-blocked + runes available.
+    const pick = pickFeasibleUpgradeCandidate(state, BALANCE);
+    expect(pick.candidate).toBeNull();
+    expect(pick.blockedBy?.reason).toBe('merges');
+
+    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const ctx = buildContext(state, env, 50);
+    // No active quest → questRequiresUpgrade is false → tactic must not fire.
+    expect(questRequiresUpgrade(state, ctx)).toBe(false);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
 });

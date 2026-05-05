@@ -1,43 +1,59 @@
 import type { GameSnapshot, CreatureEntity, GeneratorEntity } from '@domain/types';
 import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
 import { singletonPlan } from '../types';
-import { pickUpgradeCandidate } from '../../pickUpgradeCandidate';
+import { pickFeasibleUpgradeCandidate } from '../../pickFeasibleUpgradeCandidate';
+import { questRequiresUpgrade } from '../upgradeContract';
 import { BALANCE } from '@data/loadBalance';
 
 export const META: TacticMeta = {
   id: 'UpgradeMergeFarm',
-  description: 'Если upgrade заблокирован по mergesRequired — фармить merges на линии генератора (merge или productive spawn-fallback)',
+  description: 'Если active quest структурно требует upgrade и тот заблокирован по mergesRequired — фармить merges на линии генератора (merge или productive spawn-fallback)',
   serves: ['UpgradeGenerator'],
   produces: ['merge', 'gather_meat', 'charge_generator', 'spawn_generator'],
 };
 
 /**
- * pickUpgradeCandidate возвращает `blockedBy: { reason: 'merges', needed, have }`
- * когда у gen есть руны на upgrade, но не накоплено достаточно merges на его
- * line. Без этой тактики UpgradeStartTactic просто возвращает [], goal idle.
+ * Quest-prerequisite-only merge farming.
  *
- * Поведение (соответствует RealisticStrategy.farmMergesForLine):
+ * After the feasible-first plan
+ * (`docs/superpowers/plans/2026-05-05-modular-upgrade-feasible-first.md`)
+ * this tactic is no longer a global anti-hoarding lane. It only fires when
+ * `questRequiresUpgrade(state, ctx) === true` — i.e. the active task has an
+ * unmet need that the assigned generator cannot produce on its current
+ * level — AND `pickFeasibleUpgradeCandidate` reports the relevant upgrade
+ * is `blockedBy: 'merges'`.
  *
- *   Path A — на линии заблокированного gen уже есть пара одинаковых
- *            (creatureType, level) на гриде → emit merge. Каждый merge
- *            инкрементит mergeCountByLine[type], eventually unblock upgrade.
+ * Behavior (mirrors RealisticStrategy.farmMergesForLine):
  *
- *   Path B — пары нет, нужен productive spawn-fallback. Берём lowest-level
- *            sacrifice gen на этой линии (timer-mode исключаем — их нельзя
- *            charge'ить вручную) и идём по лестнице:
- *              1. нет charges + meat < chargeCost   → gather_meat
- *              2. нет charges + meat ≥ chargeCost   → charge_generator
- *              3. есть charges + грид имеет free    → spawn_generator
- *              4. грид полон + пары нет             → return [] (нет fake)
+ *   Path A — line creatures already have a pair on the grid → emit merge.
+ *            Each merge bumps mergeCountByLine, eventually unblocking the
+ *            upgrade.
  *
- * Plan length всегда 1 (singleton). Scheduler пересчитает на следующем тике
- * и выберет следующий шаг лестницы.
+ *   Path B — no pair exists, fall back to productive spawn ladder. Pick the
+ *            lowest-level sacrifice gen covering the blocked line:
+ *              1. no charges + meat < chargeCost  → gather_meat
+ *              2. no charges + meat ≥ chargeCost  → charge_generator
+ *              3. charges available + free cell    → spawn_generator
+ *              4. grid full + no pair              → return [] (no fake)
+ *
+ *   Flood guard — if the line already carries ≥ 6 creatures without a Path-A
+ *   pair, piling on a 7th wastes meat and clogs the grid → return [].
+ *
+ *   Timer-mode peer skip — gens with `spawnMode: 'timer'` cannot be charged
+ *   manually; they are filtered out of Path B candidates.
+ *
+ * Plan length is always 1 (singleton). The scheduler re-evaluates on the
+ * next tick and picks the next step of the ladder.
  */
 export class UpgradeMergeFarmTactic implements Tactic {
   meta: TacticMeta = META;
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
     if (state.activeUpgrade !== null) return [];
-    const result = pickUpgradeCandidate(state, BALANCE);
+    // Gate strictly on quest-requires-upgrade — this tactic is no longer a
+    // global anti-hoarding lane. Without an active quest path needing the
+    // upgrade, hoarding runes is allowed (the explicit policy shift).
+    if (!questRequiresUpgrade(state, ctx)) return [];
+    const result = pickFeasibleUpgradeCandidate(state, BALANCE);
     if (result.candidate || !result.blockedBy || result.blockedBy.reason !== 'merges') return [];
 
     const cfg = BALANCE.generators.generators.find(g => g.id === result.blockedBy!.generatorId);

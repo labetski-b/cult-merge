@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runScheduler } from '../scheduler/scheduler';
 import { TraceBuffer } from '../trace/buffer';
 import { buildContext } from '../context';
-import { pickUpgradeCandidate } from '../../pickUpgradeCandidate';
+import { pickFeasibleUpgradeCandidate } from '../../pickFeasibleUpgradeCandidate';
 import { makeEngineEnv } from '../../../engine/env';
 import { SeededRng } from '@infra/rng';
 import { BALANCE } from '@data/loadBalance';
@@ -189,8 +189,8 @@ describe('Upgrade priority regressions (modular goal/tactic stack)', () => {
       resMultiplier: 1,
     };
 
-    // Sanity: pickUpgradeCandidate must agree we have a feasible candidate.
-    const pick = pickUpgradeCandidate(state, BALANCE);
+    // Sanity: pickFeasibleUpgradeCandidate must agree we have a feasible candidate.
+    const pick = pickFeasibleUpgradeCandidate(state, BALANCE);
     expect(pick.candidate).not.toBeNull();
     expect(pick.candidate!.generatorId).toBe(1);
 
