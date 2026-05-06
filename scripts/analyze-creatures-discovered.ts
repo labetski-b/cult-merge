@@ -12,7 +12,7 @@
  */
 
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
-import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
+import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStrategy';
 import { BALANCE } from '../src/data/loadBalance';
 
 // ── Generator metadata ───────────────────────────────────────────────
@@ -44,7 +44,7 @@ for (const gen of BALANCE.generators.generators) {
 
 // ── Run simulation ───────────────────────────────────────────────────
 const TICKS = 50_000;
-const strategy = new RealisticStrategy();
+const strategy = new ModularStrategy();
 const engine = new SimulationEngine({
   seed: 42,
   stopCondition: { type: 'ticks', value: TICKS },

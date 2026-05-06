@@ -91,7 +91,7 @@ async function loadData() {
     renderTraceTab(0);
     renderStuck();
   } catch (e) {
-    document.getElementById('status').textContent = `No data: ${e.message}. Run scripts/run-sim.ts --strategy=modular first.`;
+    document.getElementById('status').textContent = `No data: ${e.message}. Run scripts/run-sim.ts first.`;
   }
 }
 

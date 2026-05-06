@@ -2,8 +2,8 @@
  * Runtime collector для Inspector (§ 8.1, § 14.2 spec rev 6).
  *
  * Загружает все 3 registries (goals/tactics/guards) и сериализует META + sourceFile
- * в `inspector-data.json`. Используется CLI'ом run-sim.ts при флаге --strategy=modular,
- * а также может вызываться отдельно для пере-генерации справочника.
+ * в `inspector-data.json`. Используется CLI'ом run-sim.ts, а также может вызываться
+ * отдельно для пере-генерации справочника.
  */
 
 import { goalRegistry } from '../src/simulation/strategies/modular/goals';

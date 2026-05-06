@@ -3,10 +3,10 @@
  * Usage: npx tsx --tsconfig tsconfig.app.json scripts/verify-quests.ts
  */
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
-import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
+import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStrategy';
 import { BALANCE } from '../src/data/loadBalance';
 
-const strategy = new RealisticStrategy();
+const strategy = new ModularStrategy();
 const engine = new SimulationEngine({
   balance: BALANCE,
   seed: 42,

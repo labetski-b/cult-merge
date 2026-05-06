@@ -2,21 +2,20 @@
  * Run simulation and print action log to stdout.
  *
  * Usage:
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter] [seed] [--strategy=realistic|modular]
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter] [seed]
  *
  * Examples:
  *   scripts/run-sim.ts 1000
- *   scripts/run-sim.ts 2000 generator 42 --strategy=modular
- *   scripts/run-sim.ts 5000 '' 42 --strategy=modular
+ *   scripts/run-sim.ts 2000 generator 42
+ *   scripts/run-sim.ts 5000 '' 42
  *
- * При --strategy=modular пишет inspector-data.json + decision-trace.json
- * в public/sim-runs/<timestamp>_seed-<n>/ и обновляет public/sim-runs/latest.json.
+ * Пишет inspector-data.json + decision-trace.json в
+ * public/sim-runs/<timestamp>_seed-<n>/ и обновляет public/sim-runs/latest.json.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
-import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
 import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStrategy';
 import type { AIStrategy } from '../src/simulation/engine/types';
 import { BALANCE } from '../src/data/loadBalance';
@@ -24,13 +23,8 @@ import { buildInspectorData } from './build-inspector-data';
 
 const args = process.argv.slice(2);
 const positional: string[] = [];
-const flags: Record<string, string> = {};
 for (const a of args) {
-  if (a.startsWith('--')) {
-    const eq = a.indexOf('=');
-    if (eq > 0) flags[a.slice(2, eq)] = a.slice(eq + 1);
-    else flags[a.slice(2)] = 'true';
-  } else {
+  if (!a.startsWith('--')) {
     positional.push(a);
   }
 }
@@ -38,14 +32,8 @@ for (const a of args) {
 const ticks = parseInt(positional[0] ?? '1000', 10);
 const filter = positional[1]?.toLowerCase() ?? '';
 const seed = parseInt(positional[2] ?? '42', 10);
-const strategyKind = (flags.strategy ?? 'realistic') as 'realistic' | 'modular';
 
-let strategy: AIStrategy;
-if (strategyKind === 'modular') {
-  strategy = new ModularStrategy();
-} else {
-  strategy = new RealisticStrategy();
-}
+const strategy: AIStrategy = new ModularStrategy();
 
 const engine = new SimulationEngine({
   seed,
@@ -87,8 +75,8 @@ console.log('currentAutoTask:', JSON.stringify(finalState.currentAutoTask));
 console.log('resources:', finalState.resources);
 console.log('');
 
-// Write trace artifacts for modular strategy
-if (strategyKind === 'modular') {
+// Write trace artifacts
+{
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const runDir = path.join('public', 'sim-runs', `${ts}_seed-${seed}`);
   fs.mkdirSync(runDir, { recursive: true });
