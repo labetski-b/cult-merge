@@ -1,6 +1,5 @@
 import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
-import { RealisticStrategy } from './strategies/RealisticStrategy';
 import { ModularStrategy } from './strategies/modular/ModularStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
@@ -23,16 +22,9 @@ function formatTimeSec(sec: number): string {
 let currentResults: SimulationResult[] = [];
 let charts: Record<string, Chart> = {};
 
-// Strategy instances
-const STRATEGIES = {
-  realistic: new RealisticStrategy(),
-  modular: new ModularStrategy(),
-};
-
-const COLORS = {
-  realistic: '#4de2c2',
-  modular: '#ffb84d',
-};
+// Single strategy: ModularStrategy is the only supported strategy.
+const STRATEGY = new ModularStrategy();
+const STRATEGY_COLOR = '#ffb84d';
 
 // UI Elements
 const form = document.getElementById('sim-form') as HTMLFormElement;
@@ -51,28 +43,15 @@ type ActionLogRefs = {
   filterType: HTMLSelectElement;
   tickInfo: HTMLSpanElement;
   body: HTMLTableSectionElement;
-  /** Index in `currentResults` to render. */
-  resultIndex: number;
 };
 
-const LOG_REFS_1: ActionLogRefs = {
+const LOG_REFS: ActionLogRefs = {
   tickInput: document.getElementById('log-tick') as HTMLInputElement,
   prevBtn: document.getElementById('log-prev-tick') as HTMLButtonElement,
   nextBtn: document.getElementById('log-next-tick') as HTMLButtonElement,
   filterType: document.getElementById('log-filter-type') as HTMLSelectElement,
   tickInfo: document.getElementById('log-tick-info') as HTMLSpanElement,
   body: document.getElementById('action-log-body') as HTMLTableSectionElement,
-  resultIndex: 0,
-};
-
-const LOG_REFS_2: ActionLogRefs = {
-  tickInput: document.getElementById('log-tick-2') as HTMLInputElement,
-  prevBtn: document.getElementById('log-prev-tick-2') as HTMLButtonElement,
-  nextBtn: document.getElementById('log-next-tick-2') as HTMLButtonElement,
-  filterType: document.getElementById('log-filter-type-2') as HTMLSelectElement,
-  tickInfo: document.getElementById('log-tick-info-2') as HTMLSpanElement,
-  body: document.getElementById('action-log-body-2') as HTMLTableSectionElement,
-  resultIndex: 1,
 };
 
 // Field Popup Elements
@@ -133,7 +112,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') fieldPopupOverlay.classList.remove('open');
 });
 
-// Action Log navigation — wire both tabs (refs1 = first strategy, refs2 = second)
+// Action Log navigation
 function wireActionLogControls(refs: ActionLogRefs) {
   refs.tickInput.addEventListener('change', () => renderActionLog(currentResults, refs));
   refs.filterType.addEventListener('change', () => renderActionLog(currentResults, refs));
@@ -146,8 +125,7 @@ function wireActionLogControls(refs: ActionLogRefs) {
     renderActionLog(currentResults, refs);
   });
 }
-wireActionLogControls(LOG_REFS_1);
-wireActionLogControls(LOG_REFS_2);
+wireActionLogControls(LOG_REFS);
 
 async function handleRunSimulation(e: Event) {
   e.preventDefault();
@@ -159,67 +137,50 @@ async function handleRunSimulation(e: Event) {
   const stopValue = parseInt((document.getElementById('stop-value') as HTMLInputElement).value);
   const stopCondition = { type: stopType, value: stopValue };
 
-  const selectedStrategies: string[] = [];
-  document.querySelectorAll('input[name="strategy"]:checked').forEach((checkbox) => {
-    selectedStrategies.push((checkbox as HTMLInputElement).value);
-  });
-
-  if (selectedStrategies.length === 0) {
-    alert('Please select at least one strategy');
-    return;
-  }
-
   // Disable controls
   runBtn.disabled = true;
   exportBtn.disabled = true;
   progressContainer.style.display = 'block';
 
-  // Run simulations
+  // Run simulation
   currentResults = [];
   try {
-    for (let i = 0; i < selectedStrategies.length; i++) {
-      const strategyKey = selectedStrategies[i]!;
-      const strategy = STRATEGIES[strategyKey as keyof typeof STRATEGIES];
+    progressText.textContent = `Running ${STRATEGY.name}...`;
+    progressBar.style.width = `0%`;
 
-      progressText.textContent = `Running ${strategy.name}... (${i + 1}/${selectedStrategies.length})`;
-      progressBar.style.width = `${(i / selectedStrategies.length) * 100}%`;
+    console.log(`Starting simulation: ${STRATEGY.name}`);
 
-      console.log(`Starting simulation ${i + 1}: ${strategy.name}`);
+    // Small delay for UI update
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Small delay for UI update
-      await new Promise(resolve => setTimeout(resolve, 50));
+    STRATEGY.reset?.();
+    console.log('Creating engine...');
+    const engine = new SimulationEngine({
+      seed,
+      stopCondition,
+      maxTicks: 50_000,
+      tickInterval: 100,
+      strategy: STRATEGY,
+      balance: BALANCE
+    });
 
-      strategy.reset?.();
-      console.log('Creating engine...');
-      const engine = new SimulationEngine({
-        seed,
-        stopCondition,
-        maxTicks: 50_000,
-        tickInterval: 100,
-        strategy,
-        balance: BALANCE
-      });
+    console.log('Running simulation...');
+    const result = engine.run();
+    console.log('Simulation complete, results:', result.summary);
 
-      console.log('Running simulation...');
-      const result = engine.run();
-      console.log('Simulation complete, results:', result.summary);
+    lastModularTraces = engine.getTickTraces().slice();
+    if (downloadTraceBtn) downloadTraceBtn.disabled = false;
 
-      // If ModularStrategy — save traces for Download trace JSON
-      if (strategyKey === 'modular') {
-        lastModularTraces = engine.getTickTraces().slice();
-        if (downloadTraceBtn) downloadTraceBtn.disabled = false;
-      }
-      console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
-        tick: h.tick,
-        krakenLevel: h.metrics.krakenLevel,
-        eyes: h.metrics.eyes,
-        totalExpGained: h.metrics.totalExpGained,
-        totalEyesGained: h.metrics.totalEyesGained,
-        totalTasksCompleted: h.metrics.totalTasksCompleted
-      })));
+    console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
+      tick: h.tick,
+      krakenLevel: h.metrics.krakenLevel,
+      eyes: h.metrics.eyes,
+      totalExpGained: h.metrics.totalExpGained,
+      totalEyesGained: h.metrics.totalEyesGained,
+      totalTasksCompleted: h.metrics.totalTasksCompleted
+    })));
 
-      currentResults.push(result);
-    }
+    currentResults.push(result);
   } catch (error) {
     console.error('Simulation error:', error);
     // Don't return — fall through to render partial results
@@ -232,8 +193,7 @@ async function handleRunSimulation(e: Event) {
   if (currentResults.length > 0) {
     renderSummaryTable(currentResults);
     renderCharts(currentResults);
-    renderActionLog(currentResults, LOG_REFS_1);
-    renderActionLog(currentResults, LOG_REFS_2);
+    renderActionLog(currentResults, LOG_REFS);
   }
 
   // Re-enable controls
@@ -340,17 +300,13 @@ function emphasiseEntityRefs(raw: string): string {
 function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
   refs.body.innerHTML = '';
 
-  // No results, or this slot doesn't have a strategy run
-  if (results.length === 0 || results.length <= refs.resultIndex) {
-    const placeholder = refs.resultIndex === 0
-      ? 'Run simulation first'
-      : 'Run two strategies to see comparison';
-    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">${placeholder}</td></tr>`;
+  if (results.length === 0) {
+    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">Run simulation first</td></tr>`;
     refs.tickInfo.textContent = 'Tick 0/0 — 0 actions';
     return;
   }
 
-  const log = results[refs.resultIndex]!.actionLog;
+  const log = results[0]!.actionLog;
   const tick = parseInt(refs.tickInput.value) || 0;
   const filterType = refs.filterType.value;
 
@@ -627,7 +583,7 @@ function renderCharts(results: SimulationResult[]) {
   const h0 = results[0]!.history;
   const { labels: xLabels, title: xTitle } = getXAxisLabels(h0);
 
-  const color = (idx: number) => COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2';
+  const color = (_idx: number) => STRATEGY_COLOR;
 
   // Common tooltip: format numbers nicely
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
