@@ -176,7 +176,7 @@ describe('CompleteActiveQuestGoal', () => {
   it('urgency = 1.0 константа когда квест активен (после tuning pass 3)', () => {
     // Tuning pass 3: urgency теперь constant 1.0 чтобы quest всегда top-priority,
     // 80*1.0=80 > 30*1.5=45 (UpgradeGenerator с активным upgrade).
-    // Mirrors RealisticStrategy "task-focused only".
+    // Task-focused: пока активен квест, фоновые цели не перехватывают управление.
     const goal = new CompleteActiveQuestGoal();
     const state = makeStateWithTimerGenAtCorner();
     const questType = state.currentAutoTask!.creatures[0]!.type;

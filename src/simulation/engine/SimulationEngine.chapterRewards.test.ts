@@ -9,7 +9,7 @@ import { BALANCE } from '@data/loadBalance';
  * mutates state via `setup` (e.g. bumps kraken level so chapter 1 completes)
  * and emits a single trivial action so the engine runs evaluateAndLogQuests.
  * Subsequent ticks return done:true with no actions, leaving pendingRewards
- * untouched (the realistic strategy would otherwise immediately claim them).
+ * untouched (the strategy would otherwise immediately claim them).
  */
 function setupOnceStrategy(setup: (state: import('@domain/types').GameSnapshot) => void): AIStrategy {
   let triggered = false;

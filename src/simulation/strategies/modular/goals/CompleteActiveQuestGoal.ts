@@ -31,9 +31,9 @@ export class CompleteActiveQuestGoal implements Goal {
 
   urgency(_state: GameSnapshot, _ctx: StrategyContext): number {
     // Constant 1.0 — пока квест активен, он top-priority.
-    // Mirrors RealisticStrategy "task-focused only" — пока phase=='task', все
-    // действия идут на квест. Активные UpgradeGenerator/ProgressKraken не должны
-    // перехватывать управление, потому что их background-priority < quest-blocking.
+    // Task-focused: пока активен квест — все действия идут на него. Фоновые
+    // цели (UpgradeGenerator/ProgressKraken) не перехватывают управление,
+    // т.к. их background-priority < quest-blocking.
     return 1.0;
   }
 
@@ -46,9 +46,8 @@ export class CompleteActiveQuestGoal implements Goal {
 
   getPrerequisites(state: GameSnapshot, ctx: StrategyContext): GoalPrerequisite[] {
     // Pass 0: reward-phase prereqs — drain все free rewards before quest.
-    // Mirrors RealisticStrategy reward phase order:
-    //   on-grid → open boxes → merge runes maximally → feed runes.
-    // Через dynamic prereq на каждый sub-goal, который активен.
+    // Reward phase order: on-grid → open boxes → merge runes maximally → feed
+    // runes. Через dynamic prereq на каждый sub-goal, который активен.
     //
     // CollectRewards (basePri=85) уже выше quest — claim_reward отдельно
     // не нужен в этом списке, scheduler сам обработает первым.

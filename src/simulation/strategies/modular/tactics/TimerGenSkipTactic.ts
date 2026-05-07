@@ -17,7 +17,7 @@ export const META: TacticMeta = {
  * (есть свободный сосед) или если ничего не помогает (deadlock — пусть
  * другие goals решают).
  *
- * Стратегия по приоритетам (повторяет RealisticStrategy.clearNeighborCell):
+ * Стратегия по приоритетам:
  *   1. merge соседних креатур одинакового type+level (под maxLevel).
  *   2. merge соседних рун одинакового runeType (canMergeRunes==true).
  *   3. feed nontask соседа (минимальная creatureType, минимальный level).
@@ -100,10 +100,9 @@ function pickFreeingActionForNeighbors(
     return { type: 'feed', entityId: neighborRunes[0]!.id };
   }
 
-  // 5) Direct move-rescue (mirrors RealisticStrategy step 3): все соседи —
-  //    task-typed creatures, но на гриде есть free far cell. Перемещаем
-  //    lowest-level task-typed neighbor в free cell — освобождаем neighbor
-  //    БЕЗ потери прогресса (move сохраняет creature).
+  // 5) Direct move-rescue: все соседи — task-typed creatures, но на гриде есть
+  //    free far cell. Перемещаем lowest-level task-typed neighbor в free cell —
+  //    освобождаем neighbor БЕЗ потери прогресса (move сохраняет creature).
   const neighborSet = new Set(neighbors);
   if (neighborCreatures.length > 0) {
     const farFreeCells = getFreeCellIndexes(state.grid).filter(
@@ -174,10 +173,10 @@ export class TimerGenSkipTactic implements Tactic {
           ));
         } else {
           // Все соседи заняты quest-creatures, нечем освобождать.
-          // Эмитим tick_idle (как RealisticStrategy) чтобы game time прошёл
-          // и timer-gen смог пассивно spawn'нуть в свободную клетку (если на
-          // других целях освободятся места). Без этого мы стоим в done=true
-          // 0 actions — passive tick не двигает время.
+          // Эмитим tick_idle, чтобы game time прошёл и timer-gen смог пассивно
+          // spawn'нуть в свободную клетку (если на других целях освободятся
+          // места). Без этого мы стоим в done=true 0 actions — passive tick не
+          // двигает время.
           plans.push(singletonPlan(
             { type: 'tick_idle', reason: 'fp:no_space' },
             {

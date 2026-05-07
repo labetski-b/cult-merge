@@ -277,12 +277,13 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(proposals).toEqual([]);
   });
 
-  // ─── Flood guard — parity with RealisticStrategy.farmMergesForLine ─────
+  // ─── Flood guard ──────────────────────────────────────────────────────
   it('flood guard: 6 line-creatures of distinct levels (no pair) + free cells → returns []', () => {
-    // Parity with RealisticStrategy.farmMergesForLine line-flood guard
-    // (`if (creatures.length >= 6) return [];`). Without this guard, T4
-    // would happily emit a productive spawn on Path B and pile a 7th
-    // creature onto the line — wasting meat and clogging the grid.
+    // Line-flood guard: ограничиваем merge'и в одной линии, чтобы не
+    // блокировать другие линии (`if (creatures.length >= 6) return [];`).
+    // Without this guard, T4 would happily emit a productive spawn on Path B
+    // and pile a 7th creature onto the line — wasting meat and clogging the
+    // grid.
     const tactic = new UpgradeMergeFarmTactic();
     const goal = new UpgradeGeneratorGoal();
     const { state, gen1 } = makeBlockedByMergesSnapshot();

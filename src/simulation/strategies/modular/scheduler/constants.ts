@@ -17,8 +17,8 @@ export const FP_RELAYOUT_THRESHOLD = 2;
  * При исчерпании следующий decide() возвращает { actions: [], done: true }
  * с stuckReason='tick budget exhausted'. См. § 5.4 D.
  *
- * Tuning pass 2: бюджет 50 был слишком мал — RealisticStrategy в одном outer-tick
- * легко делает 100-200 действий (spawn × N + merge × N + feed). Поднимаем до 250,
+ * Tuning pass 2: бюджет 50 был слишком мал — реальные сценарии (spawn × N +
+ * merge × N + feed) делают 100-200 действий в одном outer-tick. Поднимаем до 250,
  * это близко к engine MAX_ITERATIONS=500 и позволяет завершать квесты в один тик.
  */
 export const TICK_ACTION_BUDGET = 250;

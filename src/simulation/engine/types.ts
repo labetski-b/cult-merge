@@ -6,7 +6,7 @@ import type { TickEndReason, TickTrace } from './trace';
 
 // SimulationAction вынесен в ./actions для разрыва цикла type-импорта между
 // trace и types. Реэкспорт сохраняет совместимость для всех существующих
-// потребителей (RealisticStrategy, SimulationEngine, base.ts, и др.).
+// потребителей (SimulationEngine и др.).
 export type { SimulationAction } from './actions';
 
 export interface StrategyDecision {
@@ -33,7 +33,7 @@ export interface AIStrategy {
    * Called by engine on outer-tick boundary (после executeTick).
    * Стратегия дренирует свой буфер IterationDecision'ов, проставляет endReason,
    * считает outerActionsCount и возвращает TickTrace. См. § 5.1 spec.
-   * Опциональный: RealisticStrategy его не реализует — engine просто не пишет trace.
+   * Опциональный: если стратегия его не реализует — engine просто не пишет trace.
    */
   closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace;
 }

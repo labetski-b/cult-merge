@@ -23,7 +23,7 @@ export const META: TacticMeta = {
  * level — AND `pickFeasibleUpgradeCandidate` reports the relevant upgrade
  * is `blockedBy: 'merges'`.
  *
- * Behavior (mirrors RealisticStrategy.farmMergesForLine):
+ * Behavior:
  *
  *   Path A — line creatures already have a pair on the grid → emit merge.
  *            Each merge bumps mergeCountByLine, eventually unblocking the
@@ -100,9 +100,10 @@ export class UpgradeMergeFarmTactic implements Tactic {
       }
     }
 
-    // Parity with RealisticStrategy.farmMergesForLine — limit line spawn-flood.
-    // If ≥6 line-creatures already sit on the grid without a Path-A pair,
-    // piling on a 7th via Path B wastes meat and clogs the board.
+    // Limit line spawn-flood — иначе одна линия съедает все merge-ресурсы и
+    // блокирует прогресс по другим линиям. If ≥6 line-creatures already sit on
+    // the grid without a Path-A pair, piling on a 7th via Path B wastes meat
+    // and clogs the board.
     let lineCreatureCount = 0;
     for (const arr of buckets.values()) lineCreatureCount += arr.length;
     if (lineCreatureCount >= 6) return [];

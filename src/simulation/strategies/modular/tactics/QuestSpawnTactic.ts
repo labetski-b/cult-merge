@@ -95,9 +95,9 @@ export class QuestSpawnTactic implements Tactic {
   meta: TacticMeta = META;
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
     const plans: ProposedPlan[] = [];
-    // Pick focus type (mirrors RealisticStrategy.pickFocusType): для dual-quests
-    // фокусируемся на нужде, ближайшей к завершению. Минимизирует распыление
-    // эффорта по двум линиям и ускоряет квест.
+    // Pick focus type: для dual-quests фокусируемся на нужде, ближайшей к
+    // завершению. Минимизирует распыление эффорта по двум линиям и ускоряет
+    // квест.
     const focused = pickFocusNeed(ctx.activeQuestNeeds);
     const focusType = focused?.creatureType ?? null;
     for (const need of ctx.activeQuestNeeds) {
