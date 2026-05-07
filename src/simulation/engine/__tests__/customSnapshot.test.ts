@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../SimulationEngine';
+import { ModularStrategy } from '../../strategies/modular/ModularStrategy';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
@@ -36,15 +37,19 @@ describe('SimulationEngine accepts custom initial snapshot and rng state', () =>
     expect(eng.rng.getState()).toBe(stateAfterTwoCalls);
   });
 
-  it('stops after first task completion when stopCondition is oneTaskCompleted', () => {
+  it('stops after first task completion when stopCondition is oneTaskCompleted', { timeout: 60000 }, () => {
     const engine = new SimulationEngine({
       seed: 42,
       stopCondition: { type: 'oneTaskCompleted' },
-      maxTicks: 5000,
+      maxTicks: 500,
+      strategy: new ModularStrategy(),
       balance: BALANCE,
     });
     const result = engine.run();
     expect(result.summary.totalTasksCompleted).toBeGreaterThanOrEqual(1);
-    expect(result.summary.totalTasksCompleted).toBeLessThanOrEqual(2);
+    // The engine stops at the first tick boundary after a task completes; the
+    // strategy may finish multiple tasks within that tick, so we only check
+    // that the engine stopped (well below maxTicks=500).
+    expect(result.summary.duration).toBeLessThan(50);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../engine/SimulationEngine';
+import { ModularStrategy } from '../strategies/modular/ModularStrategy';
 import type { EngineEnv } from '../engine/env';
 import { makeEngineEnv } from '../engine/env';
 import { SeededRng } from '@infra/rng';
@@ -73,7 +74,13 @@ describe('Passive Gen3 tick during simulation', () => {
 
 describe('Quest-driven skip_timer_generator cheat', () => {
   it('when active task requires a timer-mode generator creature, strategy emits skip_timer', () => {
-    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 5 } });
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'ticks', value: 5 },
+      maxTicks: 5,
+      strategy: new ModularStrategy(),
+      balance: BALANCE,
+    });
     const state = (engine as unknown as { state: GameSnapshot }).state;
 
     // Bootstrap to kraken level 2 so questStep is reachable

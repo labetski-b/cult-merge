@@ -276,6 +276,15 @@ git commit -m "refactor(sim-scripts): switch all sim entrypoints to ModularStrat
 - Modify: `src/simulation/engine/SimulationEngine.ts` (9, 69)
 - Modify: `src/simulation/engine/SimulationEngine.merge.test.ts` (3, 8)
 - Modify: `src/domain/runtime/runAutocomplete.ts` (2, 68)
+- Delete: `src/simulation/__tests__/upgrades.test.ts` — явный дубликат modular-coverage (implicit default, 500 ticks, тяжёлый assert + 30s timeout = OOM/flake), та же инвариант покрыта `wait-fallback.smoke.test.ts`, `UpgradeProactivity.regression.test.ts`, `UpgradeStartTactic.test.ts`, `UpgradeCollectTactic.test.ts`
+- Modify: `src/simulation/__tests__/quest-counters.test.ts:45` — implicit default → explicit strategy (после audit intent)
+- Modify: `src/simulation/engine/__tests__/customSnapshot.test.ts:40` — implicit default + `oneTaskCompleted`/maxTicks=5000 → explicit strategy (после audit intent)
+- + audit ВСЕХ `new SimulationEngine(...)` в `src/**/*.test.ts` без явного `strategy:`
+
+**Правило (фиксируется этим Task'ом):**
+1. Любой `new SimulationEngine(...)` в тестах должен передавать `strategy` ЯВНО, если тест не проверяет именно default fallback.
+2. Если тест проверяет engine behavior — стратегия должна быть минимальной и детерминированной (например, stub strategy из `engine-wraps-core.contract.test.ts:149` или явный `new ModularStrategy()` с малым tick-count). НЕ переписывать в тяжёлый интеграционный suite (ModularStrategy + 1000+ ticks + 120s timeout = хрупкий и медленный).
+3. Допустимо оставить отдельный маленький smoke/regression тест именно на default `ModularStrategy`, но без больших tick-count и тяжёлых asserts.
 
 - [ ] **Step 1: Прочитать SimulationEngine.ts**
 
@@ -306,6 +315,40 @@ npx vitest run src/simulation/engine/SimulationEngine.merge.test.ts
 
 Прогнать связанные тесты, если есть.
 
+- [ ] **Step 4b: Audit `new SimulationEngine(...)` в тестах без явного `strategy:`**
+
+После переключения дефолта в `SimulationEngine.ts:69` все тесты, которые создают engine без `strategy:`, теперь работают на `ModularStrategy`. Часть из них pre-existing assert'ит RealisticStrategy-specific поведение и может зависнуть/ОOM (vitest serializes giant state на timeout).
+
+Найти все такие тесты:
+
+```
+Grep: pattern: "new SimulationEngine\(", glob: "src/**/*.test.ts", output_mode: content
+```
+
+Для каждого call site проверить: передаётся ли `strategy:`. Если нет — изучить intent теста и применить правило:
+
+1. **Тест проверяет engine semantics (а не стратегию)** → передать минимальную детерминированную стратегию: либо stub из `src/simulation/engine/__tests__/engine-wraps-core.contract.test.ts:149` (если применима), либо явный `new ModularStrategy()` с маленьким tick-count.
+
+2. **Тест проверяет default fallback** → оставить implicit default, но проверить что timeout/maxTicks разумные и assert'ы лёгкие.
+
+3. **Тест дубликат modular-coverage** → удалить, задокументировав в commit-сообщении.
+
+**Известные кандидаты (на 2026-05-07):**
+
+- `src/simulation/__tests__/upgrades.test.ts` — **DELETE** (см. Files выше; явный дубликат, OOM/flake)
+- `src/simulation/__tests__/quest-counters.test.ts:45` — **MODIFY**: 1000 ticks default. Прочитать тест, понять intent (counters API engine'а или high-level integration?). Если про engine — заменить на explicit modular с малым tick-count или stub. НЕ оставлять heavy ModularStrategy + 1000 ticks.
+- `src/simulation/engine/__tests__/customSnapshot.test.ts:40` — **MODIFY**: maxTicks=5000 + `oneTaskCompleted`. Прочитать, понять intent (snapshot API?) — заменить на explicit minimal strategy с stop-condition, не зависящей от выполнения тяжёлой задачи стратегией.
+
+Если grep найдёт ДРУГИЕ test-файлы с implicit default — применить то же правило к каждому.
+
+- [ ] **Step 4c: Удалить `src/simulation/__tests__/upgrades.test.ts`**
+
+```bash
+git rm src/simulation/__tests__/upgrades.test.ts
+```
+
+В commit-сообщении явно отметить: redundant с modular-equivalent coverage (`wait-fallback.smoke.test.ts`, `UpgradeProactivity.regression.test.ts`, `UpgradeStartTactic.test.ts`, `UpgradeCollectTactic.test.ts`); implicit default + 30s timeout + 500 ticks + heavy assert приводил к OOM при ModularStrategy.
+
 - [ ] **Step 5: Typecheck + весь vitest**
 
 ```bash
@@ -318,8 +361,18 @@ npx vitest run
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/simulation/engine/ src/domain/runtime/runAutocomplete.ts
-git commit -m "refactor(sim-engine): switch engine, autocomplete and merge-tests to ModularStrategy"
+git add src/simulation/engine/ src/domain/runtime/runAutocomplete.ts src/simulation/__tests__/
+git commit -m "refactor(sim-engine): switch engine, autocomplete and tests to ModularStrategy
+
+- SimulationEngine default strategy: RealisticStrategy → ModularStrategy
+- runAutocomplete: switched to ModularStrategy
+- SimulationEngine.merge.test: switched to ModularStrategy
+- DELETE upgrades.test.ts: redundant with modular-equivalent coverage
+  (wait-fallback.smoke, UpgradeProactivity.regression, UpgradeStart/CollectTactic);
+  implicit default + 30s timeout + 500 ticks + heavy assert → OOM on ModularStrategy
+- quest-counters.test, customSnapshot.test: switched implicit default to explicit strategy
+- Audit rule: every new SimulationEngine(...) in tests must pass strategy explicitly
+  unless the test specifically checks default fallback"
 ```
 
 ---

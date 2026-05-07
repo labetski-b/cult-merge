@@ -6,7 +6,7 @@ import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
-import { RealisticStrategy } from '../strategies/RealisticStrategy';
+import { ModularStrategy } from '../strategies/modular/ModularStrategy';
 import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
 import type { TickEndReason, TickTrace } from './trace';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
@@ -66,7 +66,7 @@ export class SimulationEngine {
 
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
-    const strategy = input.strategy ?? new RealisticStrategy(balance);
+    const strategy = input.strategy ?? new ModularStrategy(balance);
     const stopValue = 'value' in input.stopCondition ? input.stopCondition.value : undefined;
     this.config = {
       seed: input.seed,
