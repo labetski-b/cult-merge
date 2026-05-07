@@ -172,7 +172,7 @@ Timer-mode generators (Gen3 Flower Pot) спавнят сами по тайме�
 
 ## Inspector — что обновляется автоматически и что нет
 
-**Авто-обновляется** при regen trace (`run-sim.ts ... --strategy=modular`):
+**Авто-обновляется** при regen trace (`run-sim.ts ...`):
 - Tab 1 Structure — Goals/Tactics/Guards цветные узлы (читает `inspector-data.json` от `build-inspector-data.ts`, который читает META через registry helper)
 - Tab 2 Live Trace — пошаговые decisions (`decision-trace.json`)
 - Tab 3 Catalog — таблицы Goals/Tactics/Guards с counts из trace
@@ -195,13 +195,13 @@ npx vitest run src/simulation/strategies/modular/__tests__/<your-test>.test.ts -
 5-seed smoke (без integration test, который медленный):
 ```bash
 for s in 42 7 100 2024 1337; do
-  npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 5000 '' $s --strategy=modular 2>/dev/null | head -10 | grep -E "Final|Total tasks"
+  npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 5000 '' $s 2>/dev/null | head -10 | grep -E "Final|Total tasks"
 done
 ```
 
 Trace для Inspector — короткий run (≤500 ticks) чтобы decision-trace.json не превысил браузерный лимит:
 ```bash
-npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 50 '' 100 --strategy=modular
+npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts 50 '' 100
 # открыть http://localhost:5180/cult-merge/strategy-inspector.html
 ```
 

@@ -110,7 +110,7 @@ private shouldStop(): boolean {
 3. Если N>1 → дополнительно вычисляем **averaged result**:
    - История выравнивается по min длине (некоторые сиды с milestone-условием остановятся раньше)
    - Каждое поле `TickMetrics` — среднее арифметическое по сидам для этого тика
-   - Создаём synthetic `SimulationResult` с `strategy.name = 'RP (avg ×N)'`
+   - Создаём synthetic `SimulationResult` с `strategy.name = 'Modular (avg ×N)'`
 
 ```ts
 function averageResults(results: SimulationResult[]): SimulationResult {
@@ -130,7 +130,7 @@ function averageResults(results: SimulationResult[]): SimulationResult {
 ### Что показываем на графиках
 
 Показываем ТОЛЬКО averaged result. Если N=1 — как сейчас (без усреднения).
-Если N>1 — в `currentResults` кладём одну запись с `strategy.name = 'RP (avg ×N)'`.
+Если N>1 — в `currentResults` кладём одну запись с `strategy.name = 'Modular (avg ×N)'`.
 Индивидуальные сиды на графиках не показываем.
 
 ### averageSnapshot()

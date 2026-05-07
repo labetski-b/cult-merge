@@ -72,7 +72,7 @@ Takeaway: **floor-shifting is unusual**. Mainstream merge-idle games widen the r
 
 **Tasks impact**: Solved; low tier is literally the cheap default.
 
-**Implementation**: Extend charge API to take a `tier` arg, multiply `chargeCost` by a factor from `line_upgrades.json`. Touch `canChargeGenerator`, charge flows in `gameStore.ts` and `RealisticStrategy`, and the spawn roll. Moderate complexity; feels economy-first.
+**Implementation**: Extend charge API to take a `tier` arg, multiply `chargeCost` by a factor from `line_upgrades.json`. Touch `canChargeGenerator`, charge flows in `gameStore.ts` and the sim strategy, and the spawn roll. Moderate complexity; feels economy-first.
 
 ### (e) Alternative — "Rarity boost" (non-floor reward)
 **Core**: Upgrade keeps distribution identical but adds an occasional *bonus merge* on spawn (e.g. N% chance that a spawned creature auto-pairs with a neighbor one tier higher). Low tier never vanishes — the upgrade just accelerates climbing.
