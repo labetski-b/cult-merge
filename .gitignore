@@ -14,5 +14,8 @@ FROM UNITY/
 analytics/clickhouse.md
 analytics/README.md
 
-# ModularStrategy: trace artifacts written by run-sim.ts (--strategy=modular)
+# ModularStrategy: trace artifacts written by run-sim.ts
 public/sim-runs/
+
+# Claude Code runtime artifacts (scheduled tasks, sandbox)
+.claude/
