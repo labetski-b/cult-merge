@@ -6,6 +6,7 @@ import type {
 } from '../../../engine/trace';
 import type { TraceBuffer } from '../trace/buffer';
 import type { StrategyDecision } from '../../../engine/types';
+import type { SimulationAction } from '../../../engine/actions';
 import type { EngineEnv } from '../../../engine/env';
 import { cloneEngineEnv } from '../../../engine/env';
 import { applyActionCore } from '../../../engine/applyActionCore';
@@ -35,6 +36,14 @@ export interface SchedulerInput {
  * или done=true. Пишет IterationDecision в TraceBuffer.
  *
  * Spec rev 2 § 5.7, 5.8, 7.1, 7.3, 7.4.
+ *
+ * Plan 2026-05-06-modular-unified-time §347-389 — Task 5: when an
+ * `activeTimedProcess` is in flight, the scheduler **short-circuits**: it
+ * skips goals/tactics/guards entirely and emits a singleton `skip_time`
+ * action whose `deltaMs` equals the process's `remainingMs`. This makes the
+ * "one timed-process at a time" engine invariant a hard scheduling stop
+ * rather than a softer goal/tactic competition. Tactics are not asked
+ * to "know how to skip" — they only know how to *create* the timed-process.
  */
 export function runScheduler(input: SchedulerInput): StrategyDecision {
   const { goals, tactics, guards, state, env, ctx, buffer, remainingBudget, config } = input;
@@ -54,6 +63,54 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
     };
     buffer.recordIteration(iter);
     return { actions: [], done: true };
+  }
+
+  // Task 5 (plan §360-389) — Active timed-process short-circuit.
+  // If the world has an in-flight upgrade or FP timed-process, the only legal
+  // next action is `skip_time(remainingMs)`. We bypass goals/tactics/guards
+  // entirely so this stays an invariant of the model rather than a heuristic
+  // priority. Trace buffer still records the iteration with synthetic ids so
+  // the inspector can see the path taken (§399-413 "trace contract").
+  //
+  // Treat both `null` AND `undefined` as "no active process" — the canonical
+  // shape is `null` but unit tests sometimes hand the scheduler partial
+  // GameSnapshot stubs where the field is omitted entirely.
+  const proc = state.activeTimedProcess ?? null;
+  if (proc !== null) {
+    const skipAction: SimulationAction = {
+      type: 'skip_time',
+      deltaMs: proc.remainingMs,
+      reason: proc.kind,
+      entityId: proc.entityId,
+      generatorId: proc.generatorId,
+    };
+    const selectedPlan: SelectedPlanTrace = {
+      tacticId: 'TimedProcessResolution',
+      goalId: 'ResolveTimedProcess',
+      actionTypes: [skipAction.type],
+      stepCount: 1,
+      reasoning: `timed_process_resolution: kind=${proc.kind} entity=${proc.entityId} gen=${proc.generatorId} remainingMs=${proc.remainingMs}`,
+      expectedProgress: 1.0,
+    };
+    const iter: IterationDecision = {
+      iteration: iterIndex,
+      activeGoals: [],
+      selectedGoalId: 'ResolveTimedProcess',
+      proposedActions: [{
+        tacticId: 'TimedProcessResolution',
+        goalId: 'ResolveTimedProcess',
+        actionType: skipAction.type,
+        reasoning: selectedPlan.reasoning,
+        expectedProgress: 1.0,
+        stepIndex: 0,
+        planLength: 1,
+      }],
+      rejectedByGuards: [],
+      selectedPlan,
+      executedActions: [skipAction],
+    };
+    buffer.recordIteration(iter);
+    return { actions: [skipAction], done: false };
   }
 
   // 1. Collect active goals
@@ -95,15 +152,14 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
   //    другая goal не предложит — берём tick_idle как последний resort.
   //    (Поведение preserved из rev 1 для FP stuck scenario.)
   //
-  //    The same defer mechanism is reused — narrowly — for
-  //    `wait_for_upgrade_ready` from `UpgradeWaitTactic`: it is captured here
-  //    as a fallback and only selected if no other goal yields a surviving
-  //    non-wait plan. See plan §97–127 / §284–303
-  //    (docs/superpowers/plans/2026-05-06-sim-upgrade-wait-action.md).
+  //    Plan 2026-05-06-modular-unified-time Task 5/6 — the legacy
+  //    `wait_for_upgrade_ready` / `skip_timer_generator` defer paths are gone.
+  //    The active-timed-process short-circuit at the top of this function
+  //    fully replaces them: a strategy never has to know "how to wait", only
+  //    "how to start" a timed-process. Tactics no longer emit `skip_time`.
   const allProposed: ProposedActionSnapshot[] = [];
   const allRejected: GuardRejection[] = [];
   let deferredIdle: { plan: ProposedPlan; goal: Goal } | null = null;
-  let deferredWait: { plan: ProposedPlan; goal: Goal } | null = null;
 
   for (const entry of sortedQueue) {
     const goal = entry.goal;
@@ -161,14 +217,6 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           break;
         }
 
-        // wait_for_upgrade_ready follows the same singleton-only rule as
-        // tick_idle: it's a synthetic fallback whose only effect is advancing
-        // env.nowMs. Forbidden as inner step of a multi-step plan.
-        if (action.type === 'wait_for_upgrade_ready' && plan.actions.length > 1) {
-          valid = false;
-          break;
-        }
-
         // Run guards на projected state.
         let blocked = false;
         for (const guard of guards) {
@@ -204,20 +252,11 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           continue;
         }
 
-        // wait_for_upgrade_ready preview: pure-core advances env.nowMs but
-        // never the gameplay state. Skip the structural no-op rejection path —
-        // for a singleton plan that's the whole point. Otherwise applyActionCore
-        // would return stateChanged=false and (in multi-step plans) trip the
-        // structural-no-op gate; here it is a top-level singleton fallback.
-        if (action.type === 'wait_for_upgrade_ready') {
-          // Still let applyActionCore run so projectedEnv.nowMs advances if a
-          // future multi-step variant ever needed it. For singleton plans this
-          // is a no-op for the survivors check.
-          const applied = applyActionCore(projectedState, action, projectedEnv, config);
-          projectedState = applied.nextState;
-          projectedEnv = applied.nextEnv;
-          continue;
-        }
+        // Note: tactics never emit `skip_time` directly — the scheduler
+        // short-circuit at the top of runScheduler handles it. If one ever
+        // does (e.g. a future opt-in path) it would need a singleton-only
+        // bypass here because skip_time advances world time without
+        // changing entity layout when no process resolves.
 
         // Hardening: free_cells с freed=0 — synthetic marker без реального
         // прогресса. Раньше использовался RewardClaimTactic'ом как заглушка
@@ -274,14 +313,6 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
       continue;
     }
 
-    // wait_for_upgrade_ready singleton — defer with the same mechanism. Wait
-    // is a fallback: any other goal that produces a surviving non-wait plan
-    // wins. Captured here, selected below only if no real plan is found.
-    if (best.actions.length === 1 && best.actions[0]!.type === 'wait_for_upgrade_ready') {
-      if (!deferredWait) deferredWait = { plan: best, goal };
-      continue;
-    }
-
     // Real plan picked.
     const iter: IterationDecision = {
       iteration: iterIndex,
@@ -298,26 +329,6 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
   }
 
   // Никто не дал реального plan'а — выбираем deferred fallback.
-  // Priority among fallbacks:
-  //   1. wait_for_upgrade_ready — продвигает env.nowMs так, чтобы collect_upgrade
-  //      стал ready на следующей итерации. Это реальный progress (в отличие от
-  //      pure tick_idle), поэтому имеет приоритет над idle.
-  //   2. tick_idle — сигнал «strategy stuck this iteration» (preserved
-  //      original FP-stuck behaviour).
-  if (deferredWait) {
-    const iter: IterationDecision = {
-      iteration: iterIndex,
-      activeGoals: goalSnapshots,
-      prerequisiteChain: resolved.links.length > 0 ? resolved.links : undefined,
-      selectedGoalId: deferredWait.goal.meta.id,
-      proposedActions: allProposed,
-      rejectedByGuards: allRejected,
-      selectedPlan: makeSelectedPlanTrace(deferredWait.plan),
-      executedActions: deferredWait.plan.actions.slice(),
-    };
-    buffer.recordIteration(iter);
-    return { actions: deferredWait.plan.actions.slice(), done: false };
-  }
   if (deferredIdle) {
     const iter: IterationDecision = {
       iteration: iterIndex,

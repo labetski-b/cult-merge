@@ -9,7 +9,7 @@ import { canUpgradeGenerator, resolveUpgradeCost } from '@domain/upgrades';
  * Replaces the legacy `pickUpgradeCandidate` semantics for ModularStrategy:
  *
  *   - feasibility = upgrade row exists AND mergesAvailable >= mergesRequired
- *     AND runeBalance >= runeCost AND state.activeUpgrade === null;
+ *     AND runeBalance >= runeCost AND state.activeTimedProcess === null;
  *   - quest-relevance is computed against the **real active task**
  *     (mandatory first, currentAutoTask fallback);
  *   - ranking: questRelevant desc → krakenRequired desc → generatorId desc →
@@ -63,7 +63,7 @@ export function realActiveTask(
  * Pick the best feasible upgrade candidate per the new contract.
  *
  * Algorithm:
- *  1. If `state.activeUpgrade !== null` → no candidate (slot busy).
+ *  1. If `state.activeTimedProcess !== null` → no candidate (slot busy).
  *  2. Build feasible list (merges + runes both satisfied).
  *  3. For each candidate compute `questRelevant`:
  *     - real active task is mandatory ?? currentAutoTask;
@@ -80,7 +80,7 @@ export function pickFeasibleUpgradeCandidate(
   state: GameSnapshot,
   balance: BalanceConfig,
 ): PickFeasibleUpgradeResult {
-  if (state.activeUpgrade !== null) return { candidate: null };
+  if (state.activeTimedProcess !== null) return { candidate: null };
 
   const gens = Object.values(state.entities).filter(
     (e): e is GeneratorEntity => e.kind === 'generator',

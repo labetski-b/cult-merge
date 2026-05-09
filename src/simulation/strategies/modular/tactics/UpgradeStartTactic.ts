@@ -15,7 +15,7 @@ export class UpgradeStartTactic implements Tactic {
   meta: TacticMeta = META;
   propose(state: GameSnapshot, goal: Goal, _ctx: StrategyContext): ProposedPlan[] {
     const plans: ProposedPlan[] = [];
-    if (state.activeUpgrade !== null) return plans;
+    if (state.activeTimedProcess !== null) return plans;
     const result = pickFeasibleUpgradeCandidate(state, BALANCE);
     const candidate = result.candidate;
     if (!candidate) return plans;

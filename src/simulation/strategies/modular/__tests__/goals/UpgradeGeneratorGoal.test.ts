@@ -8,20 +8,24 @@ import { buildContext } from '../../context';
 
 /**
  * UpgradeGeneratorGoal contract after the feasible-first plan
- * (`docs/superpowers/plans/2026-05-05-modular-upgrade-feasible-first.md`).
+ * (`docs/superpowers/plans/2026-05-05-modular-upgrade-feasible-first.md`)
+ * combined with the unified-time refactor
+ * (`docs/superpowers/plans/2026-05-06-modular-unified-time.md`).
  *
  * isActive(state, ctx) =
- *   state.activeUpgrade !== null
+ *   state.activeTimedProcess !== null (kind='upgrade')
  *   || feasibleCandidateExists(state, ctx)
  *   || questRequiresUpgrade(state, ctx);
  *
  * Tag taxonomy (strict, exhaustive):
- *   - ready_collect       — active upgrade ready (urgency 3.0);
- *   - not_ready_dampener  — active upgrade still spinning (urgency 0.1);
+ *   - not_ready_dampener  — upgrade timed-process in flight (urgency 0.1);
+ *     scheduler short-circuits to `skip_time` before this goal is even asked,
+ *     so this branch only surfaces in trace describes / dampener fallback.
  *   - feasible_upgrade    — at least one feasible candidate (urgency 3.0);
  *   - quest_prerequisite  — quest structurally needs upgrade we can't yet afford (urgency 1.0).
  *
- * Removed: rune_surplus_trigger, global blocked_by_merges, idle baseline.
+ * Removed: ready_collect (post-Task-3, scheduler short-circuit replaces it),
+ * rune_surplus_trigger, global blocked_by_merges, idle baseline.
  */
 
 function clearMandatoryThroughLevel(state: { kraken: { level: number }; taskProgress: Record<string, number> }, currentLevel: number): void {
@@ -38,31 +42,27 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     expect(META.category).toBe('background');
   });
 
-  // ─── Scenario 1 — ready_collect ────────────────────────────────────────
-  it('Scenario 1 (ready_collect): activeUpgrade ready → urgency=3.0, tag=ready_collect', () => {
+  // ─── Scenario 1 (post-Task-3) — not_ready_dampener ─────────────────────
+  // The legacy `ready_collect` urgency lane was removed: when an upgrade
+  // timed-process is in flight, the scheduler short-circuits to `skip_time`
+  // (Task 5) before this goal is even classified, so there is no
+  // "ready_collect" tag anymore. The goal still classifies any in-flight
+  // upgrade as `not_ready_dampener` for trace describes / fallback paths.
+  it('Scenario 1 (not_ready_dampener): activeTimedProcess in flight → urgency=0.1, tag=not_ready_dampener', () => {
     const goal = new UpgradeGeneratorGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = { entityId: 'g1', generatorId: 1, startedAt: 0, finishesAt: 1000 };
+    state.activeTimedProcess = {
+      kind: 'upgrade',
+      entityId: 'g1',
+      generatorId: 1,
+      remainingMs: 10_000,
+      totalMs: 10_000,
+    };
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 2000, 0), 50);
-    expect(goal.isActive(state, ctx)).toBe(true);
-    expect(goal.urgency(state, ctx)).toBe(3.0);
-    expect(goal.describe(state, ctx)).toMatch(/\bready_collect\b/);
-  });
-
-  // ─── Scenario 1b — not_ready_dampener ───────────────────────────────────
-  it('Scenario 1b (not_ready_dampener): activeUpgrade in flight → urgency=0.1, tag=not_ready_dampener', () => {
-    const goal = new UpgradeGeneratorGoal();
-    const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    state.kraken.level = 5;
-    clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = { entityId: 'g1', generatorId: 1, startedAt: 0, finishesAt: 10_000 };
-    state.resources.rune1 = 0;
-    state.resources.rune2 = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
     expect(goal.urgency(state, ctx)).toBe(0.1);
     expect(goal.describe(state, ctx)).toMatch(/\bnot_ready_dampener\b/);
@@ -74,13 +74,13 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.mergeCountByLine = { Creature1: 5 };
     state.mergesSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
     expect(goal.urgency(state, ctx)).toBe(3.0);
     const desc = goal.describe(state, ctx);
@@ -96,7 +96,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.entities = {}; // no generators on grid → no feasible candidate
     state.grid.cells.fill(null);
     state.mergeCountByLine = {};
@@ -104,7 +104,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -114,7 +114,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     // Active task needs Creature2 — Gen1@L1 cannot produce yet (cfg.lines covers it).
     state.currentAutoTask = {
       id: 'q-c2',
@@ -128,7 +128,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.mergesSpentByGen = {};
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
     expect(goal.urgency(state, ctx)).toBe(1.0);
     expect(goal.describe(state, ctx)).toMatch(/\bquest_prerequisite\b/);
@@ -140,7 +140,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     // High runes, no generators → previously rune_surplus_trigger fired.
     state.entities = {};
     state.grid.cells.fill(null);
@@ -149,7 +149,7 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     // Goal is now inactive entirely; describe is only invoked through trace
     // when active. We assert the contract: hoarding alone does not activate.
     expect(goal.isActive(state, ctx)).toBe(false);
@@ -167,13 +167,13 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.mergeCountByLine = {};
     state.mergesSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
     expect(goal.describe(state, ctx)).not.toMatch(/blocked_by_merges/);
   });

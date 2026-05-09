@@ -167,8 +167,9 @@ export interface StrategyContext {
   /** Сколько ещё actions можно потратить в этом тике (см. § 5.4 D). */
   readonly remainingTickBudget: number;
   /**
-   * Engine env — содержит rng, nowMs, totalEyesGained, nextEntityId.
-   * Заменил старый `rng: SeededRng` (spec rev 2 § 6.2).
+   * Engine env — содержит rng, totalEyesGained, nextEntityId.
+   * Заменил старый `rng: SeededRng` (spec rev 2 § 6.2). Post-Task-8
+   * мировое время живёт в `state.worldTimeMs`, не в env.
    */
   readonly env: EngineEnv;
 }

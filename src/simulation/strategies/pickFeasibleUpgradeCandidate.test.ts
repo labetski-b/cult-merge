@@ -57,15 +57,16 @@ describe('pickFeasibleUpgradeCandidate', () => {
     expect(result.blockedBy).toBeUndefined();
   });
 
-  it('returns null when activeUpgrade is set', () => {
+  it('returns null when activeTimedProcess is set (post-Task-3: legacy activeUpgrade replaced)', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
-    base.activeUpgrade = {
+    base.activeTimedProcess = {
+      kind: 'upgrade',
       entityId: 'g1',
       generatorId: 1,
-      startedAt: 0,
-      finishesAt: 1000,
+      remainingMs: 1000,
+      totalMs: 1000,
     };
     base.resources.rune1 = 100;
     base.resources.rune2 = 100;

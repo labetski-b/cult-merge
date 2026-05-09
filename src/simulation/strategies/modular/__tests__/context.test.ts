@@ -8,7 +8,7 @@ import { makeEngineEnv } from '../../../engine/env';
 describe('buildContext', () => {
   it('возвращает freeCellCount > 0 на пустом стартовом snapshot', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     expect(ctx.freeCellCount).toBeGreaterThan(0);
     expect(ctx.remainingTickBudget).toBe(50);
@@ -21,7 +21,7 @@ describe('buildContext', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 1; // нет auto-task
     state.currentAutoTask = null;
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     expect(ctx.activeQuestNeeds.length).toBe(0);
   });

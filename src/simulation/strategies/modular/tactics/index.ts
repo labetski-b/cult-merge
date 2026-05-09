@@ -6,15 +6,13 @@ import * as boxOpen from './BoxOpenTactic';
 import * as questSpawn from './QuestSpawnTactic';
 import * as questMerge from './QuestMergeTactic';
 import * as questFeed from './QuestFeedTactic';
-import * as timerSkip from './TimerGenSkipTactic';
+import * as fpStart from './FpStartTactic';
 import * as gridFreeMerge from './GridFreeMergeTactic';
 import * as gridFreeFeed from './GridFreeFeedTactic';
 import * as boardPlace from './BoardPlacementTactic';
 import * as runeMerge from './RuneMergeTactic';
 import * as runeFeed from './RuneFeedTactic';
 import * as upgradeStart from './UpgradeStartTactic';
-import * as upgradeCollect from './UpgradeCollectTactic';
-import * as upgradeWait from './UpgradeWaitTactic';
 import * as upgradeMergeFarm from './UpgradeMergeFarmTactic';
 import * as lastResort from './LastResortFeedTactic';
 
@@ -26,15 +24,13 @@ export const tacticRegistry = [
   registerTactic(questSpawn as Record<string, unknown>, './tactics/QuestSpawnTactic.ts'),
   registerTactic(questMerge as Record<string, unknown>, './tactics/QuestMergeTactic.ts'),
   registerTactic(questFeed as Record<string, unknown>, './tactics/QuestFeedTactic.ts'),
-  registerTactic(timerSkip as Record<string, unknown>, './tactics/TimerGenSkipTactic.ts'),
+  registerTactic(fpStart as Record<string, unknown>, './tactics/FpStartTactic.ts'),
   registerTactic(gridFreeMerge as Record<string, unknown>, './tactics/GridFreeMergeTactic.ts'),
   registerTactic(gridFreeFeed as Record<string, unknown>, './tactics/GridFreeFeedTactic.ts'),
   registerTactic(boardPlace as Record<string, unknown>, './tactics/BoardPlacementTactic.ts'),
   registerTactic(runeMerge as Record<string, unknown>, './tactics/RuneMergeTactic.ts'),
   registerTactic(runeFeed as Record<string, unknown>, './tactics/RuneFeedTactic.ts'),
   registerTactic(upgradeStart as Record<string, unknown>, './tactics/UpgradeStartTactic.ts'),
-  registerTactic(upgradeCollect as Record<string, unknown>, './tactics/UpgradeCollectTactic.ts'),
-  registerTactic(upgradeWait as Record<string, unknown>, './tactics/UpgradeWaitTactic.ts'),
   registerTactic(upgradeMergeFarm as Record<string, unknown>, './tactics/UpgradeMergeFarmTactic.ts'),
   registerTactic(lastResort as Record<string, unknown>, './tactics/LastResortFeedTactic.ts'),
 ];

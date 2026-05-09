@@ -9,9 +9,10 @@ import type { StrategyContext, GeneratorAssignment, QuestNeed } from './types';
  * Собрать derived-данные из snapshot для одного inner-iteration.
  * Чистая функция — никакой мутации state.
  *
- * Spec rev 2 § 6.2: ctx несёт env (rng + nowMs + totalEyesGained + nextEntityId),
+ * Spec rev 2 § 6.2: ctx несёт env (rng + totalEyesGained + nextEntityId),
  * не голый rng — это нужно scheduler'у для step-by-step preview через
- * applyActionCore + cloneEngineEnv.
+ * applyActionCore + cloneEngineEnv. (Post-Task-8 EngineEnv больше не носит
+ * `nowMs` — мировое время живёт в `state.worldTimeMs`.)
  */
 export function buildContext(
   state: GameSnapshot,

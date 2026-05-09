@@ -48,7 +48,7 @@ export const META: TacticMeta = {
 export class UpgradeMergeFarmTactic implements Tactic {
   meta: TacticMeta = META;
   propose(state: GameSnapshot, goal: Goal, ctx: StrategyContext): ProposedPlan[] {
-    if (state.activeUpgrade !== null) return [];
+    if (state.activeTimedProcess !== null) return [];
     // Gate strictly on quest-requires-upgrade — this tactic is no longer a
     // global anti-hoarding lane. Without an active quest path needing the
     // upgrade, hoarding runes is allowed (the explicit policy shift).

@@ -13,7 +13,7 @@ export const META: GoalMeta = {
   basePriority: 30,
   category: 'background',
   activationCondition:
-    'state.activeUpgrade !== null OR feasibleCandidateExists(state, ctx) OR questRequiresUpgrade(state, ctx)',
+    'state.activeTimedProcess !== null (kind=upgrade) OR feasibleCandidateExists(state, ctx) OR questRequiresUpgrade(state, ctx)',
   urgencyFormula:
     '3.0 при ready-collect / feasible_upgrade; 0.1 при not-ready активном слоте; 1.0 при quest_prerequisite (структурная необходимость для квеста)',
 };
@@ -44,7 +44,7 @@ export class UpgradeGeneratorGoal implements Goal {
   meta: GoalMeta = META;
 
   isActive(state: GameSnapshot, ctx: StrategyContext): boolean {
-    if (state.activeUpgrade !== null) return true;
+    if (state.activeTimedProcess !== null) return true;
     if (feasibleCandidateExists(state, ctx)) return true;
     if (questRequiresUpgrade(state, ctx)) return true;
     return false;
@@ -55,22 +55,20 @@ export class UpgradeGeneratorGoal implements Goal {
    * accompanying reasoning tag. Both `urgency()` and `describe()` call this
    * so the tag visible in trace.activeGoals[*].describe always matches the
    * urgency the scheduler used.
+   *
+   * Post-Task-3: the legacy `ready_collect` branch is gone — when an
+   * `activeTimedProcess` is in flight, the scheduler short-circuits (Task 5)
+   * and emits `skip_time` directly, so this goal never wins the slot via the
+   * old "timer expired" lane. Active processes get a small dampener urgency
+   * for the (legacy) tactic path until Task 5/6 retires the obsolete tactics.
    */
   private classify(state: GameSnapshot, ctx: StrategyContext): Classification {
-    // 1. Active upgrade ready to collect — pre-empt over quest.
-    if (state.activeUpgrade !== null && state.activeUpgrade.finishesAt <= ctx.env.nowMs) {
-      return {
-        tag: 'ready_collect',
-        urgency: 3.0,
-        detail: `entity=${state.activeUpgrade.entityId} (timer expired)`,
-      };
-    }
-    // 2. Active upgrade still spinning — dampener so we don't spam collect_upgrade.
-    if (state.activeUpgrade !== null) {
+    const proc = state.activeTimedProcess;
+    if (proc !== null && proc.kind === 'upgrade') {
       return {
         tag: 'not_ready_dampener',
         urgency: 0.1,
-        detail: `entity=${state.activeUpgrade.entityId} finishesAt=${state.activeUpgrade.finishesAt} nowMs=${ctx.env.nowMs}`,
+        detail: `entity=${proc.entityId} remainingMs=${proc.remainingMs}`,
       };
     }
 
@@ -106,8 +104,8 @@ export class UpgradeGeneratorGoal implements Goal {
     const c = this.classify(state, ctx);
     const r1 = state.resources.rune1;
     const r2 = state.resources.rune2;
-    const slot = state.activeUpgrade ? 'busy' : 'free';
-    return `${c.tag}: ${c.detail} | r1=${r1} r2=${r2} activeUpgrade=${slot}`;
+    const slot = state.activeTimedProcess ? 'busy' : 'free';
+    return `${c.tag}: ${c.detail} | r1=${r1} r2=${r2} activeTimedProcess=${slot}`;
   }
 
   getPrerequisites(_state: GameSnapshot, _ctx: StrategyContext): GoalPrerequisite[] {

@@ -41,7 +41,7 @@ export function feasibleCandidateExists(
   _ctx: StrategyContext,
   balance: BalanceConfig = BALANCE,
 ): boolean {
-  if (state.activeUpgrade !== null) return false;
+  if (state.activeTimedProcess !== null) return false;
   const result = pickFeasibleUpgradeCandidate(state, balance);
   return result.candidate !== null;
 }
