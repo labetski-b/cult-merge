@@ -1,25 +1,13 @@
 import type { BalanceConfig } from '@data/schemas';
 import type { GameSnapshot } from '@domain/types';
-import type { SeededRng } from '@infra/rng';
+import type { SimulationAction } from './actions';
+import type { EngineEnv } from './env';
+import type { TickEndReason, TickTrace } from './trace';
 
-export type SimulationAction =
-  | { type: 'claim_reward' }
-  | { type: 'open_box'; boxId: string }
-  | { type: 'merge'; sourceId: string; targetId: string }
-  | { type: 'feed'; entityId: string }
-  | { type: 'charge_generator'; generatorId: string }
-  | { type: 'spawn_generator'; generatorId: string }
-  | { type: 'start_upgrade'; entityId: string }
-  | { type: 'collect_upgrade' }
-  | { type: 'skip_timer_generator'; entityId: string }
-  | { type: 'quest_completed'; taskLabel: string; eyesGained: number; creatures: { type: string; level: number; count: number }[] }
-  | { type: 'new_quest'; taskLabel: string }
-  | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
-  | { type: 'buy_runes'; runeType: 'rune1' | 'rune2'; amount: number }
-  | { type: 'expand_board'; newRows: number; newCols: number }
-  | { type: 'free_cells'; reason: string; freed: number }
-  | { type: 'tick_idle'; reason: string }
-  | { type: 'move_entity'; entityId: string; targetCellIndex: number };
+// SimulationAction вынесен в ./actions для разрыва цикла type-импорта между
+// trace и types. Реэкспорт сохраняет совместимость для всех существующих
+// потребителей (SimulationEngine и др.).
+export type { SimulationAction } from './actions';
 
 export interface StrategyDecision {
   actions: SimulationAction[];
@@ -29,13 +17,25 @@ export interface StrategyDecision {
 export interface AIStrategy {
   name: string;
   description: string;
-  decide(state: GameSnapshot, rng: SeededRng): StrategyDecision;
+  /**
+   * Decides the next batch of actions given current state and the engine's env.
+   * `env.rng` is the live RNG channel; reading or advancing it consumes engine
+   * entropy. Spec rev 2 § 5.6 / § 6.1.
+   */
+  decide(state: GameSnapshot, env: EngineEnv): StrategyDecision;
   /** Called by engine when a task completes, so strategy can advance phase. */
   onQuestCompleted?(): void;
   /** Return current creature→generator mapping from invest phase. */
   getCreatureGenMap?(): Array<{ creatureType: string; genId: number; genLevel: number; l1PerMeat: number }>;
   /** Reset all mutable state before a new simulation run. */
   reset?(): void;
+  /**
+   * Called by engine on outer-tick boundary (после executeTick).
+   * Стратегия дренирует свой буфер IterationDecision'ов, проставляет endReason,
+   * считает outerActionsCount и возвращает TickTrace. См. § 5.1 spec.
+   * Опциональный: если стратегия его не реализует — engine просто не пишет trace.
+   */
+  closeTickTrace?(tick: number, endReason: TickEndReason): TickTrace;
 }
 
 export type StopConditionType = 'ticks' | 'krakenLevel' | 'tasks' | 'oneTaskCompleted';
@@ -56,6 +56,12 @@ export interface SimulationConfig {
   initialSnapshot?: GameSnapshot;
   /** Если передан вместе с initialSnapshot — RNG восстанавливается из этого state. */
   rngState?: number;
+  /**
+   * Whether to retain per-tick scheduler traces in memory.
+   * The engine still drains strategy trace buffers at tick boundaries when
+   * disabled; it just does not store the returned TickTrace objects.
+   */
+  captureTrace?: boolean;
 }
 
 export interface TickMetrics {
@@ -135,8 +141,11 @@ export interface TickMetrics {
   runeStarveRejects: number;
   idleUpgradeTicks: number;
 
+  // FP timed-process tracking (Task 7 — replaces legacy passive Gen3 spawn).
+  fpProgressStarted: number;
+  fpProgressCompleted: number;
+
   // Gen3 (timer-mode) tracking
-  gen3PassiveSpawns: number;
   gen3CheatSpawns: number;
   gen3SkipClicks: number;
   questsClosedViaGen3Skip: number;
@@ -205,12 +214,32 @@ export interface ActionLogEntry {
     runes: number;
     boxes: number;
     creatureGenMap?: { creatureType: string; genId: number; genLevel: number; l1PerMeat: number }[];
+    /** Cell-by-cell grid map for visual popup (rev: minimalist field map). */
+    grid: {
+      cols: number;
+      rows: number;
+      cells: Array<
+        | { kind: 'creature'; type: string; level: number }
+        | { kind: 'generator'; genId: number; level: number; charges: number }
+        | { kind: 'box' }
+        | { kind: 'rune'; runeType: string }
+        | null
+      >;
+    };
   };
   note: string;
 }
 
 export interface SimulationResult {
   config: SimulationConfig;
+  /**
+   * One snapshot per completed Kraken task.
+   *
+   * `history` remains one snapshot per outer simulator tick. A single outer
+   * tick can complete many tasks, so task-axis charts must use this stream
+   * instead of collapsing end-of-tick snapshots.
+   */
+  taskHistory: SimulationSnapshot[];
   history: SimulationSnapshot[];
   actionLog: ActionLogEntry[];
   finalState: GameSnapshot;
@@ -245,8 +274,10 @@ export interface CumulativeMetrics {
   upgradesCollected: number;
   runeStarveRejects: number;
   idleUpgradeTicks: number;
+  // FP timed-process counters (Task 7 — explicit start_fp_progress / fp_completed)
+  fpProgressStarted: number;
+  fpProgressCompleted: number;
   // Gen3 (timer-mode) counters
-  gen3PassiveSpawns: number;
   gen3CheatSpawns: number;
   gen3SkipClicks: number;
   questsClosedViaGen3Skip: number;

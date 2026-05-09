@@ -1,5 +1,5 @@
 import { SimulationEngine } from '../../simulation/engine/SimulationEngine';
-import { RealisticStrategy } from '../../simulation/strategies/RealisticStrategy';
+import { ModularStrategy } from '../../simulation/strategies/modular/ModularStrategy';
 import type { SimulationAction } from '../../simulation/engine/types';
 import type { GameSnapshot } from '@domain/types';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
@@ -49,7 +49,8 @@ function pickSnapshot(input: GameSnapshot): GameSnapshot {
     meatDropQueue: input.meatDropQueue,
     chapterClaimed: input.chapterClaimed,
     mergesSpentByGen: input.mergesSpentByGen,
-    activeUpgrade: input.activeUpgrade,
+    activeTimedProcess: input.activeTimedProcess,
+    worldTimeMs: input.worldTimeMs,
   };
 }
 
@@ -65,7 +66,7 @@ export function runAutocompleteSimulation(
   // Strip non-data members (action functions on the live zustand state) before
   // cloning, since `structuredClone` rejects functions.
   const clonedSnapshot = structuredClone(pickSnapshot(snapshot));
-  const strategy = new RealisticStrategy(balance);
+  const strategy = new ModularStrategy(balance);
   strategy.reset();
 
   const engine = new SimulationEngine({

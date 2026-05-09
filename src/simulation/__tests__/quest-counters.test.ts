@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../engine/SimulationEngine';
+import { ModularStrategy } from '../strategies/modular/ModularStrategy';
 import type { SimulationAction } from '../engine/types';
 import type { GameSnapshot } from '@domain/types';
 import { BALANCE } from '@data/loadBalance';
@@ -42,12 +43,19 @@ describe('meatButtonPresses tracking', () => {
 
 describe('FP quest counters', () => {
   it('updates meatPressesAtLastFP and fpQuestsByKrakenLevel on FP quest completion', { timeout: 60000 }, () => {
-    const engine = new SimulationEngine({ seed: 42, stopCondition: { type: 'ticks', value: 1000 } });
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'ticks', value: 50 },
+      maxTicks: 50,
+      strategy: new ModularStrategy(),
+      balance: BALANCE,
+    });
     const result = engine.run();
     const counters = result.finalState.fpQuestsByKrakenLevel ?? {};
     const hasFP = Object.values(counters).some(v => (v as number) > 0);
     const finalMetrics = result.history[result.history.length - 1]!.metrics;
-    const gen3Produced = finalMetrics.gen3PassiveSpawns > 0 || finalMetrics.gen3CheatSpawns > 0;
+    // Post-Task-7: only `gen3CheatSpawns` survives (passive metric removed).
+    const gen3Produced = finalMetrics.gen3CheatSpawns > 0;
     if (gen3Produced) expect(hasFP).toBe(true);
     void (result.finalState as GameSnapshot);
   });

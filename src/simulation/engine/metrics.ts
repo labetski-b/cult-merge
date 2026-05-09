@@ -1,6 +1,6 @@
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
-import { getCurrentMandatoryTask } from '@domain/tasks';
+import { getActiveMandatoryTask } from '@domain/tasks';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 
@@ -32,7 +32,8 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     upgradesCollected: 0,
     runeStarveRejects: 0,
     idleUpgradeTicks: 0,
-    gen3PassiveSpawns: 0,
+    fpProgressStarted: 0,
+    fpProgressCompleted: 0,
     gen3CheatSpawns: 0,
     gen3SkipClicks: 0,
     questsClosedViaGen3Skip: 0,
@@ -87,8 +88,7 @@ export function captureTickMetrics(
 
   // Current task creature requirements (mirrors strategy: mandatory → autoTask fallback)
   const currentTaskRequirements: Record<string, number> = {};
-  const task = getCurrentMandatoryTask(balance, state.kraken.level, state.taskProgress)
-    ?? state.currentAutoTask;
+  const task = getActiveMandatoryTask(balance, state)?.task ?? state.currentAutoTask;
   if (task) {
     for (const req of task.creatures) {
       currentTaskRequirements[req.type] = req.level;
@@ -135,15 +135,23 @@ export function captureTickMetrics(
     // Time tracking
     sessionTimeSec,
 
-    // Upgrade tracking
-    activeUpgradeGen: state.activeUpgrade?.generatorId ?? null,
+    // Upgrade tracking — read from canonical activeTimedProcess slot (Task 3).
+    activeUpgradeGen:
+      state.activeTimedProcess?.kind === 'upgrade'
+        ? state.activeTimedProcess.generatorId
+        : null,
     upgradesStarted: cumulative.upgradesStarted ?? 0,
     upgradesCollected: cumulative.upgradesCollected ?? 0,
     runeStarveRejects: cumulative.runeStarveRejects ?? 0,
     idleUpgradeTicks: cumulative.idleUpgradeTicks ?? 0,
 
+    // FP timed-process tracking (Task 7 — replaces legacy passive metrics).
+    // `fpProgressStarted` increments on `start_fp_progress`; `fpProgressCompleted`
+    // on `fp_completed` event from `advanceTime`.
+    fpProgressStarted: cumulative.fpProgressStarted ?? 0,
+    fpProgressCompleted: cumulative.fpProgressCompleted ?? 0,
+
     // Gen3 (timer-mode) tracking
-    gen3PassiveSpawns: cumulative.gen3PassiveSpawns ?? 0,
     gen3CheatSpawns: cumulative.gen3CheatSpawns ?? 0,
     gen3SkipClicks: cumulative.gen3SkipClicks ?? 0,
     questsClosedViaGen3Skip: cumulative.questsClosedViaGen3Skip ?? 0,

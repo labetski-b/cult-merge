@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
-import { RealisticStrategy } from '../src/simulation/strategies/RealisticStrategy';
+import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStrategy';
 import { BALANCE } from '../src/data/loadBalance';
 import { generatorsDataSchema, chaptersDataSchema, creaturesDataSchema, krakenProgressionDataSchema, tasksDataSchema } from '../src/data/schemas';
 import { getCurrentChapter } from '../src/domain/chapters';
@@ -91,7 +91,7 @@ const expEngine = new SimulationEngine({
   stopCondition: { type: 'ticks', value: ticks },
   maxTicks: ticks,
   tickInterval: 1000,
-  strategy: new RealisticStrategy(expBalance),
+  strategy: new ModularStrategy(expBalance),
   balance: expBalance,
 });
 const experiment = expEngine.run();

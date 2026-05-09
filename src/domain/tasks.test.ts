@@ -124,7 +124,8 @@ function makeSnapshotWithGen1OnField(): GameSnapshot {
     meatDropQueue: [],
     chapterClaimed: {},
     mergesSpentByGen: {},
-    activeUpgrade: null,
+    activeTimedProcess: null,
+    worldTimeMs: 0,
   };
 }
 

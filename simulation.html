@@ -172,6 +172,12 @@
       .sim-controls__grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     }
     .sim-controls__grid .cm-field { align-self: end; }
+    .sim-controls__trace {
+      min-height: 36px;
+      justify-content: center;
+    }
+    .sim-controls__trace .cm-check { align-items: center; }
+    .sim-controls__trace .cm-check__box { margin-top: 0; }
     .sim-controls__cta {
       display: flex;
       flex-direction: column;
@@ -214,35 +220,6 @@
       font-weight: var(--fw-medium);
     }
 
-    /* Strategy block — gap (no labelled fieldset in design system).
-       Standalone cm-card with mini-caps "STRATEGY" header above checkbox.
-       Lives as a grid cell inside .sim-controls__grid spanning 2 columns
-       so the checkbox + "(Task-focused only)" + description fit comfortably,
-       while still keeping all controls on a single row.
-       See docs/design-system-integration.md Gap #8. */
-    .sim-strategy {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      min-width: 0;
-      align-self: end;
-      margin-left: var(--space-5);
-    }
-    .sim-strategy__label {
-      font-size: var(--fs-small);
-      font-weight: var(--fw-medium);
-      color: var(--text-secondary);
-      letter-spacing: 0.01em;
-    }
-    .sim-strategy__row {
-      align-items: center;
-      height: 36px;
-    }
-    .sim-strategy__hint {
-      color: var(--text-tertiary);
-      font-weight: 400;
-      margin-left: var(--space-1);
-    }
     /* Quest Rewards / Quest Distribution layout — gap */
     .qr-charts-row {
       display: grid;
@@ -328,6 +305,10 @@
     }
     #action-log-body tr { cursor: pointer; }
     #action-log-body tr:hover { background: var(--accent-primary-soft); }
+    /* Compact entity ref styling — type bold, level dim, counts faded */
+    .note-cell b { font-weight: 700; }
+    .note-cell .alog-dim { opacity: 0.6; font-weight: 400; }
+    .note-cell .alog-fade { opacity: 0.45; font-weight: 400; }
 
     /* Field popup (action-log row details) */
     #field-popup-overlay {
@@ -412,15 +393,6 @@
     <header class="sim-header">
       <h1 class="sim-header__title">CULT<span class="accent">.</span>MERGE — AI Simulation Dashboard</h1>
       <div class="sim-header__actions">
-      <a class="sim-header__link" href="strategy-flowchart.html" target="_blank" rel="noopener" title="Strategy logic flowchart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="6" height="6" rx="1"></rect>
-          <rect x="15" y="3" width="6" height="6" rx="1"></rect>
-          <rect x="9" y="15" width="6" height="6" rx="1"></rect>
-          <path d="M6 9v3h12V9M12 12v3"></path>
-        </svg>
-        <span>Strategy logic</span>
-      </a>
       <a class="sim-header__link" href="generators-tuner.html" target="_blank" rel="noopener" title="Generators balance tuner">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <line x1="4" y1="6" x2="20" y2="6"></line>
@@ -431,6 +403,15 @@
           <circle cx="11" cy="18" r="2"></circle>
         </svg>
         <span>Generators tuner</span>
+      </a>
+      <a class="sim-header__link" href="strategy-inspector.html" target="_blank" rel="noopener" title="Strategy inspector">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+          <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+          <rect x="9" y="15" width="6" height="6" rx="1"></rect>
+          <path d="M6 9v3h12V9M12 12v3"></path>
+        </svg>
+        <span>Strategy Inspector</span>
       </a>
       <button id="theme-toggle" class="sim-theme-toggle" type="button" aria-label="Toggle theme" title="Toggle light/dark theme">
         <svg class="sim-theme-toggle__icon sim-theme-toggle__icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -481,18 +462,16 @@
             <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
           </div>
 
-          <div class="sim-strategy">
-            <div class="sim-strategy__label">STRATEGY</div>
-            <label class="cm-check sim-strategy__row">
-              <input type="checkbox" class="cm-check__box" name="strategy" value="realistic" checked disabled>
-              <span class="cm-check__label">
-                Realistic Player <span class="sim-strategy__hint">(жмёт кнопку мяса когда не хватает на заряд)</span>
-              </span>
+          <div class="cm-field sim-controls__trace">
+            <label class="cm-check" for="capture-trace">
+              <input class="cm-check__box" type="checkbox" id="capture-trace">
+              <span class="cm-check__label">Capture trace</span>
             </label>
           </div>
 
           <div class="sim-controls__cta">
             <button type="button" id="export-btn" class="cm-btn cm-btn--ghost" disabled>Export (JSON)</button>
+            <button type="button" id="download-trace-btn" class="cm-btn cm-btn--ghost" disabled>Download trace JSON</button>
             <button type="submit" id="run-btn" class="cm-btn cm-btn--primary">Run Simulation</button>
           </div>
         </div>

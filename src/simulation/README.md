@@ -57,9 +57,9 @@ strategies/               — стратегия AI-игрока
 | `feed` | Убирает существо с поля → +EXP, прогресс по заданию |
 | `merge` | Два существа/генератора одного типа и уровня → одно уровнем выше |
 | `open_box` | Достаёт руну из бокса |
-| `start_upgrade` `{ entityId }` | Запуск асинхронного апгрейда генератора (single-slot, проверка merges + run cost) |
-| `collect_upgrade` | Сбор готового апгрейда из активного слота (no-op если таймер ещё крутится) |
-| `skip_timer_generator` `{ entityId }` | Quest-driven cheat для timer-mode генераторов: бэкдейтит `lastTickTimestamp` и форсит spawn |
+| `start_upgrade` `{ entityId }` | Запуск асинхронного апгрейда генератора (single-slot, проверка merges + run cost). Создаёт `activeTimedProcess` (kind='upgrade'); следующий действие стратегии должно быть `skip_time` |
+| `skip_time` `{ deltaMs, reason, entityId, generatorId }` | Канонический action для продвижения единого `worldTimeMs` и резолва активного `activeTimedProcess`. Заменяет `wait_for_upgrade_ready`, `collect_upgrade` (как user-action) и `skip_timer_generator` |
+| `collect_upgrade` | **Synthetic-only** — engine дописывает в action log после того, как `skip_time` зарезолвил upgrade. Strategy его не emit'ит |
 | `new_quest` | Синтетическое событие: назначена новая `Kraken task` (legacy action name, state не мутирует) |
 
 ### Важные механики
@@ -67,6 +67,26 @@ strategies/               — стратегия AI-игрока
 - `feed` всегда даёт EXP, независимо от задания. Если существо подходит под задание — ещё и прогресс по нему
 - `merge` работает и для существ (level < 9), и для генераторов (level < 5)
 - Сетка начинается как 2x4 = 8 ячеек. Растёт при левел-апе
+
+### Unified time model (post-2026-05-06)
+
+Симулятор использует **одно** мировое время, единый источник правды:
+
+- `state.worldTimeMs` — единый world clock; растёт вместе с действиями стратегии и через `skip_time`.
+- `state.activeTimedProcess` — слот для активного timed-process (`kind: 'upgrade' | 'fp'`). В каждый момент времени активен максимум **один** такой процесс.
+- Канонический helper `src/simulation/engine/advanceTime.ts` — единственное место, где время продвигается. `applyActionCore` вызывает его после каждого time-spending action; никакой другой код не двигает время скрытно.
+
+**Engine invariants** (зашиты в advanceTime + applyActionCore):
+1. Только один активный timed-process за раз.
+2. Пока `activeTimedProcess !== null`, все non-`skip_time` actions считаются invalid (Task 5: scheduler short-circuit).
+3. Все time resolution живёт **внутри** `advanceTime` (нет hidden post-tick branches).
+4. Action, который создаёт timed-process, **сам** тратит свой `actionTimeSec` через `advanceTime` (то есть его собственное время уменьшает `remainingMs`).
+
+**Upgrade flow:** `start_upgrade` → `skip_time(reason='upgrade', deltaMs=remainingMs)` → engine синтезирует `collect_upgrade` log row.
+
+**FP flow (Task 4):** `skip_time(reason='fp', ...)` — стратегия продвигает FP только когда квест требует FP-creature. Пассивный fone-tick FP удалён.
+
+См. план `docs/superpowers/plans/2026-05-06-modular-unified-time.md`.
 
 ### Оценка времени игрока (`actionTime.ts`)
 
@@ -82,8 +102,8 @@ strategies/               — стратегия AI-игрока
 | `charge_generator` | 1.0 |
 | `spawn_generator` | 0.5 |
 | `start_upgrade` | 0.5 |
-| `collect_upgrade` | 0.5 |
-| `skip_timer_generator` | 2.0 |
+| `skip_time` | `deltaMs / 1000` (dynamic) |
+| `collect_upgrade` | 0 (synthetic-only, engine-emitted) |
 | `new_quest` | 0 (synthetic) |
 | `expand_board` | 0 (synthetic) |
 
@@ -101,68 +121,9 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 # Примеры фильтров: gather_meat, new_quest, Creature3, buy_generator
 ```
 
-## RealisticStrategy (Kraken-task-focused)
+## ModularStrategy
 
-Единственная стратегия. Смотрит текущую `Kraken task` и работает только с генератором, который может дать нужного существа. `Kraken quests` здесь учитываются только косвенно через общее состояние.
-
-**Каждый тик:**
-
-### STEP 1: REWARDS
-
-1. Если есть `pendingRewards`:
-   - если 0 свободных ячеек, **освобождает место**: скармливает 1 низкоуровневое существо
-   - **Claim rewards** — забирает все награды из `pendingRewards`
-2. **Open boxes** — открывает ящики на поле (могут быть с предыдущего тика)
-3. **Merge runes** — мерджит все пары одного типа: Rune1_1+Rune1_1 → Rune1_2 и т.д.
-4. **Feed runes** — скармливает оставшиеся руны (непарные + максимального уровня)
-
-> Open/merge/feed выполняются **всегда**: claimed-бокс получает новый ID во время выполнения, поэтому обрабатывается только со следующего тика.
-
-### STEP 2: KRAKEN TASKS
-
-- **Если уровень кракена < 2 (нет `Kraken tasks`):**
-  - Спавнит все заряды из всех генераторов, заряжает пустые
-  - Скармливает всех существ кракену для EXP (высокоуровневых первыми)
-
-- **Если есть активная `Kraken task` (уровень ≥ 2):**
-
-  1. Определяет нужные `creatureType` из текущего задания
-  2. **Проактивный апгрейд генераторов** (async-slot, перед спавном):
-     - Мержит все существующие пары генераторов одного уровня
-     - Если `state.activeUpgrade` готов → шлёт `collect_upgrade`
-     - Иначе через `pickUpgradeCandidate` выбирает кандидата (нужная линейка, прошёл merge-gate,
-       руны достаточно) → шлёт `start_upgrade { entityId }`
-     - **Farm-merges fallback:** если `pickUpgradeCandidate` возвращает `blockedBy: { reason: 'merges' }`
-       (генератор готов к апгрейду по рунам, но не хватает мерджей на линии), стратегия запускает
-       `farmMergesForLine`:
-       1. Path B — пытается смерджить готовую пару существ из линии генератора.
-       2. Path A — если пары нет, спавнит с lowest-level генератора линии (обычный ladder:
-          `gather_meat` → `charge_generator` → `spawn_generator`).
-       3. Guard: если на гриде уже ≥6 существ линии — пропускаем спавн, не флудим поле.
-
-       Это исправляет stall-кейс baseline-3.23 (kraken Lv3, заблокированный Gen1 Lv2 по 25 merges):
-       после фикса страт за 50 000 тиков (seed=42) прогрессирует до krakenLevel 10 / chapter 7 /
-       6 upgrades / 42 006 totalEyes / 145 завершённых `Kraken tasks`.
-     - Если задача требует timer-mode generator (Gen3) и подходящий ген уже на поле → шлёт
-       `skip_timer_generator { entityId }` (учитывается в `gen3SkipClicks`)
-  3. **canProduce = false** (ни одного подходящего генератора):
-     - Спавнит из line-генераторов + скармливает всех существ для EXP
-       (EXP → kraken level up → rune rewards → апгрейд ген. на следующем тике)
-  4. **canProduce = true** (есть генератор, выдающий нужный тип):
-     - Если нужное существо (тип + уровень) уже на поле → скармливает его сразу, не ждёт полного набора
-     - Если нет:
-       - **Поле заполнено + есть существа из чужой линейки** — цикл в этом же тике:
-         жертвует одно (самое низкоуровневое из чужой линейки) → спавнит одно из нужного генератора;
-         повторяет, пока есть заряды и жертвы;
-         если генератор разрядился и ещё есть жертвы + мясо — заряжает и продолжает
-       - **Иначе** — спавнит из нужного генератора; если генератор разрядился, осталось место и есть
-         мясо — заряжает и продолжает спавнить в этом же тике
-     - Мерджит все пары нужного типа до нужного уровня
-     - **Скармливает только чужие существа** (`feedExcess`) — существа нужного типа ниже
-       целевого уровня **сохраняются** как строительные блоки для цепочки мержей
-     - Если после мерджа появились существа для текущей `Kraken task` — движок скармливает их
-       пост-тик sweep'ом (стратегия видит только снапшот, не видит новые ID от мерджа)
-
+Проект использует `ModularStrategy` (Goals/Tactics/Guards с trace) — см. `src/simulation/CLAUDE.md` и `src/simulation/strategies/modular/` для деталей архитектуры.
 
 ## Графики и агрегация по оси X
 
@@ -195,7 +156,9 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 | Creature Progress | ↓ last | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Eyes per Meat Spent | Δ ratio | — | ✅ | ✅ | — | ✅ |
 
-**Per Task** группирует тики по `s.metrics.totalTasksCompleted`. Новая точка появляется при завершении каждой `Kraken task`.
+**Per Task** использует отдельный поток `result.taskHistory`, где движок сохраняет один snapshot на каждое завершение `Kraken task`.
+Это важно, потому что один outer tick симулятора может завершить сразу много tasks, а обычный `result.history` хранит только end-of-tick snapshots.
+Новая точка появляется при завершении каждой `Kraken task`.
 Здесь `task` означает завершенную `Kraken task`; `Kraken quests` в эту агрегацию не входят.
 
 **Time (Minutes)** группирует тики по `Math.floor(totalTimeSec / 60)` — одна точка на каждую минуту оценочного игрового времени.
@@ -215,30 +178,36 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 
 - **`activeUpgradeGen`** — `generatorId` текущего активного апгрейда, либо `null` (slot пустой)
 - **`upgradesStarted`** — cumul. счётчик действий `start_upgrade`
-- **`upgradesCollected`** — cumul. счётчик действий `collect_upgrade`, изменивших state
+- **`upgradesCollected`** — cumul. счётчик резолвов upgrade timed-process (synthetic `collect_upgrade` row, эмиттится engine'ом после `skip_time(reason='upgrade')`)
 - **`runeStarveRejects`** — сколько раз стратегия хотела стартовать апгрейд, но не хватило рун
 - **`idleUpgradeTicks`** — тики, в которых был отправлен `collect_upgrade`, но таймер ещё не истёк
-- **`gen3PassiveSpawns`** — пассивные спавны от `tickTimerGenerators` (Gen3 idle ticking)
-- **`gen3CheatSpawns`** — спавны через quest-cheat `skip_timer_generator`
-- **`gen3SkipClicks`** — действия `skip_timer_generator`, отправленные стратегией
+- **`gen3CheatSpawns`** — спавны через FP timed-process resolution (эквивалент legacy `skip_timer_generator`)
+- **`gen3SkipClicks`** — действия `skip_time(reason='fp')`, отправленные стратегией для резолва FP timed-process
 - **`questsClosedViaGen3Skip`** — квесты, закрытые в тике, где использовался cheat
 - **`unlockedGenerators`** — список `generatorId`, которые уже стоят на поле в этом тике
 - **`mergesSpentByGenSnapshot`** — копия `state.mergesSpentByGen` (gate для апгрейдов)
 - **`generatorLevelsSnapshot`** — `{ generatorId → maxLevel }` по существам на поле
 
-### Gen3 timer-mode
+### Gen3 timer-mode (post-Task-4)
 
-Gen3 (исторически Flower Pot) — единственный генератор со `spawnMode: 'timer'`. Не требует
-заряда мясом и не активируется кликом игрока:
+Gen3 (Flower Pot) — единственный генератор со `spawnMode: 'timer'`. Не требует
+заряда мясом и не активируется кликом игрока. **Поведение в симуляторе изменено**
+в плане `2026-05-06-modular-unified-time` Task 4 (FP product decision approved
+2026-05-07):
 
-- **Пассивный спавн** — `tickTimerGenerators` вызывается в конце каждого engine tick после
-  выполнения strategy actions. Если с момента `lastTickTimestamp` прошло ≥ `tickIntervalSec`,
-  выкатывается одна попытка спавна (`rollGeneratorSpawn`). При успехе → `gen3PassiveSpawns += 1`.
-- **Quest-cheat** — если активный `Kraken task` требует Creature от timer-mode генератора,
-  стратегия отправляет `skip_timer_generator { entityId }`. Engine бэкдейтит
-  `lastTickTimestamp = now - intervalMs` и форсит spawn → `gen3CheatSpawns += 1`.
-  Cumul. счётчик `gen3SkipClicks` инкрементится на действие, `questsClosedViaGen3Skip` — при
-  завершении квеста, в течение которого был хоть один skip.
+- **Пассивного спавна больше нет.** Hook `applyPassiveTickCore` полностью
+  удалён в Task 7 (plan §592-610). `tickTimerGenerators` остаётся в кодовой
+  базе, но используется только в production-пути (`gameStore`), где UI
+  вызывает его с `Date.now()`.
+- **Explicit resolution** — если активный `Kraken task` требует Creature от
+  timer-mode генератора, стратегия эмиттит `skip_time(reason='fp', deltaMs, ...)`.
+  `advanceTime` декрементит `remainingMs` активного `activeTimedProcess { kind: 'fp' }`
+  и при достижении 0 спавнит креатуру в свободного соседа FP-генератора +
+  эмиттит `fp_completed` event. `gen3SkipClicks` инкрементится на каждый
+  `skip_time(reason='fp')`. `questsClosedViaGen3Skip` — при завершении квеста,
+  где был хоть один такой skip.
+- Старая метрика `gen3PassiveSpawns` удалена в Task 7 (plan §592-610) — нет
+  источника пассивных спавнов в sim'е, нечего считать.
 
 График **New Creatures Discovered** (Sessions only) показывает Δ delta/session + cumul на правой оси.
 
@@ -275,16 +244,23 @@ aggregateHistory(history, getKey, getValue, mode)
 - **Kraken tasks** (`tasks.json`): по уровням кракена. Level 2 = Creature1. Level 3+ = появляется Creature2
 - **Kraken quests** (`quests.json`): unlockable Kraken quest layer, сейчас организован по chapter'ам и unlock на Kraken level 4
 - **Связка**: генератор → `lines: ["Creature1", "Creature2"]` → может когда-нибудь выдать оба типа. `outputs` текущего уровня определяет что выдаёт прямо сейчас
-- **Прокачка генераторов (async-upgrade slot)**: апгрейд генератора больше не покупается мгновенно
-  через `buy_generator`/`merge_cascade`. Вместо этого:
-  - **Single-slot**: только один активный апгрейд за раз (`state.activeUpgrade`). Пока слот занят,
-    нельзя стартовать другой апгрейд (но остальные действия — спавн/мерджи/фид — продолжаются).
-  - **Merge-gate**: количество накопленных мерджей на линии (`state.mergesSpentByGen[genId]`)
-    должно достичь `mergesRequired` нужного уровня, иначе старт невозможен.
-  - **Rune-cost**: апгрейд стоит rune1/rune2 — снимаются при `start_upgrade`. Если рун не хватает,
-    стратегия инкрементит `runeStarveRejects` и не отправляет действие.
-  - **Timer**: апгрейд готов через `upgradeDurationSec`. До `collect_upgrade`'а слот занят;
-    тики, в которых была попытка collect'а, но таймер ещё не истёк, считаются как `idleUpgradeTicks`.
+- **Прокачка генераторов (countdown timed-process slot)** — после Task 3 plan
+  `2026-05-06-modular-unified-time`:
+  - **Single-slot**: только один активный timed-process за раз
+    (`state.activeTimedProcess`, kind=`'upgrade'`). Пока слот занят, стратегия
+    обязана эмитить только `skip_time` (Task 5 short-circuit).
+  - **Merge-gate**: количество накопленных мерджей на линии
+    (`state.mergesSpentByGen[genId]`) должно достичь `mergesRequired` нужного
+    уровня, иначе `start_upgrade` отклоняется.
+  - **Rune-cost**: апгрейд стоит rune1/rune2 — снимаются при `start_upgrade`.
+    Если рун не хватает, стратегия инкрементит `runeStarveRejects` и не
+    отправляет действие.
+  - **Countdown**: `start_upgrade` создаёт timed-process с `remainingMs =
+    totalMs = upgradeDurationSec*1000`. `skip_time(deltaMs)` декрементит
+    `remainingMs` через `advanceTime`; при достижении 0 эмитится
+    `upgrade_completed`, движок дописывает synthetic `collect_upgrade` log
+    row. `idleUpgradeTicks` считается на тиках, где slot занят, но
+    `collect_upgrade` synthetic не отстреливал.
 - **Мясо**: `calculateMeatDrop(totalEyes)` — количество мяса за нажатие кнопки, линейно растёт внутри главы
 - **Сессия**: `calculateSession(pressCount)` — нажатия 1-5 = сессия 1, 6-10 = сессия 2 и т.д.
 

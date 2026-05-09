@@ -91,7 +91,8 @@ function makeBaseSnapshot(grid: GridState): GameSnapshot {
     meatDropQueue: [],
     chapterClaimed: {},
     mergesSpentByGen: {},
-    activeUpgrade: null,
+    activeTimedProcess: null,
+    worldTimeMs: 0,
   };
 }
 

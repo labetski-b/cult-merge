@@ -1,6 +1,6 @@
 import { Chart, registerables } from 'chart.js';
 import { SimulationEngine } from './engine/SimulationEngine';
-import { RealisticStrategy } from './strategies/RealisticStrategy';
+import { ModularStrategy } from './strategies/modular/ModularStrategy';
 import { BALANCE } from '@data/loadBalance';
 import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
@@ -22,14 +22,9 @@ function formatTimeSec(sec: number): string {
 let currentResults: SimulationResult[] = [];
 let charts: Record<string, Chart> = {};
 
-// Strategy instances
-const STRATEGIES = {
-  realistic: new RealisticStrategy()
-};
-
-const COLORS = {
-  realistic: '#4de2c2'
-};
+// Single strategy: ModularStrategy is the only supported strategy.
+const STRATEGY = new ModularStrategy();
+const STRATEGY_COLOR = '#ffb84d';
 
 // UI Elements
 const form = document.getElementById('sim-form') as HTMLFormElement;
@@ -39,14 +34,26 @@ const progressContainer = document.getElementById('progress-container') as HTMLD
 const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
 const progressText = document.getElementById('progress-text') as HTMLSpanElement;
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
+const captureTraceInput = document.getElementById('capture-trace') as HTMLInputElement | null;
 
 // Action Log UI Elements
-const logTickInput = document.getElementById('log-tick') as HTMLInputElement;
-const logPrevBtn = document.getElementById('log-prev-tick') as HTMLButtonElement;
-const logNextBtn = document.getElementById('log-next-tick') as HTMLButtonElement;
-const logFilterType = document.getElementById('log-filter-type') as HTMLSelectElement;
-const logTickInfo = document.getElementById('log-tick-info') as HTMLSpanElement;
-const logBody = document.getElementById('action-log-body') as HTMLTableSectionElement;
+type ActionLogRefs = {
+  tickInput: HTMLInputElement;
+  prevBtn: HTMLButtonElement;
+  nextBtn: HTMLButtonElement;
+  filterType: HTMLSelectElement;
+  tickInfo: HTMLSpanElement;
+  body: HTMLTableSectionElement;
+};
+
+const LOG_REFS: ActionLogRefs = {
+  tickInput: document.getElementById('log-tick') as HTMLInputElement,
+  prevBtn: document.getElementById('log-prev-tick') as HTMLButtonElement,
+  nextBtn: document.getElementById('log-next-tick') as HTMLButtonElement,
+  filterType: document.getElementById('log-filter-type') as HTMLSelectElement,
+  tickInfo: document.getElementById('log-tick-info') as HTMLSpanElement,
+  body: document.getElementById('action-log-body') as HTMLTableSectionElement,
+};
 
 // Field Popup Elements
 const fieldPopupOverlay = document.getElementById('field-popup-overlay')!;
@@ -54,9 +61,42 @@ const fieldPopupTitle = document.getElementById('field-popup-title')!;
 const fieldPopupContent = document.getElementById('field-popup-content')!;
 const fieldPopupClose = document.getElementById('field-popup-close')!;
 
+// Side-store: traces from last ModularStrategy run (used by Download trace JSON)
+let lastModularTraces: ReturnType<SimulationEngine['getTickTraces']> = [];
+const downloadTraceBtn = document.getElementById('download-trace-btn') as HTMLButtonElement | null;
+const CAPTURE_TRACE_STORAGE_KEY = 'cm-sim-capture-trace';
+
 // Event Listeners
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
+downloadTraceBtn?.addEventListener('click', handleDownloadTrace);
+
+if (captureTraceInput) {
+  try {
+    captureTraceInput.checked = localStorage.getItem(CAPTURE_TRACE_STORAGE_KEY) === 'true';
+  } catch (_) {
+    captureTraceInput.checked = false;
+  }
+  captureTraceInput.addEventListener('change', () => {
+    try {
+      localStorage.setItem(CAPTURE_TRACE_STORAGE_KEY, captureTraceInput.checked ? 'true' : 'false');
+    } catch (_) {}
+  });
+}
+
+function handleDownloadTrace() {
+  if (lastModularTraces.length === 0) {
+    alert('No modular trace available — run ModularStrategy first');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(lastModularTraces, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `modular-trace-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 // Tab switching (cm-tabs: aria-selected + .sim-tab-panel.hidden)
 document.querySelectorAll('#sim-tabs .cm-tab').forEach(btn => {
@@ -88,16 +128,19 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Action Log navigation
-logTickInput.addEventListener('change', () => renderActionLog(currentResults));
-logFilterType.addEventListener('change', () => renderActionLog(currentResults));
-logPrevBtn.addEventListener('click', () => {
-  logTickInput.value = String(Math.max(0, parseInt(logTickInput.value) - 1));
-  renderActionLog(currentResults);
-});
-logNextBtn.addEventListener('click', () => {
-  logTickInput.value = String(parseInt(logTickInput.value) + 1);
-  renderActionLog(currentResults);
-});
+function wireActionLogControls(refs: ActionLogRefs) {
+  refs.tickInput.addEventListener('change', () => renderActionLog(currentResults, refs));
+  refs.filterType.addEventListener('change', () => renderActionLog(currentResults, refs));
+  refs.prevBtn.addEventListener('click', () => {
+    refs.tickInput.value = String(Math.max(0, parseInt(refs.tickInput.value) - 1));
+    renderActionLog(currentResults, refs);
+  });
+  refs.nextBtn.addEventListener('click', () => {
+    refs.tickInput.value = String(parseInt(refs.tickInput.value) + 1);
+    renderActionLog(currentResults, refs);
+  });
+}
+wireActionLogControls(LOG_REFS);
 
 async function handleRunSimulation(e: Event) {
   e.preventDefault();
@@ -108,62 +151,54 @@ async function handleRunSimulation(e: Event) {
   const stopType = (document.getElementById('stop-type') as HTMLSelectElement).value as 'krakenLevel' | 'tasks' | 'ticks';
   const stopValue = parseInt((document.getElementById('stop-value') as HTMLInputElement).value);
   const stopCondition = { type: stopType, value: stopValue };
-
-  const selectedStrategies: string[] = [];
-  document.querySelectorAll('input[name="strategy"]:checked').forEach((checkbox) => {
-    selectedStrategies.push((checkbox as HTMLInputElement).value);
-  });
-
-  if (selectedStrategies.length === 0) {
-    alert('Please select at least one strategy');
-    return;
-  }
+  const captureTrace = captureTraceInput?.checked ?? false;
 
   // Disable controls
   runBtn.disabled = true;
   exportBtn.disabled = true;
+  if (downloadTraceBtn) downloadTraceBtn.disabled = true;
   progressContainer.style.display = 'block';
 
-  // Run simulations
+  // Run simulation
   currentResults = [];
   try {
-    for (let i = 0; i < selectedStrategies.length; i++) {
-      const strategyKey = selectedStrategies[i]!;
-      const strategy = STRATEGIES[strategyKey as keyof typeof STRATEGIES];
+    progressText.textContent = `Running ${STRATEGY.name}...`;
+    progressBar.style.width = `0%`;
 
-      progressText.textContent = `Running ${strategy.name}... (${i + 1}/${selectedStrategies.length})`;
-      progressBar.style.width = `${(i / selectedStrategies.length) * 100}%`;
+    console.log(`Starting simulation: ${STRATEGY.name}`);
 
-      console.log(`Starting simulation ${i + 1}: ${strategy.name}`);
+    // Small delay for UI update
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Small delay for UI update
-      await new Promise(resolve => setTimeout(resolve, 50));
+    STRATEGY.reset?.();
+    console.log('Creating engine...');
+    const engine = new SimulationEngine({
+      seed,
+      stopCondition,
+      maxTicks: 50_000,
+      tickInterval: 100,
+      strategy: STRATEGY,
+      balance: BALANCE,
+      captureTrace,
+    });
 
-      strategy.reset?.();
-      console.log('Creating engine...');
-      const engine = new SimulationEngine({
-        seed,
-        stopCondition,
-        maxTicks: 50_000,
-        tickInterval: 100,
-        strategy,
-        balance: BALANCE
-      });
+    console.log('Running simulation...');
+    const result = engine.run();
+    console.log('Simulation complete, results:', result.summary);
 
-      console.log('Running simulation...');
-      const result = engine.run();
-      console.log('Simulation complete, results:', result.summary);
-      console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
-        tick: h.tick,
-        krakenLevel: h.metrics.krakenLevel,
-        eyes: h.metrics.eyes,
-        totalExpGained: h.metrics.totalExpGained,
-        totalEyesGained: h.metrics.totalEyesGained,
-        totalTasksCompleted: h.metrics.totalTasksCompleted
-      })));
+    lastModularTraces = captureTrace ? engine.getTickTraces().slice() : [];
+    if (downloadTraceBtn) downloadTraceBtn.disabled = lastModularTraces.length === 0;
 
-      currentResults.push(result);
-    }
+    console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
+      tick: h.tick,
+      krakenLevel: h.metrics.krakenLevel,
+      eyes: h.metrics.eyes,
+      totalExpGained: h.metrics.totalExpGained,
+      totalEyesGained: h.metrics.totalEyesGained,
+      totalTasksCompleted: h.metrics.totalTasksCompleted
+    })));
+
+    currentResults.push(result);
   } catch (error) {
     console.error('Simulation error:', error);
     // Don't return — fall through to render partial results
@@ -176,7 +211,7 @@ async function handleRunSimulation(e: Event) {
   if (currentResults.length > 0) {
     renderSummaryTable(currentResults);
     renderCharts(currentResults);
-    renderActionLog(currentResults);
+    renderActionLog(currentResults, LOG_REFS);
   }
 
   // Re-enable controls
@@ -252,17 +287,50 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function renderActionLog(results: SimulationResult[]) {
-  logBody.innerHTML = '';
-  if (results.length === 0) return;
+/**
+ * Compact + visually-graded HTML for entity refs in action log Detail / Task cells.
+ *
+ * Replacements (escape source first to avoid XSS):
+ *   "Creature5 Lv7"   → <b>C5</b><span dim>-L7</span>
+ *   "Gen3 Lv2"        → <b>G3</b><span dim>-L2</span>
+ *   "Rune1_2" / "R1²" → <b>R1</b><span dim>-L2</span>
+ *   "Lv2" / "Lv 2"    → <span dim>L2</span>  (без типа — ослабляем)
+ *   "x3" / "×3"       → <span fade>×3</span>
+ */
+function emphasiseEntityRefs(raw: string): string {
+  let s = escapeHtml(raw);
+  // Тип + уровень: Creature1 Lv5 / Gen3 Lv2 / Rune1_2 — bold type, dim level
+  s = s.replace(/Creature(\d+)\s*Lv\s*(\d+)/g, '<b>C$1</b><span class="alog-dim">-L$2</span>');
+  s = s.replace(/Gen(\d+)\s*Lv\s*(\d+)/g, '<b>G$1</b><span class="alog-dim">-L$2</span>');
+  s = s.replace(/Rune(\d+)_(\d+)/g, '<b>R$1</b><span class="alog-dim">-L$2</span>');
+  // "from Gen3" без уровня
+  s = s.replace(/from\s+Gen(\d+)/g, 'from <b>G$1</b>');
+  // одиночные тип-нейминги без уровня (после reшения уровня выше)
+  s = s.replace(/\bCreature(\d+)\b/g, '<b>C$1</b>');
+  s = s.replace(/\bGen(\d+)\b/g, '<b>G$1</b>');
+  // counts: x3 / ×3 — ещё бледнее
+  s = s.replace(/([x×])\s*(\d+)/g, '<span class="alog-fade">×$2</span>');
+  // одинокие "Lv5" → дим
+  s = s.replace(/\bLv\s*(\d+)/g, '<span class="alog-dim">L$1</span>');
+  return s;
+}
+
+function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
+  refs.body.innerHTML = '';
+
+  if (results.length === 0) {
+    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">Run simulation first</td></tr>`;
+    refs.tickInfo.textContent = 'Tick 0/0 — 0 actions';
+    return;
+  }
 
   const log = results[0]!.actionLog;
-  const tick = parseInt(logTickInput.value) || 0;
-  const filterType = logFilterType.value;
+  const tick = parseInt(refs.tickInput.value) || 0;
+  const filterType = refs.filterType.value;
 
   // Find max tick for info display
   const maxTick = log.length > 0 ? log[log.length - 1]!.tick : 0;
-  logTickInput.max = String(maxTick);
+  refs.tickInput.max = String(maxTick);
 
   // Filter entries for this tick
   let entries = log.filter(e => e.tick === tick);
@@ -272,10 +340,10 @@ function renderActionLog(results: SimulationResult[]) {
 
   // Show tick info
   const totalActionsThisTick = log.filter(e => e.tick === tick).length;
-  logTickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
+  refs.tickInfo.textContent = `Tick ${tick}/${maxTick} — ${totalActionsThisTick} actions`;
 
   if (entries.length === 0) {
-    logBody.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">No actions for tick ${tick}</td></tr>`;
+    refs.body.innerHTML = `<tr><td colspan="21" style="text-align:center; color: var(--text-tertiary);">No actions for tick ${tick}</td></tr>`;
     return;
   }
 
@@ -297,7 +365,7 @@ function renderActionLog(results: SimulationResult[]) {
       <td class="left idx">${entry.actionIndex}</td>
       <td>${entry.taskNumber}</td>
       <td class="left gsep"><span class="${actionCls}">${escapeHtml(actionType)}</span></td>
-      <td class="left cm-logtable__detail note-cell">${escapeHtml(entry.note)}</td>
+      <td class="left cm-logtable__detail note-cell">${emphasiseEntityRefs(entry.note)}</td>
       ${numCell(s.krakenLevel, true)}
       ${numCell(s.krakenStep)}
       ${numCell(s.krakenExp)}
@@ -314,57 +382,102 @@ function renderActionLog(results: SimulationResult[]) {
       ${numCell(s.session)}
       ${numCell(s.meatButtonPresses)}
       <td class="cm-logtable__time gsep">${formatTimeSec(s.totalTimeSec)}</td>
-      <td class="left gsep cm-logtable__detail note-cell">${escapeHtml(s.currentTask)}</td>
+      <td class="left gsep cm-logtable__detail note-cell">${emphasiseEntityRefs(s.currentTask)}</td>
     `;
     row.addEventListener('click', () => showFieldPopup(entry));
-    logBody.appendChild(row);
+    refs.body.appendChild(row);
   }
+}
+
+type FieldCell = NonNullable<ActionLogEntry['fieldSnapshot']>['grid']['cells'][number];
+
+function cellColor(cell: FieldCell): string {
+  if (!cell) return '#0f1a2e';
+  switch (cell.kind) {
+    case 'creature': return '#1a4a3e';
+    case 'generator': return '#3e1a4a';
+    case 'box': return '#4a3e1a';
+    case 'rune': return '#1a3e4a';
+  }
+}
+
+function cellBorder(cell: FieldCell): string {
+  if (!cell) return '#2a3a4a';
+  switch (cell.kind) {
+    case 'creature': return '#4dff8a';
+    case 'generator': return '#ff4da9';
+    case 'box': return '#ffb84d';
+    case 'rune': return '#4da9ff';
+  }
+}
+
+function cellTooltip(cell: FieldCell, idx: number): string {
+  if (!cell) return `cell ${idx}: empty`;
+  if (cell.kind === 'creature') return `cell ${idx}: ${cell.type} Lv${cell.level}`;
+  if (cell.kind === 'generator') return `cell ${idx}: Gen${cell.genId} Lv${cell.level} (×${cell.charges} charges)`;
+  if (cell.kind === 'box') return `cell ${idx}: Box`;
+  if (cell.kind === 'rune') return `cell ${idx}: ${cell.runeType}`;
+  return `cell ${idx}`;
 }
 
 function showFieldPopup(entry: ActionLogEntry) {
   const fs = entry.fieldSnapshot;
-  if (!fs) return;
-
-  const crMap: Record<string, number> = {};
-  for (const c of fs.creatures) {
-    const key = `${c.type} Lv${c.level}`;
-    crMap[key] = (crMap[key] ?? 0) + 1;
+  if (!fs || !fs.grid) {
+    fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex}`;
+    fieldPopupContent.innerHTML = '<i>No grid snapshot</i>';
+    fieldPopupOverlay.classList.add('open');
+    return;
   }
 
-  let html = '';
-  if (fs.creatures.length > 0) {
-    html += '<b>Creatures</b><table><tr><th>Type</th><th>Lv</th><th>Count</th></tr>';
-    for (const [key, cnt] of Object.entries(crMap).sort()) {
-      const parts = key.split(' ');
-      html += `<tr><td>${parts[0]}</td><td>${parts[1]}</td><td>${cnt}</td></tr>`;
+  const { cols, rows, cells } = fs.grid;
+  const cellSize = 56;
+  const gap = 4;
+
+  let gridHtml = `<div class="cm-field-grid" style="display:grid;grid-template-columns:repeat(${cols}, ${cellSize}px);grid-auto-rows:${cellSize}px;gap:${gap}px;background:#1a1a2e;padding:12px;border-radius:8px;margin:0 auto;width:max-content;">`;
+
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    let inner = '';
+    let cls = 'cm-field-cell';
+
+    const TYPE_STYLE = 'font-weight:700;font-size:13px;';
+    const LVL_STYLE = 'font-weight:400;font-size:11px;opacity:0.65;';
+
+    if (!cell) {
+      cls += ' empty';
+    } else if (cell.kind === 'creature') {
+      cls += ' creature';
+      const num = cell.type.replace('Creature', '');
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">C${escapeHtml(num)}</span><br/><span style="${LVL_STYLE}">L${cell.level}</span></div>`;
+    } else if (cell.kind === 'generator') {
+      cls += ' generator';
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">G${cell.genId}</span><br/><span style="${LVL_STYLE}">L${cell.level}</span><br/><span style="font-size:10px;opacity:0.55;">×${cell.charges}</span></div>`;
+    } else if (cell.kind === 'box') {
+      cls += ' box';
+      inner = `<div style="${TYPE_STYLE}font-size:15px;">B</div>`;
+    } else if (cell.kind === 'rune') {
+      cls += ' rune';
+      const m = cell.runeType.match(/^Rune(\d+)_(\d+)$/);
+      const tier = m ? m[1] : '?';
+      const level = m ? m[2] : '?';
+      inner = `<div style="line-height:1.15;"><span style="${TYPE_STYLE}">R${escapeHtml(tier)}</span><br/><span style="${LVL_STYLE}">L${escapeHtml(level)}</span></div>`;
     }
-    html += '</table>';
-  }
-  if (fs.generators.length > 0) {
-    html += '<b>Generators</b><table><tr><th>GenId</th><th>Lv</th><th>Charges</th></tr>';
-    for (const g of fs.generators) {
-      html += `<tr><td>Gen${g.genId}</td><td>${g.level}</td><td>${g.charges}</td></tr>`;
-    }
-    html += '</table>';
-  }
-  if (fs.runes > 0) html += `<b>Runes: ${fs.runes}</b>`;
-  if (fs.boxes > 0) html += `<b>Boxes: ${fs.boxes}</b>`;
 
-  // Creature → Generator Map (from invest phase)
-  if (fs.creatureGenMap && fs.creatureGenMap.length > 0) {
-    const creatureNum = (ct: string) => parseInt(ct.replace('Creature', ''), 10);
-    const sorted = [...fs.creatureGenMap].sort((a, b) => creatureNum(b.creatureType) - creatureNum(a.creatureType));
-    html += '<b>Creature \u2192 Generator Map (Invest)</b><table><tr><th>Creature</th><th>Gen</th><th>Level</th><th>l1/meat</th></tr>';
-    for (const row of sorted) {
-      html += `<tr><td>${row.creatureType}</td><td>Gen${row.genId}</td><td>${row.genLevel}</td><td>${row.l1PerMeat.toFixed(1)}</td></tr>`;
-    }
-    html += '</table>';
+    const tooltip = escapeHtml(cellTooltip(cell, i));
+    gridHtml += `<div class="${cls}" data-idx="${i}" style="width:${cellSize}px;height:${cellSize}px;background:${cellColor(cell)};border:1px solid ${cellBorder(cell)};border-radius:4px;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;cursor:default;" title="${tooltip}">${inner}</div>`;
   }
+  gridHtml += '</div>';
 
-  if (!html) html = '<i>Field is empty</i>';
+  const creatureCount = cells.filter(c => c?.kind === 'creature').length;
+  const generatorCount = cells.filter(c => c?.kind === 'generator').length;
+  const runeCount = cells.filter(c => c?.kind === 'rune').length;
+  const boxCount = cells.filter(c => c?.kind === 'box').length;
+  const freeCount = cells.filter(c => c === null).length;
 
-  fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex}`;
-  fieldPopupContent.innerHTML = html;
+  const summary = `<div style="margin-top:12px;font-size:12px;color:var(--text-secondary, #888);text-align:center;">${creatureCount} creatures, ${generatorCount} generators, ${runeCount} runes, ${boxCount} boxes, ${freeCount} free</div>`;
+
+  fieldPopupTitle.textContent = `Field at T${entry.tick} #${entry.actionIndex} — ${rows}×${cols}`;
+  fieldPopupContent.innerHTML = gridHtml + summary;
   fieldPopupOverlay.classList.add('open');
 }
 
@@ -442,6 +555,11 @@ function getXAxisLabels(history: SimulationSnapshot[]): { labels: number[]; titl
   return { labels, title: X_AXIS_TITLES[xMode] };
 }
 
+function getChartHistory(result: SimulationResult): SimulationSnapshot[] {
+  if (getCurrentXAxisMode() !== 'tasks') return result.history;
+  return result.taskHistory.length > 0 ? result.taskHistory : result.history;
+}
+
 /**
  * Build dataset values for a chart series.
  * Aggregated using the given mode per X-axis group.
@@ -453,6 +571,10 @@ function series(
 ): number[] {
   const xMode = getCurrentXAxisMode();
   return aggregateHistory(history, getKeyFn(xMode), getValue, mode).data;
+}
+
+function deltaFromPrevious(cumulative: number[]): number[] {
+  return cumulative.map((value, index) => index === 0 ? value : value - cumulative[index - 1]!);
 }
 
 function updateChartsXAxis() {
@@ -485,10 +607,10 @@ function renderCharts(results: SimulationResult[]) {
     if (badge) badge.textContent = label;
   };
 
-  const h0 = results[0]!.history;
+  const h0 = getChartHistory(results[0]!);
   const { labels: xLabels, title: xTitle } = getXAxisLabels(h0);
 
-  const color = (idx: number) => COLORS[Object.keys(STRATEGIES)[idx] as keyof typeof COLORS] || '#4de2c2';
+  const color = (_idx: number) => STRATEGY_COLOR;
 
   // Common tooltip: format numbers nicely
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -553,8 +675,8 @@ function renderCharts(results: SimulationResult[]) {
     const levelDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       return [
-        ds('Kraken Level', series(result.history, s => s.metrics.krakenLevel, METRIC_AGGREGATION.krakenLevel!), clr,       { stepped: true, tension: 0, yAxisID: 'yLevel' }),
-        ds('Chapter',      series(result.history, s => s.metrics.chapter,     METRIC_AGGREGATION.chapter!),     '#ff9966', { stepped: true, tension: 0, yAxisID: 'yChapter' }),
+        ds('Kraken Level', series(getChartHistory(result), s => s.metrics.krakenLevel, METRIC_AGGREGATION.krakenLevel!), clr,       { stepped: true, tension: 0, yAxisID: 'yLevel' }),
+        ds('Chapter',      series(getChartHistory(result), s => s.metrics.chapter,     METRIC_AGGREGATION.chapter!),     '#ff9966', { stepped: true, tension: 0, yAxisID: 'yChapter' }),
       ];
     });
     charts.level = new Chart(document.getElementById('chart-level') as HTMLCanvasElement, {
@@ -578,7 +700,7 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('tasks', 'LAST + RATE');
     const taskDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumData = series(result.history, s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
+      const cumData = series(getChartHistory(result), s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
       const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
       return [
         fillDs('Tasks (cumul.)', cumData, clr, { yAxisID: 'yTasks' }),
@@ -606,7 +728,7 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('exp', 'LAST');
     const expDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumData = series(result.history, s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
+      const cumData = series(getChartHistory(result), s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
       const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
       return [
         fillDs('EXP (cumul.)', cumData, clr, { yAxisID: 'yExp' }),
@@ -629,7 +751,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── EXP per Quest — forward step-delta aligned with current task chart ───
+  // ── EXP per Quest — delta at each completed task ─────────────────────────
   if (visible('exp-per-task')) {
     setAggBadge('exp-per-task', 'STEP');
     charts['exp-per-task'] = new Chart(document.getElementById('chart-exp-per-task') as HTMLCanvasElement, {
@@ -637,10 +759,10 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const expCum = series(result.history, s => s.metrics.totalExpGained, 'last');
-          const expStep = expCum.map((v, i) => i < expCum.length - 1 ? expCum[i + 1]! - v : 0);
-          const predCum = series(result.history, s => s.metrics.totalPredictedExp, 'last');
-          const predStep = predCum.map((v, i) => i < predCum.length - 1 ? predCum[i + 1]! - v : 0);
+          const expCum = series(getChartHistory(result), s => s.metrics.totalExpGained, 'last');
+          const expStep = deltaFromPrevious(expCum);
+          const predCum = series(getChartHistory(result), s => s.metrics.totalPredictedExp, 'last');
+          const predStep = deltaFromPrevious(predCum);
           return [
             ds('EXP per quest', expStep, color(idx)),
             ds('Predicted EXP', predStep, color(idx), { borderDash: [4, 4] }),
@@ -651,7 +773,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Eyes per Quest — forward step-delta + eyePerMeat balance rate ────────
+  // ── Eyes per Quest — delta at each completed task + balance rate ─────────
   if (visible('eyes-per-task')) {
     setAggBadge('eyes-per-task', 'STEP + RATE');
     const eyePerMeatTable = results[0]!.config.balance.tasks.autoConfig?.eyePerMeat ?? [];
@@ -663,9 +785,9 @@ function renderCharts(results: SimulationResult[]) {
       return rate;
     };
     const eyesDatasets = results.flatMap((result, idx) => {
-      const cumData = series(result.history, s => s.metrics.totalEyesGained, 'last');
-      const stepDelta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
-      const chapterData = series(result.history, s => s.metrics.chapter, 'last');
+      const cumData = series(getChartHistory(result), s => s.metrics.totalEyesGained, 'last');
+      const stepDelta = deltaFromPrevious(cumData);
+      const chapterData = series(getChartHistory(result), s => s.metrics.chapter, 'last');
       const rateData = chapterData.map(ch => getEyePerMeatRate(ch));
       return [
         ds('Eyes per quest', stepDelta, color(idx)),
@@ -679,7 +801,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Charges per Quest — forward step-delta ───────────────────────────
+  // ── Charges per Quest — delta at each completed task ─────────────────────
   if (visible('charges-per-task')) {
     setAggBadge('charges-per-task', 'STEP');
     charts['charges-per-task'] = new Chart(document.getElementById('chart-charges-per-task') as HTMLCanvasElement, {
@@ -687,15 +809,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.metrics.totalCharges, 'last');
-          return ds('Charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.metrics.totalCharges, 'last');
+          return ds('Charges', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Charges')
     });
   }
 
-  // ── Meat on Charges per Quest — forward step-delta ─────────────────
+  // ── Meat on Charges per Quest — delta at each completed task ─────────────
   if (visible('meat-per-task')) {
     setAggBadge('meat-per-task', 'STEP');
     charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
@@ -703,15 +825,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.metrics.totalMeatSpentOnCharges, 'last');
-          return ds('Meat on charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.metrics.totalMeatSpentOnCharges, 'last');
+          return ds('Meat on charges', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Meat spent')
     });
   }
 
-  // ── Sacrifices per Quest — forward step-delta ──────────────────────
+  // ── Sacrifices per Quest — delta at each completed task ──────────────────
   if (visible('sacrifices-per-task')) {
     setAggBadge('sacrifices-per-task', 'STEP');
     charts['sacrifices-per-task'] = new Chart(document.getElementById('chart-sacrifices-per-task') as HTMLCanvasElement, {
@@ -719,15 +841,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.gameState.meatButtonPresses, 'last');
-          return ds('Sacrifices', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.gameState.meatButtonPresses, 'last');
+          return ds('Sacrifices', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Sacrifices')
     });
   }
 
-  // ── Spawns per Quest — forward step-delta aligned with current task chart ─
+  // ── Spawns per Quest — delta at each completed task ──────────────────────
   if (visible('spawns-per-task')) {
     setAggBadge('spawns-per-task', 'STEP');
     charts['spawns-per-task'] = new Chart(document.getElementById('chart-spawns-per-task') as HTMLCanvasElement, {
@@ -735,8 +857,8 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cumData = series(result.history, s => s.metrics.totalSpawns, 'last');
-          const delta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
+          const cumData = series(getChartHistory(result), s => s.metrics.totalSpawns, 'last');
+          const delta = deltaFromPrevious(cumData);
           return ds('Spawns', delta, color(idx));
         })
       },
@@ -744,7 +866,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Quest Meat Cost — forward step-delta ─────────────────────────────────
+  // ── Quest Meat Cost — delta at each completed task ───────────────────────
   if (visible('quest-meat-cost')) {
     setAggBadge('quest-meat-cost', 'STEP');
     charts['quest-meat-cost'] = new Chart(document.getElementById('chart-quest-meat-cost') as HTMLCanvasElement, {
@@ -752,11 +874,11 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.flatMap((result, idx) => {
-          const cumScoring = series(result.history, s => s.metrics.totalQuestMeatCost, 'last');
-          const cumActual = series(result.history, s => s.metrics.totalMeatSpent, 'last');
+          const cumScoring = series(getChartHistory(result), s => s.metrics.totalQuestMeatCost, 'last');
+          const cumActual = series(getChartHistory(result), s => s.metrics.totalMeatSpent, 'last');
           return [
-            ds('Actual spent', cumActual.map((v, i) => i < cumActual.length - 1 ? cumActual[i + 1]! - v : 0), color(idx)),
-            ds('Scoring cost', cumScoring.map((v, i) => i < cumScoring.length - 1 ? cumScoring[i + 1]! - v : 0), color(idx), { borderDash: [5, 3] }),
+            ds('Actual spent', deltaFromPrevious(cumActual), color(idx)),
+            ds('Scoring cost', deltaFromPrevious(cumScoring), color(idx), { borderDash: [5, 3] }),
           ];
         })
       },
@@ -821,9 +943,9 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('resources', 'GAINED + DROP');
     const meatDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumGained  = series(result.history, s => s.metrics.totalMeatGained, 'last');
+      const cumGained  = series(getChartHistory(result), s => s.metrics.totalMeatGained, 'last');
       const gainedRate = cumGained.map((v, i) => i === 0 ? 0 : v - cumGained[i - 1]!);
-      const dropData   = series(result.history, s => s.metrics.meatPerPress, METRIC_AGGREGATION.meatPerPress!);
+      const dropData   = series(getChartHistory(result), s => s.metrics.meatPerPress, METRIC_AGGREGATION.meatPerPress!);
       return [
         ds('Meat gained/period', gainedRate, clr, { yAxisID: 'yFlow' }),
         ds('per sacrifice',                                 dropData,   '#ff9966', { yAxisID: 'yDrop', borderDash: [4, 4], stepped: true, tension: 0 }),
@@ -853,8 +975,8 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.flatMap((result) => [
-          ds('Rune1', series(result.history, s => s.metrics.rune1, METRIC_AGGREGATION.rune1!), '#4de2c2'),
-          ds('Rune2', series(result.history, s => s.metrics.rune2, METRIC_AGGREGATION.rune2!), '#ffd966'),
+          ds('Rune1', series(getChartHistory(result), s => s.metrics.rune1, METRIC_AGGREGATION.rune1!), '#4de2c2'),
+          ds('Rune2', series(getChartHistory(result), s => s.metrics.rune2, METRIC_AGGREGATION.rune2!), '#ffd966'),
         ])
       },
       options: xOpts('Amount')
@@ -870,7 +992,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: xLabels,
         datasets: results.map((result, idx) => fillDs(
           'Eyes',
-          series(result.history, s => s.metrics.eyes, METRIC_AGGREGATION.eyes!),
+          series(getChartHistory(result), s => s.metrics.eyes, METRIC_AGGREGATION.eyes!),
           color(idx)
         ))
       },
@@ -887,7 +1009,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: xLabels,
         datasets: results.map((result, idx) => ds(
           'Grid cells',
-          series(result.history, s => s.metrics.gridSize, METRIC_AGGREGATION.gridSize!),
+          series(getChartHistory(result), s => s.metrics.gridSize, METRIC_AGGREGATION.gridSize!),
           color(idx),
           { stepped: true, tension: 0 }
         ))
@@ -902,7 +1024,7 @@ function renderCharts(results: SimulationResult[]) {
     const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
     const allCreatureTypes = new Set<string>();
     for (const result of results) {
-      for (const snapshot of result.history) {
+      for (const snapshot of getChartHistory(result)) {
         for (const type of Object.keys(snapshot.metrics.currentTaskRequirements)) {
           allCreatureTypes.add(type);
         }
@@ -943,7 +1065,7 @@ function renderCharts(results: SimulationResult[]) {
     // Collect all generator type IDs that appear across all results
     const allGenTypes = new Set<number>();
     for (const result of results) {
-      for (const snapshot of result.history) {
+      for (const snapshot of getChartHistory(result)) {
         for (const genType of Object.keys(snapshot.metrics.generatorsByType)) {
           allGenTypes.add(Number(genType));
         }
@@ -1200,9 +1322,9 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('sessions-per-level', 'SESSIONS');
     const keyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
     const valFn = (s: SimulationSnapshot) => s.gameState.session;
-    const { labels: krakenLabels } = countDistinctBy(results[0]!.history, keyFn, valFn);
+    const { labels: krakenLabels } = countDistinctBy(getChartHistory(results[0]!), keyFn, valFn);
     const datasets = results.map((result, idx) => {
-      const { data } = countDistinctBy(result.history, keyFn, valFn);
+      const { data } = countDistinctBy(getChartHistory(result), keyFn, valFn);
       return ds('Sessions at level', data, color(idx));
     });
     charts['sessions-per-level'] = new Chart(
@@ -1228,9 +1350,9 @@ function renderCharts(results: SimulationResult[]) {
   ) => {
     if (!visible(chartKey)) return;
     setAggBadge(chartKey, 'PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricFn, aggMode);
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricFn, aggMode);
     const datasets = results.map((result, idx) => {
-      const cumData = aggregateHistory(result.history, chapterKeyFn, metricFn, aggMode).data;
+      const cumData = aggregateHistory(getChartHistory(result), chapterKeyFn, metricFn, aggMode).data;
       const deltaData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
       return ds(label, deltaData, barColor, { type: 'bar', backgroundColor: barColor + '99', borderWidth: 1 });
     });
@@ -1249,10 +1371,10 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('meat-spent-per-chapter', 'PER CHAPTER');
     const metricActual = (s: SimulationSnapshot) => s.metrics.totalMeatSpent;
     const metricScoring = (s: SimulationSnapshot) => s.metrics.totalQuestMeatCost;
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricActual, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricActual, 'last');
     const datasets = results.flatMap((result) => {
-      const cumActual = aggregateHistory(result.history, chapterKeyFn, metricActual, 'last').data;
-      const cumScoring = aggregateHistory(result.history, chapterKeyFn, metricScoring, 'last').data;
+      const cumActual = aggregateHistory(getChartHistory(result), chapterKeyFn, metricActual, 'last').data;
+      const cumScoring = aggregateHistory(getChartHistory(result), chapterKeyFn, metricScoring, 'last').data;
       const deltaActual = cumActual.map((v, i) => i === 0 ? v : v - cumActual[i - 1]!);
       const deltaScoring = cumScoring.map((v, i) => i === 0 ? v : v - cumScoring[i - 1]!);
       return [
@@ -1270,10 +1392,10 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('runes-purchased-per-chapter', 'PER CHAPTER');
     const metricR1 = (s: SimulationSnapshot) => s.metrics.rune1Purchased;
     const metricR2 = (s: SimulationSnapshot) => s.metrics.rune2Purchased;
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricR1, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricR1, 'last');
     const datasets = results.flatMap((result) => {
-      const cumR1 = aggregateHistory(result.history, chapterKeyFn, metricR1, 'last').data;
-      const cumR2 = aggregateHistory(result.history, chapterKeyFn, metricR2, 'last').data;
+      const cumR1 = aggregateHistory(getChartHistory(result), chapterKeyFn, metricR1, 'last').data;
+      const cumR2 = aggregateHistory(getChartHistory(result), chapterKeyFn, metricR2, 'last').data;
       const deltaR1 = cumR1.map((v, i) => i === 0 ? v : v - cumR1[i - 1]!);
       const deltaR2 = cumR2.map((v, i) => i === 0 ? v : v - cumR2[i - 1]!);
       return [
@@ -1290,9 +1412,9 @@ function renderCharts(results: SimulationResult[]) {
   // Time per chapter — special: aggregate totalTimeSec then convert delta to minutes
   if (visible('time-per-chapter')) {
     setAggBadge('time-per-chapter', 'PER CHAPTER (MIN)');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalTimeSec, 'last');
     const datasets = results.map((result, idx) => {
-      const cumData = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last').data;
+      const cumData = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTimeSec, 'last').data;
       const deltaData = cumData.map((v, i) => Math.round((i === 0 ? v : v - cumData[i - 1]!) / 60));
       return ds('Time', deltaData, '#ce93d8', { type: 'bar', backgroundColor: '#ce93d899', borderWidth: 1 });
     });
@@ -1305,9 +1427,9 @@ function renderCharts(results: SimulationResult[]) {
   // Meat per Press per Chapter — average meatPerPress within each chapter
   if (visible('meat-per-press-per-chapter')) {
     setAggBadge('meat-per-press-per-chapter', 'AVG PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.meatPerPress, 'avg');
     const datasets = results.map((result, idx) => {
-      const data = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg').data;
+      const data = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.meatPerPress, 'avg').data;
       return ds('Meat/press', data, '#ef5350', { type: 'bar', backgroundColor: '#ef535099', borderWidth: 1 });
     });
     charts['meat-per-press-per-chapter'] = new Chart(
@@ -1319,9 +1441,9 @@ function renderCharts(results: SimulationResult[]) {
   // Sessions per Chapter — how many distinct sessions in each chapter
   if (visible('sessions-per-chapter')) {
     setAggBadge('sessions-per-chapter', 'SESSIONS');
-    const { labels: chLabels } = countDistinctBy(results[0]!.history, chapterKeyFn, s => s.gameState.session);
+    const { labels: chLabels } = countDistinctBy(getChartHistory(results[0]!), chapterKeyFn, s => s.gameState.session);
     const datasets = results.map((result, idx) => {
-      const { data } = countDistinctBy(result.history, chapterKeyFn, s => s.gameState.session);
+      const { data } = countDistinctBy(getChartHistory(result), chapterKeyFn, s => s.gameState.session);
       return ds('Sessions', data, '#4dd0e1', { type: 'bar', backgroundColor: '#4dd0e199', borderWidth: 1 });
     });
     charts['sessions-per-chapter'] = new Chart(
@@ -1333,11 +1455,11 @@ function renderCharts(results: SimulationResult[]) {
   // Tasks per Session per Chapter — avg tasks completed in each session within a chapter
   if (visible('tasks-per-session-per-chapter')) {
     setAggBadge('tasks-per-session-per-chapter', 'TASKS / SESSIONS');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last');
     const datasets = results.map((result, idx) => {
-      const tasksCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
+      const tasksCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
       const tasksDelta = tasksCum.map((v, i) => i === 0 ? v : v - tasksCum[i - 1]!);
-      const { data: sessionCounts } = countDistinctBy(result.history, chapterKeyFn, s => s.gameState.session);
+      const { data: sessionCounts } = countDistinctBy(getChartHistory(result), chapterKeyFn, s => s.gameState.session);
       const avgData = tasksDelta.map((t, i) => {
         const sessions = sessionCounts[i] ?? 1;
         return Math.round((t / sessions) * 100) / 100;
@@ -1353,10 +1475,10 @@ function renderCharts(results: SimulationResult[]) {
   // Eyes per Quest per Chapter — avg eyes earned per quest within each chapter
   if (visible('eyes-per-quest-per-chapter')) {
     setAggBadge('eyes-per-quest-per-chapter', 'EYES / TASKS PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalEyesGained, 'last');
     const datasets = results.map((result, idx) => {
-      const eyesCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last').data;
-      const tasksCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
+      const eyesCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalEyesGained, 'last').data;
+      const tasksCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
       const eyesDelta = eyesCum.map((v, i) => i === 0 ? v : v - eyesCum[i - 1]!);
       const tasksDelta = tasksCum.map((v, i) => i === 0 ? v : v - tasksCum[i - 1]!);
       const avgData = eyesDelta.map((e, i) => {

@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from './SimulationEngine';
+import type { AIStrategy } from './types';
 import type { GameSnapshot } from '@domain/types';
 import { SeededRng } from '@infra/rng';
 import { BALANCE } from '@data/loadBalance';
+
+const noopStrategy: AIStrategy = {
+  name: 'noop',
+  description: '',
+  decide: () => ({ actions: [], done: true }),
+};
 
 /**
  * Regression: SimulationEngine constructor used to discard the rng state that
@@ -22,6 +29,7 @@ describe('SimulationEngine — RNG state alignment with initial snapshot', () =>
       stopCondition: { type: 'ticks', value: 0 },
       maxTicks: 0,
       tickInterval: 1000,
+      strategy: noopStrategy,
       balance: BALANCE,
     });
     const state = (engine as unknown as { state: GameSnapshot }).state;
@@ -36,6 +44,7 @@ describe('SimulationEngine — RNG state alignment with initial snapshot', () =>
       stopCondition: { type: 'ticks', value: 0 },
       maxTicks: 0,
       tickInterval: 1000,
+      strategy: noopStrategy,
       balance: BALANCE,
     });
     const state = (engine as unknown as { state: GameSnapshot }).state;
@@ -58,6 +67,7 @@ describe('SimulationEngine — RNG state alignment with initial snapshot', () =>
       stopCondition: { type: 'ticks', value: 50 },
       maxTicks: 50,
       tickInterval: 1000,
+      strategy: noopStrategy,
       balance: BALANCE,
     });
     engine.run();

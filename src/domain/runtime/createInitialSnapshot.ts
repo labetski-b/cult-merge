@@ -69,6 +69,7 @@ export function createInitialSnapshot(
     meatDropQueue: [],
     chapterClaimed: {},
     mergesSpentByGen: {},
-    activeUpgrade: null,
+    activeTimedProcess: null,
+    worldTimeMs: 0,
   };
 }
