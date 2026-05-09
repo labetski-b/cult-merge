@@ -9,9 +9,7 @@ import {
   chargeGenerator as applyGeneratorCharge,
   spawnFromGenerator,
 } from '@domain/runtime/generators';
-import { tickTimerGenerators } from '@domain/runtime/tickTimerGenerators';
 import {
-  applyCollectUpgrade,
   applyStartUpgrade,
 } from '@domain/runtime/upgradeRuntime';
 import type {
@@ -24,6 +22,7 @@ import type {
 import type { SeededRng } from '@infra/rng';
 import type { SimulationAction } from './actions';
 import { getActionTimeSec } from './actionTime';
+import { advanceTime } from './advanceTime';
 import { makeEngineEnv, type EngineEnv } from './env';
 
 /**
@@ -63,11 +62,17 @@ export type ActionEvent =
       generatorId?: number;
     }
   | { type: 'upgrade_started' }
-  | { type: 'upgrade_collected' }
   | { type: 'upgrade_start_rejected' }
   | { type: 'gen3_skip'; cheatSpawns: number }
   | { type: 'rune_purchased'; runeType: 'rune1' | 'rune2'; amount: number }
-  | { type: 'upgrade_waited'; deltaMs: number };
+  // Emitted by `advanceTime` when an upgrade timed-process resolves. The
+  // engine wrapper translates this into a synthetic `collect_upgrade` action
+  // log row (plan §306-321). Carries no payload — the resolved generator can
+  // be derived from the post-resolution state.
+  | { type: 'upgrade_completed' }
+  // Forward-looking: emitted when an FP timed-process resolves. Task 4 will
+  // wire the gameplay effect through `advanceTime`.
+  | { type: 'fp_completed' };
 
 export interface ApplyActionResult {
   nextState: GameSnapshot;
@@ -85,8 +90,12 @@ function cloneSnapshot(state: GameSnapshot): GameSnapshot {
  * Pure-core action handler.
  *
  * Applies a single `SimulationAction` to (state, env) and returns:
- *   - `nextState` — fresh `GameSnapshot` (input never mutated)
- *   - `nextEnv`   — fresh `EngineEnv` with advanced `nowMs` and possibly advanced RNG
+ *   - `nextState` — fresh `GameSnapshot` (input never mutated). Carries the
+ *     canonical world clock `worldTimeMs`, advanced by `advanceTime` whenever
+ *     the action spent real time (plan §136-198).
+ *   - `nextEnv`   — fresh `EngineEnv`; `rng` may have advanced. Post-Task-8
+ *     `EngineEnv` no longer carries a clock — `state.worldTimeMs` is the
+ *     single source of truth.
  *   - `stateChanged` — true iff `JSON.stringify(nextState) !== JSON.stringify(state)`
  *   - `events` — side-effect descriptors for the engine wrapper to consume
  *
@@ -110,7 +119,7 @@ export function applyActionCore(
 
   switch (action.type) {
     case 'claim_reward':
-      applyClaimReward(workingState, workingRng, config, env.nowMs);
+      applyClaimReward(workingState, workingRng, config);
       break;
     case 'open_box':
       applyOpenBox(workingState, workingRng, action.boxId);
@@ -123,7 +132,6 @@ export function applyActionCore(
         action.targetId,
         config,
         events,
-        env.nowMs,
       );
       break;
     case 'feed':
@@ -136,29 +144,66 @@ export function applyActionCore(
       applySpawn(workingState, workingRng, config, action.generatorId, events);
       break;
     case 'start_upgrade': {
-      const before = workingState.activeUpgrade !== null;
-      const next = applyStartUpgrade(workingState, config, action.entityId, env.nowMs);
-      // Replace fields in workingState (next is a fresh snapshot).
+      const before = workingState.activeTimedProcess !== null;
+      // Sim path: pass `0` for the wall-clock anchor — the simulator never
+      // consults `startedAtWallMs`. Plan §5 / Task 4: production callers
+      // (gameStore) keep using `Date.now()` directly when invoking
+      // `applyStartUpgrade` outside the sim.
+      const next = applyStartUpgrade(workingState, config, action.entityId, 0);
       mutateInto(workingState, next);
-      if (!before && workingState.activeUpgrade !== null) {
+      if (!before && workingState.activeTimedProcess !== null) {
         events.push({ type: 'upgrade_started' });
-      } else if (!before && workingState.activeUpgrade === null) {
+      } else if (!before && workingState.activeTimedProcess === null) {
         events.push({ type: 'upgrade_start_rejected' });
       }
       break;
     }
-    case 'collect_upgrade': {
-      const before = workingState.activeUpgrade !== null;
-      const next = applyCollectUpgrade(workingState, env.nowMs);
-      mutateInto(workingState, next);
-      if (before && workingState.activeUpgrade === null) {
-        events.push({ type: 'upgrade_collected' });
-      }
+    case 'start_fp_progress': {
+      // Engine invariant I1: refuse to overwrite an existing timed-process.
+      if (workingState.activeTimedProcess !== null) break;
+      const ent = workingState.entities[action.entityId];
+      if (!ent || ent.kind !== 'generator') break;
+      const cfg = config.generators.generators.find(g => g.id === action.generatorId);
+      if (!cfg || cfg.spawnMode !== 'timer') break;
+      const intervalSec = cfg.tickIntervalSec ?? 0;
+      if (intervalSec <= 0) break;
+      const totalMs = intervalSec * 1000;
+      workingState.activeTimedProcess = {
+        kind: 'fp',
+        entityId: action.entityId,
+        generatorId: action.generatorId,
+        remainingMs: totalMs,
+      };
       break;
     }
-    case 'skip_timer_generator':
-      applySkipTimer(workingState, action.entityId, env.nowMs, config, events);
+    case 'collect_upgrade': {
+      // Post-2026-05-06: `collect_upgrade` is **synthetic-only**. The engine
+      // wrapper writes it into the action log as a follow-up to `skip_time`
+      // resolving an upgrade (plan §306-321). It is NEVER a legal strategy
+      // action. If a strategy still emits it (transitional code), throw —
+      // strategies must use `skip_time` instead.
+      const strategyEmitted = (action as unknown as { __strategyEmitted?: boolean })
+        .__strategyEmitted === true;
+      if (strategyEmitted) {
+        throw new Error(
+          'collect_upgrade is synthetic-only: strategies must emit skip_time, not collect_upgrade',
+        );
+      }
+      // No-op when the engine wrapper accidentally routes the synthetic row
+      // back through applyActionCore (defensive).
       break;
+    }
+    case 'skip_time': {
+      // Canonical time-spending action. Gameplay-effect: nothing happens
+      // here; advanceTime owns the world-clock + countdown/resolution.
+      // Engine invariant I4: skip_time's own `actionTimeSec = deltaMs/1000`
+      // is the deltaMs we pass to advanceTime — there's no separate "spend"
+      // because skip_time is purely time.
+      const result = advanceTime(workingState, action.deltaMs, config);
+      mutateInto(workingState, result.nextState);
+      for (const ev of result.events) events.push(ev);
+      break;
+    }
     case 'gather_meat':
       applyGatherMeat(workingState, action, env, config, events);
       break;
@@ -173,14 +218,6 @@ export function applyActionCore(
     case 'move_entity':
       applyMoveEntity(workingState, action.entityId, action.targetCellIndex);
       break;
-    case 'wait_for_upgrade_ready':
-      // Synthetic time-advancing action: state never mutates here. The env
-      // transition (nextNowMs) is computed below in the dedicated wait-branch
-      // so the wrapper / metrics machinery sees the dynamic dt = (finishesAt -
-      // prevNowMs) / 1000. If the precondition isn't met (no in-flight upgrade
-      // or already finished), the action degrades to a no-op — env unchanged,
-      // state unchanged.
-      break;
     case 'quest_completed':
     case 'new_quest':
     case 'expand_board':
@@ -192,40 +229,27 @@ export function applyActionCore(
 
   const stateChanged = JSON.stringify(workingState) !== before;
 
-  // wait_for_upgrade_ready — special time-advancing synthetic action.
-  // - Precondition: state.activeUpgrade !== null AND env.nowMs < finishesAt.
-  // - Effect: nextEnv.nowMs := finishesAt; state never mutates (stateChanged
-  //   stays false). On precondition failure → no-op (env.nowMs unchanged).
-  // Engine wrapper detects this via action.type and computes dynamic dt for
-  // metrics / log row. See `SimulationEngine.addActionTime`.
-  let nextNowMs: number;
-  if (action.type === 'wait_for_upgrade_ready') {
-    const au = workingState.activeUpgrade;
-    if (au !== null && env.nowMs < au.finishesAt) {
-      nextNowMs = au.finishesAt;
-      events.push({ type: 'upgrade_waited', deltaMs: au.finishesAt - env.nowMs });
-    } else {
-      nextNowMs = env.nowMs;
+  // Task 8 (plan §22-30): `EngineEnv.nowMs` was removed. `state.worldTimeMs`
+  // is the canonical world clock, advanced inside `advanceTime` (called by
+  // `skip_time` and time-spending actions via `advanceWorldTime`).
+  //
+  // For all non-`skip_time` actions, advance the world clock by the action's
+  // own `getActionTimeSec(...) * 1000`, conditional on `stateChanged` (or a
+  // `free_cells` synthetic), mirroring legacy semantics. `skip_time` already
+  // advanced `worldTimeMs` inside `advanceTime` — we don't double-count here.
+  if (action.type !== 'skip_time') {
+    const shouldAdvanceTime = stateChanged || action.type === 'free_cells';
+    if (shouldAdvanceTime) {
+      const dtMs = getActionTimeSec(action) * 1000;
+      if (dtMs > 0) {
+        // Drive the snapshot world clock + countdown via the same canonical
+        // helper used by `skip_time`. This is the single source of truth for
+        // time advancement (engine invariant I3, plan §138-198).
+        const advanced = advanceTime(workingState, dtMs, config);
+        mutateInto(workingState, advanced.nextState);
+        for (const ev of advanced.events) events.push(ev);
+      }
     }
-  } else {
-    // Legacy timing semantics (mirrored from SimulationEngine.executeTick prior to
-    // the EngineEnv refactor): `currentGameTimeMs` advanced ONLY when the action
-    // actually changed state, OR was a `free_cells`/`collect_upgrade` synthetic.
-    // collect_upgrade must advance even on no-op so the upgrade timer eventually
-    // crosses `finishesAt`. All other no-op actions leave nowMs untouched —
-    // otherwise downstream timer-mode generators (Gen3) and upgrade timers would
-    // see a fast-forwarded clock relative to legacy behaviour.
-    //
-    // Synthetic log-only actions (tick_idle, new_quest, quest_completed,
-    // expand_board, free_cells, buy_runes, gather_meat with count=0) all have
-    // ACTION_TIME_SECONDS=0, so this guard collapses to a no-op for them too —
-    // we keep the explicit guard so the rule is obvious and survives future
-    // additions to ACTION_TIME_SECONDS.
-    const shouldAdvanceTime =
-      stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
-    nextNowMs = shouldAdvanceTime
-      ? env.nowMs + getActionTimeSec(action) * 1000
-      : env.nowMs;
   }
 
   // Accumulate eyesGained from any task_completed events into nextEnv. This is
@@ -240,9 +264,12 @@ export function applyActionCore(
     }
   }
 
+  // Task 8 (plan §22-30): `nowMs` removed — `state.worldTimeMs` is the only
+  // world-clock channel. Engine reads it from `result.nextState` and never
+  // from env.
   return {
     nextState: workingState,
-    nextEnv: makeEngineEnv(workingRng, nextNowMs, nextTotalEyesGained),
+    nextEnv: makeEngineEnv(workingRng, nextTotalEyesGained),
     stateChanged,
     events,
   };
@@ -271,7 +298,6 @@ function applyClaimReward(
   state: GameSnapshot,
   rng: SeededRng,
   config: BalanceConfig,
-  nowMs: number,
 ): void {
   const [reward, ...rest] = state.pendingRewards;
   if (!reward) return;
@@ -305,7 +331,13 @@ function applyClaimReward(
       };
       const cfg = config.generators.generators.find((g) => g.id === genId);
       if (cfg?.spawnMode === 'timer') {
-        newGen.lastTickTimestamp = nowMs;
+        // Task 4 (plan §5): the simulator no longer ticks FP/timer-mode
+        // generators passively. `lastTickTimestamp` is irrelevant for the
+        // sim path; we initialise it to 0 so production save migrations
+        // can still inspect the field uniformly. Production code (gameStore)
+        // creates timer-mode generators via `createChargedGenerator` which
+        // sets the wall-clock anchor explicitly.
+        newGen.lastTickTimestamp = 0;
       }
       state.entities[newGenId] = newGen;
       state.grid.cells[free[0]!] = newGenId;
@@ -385,7 +417,6 @@ function applyMerge(
   targetId: string,
   config: BalanceConfig,
   events: ActionEvent[],
-  nowMs: number,
 ): void {
   const source = state.entities[sourceId];
   const target = state.entities[targetId];
@@ -398,7 +429,10 @@ function applyMerge(
     );
     if (cfg) maxCreatureLevel = cfg.maxLevel;
   }
-  const merged = domainMergeEntities(source, target, rng.nextId(), nowMs, maxCreatureLevel);
+  // Task 4 (plan §5): the `now` parameter on `mergeEntities` is unused
+  // (legacy signature only); pass 0 to make explicit that the sim path
+  // does not consult any wall-clock here.
+  const merged = domainMergeEntities(source, target, rng.nextId(), 0, maxCreatureLevel);
   if (!merged) return;
 
   const sCell = findEntityCell(state.grid, sourceId);
@@ -441,11 +475,12 @@ function applyMerge(
 
   // NOTE: legacy `SimulationEngine.mergeEntities` never wrote `state.rngState`
   // — it advanced the engine's `this.rng` instance and left snapshot.rngState
-  // alone. `state.rngState` is the channel read by `tickTimerGenerators` for
-  // its own private RNG (see applyPassiveTickCore). Writing it here would
-  // diverge the timer-generator channel from the legacy run. Preserve legacy
-  // semantics: env.rng (returned via nextEnv) reflects the RNG advance,
-  // snapshot.rngState stays untouched by merge.
+  // alone. `state.rngState` is the channel read by domain-side
+  // `tickTimerGenerators` for its own private RNG (production path only —
+  // post-Task-7 the simulator no longer ticks timer generators passively).
+  // Writing it here would diverge the timer-generator channel from the legacy
+  // run. Preserve legacy semantics: env.rng (returned via nextEnv) reflects
+  // the RNG advance, snapshot.rngState stays untouched by merge.
 }
 
 function applyFeed(
@@ -527,42 +562,6 @@ function applySpawn(
       });
     }
   }
-}
-
-function applySkipTimer(
-  state: GameSnapshot,
-  entityId: string,
-  nowMs: number,
-  config: BalanceConfig,
-  events: ActionEvent[],
-): void {
-  const ent = state.entities[entityId];
-  if (!ent || ent.kind !== 'generator') return;
-  const cfg = config.generators.generators.find((g) => g.id === ent.generatorId);
-  if (!cfg || cfg.spawnMode !== 'timer') return;
-
-  const intervalMs = (cfg.tickIntervalSec ?? 0) * 1000;
-  const creaturesBefore = Object.values(state.entities).filter(
-    (e) => e.kind === 'creature',
-  ).length;
-
-  const withBackdate: GameSnapshot = {
-    ...state,
-    entities: {
-      ...state.entities,
-      [entityId]: { ...ent, lastTickTimestamp: nowMs - intervalMs },
-    },
-  };
-  const next = tickTimerGenerators(withBackdate, nowMs, config);
-  mutateInto(state, next);
-
-  const creaturesAfter = Object.values(state.entities).filter(
-    (e) => e.kind === 'creature',
-  ).length;
-  events.push({
-    type: 'gen3_skip',
-    cheatSpawns: creaturesAfter - creaturesBefore,
-  });
 }
 
 function applyGatherMeat(

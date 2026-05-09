@@ -19,8 +19,14 @@ describe('New TickMetrics fields', () => {
     expect(sample).toHaveProperty('upgradesCollected');
     expect(sample).toHaveProperty('runeStarveRejects');
     expect(sample).toHaveProperty('idleUpgradeTicks');
-    expect(sample).toHaveProperty('gen3PassiveSpawns');
+    expect(sample).toHaveProperty('fpProgressStarted');
+    expect(sample).toHaveProperty('fpProgressCompleted');
+    expect(sample).toHaveProperty('gen3CheatSpawns');
     expect(sample).toHaveProperty('gen3SkipClicks');
+    // Plan 2026-05-06-modular-unified-time §592-610 (Task 7): the legacy
+    // `gen3PassiveSpawns` counter was removed when the passive end-of-tick
+    // FP hook went away. fpProgressStarted/Completed replace it.
+    expect(sample).not.toHaveProperty('gen3PassiveSpawns');
     expect(sample).toHaveProperty('unlockedGenerators');
     expect(Array.isArray(sample.unlockedGenerators)).toBe(true);
     expect(sample.mergesSpentByGenSnapshot).toBeDefined();

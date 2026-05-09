@@ -49,7 +49,8 @@ function pickSnapshot(input: GameSnapshot): GameSnapshot {
     meatDropQueue: input.meatDropQueue,
     chapterClaimed: input.chapterClaimed,
     mergesSpentByGen: input.mergesSpentByGen,
-    activeUpgrade: input.activeUpgrade,
+    activeTimedProcess: input.activeTimedProcess,
+    worldTimeMs: input.worldTimeMs,
   };
 }
 

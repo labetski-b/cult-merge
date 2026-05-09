@@ -25,10 +25,20 @@ export function formatSimAction(action: SimulationAction): string {
       return `💎 Buy ×${action.amount} ${action.runeType}`;
     case 'start_upgrade':
       return `⬆️ Start upgrade ${shortId(action.entityId)}`;
+    case 'start_fp_progress':
+      return `🌱 Start FP ${shortId(action.entityId)} (Gen${action.generatorId})`;
     case 'collect_upgrade':
       return `⬆️ Collect upgrade`;
-    case 'skip_timer_generator':
-      return `⏩ Skip timer ${shortId(action.entityId)}`;
+    case 'skip_time': {
+      // Task 7 (plan §592-610): split upgrade vs fp variants explicitly so
+      // the action log copy matches the timed-process kind being resolved.
+      const sec = (action.deltaMs / 1000).toFixed(1);
+      if (action.reason === 'upgrade') {
+        return `⏳ Wait ${sec}s for upgrade ${shortId(action.entityId)}`;
+      }
+      // 'fp' — Flower-Pot timed-process resolution
+      return `🌱 Wait ${sec}s for FP Gen${action.generatorId} (${shortId(action.entityId)})`;
+    }
     case 'claim_reward':
       return `🎁 Claim reward`;
     case 'open_box':

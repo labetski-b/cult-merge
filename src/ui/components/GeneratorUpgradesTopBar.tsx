@@ -41,7 +41,11 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
   const mergeCountByLine = useGameStore((s) => s.mergeCountByLine);
   const mergesSpentByGen = useGameStore((s) => s.mergesSpentByGen);
   const resources = useGameStore((s) => s.resources);
-  const activeUpgrade = useGameStore((s) => s.activeUpgrade);
+  const activeTimedProcess = useGameStore((s) => s.activeTimedProcess);
+  const activeUpgrade =
+    activeTimedProcess && activeTimedProcess.kind === 'upgrade'
+      ? activeTimedProcess
+      : null;
 
   // Re-render every second so the visible timer advances and the
   // "ГОТОВО" badge appears as soon as Date.now() >= finishesAt, even when
@@ -77,15 +81,17 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       let remainingSec = 0;
       let timerPercent = 0;
       if (isThis && activeUpgrade) {
-        if (now >= activeUpgrade.finishesAt) {
+        const startedAtWallMs = activeUpgrade.startedAtWallMs ?? 0;
+        const total = activeUpgrade.totalMs;
+        const finishesAtWallMs = startedAtWallMs + total;
+        if (now >= finishesAtWallMs) {
           upgradeState = 'ready-to-collect';
           timerPercent = 100;
         } else {
           upgradeState = 'upgrading';
-          remainingSec = Math.max(0, Math.ceil((activeUpgrade.finishesAt - now) / 1000));
-          const total = activeUpgrade.finishesAt - activeUpgrade.startedAt;
+          remainingSec = Math.max(0, Math.ceil((finishesAtWallMs - now) / 1000));
           timerPercent = total > 0
-            ? Math.max(0, Math.min(100, ((now - activeUpgrade.startedAt) / total) * 100))
+            ? Math.max(0, Math.min(100, ((now - startedAtWallMs) / total) * 100))
             : 100;
         }
       }

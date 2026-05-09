@@ -138,12 +138,41 @@ export interface MeatDrop {
   amount: number;
 }
 
-export interface ActiveUpgrade {
-  entityId: string;
-  generatorId: number;
-  startedAt: number; // Date.now() ms
-  finishesAt: number; // startedAt + durationSec*1000
-}
+/**
+ * Canonical model for a single in-flight timed-process — see plan
+ * `2026-05-06-modular-unified-time.md` §200-218.
+ *
+ * Engine invariant: at most ONE active timed-process at any time. The next
+ * real action emitted by ModularStrategy MUST be `skip_time(remainingMs)`
+ * while `activeTimedProcess !== null`.
+ *
+ * `kind: 'fp'` is a forward-looking shape for Task 4 (passive FP removal +
+ * explicit FP resolution); Task 3 wires the `kind: 'upgrade'` branch end-to-end.
+ *
+ * Upgrade variant carries two production-only fields used solely by the live
+ * UI to drive its wall-clock timer animation. The simulator path drives the
+ * countdown via `remainingMs` only and ignores these fields:
+ *   - `totalMs`: full duration of the upgrade (used for progress-bar percent).
+ *   - `startedAtWallMs`: `Date.now()` snapshot at start (used to compute the
+ *     remaining seconds the UI displays). Optional because the sim path does
+ *     not set it.
+ */
+export type ActiveTimedProcess =
+  | {
+      kind: 'upgrade';
+      entityId: string;
+      generatorId: number;
+      remainingMs: number;
+      totalMs: number;
+      /** Production-only wall-clock anchor for the live UI animation. */
+      startedAtWallMs?: number;
+    }
+  | {
+      kind: 'fp';
+      entityId: string;
+      generatorId: number;
+      remainingMs: number;
+    };
 
 export interface GameSnapshot {
   kraken: KrakenState;
@@ -173,7 +202,20 @@ export interface GameSnapshot {
   meatDropQueue: MeatDrop[];
   chapterClaimed: Record<number, boolean>;
   mergesSpentByGen: Record<number, number>;
-  activeUpgrade: ActiveUpgrade | null;
+  /**
+   * Canonical timed-process slot — single source of truth for the engine
+   * invariants in plan §254-292. `null` means no in-flight upgrade/FP work;
+   * non-null forces the next real action to be `skip_time`.
+   *
+   * Replaces the legacy `activeUpgrade` field (Task 3).
+   */
+  activeTimedProcess: ActiveTimedProcess | null;
+  /**
+   * Single world clock — analytics time, action-log time and the source the
+   * `advanceTime` helper increments. Replaces the hidden `env.nowMs` (plan
+   * §22-30, removed in Task 8).
+   */
+  worldTimeMs: number;
 }
 
 export enum QuestType {

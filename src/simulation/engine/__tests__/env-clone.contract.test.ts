@@ -3,17 +3,16 @@ import { SeededRng } from '../../../infra/rng';
 import { makeEngineEnv, cloneEngineEnv } from '../env';
 
 describe('EngineEnv', () => {
-  it('makeEngineEnv создаёт env с заданными значениями', () => {
+  it('makeEngineEnv создаёт env с заданными значениями (Task 8: nowMs removed)', () => {
     const rng = new SeededRng(42);
-    const env = makeEngineEnv(rng, 1000, 5);
-    expect(env.nowMs).toBe(1000);
+    const env = makeEngineEnv(rng, 5);
     expect(env.totalEyesGained).toBe(5);
     expect(env.rng).toBe(rng);
   });
 
   it('cloneEngineEnv глубоко клонирует RNG', () => {
     const rng = new SeededRng(42);
-    const env = makeEngineEnv(rng, 0, 0);
+    const env = makeEngineEnv(rng, 0);
     const cloned = cloneEngineEnv(env);
 
     // независимое продвижение clone
@@ -27,15 +26,14 @@ describe('EngineEnv', () => {
     expect(originalNext).not.toBe(clonedNext);
   });
 
-  it('cloneEngineEnv preserves nowMs и totalEyesGained', () => {
-    const env = makeEngineEnv(new SeededRng(42), 1234, 56);
+  it('cloneEngineEnv preserves totalEyesGained (Task 8: nowMs removed)', () => {
+    const env = makeEngineEnv(new SeededRng(42), 56);
     const cloned = cloneEngineEnv(env);
-    expect(cloned.nowMs).toBe(1234);
     expect(cloned.totalEyesGained).toBe(56);
   });
 
   it('cloned nextEntityId() consumes cloned RNG, не original', () => {
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const cloned = cloneEngineEnv(env);
 
     // Запоминаем next id в original

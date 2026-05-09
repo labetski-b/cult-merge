@@ -135,8 +135,11 @@ export interface TickMetrics {
   runeStarveRejects: number;
   idleUpgradeTicks: number;
 
+  // FP timed-process tracking (Task 7 — replaces legacy passive Gen3 spawn).
+  fpProgressStarted: number;
+  fpProgressCompleted: number;
+
   // Gen3 (timer-mode) tracking
-  gen3PassiveSpawns: number;
   gen3CheatSpawns: number;
   gen3SkipClicks: number;
   questsClosedViaGen3Skip: number;
@@ -257,8 +260,10 @@ export interface CumulativeMetrics {
   upgradesCollected: number;
   runeStarveRejects: number;
   idleUpgradeTicks: number;
+  // FP timed-process counters (Task 7 — explicit start_fp_progress / fp_completed)
+  fpProgressStarted: number;
+  fpProgressCompleted: number;
   // Gen3 (timer-mode) counters
-  gen3PassiveSpawns: number;
   gen3CheatSpawns: number;
   gen3SkipClicks: number;
   questsClosedViaGen3Skip: number;

@@ -18,8 +18,8 @@ import { getActionTimeSec } from '../actionTime';
  * Coverage:
  *   - merge / feed / charge / spawn — RNG-driven actions
  *   - gather_meat — env-sensitive (uses env.totalEyesGained)
- *   - start_upgrade / collect_upgrade — env-sensitive (use env.nowMs)
- *   - skip_timer_generator
+ *   - start_upgrade — writes activeTimedProcess (Task 3)
+ *   - collect_upgrade — synthetic-only (Task 3)
  *   - move_entity
  *   - tick_idle (no-op behavior)
  *   - synthetic log-only events (new_quest, quest_completed, expand_board, free_cells)
@@ -27,7 +27,9 @@ import { getActionTimeSec } from '../actionTime';
  *
  * Each test verifies:
  *   - result.nextState reflects the expected mutation
- *   - result.nextEnv.nowMs advances by getActionTimeSec(action) * 1000
+ *   - result.nextState.worldTimeMs advances by getActionTimeSec(action) * 1000
+ *     (post-Task-8: `EngineEnv.nowMs` was removed; the snapshot's
+ *     `worldTimeMs` is the canonical clock.)
  *   - result.stateChanged matches reality
  *   - input state and env are NOT mutated
  */
@@ -43,8 +45,8 @@ function emptyGridSnapshot(): GameSnapshot {
   return s;
 }
 
-function makeEnv(seed = 42, nowMs = 0, totalEyesGained = 0) {
-  return makeEngineEnv(new SeededRng(seed), nowMs, totalEyesGained);
+function makeEnv(seed = 42, totalEyesGained = 0) {
+  return makeEngineEnv(new SeededRng(seed), totalEyesGained);
 }
 
 describe('applyActionCore — purity contract', () => {
@@ -58,30 +60,31 @@ describe('applyActionCore — purity contract', () => {
 
     const before = JSON.stringify(state);
     const env = makeEnv();
-    const envBefore = { rng: env.rng.getState(), nowMs: env.nowMs, totalEyesGained: env.totalEyesGained };
+    const envBefore = { rng: env.rng.getState(), totalEyesGained: env.totalEyesGained };
 
     applyActionCore(state, { type: 'merge', sourceId: 'a', targetId: 'b' }, env, BALANCE);
 
     expect(JSON.stringify(state)).toBe(before);
     expect(env.rng.getState()).toBe(envBefore.rng);
-    expect(env.nowMs).toBe(envBefore.nowMs);
     expect(env.totalEyesGained).toBe(envBefore.totalEyesGained);
   });
 
-  it('advances env.nowMs by getActionTimeSec(action) * 1000 for merge', () => {
+  it('advances state.worldTimeMs by getActionTimeSec(action) * 1000 for merge', () => {
     const state = emptyGridSnapshot();
+    state.worldTimeMs = 5000;
     const a: CreatureEntity = { id: 'a', kind: 'creature', creatureType: 'Creature1', level: 1 };
     const b: CreatureEntity = { id: 'b', kind: 'creature', creatureType: 'Creature1', level: 1 };
     state.entities = { a, b };
     state.grid.cells[0] = 'a';
     state.grid.cells[1] = 'b';
 
-    const env = makeEnv(42, 5000, 0);
+    const env = makeEnv(42, 0);
     const action: SimulationAction = { type: 'merge', sourceId: 'a', targetId: 'b' };
     const result = applyActionCore(state, action, env, BALANCE);
 
+    // Post-Task-8: state.worldTimeMs is the only clock; `EngineEnv.nowMs` is gone.
     const expected = 5000 + getActionTimeSec(action) * 1000;
-    expect(result.nextEnv.nowMs).toBe(expected);
+    expect(result.nextState.worldTimeMs).toBe(expected);
   });
 });
 
@@ -230,22 +233,22 @@ describe('applyActionCore — gather_meat (env-sensitive)', () => {
     state.resources.meat = 0;
     state.meatButtonPresses = 0;
 
-    const env = makeEnv(42, 0, 0);
+    const env = makeEnv(42, 0);
     const action: SimulationAction = { type: 'gather_meat', targetCost: 1 };
     const result = applyActionCore(state, action, env, BALANCE);
 
     expect(result.stateChanged).toBe(true);
     expect(result.nextState.resources.meat).toBeGreaterThanOrEqual(1);
     expect(result.nextState.meatButtonPresses).toBeGreaterThan(0);
-    // env.nowMs advances by presses * MEAT_PRESS_SECONDS * 1000
-    expect(result.nextEnv.nowMs).toBeGreaterThan(0);
+    // worldTimeMs advances by presses * MEAT_PRESS_SECONDS * 1000
+    expect(result.nextState.worldTimeMs).toBeGreaterThan(0);
   });
 
   it('no-op when state.resources.meat already at target', () => {
     const state = freshSnapshot();
     state.resources.meat = 100;
 
-    const env = makeEnv(42, 0, 0);
+    const env = makeEnv(42, 0);
     const action: SimulationAction = { type: 'gather_meat', targetCost: 50 };
     const result = applyActionCore(state, action, env, BALANCE);
 
@@ -253,88 +256,58 @@ describe('applyActionCore — gather_meat (env-sensitive)', () => {
   });
 });
 
-describe('applyActionCore — start_upgrade / collect_upgrade (env-sensitive)', () => {
-  it('uses env.nowMs to compute finishesAt', () => {
-    // Build a state where Gen1 can be upgraded:
-    //   - generator at level >= 1 with merges spent matching upgradeRow.mergesRequired
-    //   - sufficient runes
+describe('applyActionCore — start_upgrade / collect_upgrade (post-Task-3)', () => {
+  it('start_upgrade writes activeTimedProcess (kind=upgrade) when canUpgrade succeeds', () => {
     const state = freshSnapshot();
     const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity;
-    // Top up runes to make sure
     state.resources.rune1 = 1000;
     state.resources.rune2 = 1000;
-    // Simulate enough merges so first upgrade row passes mergesRequired check.
-    state.mergesSpentByGen = { ...state.mergesSpentByGen };
-    state.cumulativeStats = {
-      ...state.cumulativeStats,
-      totalMerges: 100,
-    };
-    // Find required mergesRequired for Gen1 row[0], set cumulativeStats merges.
-    // Actual passing depends on canUpgradeGenerator semantics; if it doesn't pass,
-    // the test still verifies pure-core's contract via env.nowMs flow if it does.
-    // To make this deterministic, we directly test that env.nowMs is used when start
-    // succeeds OR the no-op path doesn't crash.
+    state.cumulativeStats = { ...state.cumulativeStats, totalMerges: 100 };
+    state.mergeCountByLine = { Creature1: 999, Creature2: 999 };
+    state.worldTimeMs = 12345;
 
-    const NOW = 12345;
-    const env = makeEnv(42, NOW, 0);
+    const env = makeEnv(42, 0);
     const result = applyActionCore(state, { type: 'start_upgrade', entityId: gen.id }, env, BALANCE);
 
-    // Legacy timing semantics: nowMs advances iff stateChanged (start_upgrade
-    // is not in the always-advance list). On a successful start, finishesAt
-    // must be derived from env.nowMs; on a no-op rejection, nowMs stays put.
+    if (result.stateChanged) {
+      const proc = result.nextState.activeTimedProcess;
+      expect(proc?.kind).toBe('upgrade');
+      if (proc?.kind === 'upgrade') {
+        expect(proc.entityId).toBe(gen.id);
+        // Engine invariant I4 (Task 4): start_upgrade ticks 500ms off
+        // remainingMs immediately (its own actionTimeSec = 0.5).
+        expect(proc.totalMs - proc.remainingMs).toBe(500);
+        // Sim path (Task 4): startedAtWallMs is unused by sim, expect 0.
+        expect(proc.startedAtWallMs).toBe(0);
+      }
+    }
+    // worldTimeMs advances iff stateChanged (start_upgrade is not always-advance).
     const expectedAdvance = result.stateChanged
       ? getActionTimeSec({ type: 'start_upgrade', entityId: gen.id }) * 1000
       : 0;
-    expect(result.nextEnv.nowMs).toBe(NOW + expectedAdvance);
-
-    // If activeUpgrade was set, finishesAt must be derived from env.nowMs (not Date.now).
-    if (result.nextState.activeUpgrade !== null) {
-      expect(result.nextState.activeUpgrade.startedAt).toBe(NOW);
-      expect(result.nextState.activeUpgrade.finishesAt).toBeGreaterThanOrEqual(NOW);
-    }
+    expect(result.nextState.worldTimeMs).toBe(12345 + expectedAdvance);
   });
 
-  it('collect_upgrade: no-op when no active upgrade', () => {
+  it('collect_upgrade is silently a no-op when invoked from the engine wrapper (no marker)', () => {
     const state = emptyGridSnapshot();
-    state.activeUpgrade = null;
-    const env = makeEnv(42, 99999, 0);
+    state.activeTimedProcess = null;
+    const env = makeEnv(42, 0);
     const result = applyActionCore(state, { type: 'collect_upgrade' }, env, BALANCE);
     expect(result.stateChanged).toBe(false);
   });
 
-  it('collect_upgrade: collects when env.nowMs >= finishesAt', () => {
+  it('collect_upgrade throws when emitted by a strategy (synthetic-only invariant)', () => {
     const state = emptyGridSnapshot();
-    const gen: GeneratorEntity = { id: 'g', kind: 'generator', generatorId: 1, level: 1, charges: [] };
-    state.entities = { g: gen };
-    state.grid.cells[0] = 'g';
-    state.activeUpgrade = {
-      entityId: 'g',
-      generatorId: 1,
-      startedAt: 0,
-      finishesAt: 5000,
-    };
-
-    const env = makeEnv(42, 6000, 0);
-    const result = applyActionCore(state, { type: 'collect_upgrade' }, env, BALANCE);
-
-    expect(result.stateChanged).toBe(true);
-    expect(result.nextState.activeUpgrade).toBeNull();
-    const upgraded = result.nextState.entities['g'] as GeneratorEntity;
-    expect(upgraded.level).toBe(2);
-  });
-});
-
-describe('applyActionCore — skip_timer_generator', () => {
-  it('no-op when entity is not a timer-mode generator', () => {
-    const state = emptyGridSnapshot();
-    const gen: GeneratorEntity = { id: 'g', kind: 'generator', generatorId: 1, level: 1, charges: [] };
-    state.entities = { g: gen };
-    state.grid.cells[0] = 'g';
-
+    state.activeTimedProcess = null;
     const env = makeEnv();
-    const result = applyActionCore(state, { type: 'skip_timer_generator', entityId: 'g' }, env, BALANCE);
-    // Gen1 is not timer-mode → no state mutation expected
-    expect(result.stateChanged).toBe(false);
+    expect(() =>
+      applyActionCore(
+        state,
+        { type: 'collect_upgrade', __strategyEmitted: true } as unknown as SimulationAction,
+        env,
+        BALANCE,
+      ),
+    ).toThrow(/collect_upgrade/i);
   });
 });
 
@@ -425,44 +398,41 @@ describe('applyActionCore — RNG isolation', () => {
 });
 
 describe('applyActionCore — env semantics (regression for wrapper compensations)', () => {
-  it('no-op action with non-zero actionTime does not advance nextEnv.nowMs (except collect_upgrade)', () => {
+  it('no-op action with non-zero actionTime does not advance worldTimeMs (Task 4)', () => {
     // charge_generator on a generator without enough meat → no-op.
     // applyCharge bails out early (changed=false), so the pure-core's
-    // shouldAdvanceTime guard must keep nowMs unchanged.
+    // shouldAdvanceTime guard must keep worldTimeMs unchanged.
     const state = freshSnapshot();
     const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity;
     expect(gen).toBeDefined();
     state.resources.meat = 0; // no meat → charge cannot proceed
+    state.worldTimeMs = 1000;
     // Drain its charges so charge_generator at least attempts work
     state.entities[gen.id] = { ...gen, charges: [] } as GeneratorEntity;
 
-    const NOW = 1000;
-    const env = makeEnv(42, NOW, 0);
+    const env = makeEnv(42, 0);
     const action: SimulationAction = { type: 'charge_generator', generatorId: gen.id };
     const result = applyActionCore(state, action, env, BALANCE);
 
     expect(result.stateChanged).toBe(false);
-    expect(result.nextEnv.nowMs).toBe(NOW); // not advanced
+    expect(result.nextState.worldTimeMs).toBe(1000); // not advanced
   });
 
-  it('collect_upgrade no-op still advances nowMs (legacy edge case)', () => {
-    // collect_upgrade is in the always-advance list inside applyActionCore
-    // even when the action does not change state. This mirrors legacy
-    // SimulationEngine behaviour (so the upgrade timer can eventually cross
-    // finishesAt over a sequence of polled collects).
+  it('collect_upgrade is now synthetic-only and does not advance the clock (post-Task-3)', () => {
+    // After plan 2026-05-06 (Task 3), `collect_upgrade` is engine-emitted only
+    // and carries actionTimeSec=0. Calling it through applyActionCore is a
+    // no-op that does NOT advance the clock.
     const state = emptyGridSnapshot();
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
+    state.worldTimeMs = 1000;
 
-    const NOW = 1000;
-    const env = makeEnv(42, NOW, 0);
+    const env = makeEnv(42, 0);
     const action: SimulationAction = { type: 'collect_upgrade' };
     const result = applyActionCore(state, action, env, BALANCE);
 
     expect(result.stateChanged).toBe(false);
-    // collect_upgrade advances nowMs by getActionTimeSec(action) * 1000 even
-    // when no upgrade is active.
-    expect(result.nextEnv.nowMs).toBe(NOW + getActionTimeSec(action) * 1000);
-    expect(result.nextEnv.nowMs).toBeGreaterThan(NOW);
+    expect(getActionTimeSec(action)).toBe(0);
+    expect(result.nextState.worldTimeMs).toBe(1000);
   });
 
   it('merge advances nextEnv.rng but does not write nextState.rngState (legacy semantics)', () => {
@@ -474,7 +444,7 @@ describe('applyActionCore — env semantics (regression for wrapper compensation
     state.grid.cells[1] = 'b';
 
     const rngStateBefore = state.rngState;
-    const env = makeEnv(42, 0, 0);
+    const env = makeEnv(42, 0);
     const envRngBefore = env.rng.getState();
 
     const result = applyActionCore(state, { type: 'merge', sourceId: 'a', targetId: 'b' }, env, BALANCE);
@@ -502,7 +472,7 @@ describe('applyActionCore — env semantics (regression for wrapper compensation
     state.currentTaskFed = [];
 
     const STARTING_EYES = 100;
-    const env = makeEnv(42, 0, STARTING_EYES);
+    const env = makeEnv(42, STARTING_EYES);
     const result = applyActionCore(state, { type: 'feed', entityId: 'c' }, env, BALANCE);
 
     // Sanity: a task_completed event was emitted with a non-negative eyesGained
@@ -538,7 +508,7 @@ describe('applyActionCore — env semantics (regression for wrapper compensation
     };
 
     const STARTING_EYES = 100;
-    const env = makeEnv(42, 0, STARTING_EYES);
+    const env = makeEnv(42, STARTING_EYES);
     const result = applyActionCore(state, { type: 'feed', entityId: 'c' }, env, BALANCE);
 
     const completed = result.events.find(e => e.type === 'task_completed');
@@ -555,61 +525,7 @@ describe('applyActionCore — env semantics (regression for wrapper compensation
   });
 });
 
-describe('applyActionCore — wait_for_upgrade_ready', () => {
-  it('no-ops when no active upgrade (precondition fails)', () => {
-    const state = emptyGridSnapshot();
-    state.activeUpgrade = null;
-    const env = makeEnv(42, 5_000, 0);
-
-    const before = JSON.stringify(state);
-    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
-
-    expect(JSON.stringify(state)).toBe(before); // input untouched
-    expect(result.stateChanged).toBe(false);
-    expect(result.nextEnv.nowMs).toBe(5_000);   // env.nowMs unchanged on no-op
-    expect(result.events.find(e => e.type === 'upgrade_waited')).toBeUndefined();
-  });
-
-  it('no-ops when upgrade already finished (env.nowMs >= finishesAt)', () => {
-    const state = emptyGridSnapshot();
-    state.activeUpgrade = {
-      entityId: 'e1',
-      generatorId: 1,
-      startedAt: 0,
-      finishesAt: 1_000,
-    };
-    const env = makeEnv(42, 5_000, 0); // already past finishesAt
-
-    const before = JSON.stringify(state);
-    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
-
-    expect(JSON.stringify(state)).toBe(before);
-    expect(result.stateChanged).toBe(false);
-    expect(result.nextEnv.nowMs).toBe(5_000);
-    expect(result.events.find(e => e.type === 'upgrade_waited')).toBeUndefined();
-  });
-
-  it('fast-forwards env.nowMs to finishesAt when in-flight; state untouched', () => {
-    const state = emptyGridSnapshot();
-    state.activeUpgrade = {
-      entityId: 'e1',
-      generatorId: 2,
-      startedAt: 0,
-      finishesAt: 60_000,
-    };
-    const env = makeEnv(42, 1_500, 0);
-
-    const before = JSON.stringify(state);
-    const result = applyActionCore(state, { type: 'wait_for_upgrade_ready' }, env, BALANCE);
-
-    expect(JSON.stringify(state)).toBe(before);              // input snapshot intact
-    expect(JSON.stringify(result.nextState)).toBe(before);    // gameplay state unchanged
-    expect(result.stateChanged).toBe(false);
-    expect(result.nextEnv.nowMs).toBe(60_000);                // advanced to finishesAt
-    const wait = result.events.find(e => e.type === 'upgrade_waited');
-    expect(wait).toBeDefined();
-    if (wait && wait.type === 'upgrade_waited') {
-      expect(wait.deltaMs).toBe(60_000 - 1_500);
-    }
-  });
-});
+// `wait_for_upgrade_ready` and `skip_timer_generator` were removed by Task 1
+// of plan 2026-05-06-modular-unified-time.md; their applyActionCore branches
+// are gone, replaced by the canonical `skip_time` action (covered in
+// skip-time.contract.test.ts and upgrade-flow-task3.contract.test.ts).

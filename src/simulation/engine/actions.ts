@@ -1,6 +1,15 @@
 // Leaf-модуль для типов действий симулятора.
 // Никаких импортов из engine/ — иначе создаётся цикл engine/types.ts ↔ engine/trace.ts.
 // См. spec § 5.1.
+//
+// Time-model (post-2026-05-06 unified time refactor):
+// - `skip_time` — единственный canonical action для продвижения timed-process
+//   (upgrade / FP). Заменяет старые `wait_for_upgrade_ready`,
+//   `skip_timer_generator` и реальный `collect_upgrade`.
+// - `collect_upgrade` теперь **synthetic-only**: engine дописывает его в action
+//   log после того, как `skip_time` зарезолвил upgrade. Strategy его не emit'ит.
+// - Поле `entityId`/`generatorId` в `skip_time` нужно для self-descriptive
+//   trace/note (см. plan §246-253).
 
 export type SimulationAction =
   | { type: 'claim_reward' }
@@ -10,8 +19,16 @@ export type SimulationAction =
   | { type: 'charge_generator'; generatorId: string }
   | { type: 'spawn_generator'; generatorId: string }
   | { type: 'start_upgrade'; entityId: string }
+  // Strategy emits this when an FP-typed quest is active and a timer-mode
+  // generator has a free neighbor. Engine spins up an `activeTimedProcess`
+  // of kind 'fp' with `remainingMs = tickIntervalSec*1000`. The next tick
+  // the scheduler short-circuits to `skip_time(reason='fp')`. This is the
+  // single canonical entry point for FP after the unified-time refactor.
+  | { type: 'start_fp_progress'; entityId: string; generatorId: number }
+  // Synthetic-only: emitted by engine after skip_time resolves an upgrade;
+  // never returned by strategies. Kept in the union so action log entries can
+  // carry the marker; actionTimeSec = 0 (synthetic, no time spent).
   | { type: 'collect_upgrade' }
-  | { type: 'skip_timer_generator'; entityId: string }
   | { type: 'quest_completed'; taskLabel: string; eyesGained: number; creatures: { type: string; level: number; count: number }[] }
   | { type: 'new_quest'; taskLabel: string }
   | { type: 'gather_meat'; targetCost: number; count?: number; meatGained?: number }
@@ -20,10 +37,13 @@ export type SimulationAction =
   | { type: 'free_cells'; reason: string; freed: number }
   | { type: 'tick_idle'; reason: string }
   | { type: 'move_entity'; entityId: string; targetCellIndex: number }
-  // Simulator-only synthetic action: deferred-fallback for ModularStrategy when
-  // an in-flight upgrade blocks progress and no other goal can advance state.
-  // Engine fast-forwards env.nowMs to state.activeUpgrade.finishesAt so the next
-  // iteration can normally collect_upgrade. Duration is dynamic (computed by
-  // engine from finishesAt - prevNowMs); see `actionTime.ts`. Spec:
-  // docs/superpowers/plans/2026-05-06-sim-upgrade-wait-action.md.
-  | { type: 'wait_for_upgrade_ready' };
+  // Canonical action for advancing world time and resolving the active
+  // timed-process. Strategy MUST emit this (and only this) when
+  // `state.activeTimedProcess !== null`. See plan §228-253.
+  | {
+      type: 'skip_time';
+      deltaMs: number;
+      reason: 'upgrade' | 'fp';
+      entityId: string;
+      generatorId: number;
+    };

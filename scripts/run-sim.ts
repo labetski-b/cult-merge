@@ -70,7 +70,7 @@ for (const e of Object.values(finalState.entities)) {
   else if (e.kind === 'box') console.log(' box id=', e.boxId, 'contents=', e.contents.length);
 }
 console.log('pendingRewards:', finalState.pendingRewards.length, JSON.stringify(finalState.pendingRewards));
-console.log('activeUpgrade:', finalState.activeUpgrade);
+console.log('activeTimedProcess:', finalState.activeTimedProcess);
 console.log('currentAutoTask:', JSON.stringify(finalState.currentAutoTask));
 console.log('resources:', finalState.resources);
 console.log('');

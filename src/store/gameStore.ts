@@ -801,7 +801,8 @@ export const useGameStore = create<GameStore>()(
             meatButtonPresses: final.meatButtonPresses,
             session: final.session,
             rngState: final.rngState,
-            activeUpgrade: final.activeUpgrade,
+            activeTimedProcess: final.activeTimedProcess,
+            worldTimeMs: final.worldTimeMs,
             mergeCountByLine: final.mergeCountByLine,
             mergesSpentByGen: final.mergesSpentByGen,
             cumulativeStats: final.cumulativeStats,
@@ -915,11 +916,9 @@ export const useGameStore = create<GameStore>()(
         set((state) => {
           const next = applyStartUpgrade(state, BALANCE, entityId, Date.now());
           if (next === state) return {};
-          const entity = next.entities[entityId];
-          const durationSec = entity && entity.kind === 'generator' && next.activeUpgrade
-            ? (next.activeUpgrade.finishesAt - next.activeUpgrade.startedAt) / 1000
-            : 0;
-          const genId = next.activeUpgrade?.generatorId ?? 0;
+          const proc = next.activeTimedProcess;
+          const durationSec = proc && proc.kind === 'upgrade' ? proc.totalMs / 1000 : 0;
+          const genId = proc && proc.kind === 'upgrade' ? proc.generatorId : 0;
           return { ...next, lastMessage: `Upgrade started for Generator ${genId} (${durationSec}s).` };
         });
       },
@@ -929,10 +928,10 @@ export const useGameStore = create<GameStore>()(
           const next = applyCollectUpgrade(state, Date.now());
           if (next === state) return {};
           // Determine the upgraded generator for the lastMessage
-          const prevActive = state.activeUpgrade;
+          const prevProc = state.activeTimedProcess;
           let msg = 'Generator upgraded.';
-          if (prevActive) {
-            const entity = next.entities[prevActive.entityId];
+          if (prevProc && prevProc.kind === 'upgrade') {
+            const entity = next.entities[prevProc.entityId];
             if (entity && entity.kind === 'generator') {
               msg = `Generator ${entity.generatorId} upgraded to L${entity.level}.`;
             }
@@ -1154,7 +1153,6 @@ export function migrateGameStore(
     persistedState = {
       ...(persistedState as object),
       mergesSpentByGen: {},
-      activeUpgrade: null,
     };
   }
 
@@ -1197,6 +1195,8 @@ export function migrateGameStore(
       const newCells = state.grid.cells.map((cell) =>
         cell !== null && !validIds.has(cell) ? null : cell,
       );
+      // Heal orphan activeUpgrade.entityId inline before v26 drops the field
+      // entirely. We keep the cleared value around so v26 can read it.
       const active = state.activeUpgrade ?? null;
       const newActive =
         active && typeof active.entityId === 'string' && !validIds.has(active.entityId)
@@ -1208,6 +1208,49 @@ export function migrateGameStore(
         activeUpgrade: newActive,
       };
     }
+  }
+
+  // v25 — unified time refactor (plan 2026-05-06): seed defaults for the new
+  // `activeTimedProcess` slot and the `worldTimeMs` clock so freshly-loaded
+  // saves match the post-refactor GameSnapshot shape.
+  if (persistedVersion < 25) {
+    persistedState = {
+      ...(persistedState as object),
+      activeTimedProcess: null,
+      worldTimeMs: 0,
+    };
+  }
+
+  // v26 — Task 3 of unified-time refactor: drop legacy `activeUpgrade` field
+  // entirely. Carry over any in-flight upgrade into the canonical
+  // `activeTimedProcess` slot so an upgrade in progress at save time keeps
+  // ticking under the new shape.
+  if (persistedVersion < 26) {
+    const state = persistedState as {
+      activeUpgrade?: {
+        entityId?: string;
+        generatorId?: number;
+        startedAt?: number;
+        finishesAt?: number;
+      } | null;
+      activeTimedProcess?: unknown;
+    };
+    const au = state.activeUpgrade ?? null;
+    const next: Record<string, unknown> = { ...(persistedState as object) };
+    delete next.activeUpgrade;
+    if (au && state.activeTimedProcess == null && typeof au.entityId === 'string') {
+      const totalMs = (au.finishesAt ?? 0) - (au.startedAt ?? 0);
+      const remainingMs = Math.max(0, (au.finishesAt ?? 0) - Date.now());
+      next.activeTimedProcess = {
+        kind: 'upgrade',
+        entityId: au.entityId,
+        generatorId: au.generatorId ?? 0,
+        remainingMs,
+        totalMs: Math.max(0, totalMs),
+        startedAtWallMs: au.startedAt,
+      };
+    }
+    persistedState = next;
   }
 
   return persistedState;

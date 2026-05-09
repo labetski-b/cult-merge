@@ -97,8 +97,9 @@ describe('GeneratorUpgradeModal', () => {
     // Upgrade now starts a timer; the level does NOT change until collect.
     const gen = state.entities['gen-a'] as GeneratorEntity;
     expect(gen.level).toBe(1);
-    expect(state.activeUpgrade).not.toBeNull();
-    expect(state.activeUpgrade?.entityId).toBe('gen-a');
+    expect(state.activeTimedProcess).not.toBeNull();
+    expect(state.activeTimedProcess?.kind).toBe('upgrade');
+    expect(state.activeTimedProcess?.entityId).toBe('gen-a');
   });
 
   it('shows MAX LEVEL when the generator is past the upgrade table', () => {

@@ -9,7 +9,7 @@ import {
 import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
 import { formatCompact } from '@ui/formatCompact';
 import { useSecondTicker } from '@ui/hooks/useSecondTicker';
-import type { ActiveUpgrade, GeneratorEntity } from '@domain/types';
+import type { ActiveTimedProcess, GeneratorEntity } from '@domain/types';
 import rune1Icon from '@assets/resources/rune1.png';
 import rune2Icon from '@assets/resources/rune2.png';
 import meatIcon from '@assets/resources/meat.png';
@@ -38,7 +38,11 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
   const mergeCountByLine = useGameStore((s) => s.mergeCountByLine);
   const mergesSpentByGen = useGameStore((s) => s.mergesSpentByGen);
   const resources = useGameStore((s) => s.resources);
-  const activeUpgrade = useGameStore((s) => s.activeUpgrade);
+  const activeTimedProcess = useGameStore((s) => s.activeTimedProcess);
+  const activeUpgrade =
+    activeTimedProcess && activeTimedProcess.kind === 'upgrade'
+      ? activeTimedProcess
+      : null;
 
   const owned = useMemo<GeneratorEntity[]>(() => {
     const list: GeneratorEntity[] = [];
@@ -116,6 +120,8 @@ function groupOutputsByType(outputs: CreatureOutput[]): CreatureOutput[][] {
   });
 }
 
+type UpgradeProc = Extract<ActiveTimedProcess, { kind: 'upgrade' }>;
+
 function GeneratorUpgradeCard({
   gen,
   mergeCountByLine,
@@ -127,7 +133,7 @@ function GeneratorUpgradeCard({
   mergeCountByLine: Record<string, number>;
   mergesSpentByGen: Record<number, number>;
   resources: Record<string, number>;
-  activeUpgrade: ActiveUpgrade | null;
+  activeUpgrade: UpgradeProc | null;
 }) {
   const config = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
   const img = getGeneratorImage(gen.generatorId, gen.level);
@@ -170,18 +176,21 @@ function GeneratorUpgradeCard({
   const isThisUpgrading = activeUpgrade?.entityId === gen.id;
   const isOtherUpgrading = activeUpgrade !== null && !isThisUpgrading;
   const now = Date.now();
+  const startedAtWallMs = activeUpgrade?.startedAtWallMs ?? 0;
+  const finishesAtWallMs =
+    activeUpgrade !== null ? startedAtWallMs + activeUpgrade.totalMs : 0;
   const remainingSec = isThisUpgrading && activeUpgrade
-    ? Math.max(0, Math.ceil((activeUpgrade.finishesAt - now) / 1000))
+    ? Math.max(0, Math.ceil((finishesAtWallMs - now) / 1000))
     : 0;
   const timerPercent = isThisUpgrading && activeUpgrade
     ? (() => {
-        const total = activeUpgrade.finishesAt - activeUpgrade.startedAt;
+        const total = activeUpgrade.totalMs;
         if (total <= 0) return 100;
-        const elapsed = now - activeUpgrade.startedAt;
+        const elapsed = now - startedAtWallMs;
         return Math.max(0, Math.min(100, (elapsed / total) * 100));
       })()
     : 0;
-  const isReadyToCollect = isThisUpgrading && now >= (activeUpgrade?.finishesAt ?? 0);
+  const isReadyToCollect = isThisUpgrading && now >= finishesAtWallMs;
 
   const check = config && !isThisUpgrading && !isOtherUpgrading
     ? canUpgradeGenerator(

@@ -1,14 +1,28 @@
-import type { GameSnapshot } from '@domain/types';
+import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
 import { canUpgradeGenerator } from '@domain/upgrades';
 
+/**
+ * Upgrade flow runtime — countdown semantics on `activeTimedProcess`.
+ *
+ * Plan: docs/superpowers/plans/2026-05-06-modular-unified-time.md (Task 3).
+ *
+ * The legacy `state.activeUpgrade` slot is gone. All upgrade state lives in
+ * `state.activeTimedProcess` (kind: 'upgrade') with `remainingMs` as the
+ * single countdown source of truth. `totalMs` is preserved alongside so the
+ * production UI can render its progress bar; the simulator path only reads
+ * `remainingMs` (driven by `advanceTime`).
+ *
+ * `now` parameter is the wall-clock anchor used by the production UI. Sim
+ * callers pass `0` (or any value) — the sim does not consult `startedAtWallMs`.
+ */
 export function applyStartUpgrade(
   snapshot: GameSnapshot,
   balance: BalanceConfig,
   entityId: string,
-  now: number
+  now: number,
 ): GameSnapshot {
-  if (snapshot.activeUpgrade !== null) return snapshot;
+  if (snapshot.activeTimedProcess !== null) return snapshot;
   const entity = snapshot.entities[entityId];
   if (!entity || entity.kind !== 'generator') return snapshot;
   const check = canUpgradeGenerator(entity, snapshot, balance);
@@ -16,6 +30,7 @@ export function applyStartUpgrade(
   const row = check.row;
   const runeBalance = snapshot.resources[row.runeType] ?? 0;
   const durationSec = row.upgradeDurationSec ?? 0;
+  const totalMs = durationSec * 1000;
   const prevSpent = snapshot.mergesSpentByGen[entity.generatorId] ?? 0;
   return {
     ...snapshot,
@@ -24,27 +39,42 @@ export function applyStartUpgrade(
       ...snapshot.mergesSpentByGen,
       [entity.generatorId]: prevSpent + row.mergesRequired,
     },
-    activeUpgrade: {
+    activeTimedProcess: {
+      kind: 'upgrade',
       entityId,
       generatorId: entity.generatorId,
-      startedAt: now,
-      finishesAt: now + durationSec * 1000,
+      remainingMs: totalMs,
+      totalMs,
+      startedAtWallMs: now,
     },
   };
 }
 
+/**
+ * Production-only upgrade resolver. The simulator path resolves upgrades
+ * through `advanceTime` (which decrements `remainingMs` and applies the
+ * gameplay effect when the countdown reaches zero). The production UI still
+ * polls collect via wall-clock checks, so this helper resolves the upgrade
+ * iff the wall-clock has passed `startedAtWallMs + totalMs`.
+ *
+ * If the slot is empty, the wall-clock has not elapsed, or the entity has
+ * vanished, the snapshot is returned unchanged (or with the slot cleared
+ * when the target generator no longer exists).
+ */
 export function applyCollectUpgrade(
   snapshot: GameSnapshot,
-  now: number
+  now: number,
 ): GameSnapshot {
-  const active = snapshot.activeUpgrade;
-  if (!active) return snapshot;
-  if (now < active.finishesAt) return snapshot;
-  const entity = snapshot.entities[active.entityId];
+  const proc = snapshot.activeTimedProcess;
+  if (!proc || proc.kind !== 'upgrade') return snapshot;
+  const startedAt = proc.startedAtWallMs ?? 0;
+  const finishesAt = startedAt + proc.totalMs;
+  if (now < finishesAt) return snapshot;
+  const entity = snapshot.entities[proc.entityId];
   if (!entity || entity.kind !== 'generator') {
-    return { ...snapshot, activeUpgrade: null };
+    return { ...snapshot, activeTimedProcess: null };
   }
-  const upgraded = { ...entity, level: entity.level + 1 };
+  const upgraded: GeneratorEntity = { ...entity, level: entity.level + 1 };
   const prevMax = snapshot.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
   const nextMax = Math.max(prevMax, upgraded.level);
   return {
@@ -57,6 +87,6 @@ export function applyCollectUpgrade(
         [entity.generatorId]: nextMax,
       },
     },
-    activeUpgrade: null,
+    activeTimedProcess: null,
   };
 }

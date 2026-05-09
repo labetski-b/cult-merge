@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SimulationEngine } from '../SimulationEngine';
 import { applyActionCore } from '../applyActionCore';
-import { applyPassiveTickCore } from '../applyPassiveTickCore';
 import { makeEngineEnv } from '../env';
 import type { AIStrategy, SimulationAction, StrategyDecision } from '../types';
 import type { GameSnapshot } from '@domain/types';
@@ -10,8 +9,10 @@ import { SeededRng } from '@infra/rng';
 import { BALANCE } from '@data/loadBalance';
 
 /**
- * Contract: SimulationEngine.executeTick is a thin wrapper over
- *   sequential applyActionCore + end-of-tick applyPassiveTickCore.
+ * Contract: SimulationEngine.executeTick is a thin wrapper over sequential
+ *   applyActionCore calls. Plan 2026-05-06-modular-unified-time §5 (Task 7)
+ *   removed the legacy `applyPassiveTickCore` end-of-tick hook — the engine
+ *   no longer has a separate passive-progression entry point.
  *
  * Spec rev 2 § 5.6 / § 6.1.
  *
@@ -22,7 +23,7 @@ import { BALANCE } from '@data/loadBalance';
  * to what the manual sequence yields.
  *
  * Failures here indicate that the engine has either:
- *   1. mutated state/env outside the two pure-core entry points, OR
+ *   1. mutated state/env outside the pure-core entry point, OR
  *   2. forgotten to thread env back into itself, OR
  *   3. bypassed pure-core for some action type.
  */
@@ -54,8 +55,8 @@ function structuralHash(state: GameSnapshot): string {
   });
 }
 
-describe('SimulationEngine wraps applyActionCore + applyPassiveTickCore', () => {
-  it('one outer-tick through engine == sequential applyActionCore + applyPassiveTickCore', () => {
+describe('SimulationEngine wraps applyActionCore (post-Task-7: no passive tick hook)', () => {
+  it('one outer-tick through engine == sequential applyActionCore replay', () => {
     // Plan a small batch that exercises a state-changing pure-core path
     // (gather_meat) plus a synthetic log-only action (free_cells). Both have
     // well-defined behavior in the legacy engine and pure core.
@@ -86,7 +87,7 @@ describe('SimulationEngine wraps applyActionCore + applyPassiveTickCore', () => 
     // Engine restores rng state from snapshot.rngState (which createInitialSnapshot
     // advanced past Gen1 minting); mirror that here for parity.
     (replayRng as unknown as { state: number }).state = initialB.rngState >>> 0;
-    let env = makeEngineEnv(replayRng, 0, 0);
+    let env = makeEngineEnv(replayRng, 0);
     let state = initialB;
 
     // Mutable copy of plannedActions: applyActionCore mutates gather_meat in
@@ -97,9 +98,8 @@ describe('SimulationEngine wraps applyActionCore + applyPassiveTickCore', () => 
       state = r.nextState;
       env = r.nextEnv;
     }
-    const passive = applyPassiveTickCore(state, env, BALANCE);
-    state = passive.nextState;
-    env = passive.nextEnv;
+    // Post-Task-7: no end-of-tick passive hook — replay finishes after
+    // applyActionCore for every batched action.
 
     // ---- Compare structural state ----
     expect(structuralHash(engineFinal)).toBe(structuralHash(state));

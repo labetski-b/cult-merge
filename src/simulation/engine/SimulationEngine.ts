@@ -12,7 +12,6 @@ import type { TickEndReason, TickTrace } from './trace';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
 import { applyActionCore, type ActionEvent } from './applyActionCore';
-import { applyPassiveTickCore } from './applyPassiveTickCore';
 import { makeEngineEnv, type EngineEnv } from './env';
 
 type SimulationConfigInput = Pick<SimulationConfig, 'seed' | 'stopCondition'> & Partial<SimulationConfig>;
@@ -28,10 +27,13 @@ function formatTime(totalSec: number): string {
 export class SimulationEngine {
   private config: SimulationConfig;
   private state: GameSnapshot;
-  // Mutable side-inputs (RNG, game time, totalEyesGained) live in env.
-  // applyActionCore / applyPassiveTickCore consume `env` and return `nextEnv`.
-  // The engine is forbidden from mutating env outside those two pure-core
-  // calls (spec rev 2 § 5.6).
+  // Mutable side-inputs (RNG, totalEyesGained) live in env.
+  // applyActionCore consumes `env` and returns `nextEnv`. The engine is
+  // forbidden from mutating env outside that pure-core call (spec rev 2 § 5.6).
+  // Plan 2026-05-06-modular-unified-time §5 (Task 7): the legacy
+  // `applyPassiveTickCore` end-of-tick hook was removed — FP / timer-mode
+  // generators no longer progress passively, so there's no second pure-core
+  // entry point on the tick boundary.
   private env: EngineEnv;
   private history: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
@@ -47,9 +49,10 @@ export class SimulationEngine {
   private taskNumber = 0;
   private pendingEventLogs: Array<{ action: SimulationAction; state: ActionLogEntry['state']; note: string }> = [];
   private totalActions = 0;
-  // Tracks whether a skip_timer_generator action fired during the current quest.
-  // Resets on quest_completed. Proxy for questsClosedViaGen3Skip.
-  // TODO: may overcount if skip targeted a generator unrelated to the completed quest.
+  // Tracks whether a skip_time(reason='fp') action fired during the current
+  // quest. Resets on quest_completed. Proxy for questsClosedViaGen3Skip.
+  // TODO: may overcount if skip targeted a generator unrelated to the
+  // completed quest. TODO Task 4: rewire once FP path lands.
   private currentQuestUsedSkipTimer = false;
   // Tracks whether a collect_upgrade action changed state this tick (used for idleUpgradeTicks)
   private tickHadCollectUpgrade = false;
@@ -89,7 +92,7 @@ export class SimulationEngine {
       // SeededRng has no public restoreState — set private state via cast.
       (rng as unknown as { state: number }).state = rngState >>> 0;
     }
-    this.env = makeEngineEnv(rng, 0, 0);
+    this.env = makeEngineEnv(rng, 0);
     this.history = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
@@ -131,7 +134,7 @@ export class SimulationEngine {
         break;
       }
       // Stuck-cycle detector: idle тик с тем же fingerprint что в прошлый раз.
-      // RNG state и nowMs из fingerprint исключены — иначе одинаковый тупик
+      // RNG state и worldTimeMs из fingerprint исключены — иначе одинаковый тупик
       // никогда не поймается (RNG продвигается даже без полезного прогресса).
       if (this.lastTickWasIdle) {
         const fp = this.computeStuckFingerprint();
@@ -218,21 +221,16 @@ export class SimulationEngine {
         const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
 
         // Synthetic log-only actions (tick_idle / quest_completed / new_quest /
-        // expand_board) are NEVER passed to the pure core: the core would advance
-        // env.nowMs by 0 (their actionTime is 0) but the engine has no business
-        // forwarding them. tick_idle from a strategy must NOT count as
-        // "iterAdvanced" — that's the whole point of tick_idle. Skip them
-        // entirely.
+        // expand_board) are NEVER passed to the pure core: their actionTime is
+        // 0 and the engine has no business forwarding them. tick_idle from a
+        // strategy must NOT count as "iterAdvanced" — that's the whole point
+        // of tick_idle. Skip them entirely.
         if (action.type === 'tick_idle') {
           // No state change, no time advance, no log push. Strategy is signaling
           // "I'm stuck this iteration" — engine handles that via !iterAdvanced
           // path below. Continue to next action without setting iterAdvanced.
           continue;
         }
-
-        // Capture nowMs before pure-core mutates env — wait_for_upgrade_ready
-        // resolves its dynamic dt as (nextEnv.nowMs - prevNowMs) / 1000.
-        const prevNowMs = this.env.nowMs;
 
         let result;
         try {
@@ -241,56 +239,31 @@ export class SimulationEngine {
           console.error(`Error executing action ${i} (iter ${iter}) at tick ${outerTick}:`, action);
           throw error;
         }
-        // Apply the pure-core result: this is the ONLY place outside
-        // applyPassiveTickCore where state/env mutate. After T6 the engine
-        // wrapper does NOT modify this.env beyond this assignment — pure-core
-        // is fully responsible for nextEnv (rng, nowMs, totalEyesGained). The
-        // applyEvents call below only updates cumulative metrics, log entries,
-        // and other engine-side bookkeeping. Spec rev 2 § 5.6.
+        // Apply the pure-core result: this is the ONLY place where state/env
+        // mutate. The pure-core is fully responsible for nextEnv (rng,
+        // totalEyesGained) and for advancing `state.worldTimeMs` (canonical
+        // world clock — Task 4). The applyEvents call below only updates
+        // cumulative metrics, log entries, and other engine-side bookkeeping.
+        // Spec rev 2 § 5.6.
         this.state = result.nextState;
         this.env = result.nextEnv;
         this.applyEvents(action, result.events);
         const stateChanged = result.stateChanged;
 
-        // wait_for_upgrade_ready — special time-advancing synthetic action.
-        // stateChanged is always false (gameplay snapshot is unchanged), but
-        // env.nowMs jumps to finishesAt. Engine MUST treat this as iter-
-        // advancing AND emit a log row with actionTimeSec = real wait dt.
-        // If preconditions failed in pure-core, env.nowMs is unchanged and
-        // we treat the action as a no-op (mirrors collect_upgrade no-op).
-        if (action.type === 'wait_for_upgrade_ready') {
-          const waitDtMs = this.env.nowMs - prevNowMs;
-          if (waitDtMs > 0) {
-            iterAdvanced = true;
-            const dt = this.addActionTime(action, waitDtMs / 1000);
-            const logState = this.captureCompactState(dt);
-            logState.currentTask = taskBefore;
-            this.pushLog(action, logState, note);
-          }
-          // Flush event logs even on no-op — keep parity with other branches.
-          for (const pending of this.pendingEventLogs) {
-            this.pushLog(pending.action, pending.state, pending.note);
-          }
-          this.pendingEventLogs.length = 0;
-          this.syncCumulativeStats();
-          this.evaluateAndLogQuests();
-          continue;
-        }
-
         // Mirror legacy timing semantics: legacy SimulationEngine advanced
-        // game time only when stateChanged (or for free_cells/collect_upgrade
-        // synthetics). That logic now lives inside applyActionCore — the
-        // engine just reads result.stateChanged here to drive iterAdvanced
-        // and logging.
+        // game time only when stateChanged (or for free_cells synthetic).
+        // That logic now lives inside applyActionCore — the engine just
+        // reads result.stateChanged here to drive iterAdvanced and logging.
+        // skip_time gets explicit iter-advance treatment.
         const shouldAdvanceTime =
-          stateChanged || action.type === 'free_cells' || action.type === 'collect_upgrade';
+          stateChanged || action.type === 'free_cells' || action.type === 'skip_time';
         if (shouldAdvanceTime) {
           iterAdvanced = true;
           const dt = this.addActionTime(action);
-          // Only log actions that actually changed state (or are synthetic
-          // log-only events). No-op collect_upgrade advances time but produces
-          // no log noise.
-          if (stateChanged || action.type === 'free_cells') {
+          // Log actions that actually changed state, or are synthetic
+          // log-only events, or are skip_time (always logs to surface the
+          // wait in the action log).
+          if (stateChanged || action.type === 'free_cells' || action.type === 'skip_time') {
             const logState = this.captureCompactState(dt);
             logState.currentTask = taskBefore;
             this.pushLog(action, logState, note);
@@ -346,23 +319,17 @@ export class SimulationEngine {
     // сбросить флаг чтобы run() не считал stuck.
     if (endReason !== 'idle') this.lastTickWasIdle = false;
 
-    // Passive tick: pure-core wrapper for tickTimerGenerators (Gen3 / timer-mode).
-    // Spec rev 2 § 5.4 / § 5.6 — engine MUST NOT mutate state/env outside this call.
-    {
-      const passive = applyPassiveTickCore(this.state, this.env, this.config.balance);
-      this.state = passive.nextState;
-      this.env = passive.nextEnv;
-      let passiveSpawns = 0;
-      for (const ev of passive.events) {
-        if (ev.type === 'generator_spawned') passiveSpawns += 1;
-      }
-      if (passiveSpawns > 0) {
-        this.cumulative.gen3PassiveSpawns += passiveSpawns;
-      }
-    }
+    // Plan 2026-05-06-modular-unified-time §5 (Task 7): the legacy
+    // `applyPassiveTickCore` end-of-tick hook was removed — FP / timer-mode
+    // generators no longer progress passively. All time-based gameplay flows
+    // through `applyActionCore` (action's own deltaMs) and `skip_time` for
+    // resolving an active timed-process. The tick boundary is gameplay-pure
+    // bookkeeping below.
 
-    // Idle upgrade tick: upgrade still active at tick end AND no collect happened this tick
-    if (this.state.activeUpgrade !== null && !this.tickHadCollectUpgrade) {
+    // Idle upgrade tick: upgrade still active at tick end AND no collect happened this tick.
+    // Post-Task-3: `activeTimedProcess` is the canonical slot.
+    const proc = this.state.activeTimedProcess;
+    if (proc !== null && proc.kind === 'upgrade' && !this.tickHadCollectUpgrade) {
       this.cumulative.idleUpgradeTicks += 1;
     }
 
@@ -420,9 +387,19 @@ export class SimulationEngine {
         this.cumulative.totalMeatGained += gained;
       }
     }
-    if (action.type === 'skip_timer_generator') {
+    // FP cheat path proxy: every `skip_time(reason='fp')` is the strategy
+    // resolving an active FP timed-process — equivalent to the legacy
+    // `skip_timer_generator` action (plan §5).
+    if (action.type === 'skip_time' && action.reason === 'fp') {
       this.cumulative.gen3SkipClicks += 1;
       this.currentQuestUsedSkipTimer = true;
+    }
+    // FP timed-process start — strategy emits `start_fp_progress` only when
+    // an FP-typed quest is active and a free neighbor exists; the engine spins
+    // up an `activeTimedProcess` of kind 'fp'. Counts as an explicit
+    // FP-progression event (Task 7 metrics rewire).
+    if (action.type === 'start_fp_progress') {
+      this.cumulative.fpProgressStarted += 1;
     }
 
     for (const event of events) {
@@ -526,10 +503,6 @@ export class SimulationEngine {
         case 'upgrade_started':
           this.cumulative.upgradesStarted += 1;
           break;
-        case 'upgrade_collected':
-          this.cumulative.upgradesCollected += 1;
-          this.tickHadCollectUpgrade = true;
-          break;
         case 'upgrade_start_rejected':
           this.cumulative.runeStarveRejects += 1;
           break;
@@ -544,6 +517,27 @@ export class SimulationEngine {
           } else {
             this.cumulative.rune2Purchased += event.amount;
           }
+          break;
+        case 'upgrade_completed': {
+          // Translate the engine event from advanceTime into a synthetic
+          // `collect_upgrade` log row + cumulative bump. Plan §306-321.
+          this.cumulative.upgradesCollected += 1;
+          this.tickHadCollectUpgrade = true;
+          const collectAction: SimulationAction = { type: 'collect_upgrade' };
+          // actionTimeSec = 0 (synthetic); addActionTime returns 0 too.
+          const collectDt = this.addActionTime(collectAction);
+          const collectState = this.captureCompactState(collectDt);
+          this.pendingEventLogs.push({
+            action: collectAction,
+            state: collectState,
+            note: 'upgrade collected (after skip_time)',
+          });
+          break;
+        }
+        case 'fp_completed':
+          // FP timed-process resolved by `advanceTime` — bump cumulative
+          // counter so analytics can compare started-vs-completed FP quests.
+          this.cumulative.fpProgressCompleted += 1;
           break;
       }
     }
@@ -624,15 +618,15 @@ export class SimulationEngine {
   }
 
   /**
-   * Stuck-cycle fingerprint: компактная подпись игрового state без RNG/nowMs.
+   * Stuck-cycle fingerprint: компактная подпись игрового state без RNG/worldTimeMs.
    * Если эта подпись повторяется на N idle тиках подряд — стратегия точно
    * не способна продвинуть progress, и run должен остановиться.
    *
    * Включаем то, что определяет «настоящий» game state:
    *   kraken (level, step), task (label, fed counts), pendingRewards count,
    *   freeCells, entities (kind+type+level+чарджи для gens), ресурсы,
-   *   activeUpgrade.
-   * Исключаем: nowMs, rngState — это «ползёт» даже без полезного прогресса.
+   *   activeTimedProcess.
+   * Исключаем: worldTimeMs, rngState — это «ползёт» даже без полезного прогресса.
    */
   private computeStuckFingerprint(): string {
     const s = this.state;
@@ -646,7 +640,8 @@ export class SimulationEngine {
       parts.push('t:none');
     }
     parts.push(`pr${s.pendingRewards.length}`);
-    parts.push(`au${s.activeUpgrade ? `${s.activeUpgrade.generatorId}` : 'no'}`);
+    const proc = s.activeTimedProcess;
+    parts.push(`au${proc && proc.kind === 'upgrade' ? `${proc.generatorId}` : 'no'}`);
     parts.push(`m${s.resources.meat.toFixed(0)}`);
     parts.push(`r1${s.resources.rune1}`);
     parts.push(`r2${s.resources.rune2}`);
@@ -829,17 +824,22 @@ export class SimulationEngine {
         if (!e || e.kind !== 'generator') return '';
         return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} → upgrade started`;
       }
-      case 'collect_upgrade': {
-        const active = this.state.activeUpgrade;
-        if (!active) return '';
-        const e = this.state.entities[active.entityId];
-        if (!e || e.kind !== 'generator') return '';
-        return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} → collected`;
+      case 'start_fp_progress': {
+        return `Gen${action.generatorId} → fp progress started (entity=${action.entityId})`;
       }
-      case 'skip_timer_generator': {
-        const e = this.state.entities[action.entityId];
-        if (!e || e.kind !== 'generator') return '';
-        return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} timer skip`;
+      case 'collect_upgrade': {
+        // Synthetic-only: when the engine wrapper builds the note, the
+        // upgrade has already been resolved by `advanceTime`, so the slot is
+        // empty. Pull the most-recently-resolved generator from the wrapper
+        // bookkeeping if available; otherwise emit a generic marker.
+        const proc = this.state.activeTimedProcess;
+        if (proc && proc.kind === 'upgrade') {
+          const e = this.state.entities[proc.entityId];
+          if (e && e.kind === 'generator') {
+            return `Gen${(e as GeneratorEntity).generatorId} Lv${(e as GeneratorEntity).level} → collected`;
+          }
+        }
+        return 'upgrade collected';
       }
       case 'quest_completed':
         return action.taskLabel;
@@ -864,20 +864,10 @@ export class SimulationEngine {
         }
         return `${e.kind} → cell ${action.targetCellIndex}`;
       }
-      case 'wait_for_upgrade_ready': {
-        // Canonical note shape (plan §202–217):
-        //   "wait until upgrade ready: entity=<entityId>, gen=<generatorId>, deltaMs=<deltaMs>"
-        // Computed from the pre-action snapshot — the engine has not yet
-        // advanced env.nowMs at this point.
-        const au = this.state.activeUpgrade;
-        if (!au) return 'wait until upgrade ready: no active upgrade';
-        const deltaMs = Math.max(0, au.finishesAt - this.env.nowMs);
-        const ent = this.state.entities[au.entityId];
-        const generatorId =
-          ent && ent.kind === 'generator'
-            ? (ent as GeneratorEntity).generatorId
-            : au.generatorId;
-        return `wait until upgrade ready: entity=${au.entityId}, gen=${generatorId}, deltaMs=${deltaMs}`;
+      case 'skip_time': {
+        // Canonical note: kind/entity/gen/deltaMs (plan §246-253). Used for
+        // self-descriptive action log + trace/debug.
+        return `skip_time(${action.reason}): entity=${action.entityId}, gen=${action.generatorId}, deltaMs=${action.deltaMs}`;
       }
     }
   }
