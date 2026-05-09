@@ -199,7 +199,7 @@ export function applyActionCore(
       // Engine invariant I4: skip_time's own `actionTimeSec = deltaMs/1000`
       // is the deltaMs we pass to advanceTime — there's no separate "spend"
       // because skip_time is purely time.
-      const result = advanceTime(workingState, action.deltaMs, config);
+      const result = advanceTime(workingState, action.deltaMs, config, workingRng);
       mutateInto(workingState, result.nextState);
       for (const ev of result.events) events.push(ev);
       break;
@@ -245,7 +245,7 @@ export function applyActionCore(
         // Drive the snapshot world clock + countdown via the same canonical
         // helper used by `skip_time`. This is the single source of truth for
         // time advancement (engine invariant I3, plan §138-198).
-        const advanced = advanceTime(workingState, dtMs, config);
+        const advanced = advanceTime(workingState, dtMs, config, workingRng);
         mutateInto(workingState, advanced.nextState);
         for (const ev of advanced.events) events.push(ev);
       }

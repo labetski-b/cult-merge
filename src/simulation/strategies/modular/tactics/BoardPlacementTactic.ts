@@ -19,16 +19,16 @@ function totalNeighborCount(grid: GameSnapshot['grid'], cellIndex: number): numb
   return getNeighborCellIndexes(grid, cellIndex).length;
 }
 
-function findBestFreeCell(state: GameSnapshot): number | null {
-  let best: { idx: number; score: number } | null = null;
+function findBestFreeCell(state: GameSnapshot): { idx: number; free: number; total: number } | null {
+  let best: { idx: number; free: number; total: number; score: number } | null = null;
   state.grid.cells.forEach((cell, idx) => {
     if (cell !== null) return;
     const total = totalNeighborCount(state.grid, idx);
     const free = freeNeighborCount(state.grid, idx);
-    const score = total + free * 0.1; // приоритет — клетки с большим total + бонус за free
-    if (!best || score > best.score) best = { idx, score };
+    const score = free * 10 + total; // для FP важнее свободные соседи, затем геометрия
+    if (!best || score > best.score) best = { idx, free, total, score };
   });
-  return best ? (best as { idx: number; score: number }).idx : null;
+  return best;
 }
 
 export class BoardPlacementTactic implements Tactic {
@@ -45,16 +45,14 @@ export class BoardPlacementTactic implements Tactic {
       const cellIdx = findEntityCell(state.grid, gen.id);
       if (cellIdx < 0) continue;
       const currentTotal = totalNeighborCount(state.grid, cellIdx);
-      // Если уже в центре (8 соседей) — нечего двигать
-      if (currentTotal >= 8) continue;
       const target = findBestFreeCell(state);
       if (target === null) continue;
-      const targetTotal = totalNeighborCount(state.grid, target);
-      if (targetTotal <= currentTotal) continue;
+      const currentFree = freeNeighborCount(state.grid, cellIdx);
+      if (target.free <= currentFree && target.total <= currentTotal) continue;
       plans.push(singletonPlan(
-        { type: 'move_entity', entityId: gen.id, targetCellIndex: target },
+        { type: 'move_entity', entityId: gen.id, targetCellIndex: target.idx },
         {
-          reasoning: `move Gen${(gen as GeneratorEntity).generatorId} from cell ${cellIdx} (${currentTotal} neighbors) → ${target} (${targetTotal} neighbors)`,
+          reasoning: `move Gen${(gen as GeneratorEntity).generatorId} from cell ${cellIdx} (${currentFree}/${currentTotal} free neighbors) → ${target.idx} (${target.free}/${target.total} free neighbors)`,
           expectedProgress: 0.85,
           tacticId: META.id,
           goalId: goal.meta.id,

@@ -7,6 +7,12 @@ import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
 import type { GeneratorEntity } from '@domain/types';
 
+function completeMandatoryTasks(state: ReturnType<typeof createInitialSnapshot>): void {
+  state.taskProgress = Object.fromEntries(
+    Object.entries(BALANCE.tasks.mandatory).map(([level, tasks]) => [level, tasks.length]),
+  );
+}
+
 describe('BoardLayoutGoal', () => {
   it('META: id=BoardLayout, basePri=50, opportunistic', () => {
     expect(META.id).toBe('BoardLayout');
@@ -18,6 +24,7 @@ describe('BoardLayoutGoal', () => {
     const goal = new BoardLayoutGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
+    completeMandatoryTasks(state);
     const timerCfg = BALANCE.generators.generators.find(g => g.spawnMode === 'timer');
     if (!timerCfg) throw new Error('no timer gen');
     // удалить любое entity на cell 0
@@ -45,6 +52,7 @@ describe('BoardLayoutGoal', () => {
     const goal = new BoardLayoutGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
+    completeMandatoryTasks(state);
     // Resize grid вручную до 4×4 чтобы был "центр" (cell не на границе).
     const newRows = 4;
     const newCols = 4;
@@ -70,5 +78,37 @@ describe('BoardLayoutGoal', () => {
     }
     const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
+  });
+
+  it('isActive=true если timer-gen в центре, но все соседи заняты', () => {
+    const goal = new BoardLayoutGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    state.kraken.level = 5;
+    completeMandatoryTasks(state);
+    state.grid = { rows: 4, cols: 4, cells: Array.from({ length: 16 }, () => null) };
+    state.entities = {};
+    const timerCfg = BALANCE.generators.generators.find(g => g.spawnMode === 'timer');
+    if (!timerCfg) throw new Error('no timer gen');
+    const out = timerCfg.levels[0]?.outputs?.[0];
+    if (!out) throw new Error('timer gen has no outputs');
+    const targetCell = 5;
+    const gen: GeneratorEntity = {
+      id: 'GT', kind: 'generator', generatorId: timerCfg.id, level: 1, charges: [], lastTickTimestamp: 0,
+    };
+    state.entities['GT'] = gen;
+    state.grid.cells[targetCell] = 'GT';
+    for (const idx of [0, 1, 2, 4, 6, 8, 9, 10]) {
+      const id = `F${idx}`;
+      state.entities[id] = { id, kind: 'creature', creatureType: 'Filler', level: 1 };
+      state.grid.cells[idx] = id;
+    }
+    state.currentAutoTask = {
+      id: 't',
+      creatures: [{ type: out.creatureType, level: 1, count: 1 }],
+      expMultiplier: 1,
+      resMultiplier: 1,
+    };
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+    expect(goal.isActive(state, ctx)).toBe(true);
   });
 });

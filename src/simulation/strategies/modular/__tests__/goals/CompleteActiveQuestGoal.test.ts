@@ -5,7 +5,6 @@ import { BALANCE } from '@data/loadBalance';
 import { SeededRng } from '@infra/rng';
 import { makeEngineEnv } from '../../../../engine/env';
 import { buildContext } from '../../context';
-import { FP_RELAYOUT_THRESHOLD } from '../../scheduler/constants';
 import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 
 function makeStateWithTimerGenAtCorner(): GameSnapshot {
@@ -91,15 +90,24 @@ describe('CompleteActiveQuestGoal', () => {
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
-  it('FP-кейс: timer-gen в углу с 1 свободным соседом → prereq на BoardLayout', () => {
+  it('FP-кейс: timer-gen с 1 свободным соседом → нет prereq, FP может спавнить', () => {
     const goal = new CompleteActiveQuestGoal();
     const state = makeStateWithTimerGenAtCorner();
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+    const prereqs = goal.getPrerequisites(state, ctx);
+    expect(prereqs.length).toBe(0);
+  });
+
+  it('FP-кейс: timer-gen без свободных соседей → prereq на BoardLayout', () => {
+    const goal = new CompleteActiveQuestGoal();
+    const state = makeStateWithTimerGenAtCorner();
+    state.entities['blk3'] = { id: 'blk3', kind: 'creature', creatureType: 'CreatureBlock', level: 1 };
+    state.grid.cells[state.grid.cols] = 'blk3';
     const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const prereqs = goal.getPrerequisites(state, ctx);
     expect(prereqs.length).toBe(1);
     expect(prereqs[0]!.goalId).toBe('BoardLayout');
     expect(prereqs[0]!.reason).toMatch(/free neighbor/i);
-    expect(prereqs[0]!.reason).toMatch(new RegExp(`threshold is ${FP_RELAYOUT_THRESHOLD}`));
   });
 
   it('Нет prereq если timer-gen имеет ≥ FP_RELAYOUT_THRESHOLD свободных соседей', () => {

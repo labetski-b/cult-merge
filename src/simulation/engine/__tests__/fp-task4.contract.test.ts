@@ -134,6 +134,55 @@ describe('Task 4 — FP advanceTime resolution', () => {
     expect(result.nextState.worldTimeMs).toBe(3_000);
   });
 
+  it('FP resolution allocates ids from engine RNG without leaving duplicate grid refs', () => {
+    const state = emptyGridSnapshot();
+    const cfg = timerGenCfg();
+    const gen: GeneratorEntity = {
+      id: 'gFP',
+      kind: 'generator',
+      generatorId: cfg.id,
+      level: 1,
+      charges: [],
+    };
+    const envSeed = 77;
+    const collidingId = new SeededRng(envSeed).nextId();
+    state.entities = {
+      gFP: gen,
+      [collidingId]: {
+        id: collidingId,
+        kind: 'creature',
+        creatureType: 'Filler',
+        level: 1,
+      },
+    };
+    state.grid.cells[4] = 'gFP';
+    state.grid.cells[0] = collidingId;
+    state.activeTimedProcess = {
+      kind: 'fp',
+      entityId: 'gFP',
+      generatorId: cfg.id,
+      remainingMs: 1_000,
+    };
+
+    const result = applyActionCore(
+      state,
+      {
+        type: 'skip_time',
+        deltaMs: 1_000,
+        reason: 'fp',
+        entityId: 'gFP',
+        generatorId: cfg.id,
+      },
+      makeEnv(envSeed),
+      BALANCE,
+    );
+    const occupied = result.nextState.grid.cells.filter((id): id is string => id !== null);
+    expect(new Set(occupied).size).toBe(occupied.length);
+    for (const id of occupied) {
+      expect(result.nextState.entities[id]).toBeDefined();
+    }
+  });
+
   it('FP resolution clears the slot even when no free neighbor (creature dropped, stays consistent)', () => {
     const state = emptyGridSnapshot();
     const cfg = timerGenCfg();

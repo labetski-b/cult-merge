@@ -55,6 +55,7 @@ export function advanceTime(
   state: GameSnapshot,
   deltaMs: number,
   config: BalanceConfig,
+  rng?: SeededRng,
 ): AdvanceTimeResult {
   if (deltaMs < 0) {
     throw new Error(`advanceTime: deltaMs must be >= 0 (got ${deltaMs})`);
@@ -84,7 +85,7 @@ export function advanceTime(
         // free neighbor exists the slot still clears (the spawn is
         // dropped) so the engine invariant I1 holds and the next quest
         // step can proceed.
-        resolveFp(next, proc.entityId, proc.generatorId, config);
+        resolveFp(next, proc.entityId, proc.generatorId, config, rng);
         events.push({ type: 'fp_completed' });
       }
     }
@@ -143,6 +144,7 @@ function resolveFp(
   entityId: string,
   generatorId: number,
   config: BalanceConfig,
+  engineRng?: SeededRng,
 ): void {
   const entity = next.entities[entityId];
   if (!entity || entity.kind !== 'generator') return;
@@ -156,9 +158,10 @@ function resolveFp(
   const cellIdx = findEntityCell(next.grid, gen.id);
   if (cellIdx < 0) return;
 
-  // Drive RNG from the snapshot channel so deterministic replays roll the
-  // same output. `tickTimerGenerators` (production) uses the same channel.
-  const rng = new SeededRng(next.rngState);
+  // In simulator calls, use the engine RNG channel so FP-spawn ids cannot
+  // collide with ids produced by other simulation actions. Direct domain tests
+  // that call advanceTime without an engine RNG still use snapshot.rngState.
+  const rng = engineRng ?? new SeededRng(next.rngState);
   const randValue = rng.next();
   const spawn = rollSingleOutput(levelConfig, () => randValue);
 
@@ -171,7 +174,7 @@ function resolveFp(
     return;
   }
 
-  const creatureId = rng.nextId();
+  const creatureId = nextUniqueEntityId(rng, next);
   const creature: CreatureEntity = {
     id: creatureId,
     kind: 'creature',
@@ -189,4 +192,12 @@ function resolveFp(
     ...next.cumulativeStats,
     totalSpawns: next.cumulativeStats.totalSpawns + 1,
   };
+}
+
+function nextUniqueEntityId(rng: SeededRng, state: GameSnapshot): string {
+  for (let attempts = 0; attempts < 100; attempts += 1) {
+    const id = rng.nextId();
+    if (!state.entities[id] && !state.grid.cells.includes(id)) return id;
+  }
+  throw new Error('resolveFp: unable to allocate unique entity id');
 }

@@ -114,10 +114,10 @@ export class CompleteActiveQuestGoal implements Goal {
       if (cellIdx < 0) continue;
       const neighbors = getNeighborCellIndexes(state.grid, cellIdx);
       const freeNeighbors = neighbors.filter(idx => state.grid.cells[idx] === null).length;
-      if (freeNeighbors < FP_RELAYOUT_THRESHOLD) {
+      if (freeNeighbors === 0) {
         return [{
           goalId: 'BoardLayout',
-          reason: `Gen${g.generatorId} has ${freeNeighbors} free neighbor(s); threshold is ${FP_RELAYOUT_THRESHOLD}`,
+          reason: `Gen${g.generatorId} has no free neighbor for FP spawn; threshold is ${FP_RELAYOUT_THRESHOLD}`,
         }];
       }
     }

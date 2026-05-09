@@ -18,7 +18,7 @@ function isEdgeCell(grid: GameSnapshot['grid'], cellIndex: number): boolean {
   return row === 0 || row === grid.rows - 1 || col === 0 || col === grid.cols - 1;
 }
 
-function findEdgeTimerGenWithQuestNeed(
+function findTimerGenNeedingRelayout(
   state: GameSnapshot,
   ctx: StrategyContext,
 ): GeneratorEntity | null {
@@ -33,7 +33,9 @@ function findEdgeTimerGenWithQuestNeed(
     if (!cfg || cfg.spawnMode !== 'timer') continue;
     const cellIdx = findEntityCell(state.grid, gen.id);
     if (cellIdx < 0) continue;
-    if (isEdgeCell(state.grid, cellIdx)) return gen as GeneratorEntity;
+    const neighbors = getNeighborCellIndexes(state.grid, cellIdx);
+    const free = neighbors.filter(i => state.grid.cells[i] === null).length;
+    if (isEdgeCell(state.grid, cellIdx) || free < 2) return gen as GeneratorEntity;
   }
   return null;
 }
@@ -41,18 +43,19 @@ function findEdgeTimerGenWithQuestNeed(
 export class BoardLayoutGoal implements Goal {
   meta: GoalMeta = META;
   isActive(state: GameSnapshot, ctx: StrategyContext): boolean {
-    return findEdgeTimerGenWithQuestNeed(state, ctx) !== null;
+    return findTimerGenNeedingRelayout(state, ctx) !== null;
   }
   urgency(_state: GameSnapshot, _ctx: StrategyContext): number {
     return 1.0;
   }
   describe(state: GameSnapshot, ctx: StrategyContext): string {
-    const gen = findEdgeTimerGenWithQuestNeed(state, ctx);
-    if (!gen) return 'no edge timer gen';
+    const gen = findTimerGenNeedingRelayout(state, ctx);
+    if (!gen) return 'no timer gen needing relayout';
     const cell = findEntityCell(state.grid, gen.id);
     const neighbors = getNeighborCellIndexes(state.grid, cell);
     const free = neighbors.filter(i => state.grid.cells[i] === null).length;
-    return `Gen${gen.generatorId} at edge (cell ${cell}), ${free}/${neighbors.length} free neighbors`;
+    const placement = isEdgeCell(state.grid, cell) ? 'edge' : 'blocked';
+    return `Gen${gen.generatorId} ${placement} (cell ${cell}), ${free}/${neighbors.length} free neighbors`;
   }
   getPrerequisites(_state: GameSnapshot, _ctx: StrategyContext): GoalPrerequisite[] {
     return [];
