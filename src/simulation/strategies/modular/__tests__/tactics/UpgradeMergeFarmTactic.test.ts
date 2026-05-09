@@ -79,7 +79,7 @@ function makeBlockedByMergesSnapshot(seed = 1): { state: GameSnapshot; gen1: Gen
     const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
     state.taskProgress[String(lvl)] = tasksAtLvl.length;
   }
-  state.activeUpgrade = null;
+  state.activeTimedProcess = null;
   state.pendingRewards = [];
   // Quest needing Creature2 — Gen1@L2 cannot produce yet, but cfg.lines
   // covers Creature2, so questRequiresUpgrade(...) returns true.
@@ -111,7 +111,7 @@ function makeBlockedByMergesSnapshot(seed = 1): { state: GameSnapshot; gen1: Gen
   }
 
   // Sanity: questRequiresUpgrade must be true for the tactic to fire.
-  const env = makeEngineEnv(new SeededRng(1), 0, 0);
+  const env = makeEngineEnv(new SeededRng(1), 0);
   const ctx = buildContext(state, env, 50);
   if (!questRequiresUpgrade(state, ctx)) {
     throw new Error('expected questRequiresUpgrade=true; tactic would not fire');
@@ -140,7 +140,7 @@ describe('UpgradeMergeFarmTactic', () => {
     const a = addCreatureToGrid(state, 'Creature1', 1, rng);
     const b = addCreatureToGrid(state, 'Creature1', 1, rng);
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
 
@@ -172,7 +172,7 @@ describe('UpgradeMergeFarmTactic', () => {
     const { state, gen1 } = makeBlockedByMergesSnapshot();
     gen1.charges = [];
     state.resources.meat = 0;
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.length).toBeGreaterThan(0);
@@ -195,7 +195,7 @@ describe('UpgradeMergeFarmTactic', () => {
     gen1.charges = [];
     state.resources.meat = 0;
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
 
@@ -217,7 +217,7 @@ describe('UpgradeMergeFarmTactic', () => {
     // Plenty of meat, well above L2 chargeCost=0.79.
     state.resources.meat = 100;
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
 
@@ -237,7 +237,7 @@ describe('UpgradeMergeFarmTactic', () => {
     gen1.charges = [{ creatureType: 'Creature1', level: 1 }];
     state.resources.meat = 0;
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
 
@@ -269,7 +269,7 @@ describe('UpgradeMergeFarmTactic', () => {
     // Sanity: grid is full and no line creature exists.
     expect(state.grid.cells.every(c => c !== null)).toBe(true);
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     const proposals = tactic.propose(state, goal, ctx);
 
@@ -301,7 +301,7 @@ describe('UpgradeMergeFarmTactic', () => {
 
     // Premise sanity: grid still has free cells (default grid is 5x6 = 30,
     // we placed Gen1 + 6 creatures = 7 cells used).
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     expect(ctx.freeCellCount).toBeGreaterThan(0);
 
@@ -341,7 +341,7 @@ describe('UpgradeMergeFarmTactic', () => {
       state.taskProgress[String(lvl)] = tasksAtLvl.length;
     }
     state.taskProgress['10'] = 0; // leave lvl-10 mandatory active
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.pendingRewards = [];
     state.currentAutoTask = null;
     state.currentTaskFed = [];
@@ -368,7 +368,7 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(pick.blockedBy?.reason).toBe('merges');
     expect(pick.blockedBy?.generatorId).toBe(3);
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     // Premise sanity: questRequiresUpgrade is true (mandatory@lvl10 needs
     // Creature5 lvl1; Gen3@L1 outputs Creature5 lvl1 already on chance basis,
@@ -391,7 +391,7 @@ describe('UpgradeMergeFarmTactic', () => {
     // returns null candidate AND no blockedBy (rune budget gate).
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
     state.mergeCountByLine = {};
@@ -400,7 +400,7 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(pick.candidate).toBeNull();
     expect(pick.blockedBy).toBeUndefined();
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
@@ -419,7 +419,7 @@ describe('UpgradeMergeFarmTactic', () => {
       const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
       state.taskProgress[String(lvl)] = tasksAtLvl.length;
     }
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.pendingRewards = [];
     // No active quest at all.
     state.currentAutoTask = null;
@@ -438,7 +438,7 @@ describe('UpgradeMergeFarmTactic', () => {
     expect(pick.candidate).toBeNull();
     expect(pick.blockedBy?.reason).toBe('merges');
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
     // No active quest → questRequiresUpgrade is false → tactic must not fire.
     expect(questRequiresUpgrade(state, ctx)).toBe(false);

@@ -25,13 +25,14 @@ import { ManageRunesGoal } from '../goals/ManageRunesGoal';
 import { UpgradeGeneratorGoal } from '../goals/UpgradeGeneratorGoal';
 import { ProgressKrakenGoal } from '../goals/ProgressKrakenGoal';
 
-// Tactics
+// Tactics — post-Task-8 (plan 2026-05-06-modular-unified-time): the legacy
+// `TimerGenSkipTactic`, `UpgradeCollectTactic`, and `UpgradeWaitTactic` were
+// removed. Their job is now handled by the scheduler's active-timed-process
+// short-circuit, which emits `skip_time` directly.
 import { QuestSpawnTactic } from '../tactics/QuestSpawnTactic';
 import { QuestMergeTactic } from '../tactics/QuestMergeTactic';
 import { QuestFeedTactic } from '../tactics/QuestFeedTactic';
-import { TimerGenSkipTactic } from '../tactics/TimerGenSkipTactic';
 import { UpgradeStartTactic } from '../tactics/UpgradeStartTactic';
-import { UpgradeCollectTactic } from '../tactics/UpgradeCollectTactic';
 import { UpgradeMergeFarmTactic } from '../tactics/UpgradeMergeFarmTactic';
 import { LastResortFeedTactic } from '../tactics/LastResortFeedTactic';
 
@@ -71,9 +72,7 @@ function realTactics() {
     new QuestSpawnTactic(),
     new QuestMergeTactic(),
     new QuestFeedTactic(),
-    new TimerGenSkipTactic(),
     new UpgradeStartTactic(),
-    new UpgradeCollectTactic(),
     new UpgradeMergeFarmTactic(),
     new LastResortFeedTactic(),
   ];
@@ -109,7 +108,7 @@ function makeMidGameSnapshot(seed = 1): GameSnapshot {
   state.kraken.level = 5;
   clearMandatoryThroughLevel(state, 5);
   state.pendingRewards = [];
-  state.activeUpgrade = null;
+  state.activeTimedProcess = null;
   state.currentAutoTask = null;
   state.currentTaskFed = [];
   return state;
@@ -136,8 +135,10 @@ function placeGen(
   return gen;
 }
 
-function runOneIteration(state: GameSnapshot, nowMs: number, rngSeed = 1) {
-  const env = makeEngineEnv(new SeededRng(rngSeed), nowMs, 0);
+function runOneIteration(state: GameSnapshot, rngSeed = 1) {
+  // No env-side clock since Task 8 (plan 2026-05-06-modular-unified-time):
+  // `state.worldTimeMs` is the canonical clock and lives on the snapshot itself.
+  const env = makeEngineEnv(new SeededRng(rngSeed), 0);
   const ctx = buildContext(state, env, 50);
   const buffer = new TraceBuffer();
   const decision = runScheduler({
@@ -174,7 +175,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     expect(pick.candidate).not.toBeNull();
     expect(pick.candidate!.generatorId).toBe(1);
 
-    const { decision, trace } = runOneIteration(state, 0);
+    const { decision, trace } = runOneIteration(state);
     expect(decision.actions.length).toBeGreaterThan(0);
     expect(decision.actions[0]!.type).toBe('start_upgrade');
     const selected = trace.iterations[0]!.selectedPlan;
@@ -248,7 +249,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
 
     expect(feasibleCandidateExists(state, ctx)).toBe(false);
@@ -257,7 +258,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     const goal = new UpgradeGeneratorGoal();
     expect(goal.isActive(state, ctx)).toBe(false);
 
-    const { trace } = runOneIteration(state, 0);
+    const { trace } = runOneIteration(state);
     const goals = trace.iterations[0]!.activeGoals.map(g => g.id);
     expect(goals).not.toContain('UpgradeGenerator');
   });
@@ -276,7 +277,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
       resMultiplier: 1,
     };
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
 
     expect(feasibleCandidateExists(state, ctx)).toBe(false);
@@ -291,7 +292,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     expect(prereqs[0]!.goalId).toBe('UpgradeGenerator');
     expect(prereqs[0]!.reason).toMatch(/\bquest_requires_upgrade\b/);
 
-    const { trace } = runOneIteration(state, 0);
+    const { trace } = runOneIteration(state);
     const linked = trace.iterations.find(it =>
       it.prerequisiteChain?.some(
         l => l.fromGoalId === 'CompleteActiveQuest' && l.toGoalId === 'UpgradeGenerator',
@@ -301,21 +302,27 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
   });
 
   // ─── Item 6 ──────────────────────────────────────────────────────────────
-  it('6. activeUpgrade in flight, finishesAt > now → not_ready_dampener; no collect_upgrade no-op spam', () => {
+  // Post-Task-8 (plan 2026-05-06-modular-unified-time): the legacy `activeUpgrade`
+  // shape was replaced by `activeTimedProcess`, and the scheduler now short-circuits
+  // to `skip_time` whenever a process is in flight. The classifier still uses the
+  // `not_ready_dampener` tag for the (rare) goal-side decisions, but the executed
+  // action is `skip_time`, never the obsolete `collect_upgrade`.
+  it('6. activeTimedProcess upgrade in flight → not_ready_dampener tag; scheduler emits skip_time, never collect_upgrade', () => {
     const state = makeMidGameSnapshot();
     const gen1 = findGen1(state);
     gen1.charges = [{ creatureType: 'Creature1', level: 1 }];
-    state.activeUpgrade = {
+    state.activeTimedProcess = {
+      kind: 'upgrade',
       entityId: gen1.id,
       generatorId: 1,
-      startedAt: 0,
-      finishesAt: 10_000,
+      remainingMs: 10_000,
+      totalMs: 10_000,
     };
     state.currentAutoTask = null;
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
 
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const ctx = buildContext(state, env, 50);
 
     const goal = new UpgradeGeneratorGoal();
@@ -323,12 +330,11 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     expect(goal.urgency(state, ctx)).toBe(0.1);
     expect(goal.describe(state, ctx)).toMatch(/\bnot_ready_dampener\b/);
 
-    const { decision, trace } = runOneIteration(state, 0);
+    const { decision } = runOneIteration(state);
+    // Scheduler short-circuit (Task 5): the only action emitted while
+    // activeTimedProcess !== null is `skip_time`. No `collect_upgrade`.
     expect(decision.actions.some(a => a.type === 'collect_upgrade')).toBe(false);
-    const selected = trace.iterations[0]!.selectedPlan;
-    if (selected !== null) {
-      expect(selected.actionTypes).not.toContain('collect_upgrade');
-    }
+    expect(decision.actions[0]?.type).toBe('skip_time');
   });
 
   // ─── Item 7 (picker-level; mandatory honour) ─────────────────────────────
@@ -336,7 +342,7 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 10;
     state.pendingRewards = [];
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     for (let lvl = 1; lvl <= 9; lvl++) {
       const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
       state.taskProgress[String(lvl)] = tasksAtLvl.length;

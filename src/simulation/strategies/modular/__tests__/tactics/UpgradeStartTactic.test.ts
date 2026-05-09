@@ -17,10 +17,10 @@ describe('UpgradeStartTactic', () => {
     const tactic = new UpgradeStartTactic();
     const goal = new UpgradeGeneratorGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.resources.rune1 = 10000;
     state.resources.rune2 = 10000;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     // Кандидат может быть либо найден pickUpgradeCandidate, либо нет (зависит от balance).
     // Если найден — должен быть start_upgrade.
@@ -34,13 +34,13 @@ describe('UpgradeStartTactic', () => {
     const tactic = new UpgradeStartTactic();
     const goal = new UpgradeGeneratorGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     // Force a feasible Gen1 candidate.
     state.mergeCountByLine = { Creature1: 1 };
     state.mergesSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.length).toBeGreaterThan(0);
     expect(proposals[0]!.reasoning).toMatch(/\bfeasible_upgrade\b/);

@@ -37,7 +37,7 @@ describe('BoardLayoutGoal', () => {
         resMultiplier: 1,
       };
     }
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('BoardLayoutGoal', () => {
         resMultiplier: 1,
       };
     }
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 });

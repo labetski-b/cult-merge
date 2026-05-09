@@ -18,7 +18,7 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 4 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -33,7 +33,7 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 4 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -46,7 +46,7 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 4 };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -59,7 +59,7 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -72,7 +72,7 @@ describe('PreserveHighLevelCreaturesGuard', () => {
     const guard = new PreserveHighLevelCreaturesGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 4 };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 

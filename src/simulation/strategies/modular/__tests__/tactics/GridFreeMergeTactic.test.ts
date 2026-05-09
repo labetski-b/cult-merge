@@ -19,7 +19,7 @@ describe('GridFreeMergeTactic', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
     state.entities['c2'] = { id: 'c2', kind: 'creature', creatureType: 'X', level: 1 };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'merge')).toBe(true);
   });

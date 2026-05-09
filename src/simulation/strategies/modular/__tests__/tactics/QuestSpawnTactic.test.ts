@@ -51,7 +51,7 @@ describe('QuestSpawnTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator' && p.expectedProgress > 0.5)).toBe(true);
   });
@@ -81,7 +81,7 @@ describe('QuestSpawnTactic', () => {
         expMultiplier: 1,
         resMultiplier: 1,
       };
-      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
       const proposals = tactic.propose(state, goal, ctx);
       // Spawn не блокируется (поле имеет Lv2, но только 1 шт. — exact-merge нет).
       expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator')).toBe(true);
@@ -110,7 +110,7 @@ describe('QuestSpawnTactic', () => {
         expMultiplier: 1,
         resMultiplier: 1,
       };
-      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
       const proposals = tactic.propose(state, goal, ctx);
       expect(proposals).toEqual([]);
     });
@@ -137,7 +137,7 @@ describe('QuestSpawnTactic', () => {
         expMultiplier: 1,
         resMultiplier: 1,
       };
-      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
       const proposals = tactic.propose(state, goal, ctx);
       expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator')).toBe(true);
     });
@@ -162,7 +162,7 @@ describe('QuestSpawnTactic', () => {
         expMultiplier: 1,
         resMultiplier: 1,
       };
-      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
       const proposals = tactic.propose(state, goal, ctx);
       expect(proposals.length).toBeGreaterThan(0);
       expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator')).toBe(true);

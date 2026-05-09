@@ -44,7 +44,7 @@ describe('BoardPlacementTactic', () => {
       delete state.entities[cExisting];
       state.grid.cells[center] = null;
     }
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'move_entity' && (p.actions[0]! as { entityId: string }).entityId === 'GT')).toBe(true);
   });

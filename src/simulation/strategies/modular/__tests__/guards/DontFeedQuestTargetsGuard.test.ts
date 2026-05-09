@@ -18,7 +18,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 2, count: 5 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -37,7 +37,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -57,7 +57,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     for (const lvl of [2, 3, 4]) {
       state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: lvl };
       const step: ProposedPlanStep = {
@@ -75,7 +75,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'Y', level: 1 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 5, count: 1 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -88,7 +88,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     const guard = new DontFeedQuestTargetsGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['r1'] = { id: 'r1', kind: 'rune', runeType: 'rune1' };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'r1' }, reasoning: '',
 
@@ -113,7 +113,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     };
     // Сделаем grid 2×2: 4 cells, все заполнены (free=0).
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -135,7 +135,7 @@ describe('DontFeedQuestTargetsGuard', () => {
       'c3': { id: 'c3', kind: 'creature', creatureType: 'X', level: 2 },
     };
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', 'c2', 'c3'] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -154,7 +154,7 @@ describe('DontFeedQuestTargetsGuard', () => {
       'c1': { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 },
     };
     state.grid = { rows: 2, cols: 2, cells: ['g1', 'c1', null, null] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 
@@ -169,7 +169,7 @@ describe('DontFeedQuestTargetsGuard', () => {
     state.kraken.level = 5;
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 2 };
     state.currentAutoTask = { id: 't', creatures: [{ type: 'X', level: 2, count: 5 }] };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'feed', entityId: 'c1' }, reasoning: '',
 

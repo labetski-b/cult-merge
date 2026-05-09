@@ -19,7 +19,7 @@ describe('GridFreeFeedTactic', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.entities['c1'] = { id: 'c1', kind: 'creature', creatureType: 'X', level: 1 };
     state.grid.cells[0] = 'c1';
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'feed' && p.expectedProgress < 0.5)).toBe(true);
   });
@@ -37,7 +37,7 @@ describe('GridFreeFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals).toHaveLength(1);
     expect(proposals[0]!.actions[0]!.type).toBe('feed');
@@ -57,7 +57,7 @@ describe('GridFreeFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
 });

@@ -17,7 +17,7 @@ describe('NoUpgradeWithoutFullRunesGuard', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'start_upgrade', entityId: 'g1' }, reasoning: '',
 
@@ -32,7 +32,7 @@ describe('NoUpgradeWithoutFullRunesGuard', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'start_upgrade', entityId: 'g1' }, reasoning: '',
 

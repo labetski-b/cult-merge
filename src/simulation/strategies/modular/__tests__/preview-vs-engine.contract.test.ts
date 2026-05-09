@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { ModularStrategy } from '../ModularStrategy';
 import { SimulationEngine } from '../../../engine/SimulationEngine';
 import { applyActionCore } from '../../../engine/applyActionCore';
-import { applyPassiveTickCore } from '../../../engine/applyPassiveTickCore';
 import { makeEngineEnv, cloneEngineEnv } from '../../../engine/env';
 import { SeededRng } from '@infra/rng';
 import { BALANCE } from '@data/loadBalance';
@@ -17,15 +16,17 @@ import type { EngineEnv } from '../../../engine/env';
  * The scheduler validates each plan via step-by-step PREVIEW (cloneEngineEnv +
  * applyActionCore on cloned env). The engine then EXECUTES the surviving plan
  * via the same applyActionCore on the live env. If preview ever diverges from
- * runtime — e.g. preview reads stale env.nowMs, scheduler mutates real env, or
+ * runtime — e.g. preview reads stale state.worldTimeMs, scheduler mutates real env, or
  * engine bypasses pure-core for some action type — observable game state
  * (rngState, resources, entities) drifts.
  *
  * This test catches that drift by:
  *   1. Running real ModularStrategy through real SimulationEngine for 1 outer
  *      tick on seed=42, capturing the actions emitted by the strategy.
- *   2. Replaying those actions manually via applyActionCore + applyPassiveTickCore
- *      starting from the same initial snapshot and a freshly seeded env.
+ *   2. Replaying those actions manually via applyActionCore starting from
+ *      the same initial snapshot and a freshly seeded env. (Plan 2026-05-06
+ *      Task 7 removed the passive-tick hook; replay finishes when the action
+ *      batch is consumed.)
  *   3. Asserting structural equivalence on the final state (rngState, resources,
  *      kraken, entities, meatButtonPresses, session).
  *
@@ -82,7 +83,7 @@ describe('preview-vs-engine determinism (KEY contract)', () => {
     const initialB = createInitialSnapshot(BALANCE, { seed: 42 });
     const replayRng = new SeededRng(42);
     (replayRng as unknown as { state: number }).state = initialB.rngState >>> 0;
-    let env = makeEngineEnv(replayRng, 0, 0);
+    let env = makeEngineEnv(replayRng, 0);
     let state: GameSnapshot = initialB;
 
     // applyActionCore mutates some fields (gather_meat: count/meatGained) on
@@ -105,9 +106,7 @@ describe('preview-vs-engine determinism (KEY contract)', () => {
       state = r.nextState;
       env = r.nextEnv;
     }
-    const passive = applyPassiveTickCore(state, env, BALANCE);
-    state = passive.nextState;
-    env = passive.nextEnv;
+    // Post-Task-7: no end-of-tick passive hook.
 
     // 4. Strict structural equivalence. If preview pollutes engine env, or if
     //    scheduler bypasses pure-core, these will diverge.
@@ -129,7 +128,7 @@ describe('preview-vs-engine determinism (KEY contract)', () => {
     // ---- Preview path: applyActionCore on a CLONED env, just like scheduler.
     const previewRng = new SeededRng(42);
     (previewRng as unknown as { state: number }).state = initial.rngState >>> 0;
-    const previewBaseEnv = makeEngineEnv(previewRng, 0, 0);
+    const previewBaseEnv = makeEngineEnv(previewRng, 0);
     const previewEnv = cloneEngineEnv(previewBaseEnv);
     let previewState: GameSnapshot = initial;
     let activePreviewEnv = previewEnv;

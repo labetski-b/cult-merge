@@ -17,7 +17,7 @@ describe('CollectRewardsGoal', () => {
     const goal = new CollectRewardsGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.pendingRewards = [{ type: 'res_box', value: 1 }];
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -25,7 +25,7 @@ describe('CollectRewardsGoal', () => {
     const goal = new CollectRewardsGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.pendingRewards = [];
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -33,7 +33,7 @@ describe('CollectRewardsGoal', () => {
     const goal = new CollectRewardsGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.pendingRewards = [{ type: 'res_box', value: 1 }];
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.urgency(state, ctx)).toBe(1.0);
   });
 });

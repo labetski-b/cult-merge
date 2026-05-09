@@ -53,7 +53,7 @@ describe('Structural no-op rejection (multi-step only)', () => {
   it('multi-step plan with a no-op step (feed nonexistent entity) is rejected', () => {
     // Real snapshot needed because applyActionCore reads state.entities.
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     // Multi-step plan: [valid synthetic, no-op feed]. The second step is a
@@ -84,7 +84,7 @@ describe('Structural no-op rejection (multi-step only)', () => {
 
   it('singleton plan with a no-op action is ALLOWED (legacy semantics)', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     // Singleton no-op: feed of nonexistent entity. Still allowed under § 7.3
@@ -112,7 +112,7 @@ describe('Structural no-op rejection (multi-step only)', () => {
 
   it('multi-step plan with all synthetic free_cells passes (synthetic exception)', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     // free_cells is synthetic log-only; § 7.3 exception keeps multi-step plans

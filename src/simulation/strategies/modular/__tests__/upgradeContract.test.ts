@@ -78,24 +78,25 @@ describe('upgradeContract — helpers', () => {
       state.resources.rune1 = 0;
       state.resources.rune2 = 0;
       state.mergeCountByLine = {};
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(false);
     });
 
-    it('false when activeUpgrade is busy', () => {
+    it('false when activeTimedProcess is busy (post-Task-3: replaces activeUpgrade)', () => {
       const state = createInitialSnapshot(BALANCE, { seed: 1 });
       state.kraken.level = 5;
       clearMandatoryThroughLevel(state, 5);
-      state.activeUpgrade = {
+      state.activeTimedProcess = {
+        kind: 'upgrade',
         entityId: findGen1(state).id,
         generatorId: 1,
-        startedAt: 0,
-        finishesAt: 1000,
+        remainingMs: 1000,
+        totalMs: 1000,
       };
       state.resources.rune1 = 100;
       state.mergeCountByLine = { Creature1: 100 };
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(false);
     });
@@ -107,7 +108,7 @@ describe('upgradeContract — helpers', () => {
       state.resources.rune1 = 10;
       state.mergeCountByLine = { Creature1: 5 };
       state.mergesSpentByGen = {};
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(true);
     });
@@ -119,7 +120,7 @@ describe('upgradeContract — helpers', () => {
       state.kraken.level = 5;
       clearMandatoryThroughLevel(state, 5);
       state.currentAutoTask = null;
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(questRequiresUpgrade(state, ctx)).toBe(false);
     });
@@ -135,7 +136,7 @@ describe('upgradeContract — helpers', () => {
         resMultiplier: 1,
       };
       state.currentTaskFed = [];
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(questRequiresUpgrade(state, ctx)).toBe(false);
     });
@@ -153,7 +154,7 @@ describe('upgradeContract — helpers', () => {
         resMultiplier: 1,
       };
       state.currentTaskFed = [];
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(questRequiresUpgrade(state, ctx)).toBe(true);
     });
@@ -179,7 +180,7 @@ describe('upgradeContract — helpers', () => {
         resMultiplier: 1,
       };
       state.currentTaskFed = [];
-      const env = makeEngineEnv(new SeededRng(1), 0, 0);
+      const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       // Mandatory at lvl 10 needs Creature5 — no generator on grid covers it
       // (Gen1 lines = [Creature1, Creature2]; Gen3 not present unless

@@ -57,7 +57,7 @@ class FeedDenyGuard implements Guard {
 describe('GuardRejection.stepIndex precision', () => {
   it('multi-step plan rejected at step 1 → GuardRejection.stepIndex === 1', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     const planActions: SimulationAction[] = [
@@ -88,7 +88,7 @@ describe('GuardRejection.stepIndex precision', () => {
 
   it('singleton blocked plan → GuardRejection.stepIndex === 0', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     const plan: ProposedPlan = {
@@ -114,7 +114,7 @@ describe('GuardRejection.stepIndex precision', () => {
 
   it('multi-step plan blocked at step 2 → stepIndex === 2', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 42 });
-    const env = makeEngineEnv(new SeededRng(42), 0, 0);
+    const env = makeEngineEnv(new SeededRng(42), 0);
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     const planActions: SimulationAction[] = [

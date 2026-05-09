@@ -79,7 +79,7 @@ describe('CompleteActiveQuestGoal', () => {
   it('isActive=true когда есть активный квест', () => {
     const goal = new CompleteActiveQuestGoal();
     const state = makeStateWithTimerGenAtCorner();
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -87,14 +87,14 @@ describe('CompleteActiveQuestGoal', () => {
     const goal = new CompleteActiveQuestGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
   it('FP-кейс: timer-gen в углу с 1 свободным соседом → prereq на BoardLayout', () => {
     const goal = new CompleteActiveQuestGoal();
     const state = makeStateWithTimerGenAtCorner();
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const prereqs = goal.getPrerequisites(state, ctx);
     expect(prereqs.length).toBe(1);
     expect(prereqs[0]!.goalId).toBe('BoardLayout');
@@ -112,7 +112,7 @@ describe('CompleteActiveQuestGoal', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.getPrerequisites(state, ctx)).toEqual([]);
   });
 
@@ -129,7 +129,7 @@ describe('CompleteActiveQuestGoal', () => {
       state.taskProgress[String(lvl)] = tasksAtLvl.length;
     }
     state.pendingRewards = [];
-    state.activeUpgrade = null;
+    state.activeTimedProcess = null;
     state.currentTaskFed = [];
     // Active quest на Creature2 — Gen1 L1 выдаёт только Creature1.
     // creatureGenMap (через cfg.lines) свяжет Creature2 → Gen1, но
@@ -152,7 +152,7 @@ describe('CompleteActiveQuestGoal', () => {
     expect(gen1).not.toBeNull();
     const currentLevel = gen1!.level;
 
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const prereqs = goal.getPrerequisites(state, ctx);
     expect(prereqs.length).toBe(1);
     expect(prereqs[0]!.goalId).toBe('UpgradeGenerator');
@@ -181,10 +181,10 @@ describe('CompleteActiveQuestGoal', () => {
     const state = makeStateWithTimerGenAtCorner();
     const questType = state.currentAutoTask!.creatures[0]!.type;
     state.currentTaskFed = [];
-    const ctx0 = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx0 = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.urgency(state, ctx0)).toBe(1);
     state.currentTaskFed = [{ type: questType, level: 1 }, { type: questType, level: 1 }];
-    const ctx1 = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx1 = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.urgency(state, ctx1)).toBe(1);
   });
 });

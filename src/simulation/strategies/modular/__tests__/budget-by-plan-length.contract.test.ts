@@ -53,7 +53,7 @@ class AllowGuard implements Guard {
 }
 
 const fakeState = {} as GameSnapshot;
-const fakeEnv = makeEngineEnv(new SeededRng(1), 0, 0);
+const fakeEnv = makeEngineEnv(new SeededRng(1), 0);
 const fakeCtx = { remainingTickBudget: 50, env: fakeEnv } as StrategyContext;
 
 describe('Budget decrement by plan length', () => {

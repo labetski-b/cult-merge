@@ -26,7 +26,7 @@ describe('QuestFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'feed' && (p.actions[0]! as { entityId: string }).entityId === 'c1')).toBe(true);
   });
@@ -44,7 +44,7 @@ describe('QuestFeedTactic', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(tactic.propose(state, goal, ctx)).toEqual([]);
   });
 });

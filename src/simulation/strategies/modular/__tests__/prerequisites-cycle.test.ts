@@ -34,7 +34,7 @@ describe('Prerequisites cycle integration (spec § 10.5)', () => {
     const a = new CyclicGoal('A', 'B');
     const b = new CyclicGoal('B', 'A');
     const buf = new TraceBuffer();
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     runScheduler({
       goals: [a, b], tactics: [], guards: [new AllowGuard()],
       state: {} as GameSnapshot, env,

@@ -42,7 +42,7 @@ describe('serves invariant', () => {
     // Goal A активна, но tactic M.serves=['B'] — propose не должен вызваться,
     // и predшествующего proposal не должно попасть в decision.
     const buf = new TraceBuffer();
-    const env = makeEngineEnv(new SeededRng(1), 0, 0);
+    const env = makeEngineEnv(new SeededRng(1), 0);
     const decision = runScheduler({
       goals: [new StubGoal()], tactics: [new MisbehavingTactic()], guards: [new AllowGuard()],
       state: {} as GameSnapshot, env,

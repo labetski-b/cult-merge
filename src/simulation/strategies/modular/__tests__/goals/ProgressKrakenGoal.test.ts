@@ -23,7 +23,7 @@ describe('ProgressKrakenGoal', () => {
       expMultiplier: 1,
       resMultiplier: 1,
     };
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
@@ -32,7 +32,7 @@ describe('ProgressKrakenGoal', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
     state.currentAutoTask = null;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 });

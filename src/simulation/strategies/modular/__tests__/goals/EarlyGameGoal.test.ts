@@ -17,7 +17,7 @@ describe('EarlyGameGoal', () => {
     const goal = new EarlyGameGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 1;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(true);
   });
 
@@ -25,14 +25,14 @@ describe('EarlyGameGoal', () => {
     const goal = new EarlyGameGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 2;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
   });
 
   it('urgency=1.0 константа, getPrerequisites=[]', () => {
     const goal = new EarlyGameGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.urgency(state, ctx)).toBe(1.0);
     expect(goal.getPrerequisites(state, ctx)).toEqual([]);
   });

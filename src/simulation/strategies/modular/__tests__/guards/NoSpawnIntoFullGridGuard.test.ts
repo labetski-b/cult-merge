@@ -23,7 +23,7 @@ describe('NoSpawnIntoFullGridGuard', () => {
         state.grid.cells[i] = id;
       }
     }
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'spawn_generator', generatorId: 'g1' }, reasoning: '',
 
@@ -35,7 +35,7 @@ describe('NoSpawnIntoFullGridGuard', () => {
   it('freeCellCount>0 → allow', () => {
     const guard = new NoSpawnIntoFullGridGuard();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const step: ProposedPlanStep = {
       action: { type: 'spawn_generator', generatorId: 'g1' }, reasoning: '',
 

@@ -18,7 +18,7 @@ describe('RewardClaimTactic', () => {
     const goal = new CollectRewardsGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.pendingRewards = [{ type: 'res_box', value: 1 }];
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'claim_reward')).toBe(true);
   });
@@ -35,7 +35,7 @@ describe('RewardClaimTactic', () => {
         state.grid.cells[i] = id;
       }
     }
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     // Tactic не предлагает action — CollectRewardsGoal возвращает prereq на
     // MaintainFreeGrid через getPrerequisites, scheduler промоутит её и

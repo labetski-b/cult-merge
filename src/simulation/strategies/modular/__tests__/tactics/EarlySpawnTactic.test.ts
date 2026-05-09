@@ -24,7 +24,7 @@ describe('EarlySpawnTactic', () => {
     const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
     if (!gen) throw new Error('no gen in initial snapshot');
     gen.charges = [{ creatureType: 'Creature1', level: 1 }];
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator' && (p.actions[0]! as { generatorId: string }).generatorId === gen.id)).toBe(true);
   });
@@ -37,7 +37,7 @@ describe('EarlySpawnTactic', () => {
     if (!gen) throw new Error('no gen');
     gen.charges = [];
     state.resources.meat = 1000;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'charge_generator')).toBe(true);
   });
@@ -50,7 +50,7 @@ describe('EarlySpawnTactic', () => {
     if (!gen) throw new Error('no gen');
     gen.charges = [];
     state.resources.meat = 0;
-    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0, 0), 50);
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'gather_meat')).toBe(true);
   });
