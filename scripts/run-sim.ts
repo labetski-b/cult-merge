@@ -2,15 +2,24 @@
  * Run simulation and print action log to stdout.
  *
  * Usage:
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter] [seed]
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter] [seed] [--archive]
  *
  * Examples:
  *   scripts/run-sim.ts 1000
  *   scripts/run-sim.ts 2000 generator 42
  *   scripts/run-sim.ts 5000 '' 42
+ *   scripts/run-sim.ts 5000 '' 42 --archive
  *
- * Пишет inspector-data.json + decision-trace.json в
- * public/sim-runs/<timestamp>_seed-<n>/ и обновляет public/sim-runs/latest.json.
+ * По умолчанию пишет артефакты в фиксированные пути (overwrite каждый запуск):
+ *   public/sim-runs/inspector-data.json    — статичный для версии стратегии
+ *   public/sim-runs/latest/decision-trace.json — trace последнего запуска
+ *   public/sim-runs/latest.json            — pointer для inspector UI (всегда "latest")
+ *
+ * С флагом `--archive` дополнительно создаёт snapshot по таймстемпу:
+ *   public/sim-runs/<timestamp>_seed-<n>/decision-trace.json
+ * и обновляет latest.json чтобы указывать на этот snapshot. inspector-data.json
+ * не дублируется — он остаётся единственным в корне sim-runs и перезаписывается
+ * каждый запуск. Используется редко, когда нужно сохранить историю прогона.
  */
 
 import * as fs from 'node:fs';
@@ -23,8 +32,11 @@ import { buildInspectorData } from './build-inspector-data';
 
 const args = process.argv.slice(2);
 const positional: string[] = [];
+let archive = false;
 for (const a of args) {
-  if (!a.startsWith('--')) {
+  if (a === '--archive') {
+    archive = true;
+  } else if (!a.startsWith('--')) {
     positional.push(a);
   }
 }
@@ -75,25 +87,43 @@ console.log('currentAutoTask:', JSON.stringify(finalState.currentAutoTask));
 console.log('resources:', finalState.resources);
 console.log('');
 
-// Write trace artifacts
+// Write trace artifacts.
+// Default mode: overwrite фиксированные пути — никаких новых папок не накапливается.
+// `--archive` mode: дополнительно создаёт timestamp-snapshot для истории.
 {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  const runDir = path.join('public', 'sim-runs', `${ts}_seed-${seed}`);
-  fs.mkdirSync(runDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(runDir, 'inspector-data.json'),
-    JSON.stringify(buildInspectorData(), null, 2),
-  );
+  const simRunsRoot = path.join('public', 'sim-runs');
+  const latestDir = path.join(simRunsRoot, 'latest');
+  const inspectorDataJson = JSON.stringify(buildInspectorData(), null, 2);
   const traces = engine.getTickTraces();
-  fs.writeFileSync(
-    path.join(runDir, 'decision-trace.json'),
-    JSON.stringify(traces, null, 2),
-  );
-  // Update latest.json manifest
-  const manifest = { latestRunPath: path.basename(runDir), generatedAt: new Date().toISOString() };
-  fs.writeFileSync(path.join('public', 'sim-runs', 'latest.json'), JSON.stringify(manifest, null, 2));
+  const tracesJson = JSON.stringify(traces, null, 2);
+
+  // Always write the canonical (overwrite) artifacts.
+  fs.mkdirSync(latestDir, { recursive: true });
+  fs.writeFileSync(path.join(simRunsRoot, 'inspector-data.json'), inspectorDataJson);
+  fs.writeFileSync(path.join(latestDir, 'decision-trace.json'), tracesJson);
+
+  let pointerPath = 'latest';
+  let archiveDir: string | null = null;
+  if (archive) {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    archiveDir = path.join(simRunsRoot, `${ts}_seed-${seed}`);
+    fs.mkdirSync(archiveDir, { recursive: true });
+    // Only the per-run trace lives in the snapshot dir. inspector-data.json is
+    // a single source of truth at the root (rebuilt every run from current
+    // strategy code), so we don't duplicate it into archive snapshots.
+    fs.writeFileSync(path.join(archiveDir, 'decision-trace.json'), tracesJson);
+    pointerPath = path.basename(archiveDir);
+  }
+
+  // Update latest.json pointer. In default mode it always says "latest" so the
+  // inspector loads the canonical files; in --archive mode it points at the
+  // timestamp snapshot so the UI shows that specific run.
+  const manifest = { latestRunPath: pointerPath, generatedAt: new Date().toISOString() };
+  fs.writeFileSync(path.join(simRunsRoot, 'latest.json'), JSON.stringify(manifest, null, 2));
+
   console.log(`=== TRACE WRITTEN ===`);
-  console.log(`Path: ${runDir}`);
+  console.log(`Path: ${path.join(simRunsRoot, pointerPath)} (pointer=${pointerPath})`);
+  if (archiveDir) console.log(`Archive snapshot: ${archiveDir}`);
   console.log(`Tick traces: ${traces.length}`);
 }
 

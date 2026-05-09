@@ -72,16 +72,19 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 let inspectorData = null;
 let trace = null;
 
-// Load latest run — use relative paths so Vite base URL prefix (/cult-merge/) works automatically
+// Load latest run — use relative paths so Vite base URL prefix (/cult-merge/) works automatically.
+// inspector-data.json is static per strategy version and always lives at the root.
+// decision-trace.json is per-run and lives under the directory pointed to by latest.json
+// (default: "latest"; --archive mode: a timestamped snapshot dir).
 async function loadData() {
   try {
     const manifestResp = await fetch('sim-runs/latest.json');
     if (!manifestResp.ok) throw new Error('no latest.json');
     const manifest = await manifestResp.json();
-    const base = `sim-runs/${manifest.latestRunPath}`;
+    const traceBase = `sim-runs/${manifest.latestRunPath}`;
     const [d, t] = await Promise.all([
-      fetch(`${base}/inspector-data.json`).then(r => r.json()),
-      fetch(`${base}/decision-trace.json`).then(r => r.json()),
+      fetch(`sim-runs/inspector-data.json`).then(r => r.json()),
+      fetch(`${traceBase}/decision-trace.json`).then(r => r.json()),
     ]);
     inspectorData = d;
     trace = t;
