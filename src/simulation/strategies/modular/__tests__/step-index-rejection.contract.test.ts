@@ -61,7 +61,7 @@ describe('GuardRejection.stepIndex precision', () => {
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 }, // step 0: passes
+      { type: 'free_cells', reason: 'r0', freed: 1 }, // step 0: passes
       { type: 'feed', entityId: 'whatever' },         // step 1: blocked by guard
     ];
     const plan: ProposedPlan = {
@@ -118,8 +118,8 @@ describe('GuardRejection.stepIndex precision', () => {
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 }, // step 0: passes
-      { type: 'free_cells', reason: 'r1', freed: 0 }, // step 1: passes
+      { type: 'free_cells', reason: 'r0', freed: 1 }, // step 0: passes
+      { type: 'free_cells', reason: 'r1', freed: 1 }, // step 1: passes
       { type: 'feed', entityId: 'whatever' },         // step 2: blocked
     ];
     const plan: ProposedPlan = {

@@ -52,7 +52,7 @@ const fakeCtx = { remainingTickBudget: 50, env: fakeEnv } as StrategyContext;
 function makeFreeCellsPlan(length: number, tacticId: string): ProposedPlan {
   const actions: SimulationAction[] = [];
   for (let i = 0; i < length; i++) {
-    actions.push({ type: 'free_cells', reason: `r${i}`, freed: 0 });
+    actions.push({ type: 'free_cells', reason: `r${i}`, freed: 1 });
   }
   return { actions, tacticId, goalId: 'A', reasoning: '', expectedProgress: 0.5 };
 }

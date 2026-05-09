@@ -172,6 +172,12 @@
       .sim-controls__grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     }
     .sim-controls__grid .cm-field { align-self: end; }
+    .sim-controls__trace {
+      min-height: 36px;
+      justify-content: center;
+    }
+    .sim-controls__trace .cm-check { align-items: center; }
+    .sim-controls__trace .cm-check__box { margin-top: 0; }
     .sim-controls__cta {
       display: flex;
       flex-direction: column;
@@ -454,6 +460,13 @@
           <div class="cm-field">
             <label class="cm-label" for="stop-value">Value</label>
             <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
+          </div>
+
+          <div class="cm-field sim-controls__trace">
+            <label class="cm-check" for="capture-trace">
+              <input class="cm-check__box" type="checkbox" id="capture-trace">
+              <span class="cm-check__label">Capture trace</span>
+            </label>
           </div>
 
           <div class="sim-controls__cta">

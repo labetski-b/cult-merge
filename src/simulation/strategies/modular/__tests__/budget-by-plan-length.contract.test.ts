@@ -59,11 +59,12 @@ const fakeCtx = { remainingTickBudget: 50, env: fakeEnv } as StrategyContext;
 describe('Budget decrement by plan length', () => {
   it('plan length 3 — decision.actions.length === 3 (full plan returned)', () => {
     // Multi-step plan of synthetic free_cells actions (these bypass structural
-    // no-op rejection — § 7.3).
+    // no-op rejection — § 7.3). Use freed>0 because freed=0 is a hard-reject
+    // marker against idle loops.
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 },
-      { type: 'free_cells', reason: 'r1', freed: 0 },
-      { type: 'free_cells', reason: 'r2', freed: 0 },
+      { type: 'free_cells', reason: 'r0', freed: 1 },
+      { type: 'free_cells', reason: 'r1', freed: 1 },
+      { type: 'free_cells', reason: 'r2', freed: 1 },
     ];
     const plan: ProposedPlan = {
       actions: planActions,
@@ -91,8 +92,8 @@ describe('Budget decrement by plan length', () => {
 
   it('TraceBuffer.countActionsInCurrentTick reflects plan length', () => {
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 },
-      { type: 'free_cells', reason: 'r1', freed: 0 },
+      { type: 'free_cells', reason: 'r0', freed: 1 },
+      { type: 'free_cells', reason: 'r1', freed: 1 },
     ];
     const plan: ProposedPlan = {
       actions: planActions, tacticId: 't', goalId: 'A',

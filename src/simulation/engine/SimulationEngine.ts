@@ -78,6 +78,7 @@ export class SimulationEngine {
       tickInterval: input.tickInterval ?? 1000,
       strategy,
       balance,
+      captureTrace: input.captureTrace ?? true,
     };
     this.state = input.initialSnapshot
       ? input.initialSnapshot
@@ -346,7 +347,9 @@ export class SimulationEngine {
 
     if (this.config.strategy.closeTickTrace) {
       const trace = this.config.strategy.closeTickTrace(outerTick, endReason);
-      this.tickTraces.push(trace);
+      if (this.config.captureTrace) {
+        this.tickTraces.push(trace);
+      }
     }
   }
 

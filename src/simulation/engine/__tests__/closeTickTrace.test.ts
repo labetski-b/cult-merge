@@ -51,4 +51,19 @@ describe('SimulationEngine.closeTickTrace integration', () => {
     engine.run();
     expect(strategy.closeCalls.some(c => c.endReason === 'idle')).toBe(true);
   });
+
+  it('captureTrace=false drains strategy trace buffer but does not retain TickTrace objects', () => {
+    const strategy = new RecordingStrategy('done');
+    const engine = new SimulationEngine({
+      seed: 1,
+      stopCondition: { type: 'ticks', value: 3 },
+      maxTicks: 3,
+      strategy,
+      balance: BALANCE,
+      captureTrace: false,
+    });
+    engine.run();
+    expect(strategy.closeCalls.length).toBeGreaterThanOrEqual(1);
+    expect(engine.getTickTraces()).toEqual([]);
+  });
 });

@@ -193,8 +193,9 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
         continue;
       }
 
+      const needsPreview = plan.actions.length > 1;
       let projectedState = state;
-      let projectedEnv = cloneEngineEnv(env);
+      let projectedEnv = needsPreview ? cloneEngineEnv(env) : env;
       let valid = true;
 
       for (let i = 0; i < plan.actions.length; i++) {
@@ -268,6 +269,13 @@ export function runScheduler(input: SchedulerInput): StrategyDecision {
           valid = false;
           break;
         }
+
+        // Singleton plans do not need state projection: guards already ran on
+        // the real current state, and § 7.3 intentionally allows singleton
+        // no-ops for legacy idempotent actions. Full applyActionCore preview
+        // is only required for multi-step plans where step N+1 depends on the
+        // projected state/env after step N.
+        if (!needsPreview) continue;
 
         const applied = applyActionCore(projectedState, action, projectedEnv, config);
 

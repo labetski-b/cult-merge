@@ -60,7 +60,7 @@ describe('Structural no-op rejection (multi-step only)', () => {
     // structural no-op (feed of nonexistent entity → applyFeedEntity returns
     // changed=false). Should be rejected.
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 },
+      { type: 'free_cells', reason: 'r0', freed: 1 },
       { type: 'feed', entityId: 'NONEXISTENT_ENTITY' },
     ];
     const plan: ProposedPlan = {
@@ -116,10 +116,11 @@ describe('Structural no-op rejection (multi-step only)', () => {
     const ctx = { remainingTickBudget: 50, env } as StrategyContext;
 
     // free_cells is synthetic log-only; § 7.3 exception keeps multi-step plans
-    // composed of synthetics from being rejected.
+    // composed of synthetics from being rejected. Use freed>0 because freed=0
+    // is a hard-reject marker against idle loops.
     const planActions: SimulationAction[] = [
-      { type: 'free_cells', reason: 'r0', freed: 0 },
-      { type: 'free_cells', reason: 'r1', freed: 0 },
+      { type: 'free_cells', reason: 'r0', freed: 1 },
+      { type: 'free_cells', reason: 'r1', freed: 1 },
     ];
     const plan: ProposedPlan = {
       actions: planActions, tacticId: 'multi-syn', goalId: 'A',

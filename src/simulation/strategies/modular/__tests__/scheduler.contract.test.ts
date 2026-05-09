@@ -112,15 +112,15 @@ describe('runScheduler', () => {
   });
 
   it('выбирает plan с максимальным expectedProgress, alphabetic tie-break по tacticId', () => {
-    // Используем синтетический action 'free_cells' — он synthetic log-only,
-    // не отбрасывается structural no-op rejection (см. scheduler § 7.3).
+    // Используем синтетический action 'free_cells' с freed>0: freed=0
+    // является hard-reject marker'ом против idle loops.
     const a = new StubGoal('A', 80);
     const t1 = new StubTactic('Z_tactic', ['A'], [singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { reasoning: '', expectedProgress: 0.5, tacticId: 'Z_tactic', goalId: 'A' },
     )]);
     const t2 = new StubTactic('A_tactic', ['A'], [singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { reasoning: '', expectedProgress: 0.5, tacticId: 'A_tactic', goalId: 'A' },
     )]);
     const buf = new TraceBuffer();
@@ -133,6 +133,26 @@ describe('runScheduler', () => {
     expect(decision.actions.length).toBe(1);
     const iter = buf.closeTick(0, 'done').iterations[0]!;
     expect(iter.selectedPlan?.tacticId).toBe('A_tactic');
+  });
+
+  it('singleton plans skip applyActionCore preview', () => {
+    // fakeState intentionally lacks `entities`; previewing this feed through
+    // applyActionCore would throw. Singleton plans are allowed through after
+    // guards and are left for the engine to execute against real state.
+    const a = new StubGoal('A', 80);
+    const t = new StubTactic('TA', ['A'], [singletonPlan(
+      { type: 'feed', entityId: 'e1' },
+      { reasoning: '', expectedProgress: 0.5, tacticId: 'TA', goalId: 'A' },
+    )]);
+    const buf = new TraceBuffer();
+    const decision = runScheduler({
+      goals: [a], tactics: [t], guards: [new AllowGuard()],
+      state: fakeState, env: fakeEnv, ctx: fakeCtx, buffer: buf, remainingBudget: 50,
+      config: BALANCE,
+    });
+    expect(decision.actions).toEqual([{ type: 'feed', entityId: 'e1' }]);
+    const iter = buf.closeTick(0, 'done').iterations[0]!;
+    expect(iter.selectedPlan?.tacticId).toBe('TA');
   });
 
   it('cycle in prereqs → done с stuckReason про cycle', () => {

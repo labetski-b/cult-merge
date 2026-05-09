@@ -34,6 +34,7 @@ const progressContainer = document.getElementById('progress-container') as HTMLD
 const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
 const progressText = document.getElementById('progress-text') as HTMLSpanElement;
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
+const captureTraceInput = document.getElementById('capture-trace') as HTMLInputElement | null;
 
 // Action Log UI Elements
 type ActionLogRefs = {
@@ -63,11 +64,25 @@ const fieldPopupClose = document.getElementById('field-popup-close')!;
 // Side-store: traces from last ModularStrategy run (used by Download trace JSON)
 let lastModularTraces: ReturnType<SimulationEngine['getTickTraces']> = [];
 const downloadTraceBtn = document.getElementById('download-trace-btn') as HTMLButtonElement | null;
+const CAPTURE_TRACE_STORAGE_KEY = 'cm-sim-capture-trace';
 
 // Event Listeners
 form.addEventListener('submit', handleRunSimulation);
 exportBtn.addEventListener('click', handleExportData);
 downloadTraceBtn?.addEventListener('click', handleDownloadTrace);
+
+if (captureTraceInput) {
+  try {
+    captureTraceInput.checked = localStorage.getItem(CAPTURE_TRACE_STORAGE_KEY) === 'true';
+  } catch (_) {
+    captureTraceInput.checked = false;
+  }
+  captureTraceInput.addEventListener('change', () => {
+    try {
+      localStorage.setItem(CAPTURE_TRACE_STORAGE_KEY, captureTraceInput.checked ? 'true' : 'false');
+    } catch (_) {}
+  });
+}
 
 function handleDownloadTrace() {
   if (lastModularTraces.length === 0) {
@@ -136,10 +151,12 @@ async function handleRunSimulation(e: Event) {
   const stopType = (document.getElementById('stop-type') as HTMLSelectElement).value as 'krakenLevel' | 'tasks' | 'ticks';
   const stopValue = parseInt((document.getElementById('stop-value') as HTMLInputElement).value);
   const stopCondition = { type: stopType, value: stopValue };
+  const captureTrace = captureTraceInput?.checked ?? false;
 
   // Disable controls
   runBtn.disabled = true;
   exportBtn.disabled = true;
+  if (downloadTraceBtn) downloadTraceBtn.disabled = true;
   progressContainer.style.display = 'block';
 
   // Run simulation
@@ -161,15 +178,16 @@ async function handleRunSimulation(e: Event) {
       maxTicks: 50_000,
       tickInterval: 100,
       strategy: STRATEGY,
-      balance: BALANCE
+      balance: BALANCE,
+      captureTrace,
     });
 
     console.log('Running simulation...');
     const result = engine.run();
     console.log('Simulation complete, results:', result.summary);
 
-    lastModularTraces = engine.getTickTraces().slice();
-    if (downloadTraceBtn) downloadTraceBtn.disabled = false;
+    lastModularTraces = captureTrace ? engine.getTickTraces().slice() : [];
+    if (downloadTraceBtn) downloadTraceBtn.disabled = lastModularTraces.length === 0;
 
     console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
       tick: h.tick,

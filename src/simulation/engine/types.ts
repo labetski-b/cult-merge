@@ -56,6 +56,12 @@ export interface SimulationConfig {
   initialSnapshot?: GameSnapshot;
   /** Если передан вместе с initialSnapshot — RNG восстанавливается из этого state. */
   rngState?: number;
+  /**
+   * Whether to retain per-tick scheduler traces in memory.
+   * The engine still drains strategy trace buffers at tick boundaries when
+   * disabled; it just does not store the returned TickTrace objects.
+   */
+  captureTrace?: boolean;
 }
 
 export interface TickMetrics {

@@ -58,7 +58,7 @@ function makeFreeCellsPlan(
 ): ProposedPlan {
   const actions: SimulationAction[] = [];
   for (let i = 0; i < length; i++) {
-    actions.push({ type: 'free_cells', reason: `r${i}`, freed: 0 });
+    actions.push({ type: 'free_cells', reason: `r${i}`, freed: 1 });
   }
   return { actions, tacticId, goalId: 'A', reasoning: '', expectedProgress };
 }
@@ -67,11 +67,11 @@ describe('Plan tie-break order: progress > planLength > tacticId', () => {
   it('higher expectedProgress wins (length ties, tacticId ties broken in favor of higher progress)', () => {
     const goal = new StubGoal('A', 80);
     const lowProgress = singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { tacticId: 'A_low', goalId: 'A', reasoning: '', expectedProgress: 0.1 },
     );
     const highProgress = singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { tacticId: 'Z_high', goalId: 'A', reasoning: '', expectedProgress: 0.9 },
     );
     const tactics = [
@@ -114,11 +114,11 @@ describe('Plan tie-break order: progress > planLength > tacticId', () => {
   it('alphabetic tacticId wins when expectedProgress and planLength tie', () => {
     const goal = new StubGoal('A', 80);
     const planA = singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { tacticId: 'AAA', goalId: 'A', reasoning: '', expectedProgress: 0.5 },
     );
     const planZ = singletonPlan(
-      { type: 'free_cells', reason: 'r', freed: 0 },
+      { type: 'free_cells', reason: 'r', freed: 1 },
       { tacticId: 'ZZZ', goalId: 'A', reasoning: '', expectedProgress: 0.5 },
     );
     const tactics = [
