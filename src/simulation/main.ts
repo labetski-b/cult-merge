@@ -555,6 +555,11 @@ function getXAxisLabels(history: SimulationSnapshot[]): { labels: number[]; titl
   return { labels, title: X_AXIS_TITLES[xMode] };
 }
 
+function getChartHistory(result: SimulationResult): SimulationSnapshot[] {
+  if (getCurrentXAxisMode() !== 'tasks') return result.history;
+  return result.taskHistory.length > 0 ? result.taskHistory : result.history;
+}
+
 /**
  * Build dataset values for a chart series.
  * Aggregated using the given mode per X-axis group.
@@ -566,6 +571,10 @@ function series(
 ): number[] {
   const xMode = getCurrentXAxisMode();
   return aggregateHistory(history, getKeyFn(xMode), getValue, mode).data;
+}
+
+function deltaFromPrevious(cumulative: number[]): number[] {
+  return cumulative.map((value, index) => index === 0 ? value : value - cumulative[index - 1]!);
 }
 
 function updateChartsXAxis() {
@@ -598,7 +607,7 @@ function renderCharts(results: SimulationResult[]) {
     if (badge) badge.textContent = label;
   };
 
-  const h0 = results[0]!.history;
+  const h0 = getChartHistory(results[0]!);
   const { labels: xLabels, title: xTitle } = getXAxisLabels(h0);
 
   const color = (_idx: number) => STRATEGY_COLOR;
@@ -666,8 +675,8 @@ function renderCharts(results: SimulationResult[]) {
     const levelDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
       return [
-        ds('Kraken Level', series(result.history, s => s.metrics.krakenLevel, METRIC_AGGREGATION.krakenLevel!), clr,       { stepped: true, tension: 0, yAxisID: 'yLevel' }),
-        ds('Chapter',      series(result.history, s => s.metrics.chapter,     METRIC_AGGREGATION.chapter!),     '#ff9966', { stepped: true, tension: 0, yAxisID: 'yChapter' }),
+        ds('Kraken Level', series(getChartHistory(result), s => s.metrics.krakenLevel, METRIC_AGGREGATION.krakenLevel!), clr,       { stepped: true, tension: 0, yAxisID: 'yLevel' }),
+        ds('Chapter',      series(getChartHistory(result), s => s.metrics.chapter,     METRIC_AGGREGATION.chapter!),     '#ff9966', { stepped: true, tension: 0, yAxisID: 'yChapter' }),
       ];
     });
     charts.level = new Chart(document.getElementById('chart-level') as HTMLCanvasElement, {
@@ -691,7 +700,7 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('tasks', 'LAST + RATE');
     const taskDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumData = series(result.history, s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
+      const cumData = series(getChartHistory(result), s => s.metrics.totalTasksCompleted, METRIC_AGGREGATION.totalTasksCompleted!);
       const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
       return [
         fillDs('Tasks (cumul.)', cumData, clr, { yAxisID: 'yTasks' }),
@@ -719,7 +728,7 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('exp', 'LAST');
     const expDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumData = series(result.history, s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
+      const cumData = series(getChartHistory(result), s => s.metrics.totalExpGained, METRIC_AGGREGATION.totalExpGained!);
       const rateData = cumData.map((v, i) => i === 0 ? 0 : v - cumData[i - 1]!);
       return [
         fillDs('EXP (cumul.)', cumData, clr, { yAxisID: 'yExp' }),
@@ -742,7 +751,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── EXP per Quest — forward step-delta aligned with current task chart ───
+  // ── EXP per Quest — delta at each completed task ─────────────────────────
   if (visible('exp-per-task')) {
     setAggBadge('exp-per-task', 'STEP');
     charts['exp-per-task'] = new Chart(document.getElementById('chart-exp-per-task') as HTMLCanvasElement, {
@@ -750,10 +759,10 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const expCum = series(result.history, s => s.metrics.totalExpGained, 'last');
-          const expStep = expCum.map((v, i) => i < expCum.length - 1 ? expCum[i + 1]! - v : 0);
-          const predCum = series(result.history, s => s.metrics.totalPredictedExp, 'last');
-          const predStep = predCum.map((v, i) => i < predCum.length - 1 ? predCum[i + 1]! - v : 0);
+          const expCum = series(getChartHistory(result), s => s.metrics.totalExpGained, 'last');
+          const expStep = deltaFromPrevious(expCum);
+          const predCum = series(getChartHistory(result), s => s.metrics.totalPredictedExp, 'last');
+          const predStep = deltaFromPrevious(predCum);
           return [
             ds('EXP per quest', expStep, color(idx)),
             ds('Predicted EXP', predStep, color(idx), { borderDash: [4, 4] }),
@@ -764,7 +773,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Eyes per Quest — forward step-delta + eyePerMeat balance rate ────────
+  // ── Eyes per Quest — delta at each completed task + balance rate ─────────
   if (visible('eyes-per-task')) {
     setAggBadge('eyes-per-task', 'STEP + RATE');
     const eyePerMeatTable = results[0]!.config.balance.tasks.autoConfig?.eyePerMeat ?? [];
@@ -776,9 +785,9 @@ function renderCharts(results: SimulationResult[]) {
       return rate;
     };
     const eyesDatasets = results.flatMap((result, idx) => {
-      const cumData = series(result.history, s => s.metrics.totalEyesGained, 'last');
-      const stepDelta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
-      const chapterData = series(result.history, s => s.metrics.chapter, 'last');
+      const cumData = series(getChartHistory(result), s => s.metrics.totalEyesGained, 'last');
+      const stepDelta = deltaFromPrevious(cumData);
+      const chapterData = series(getChartHistory(result), s => s.metrics.chapter, 'last');
       const rateData = chapterData.map(ch => getEyePerMeatRate(ch));
       return [
         ds('Eyes per quest', stepDelta, color(idx)),
@@ -792,7 +801,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Charges per Quest — forward step-delta ───────────────────────────
+  // ── Charges per Quest — delta at each completed task ─────────────────────
   if (visible('charges-per-task')) {
     setAggBadge('charges-per-task', 'STEP');
     charts['charges-per-task'] = new Chart(document.getElementById('chart-charges-per-task') as HTMLCanvasElement, {
@@ -800,15 +809,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.metrics.totalCharges, 'last');
-          return ds('Charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.metrics.totalCharges, 'last');
+          return ds('Charges', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Charges')
     });
   }
 
-  // ── Meat on Charges per Quest — forward step-delta ─────────────────
+  // ── Meat on Charges per Quest — delta at each completed task ─────────────
   if (visible('meat-per-task')) {
     setAggBadge('meat-per-task', 'STEP');
     charts['meat-per-task'] = new Chart(document.getElementById('chart-meat-per-task') as HTMLCanvasElement, {
@@ -816,15 +825,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.metrics.totalMeatSpentOnCharges, 'last');
-          return ds('Meat on charges', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.metrics.totalMeatSpentOnCharges, 'last');
+          return ds('Meat on charges', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Meat spent')
     });
   }
 
-  // ── Sacrifices per Quest — forward step-delta ──────────────────────
+  // ── Sacrifices per Quest — delta at each completed task ──────────────────
   if (visible('sacrifices-per-task')) {
     setAggBadge('sacrifices-per-task', 'STEP');
     charts['sacrifices-per-task'] = new Chart(document.getElementById('chart-sacrifices-per-task') as HTMLCanvasElement, {
@@ -832,15 +841,15 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cum = series(result.history, s => s.gameState.meatButtonPresses, 'last');
-          return ds('Sacrifices', cum.map((v, i) => i < cum.length - 1 ? cum[i + 1]! - v : 0), color(idx));
+          const cum = series(getChartHistory(result), s => s.gameState.meatButtonPresses, 'last');
+          return ds('Sacrifices', deltaFromPrevious(cum), color(idx));
         })
       },
       options: xOpts('Sacrifices')
     });
   }
 
-  // ── Spawns per Quest — forward step-delta aligned with current task chart ─
+  // ── Spawns per Quest — delta at each completed task ──────────────────────
   if (visible('spawns-per-task')) {
     setAggBadge('spawns-per-task', 'STEP');
     charts['spawns-per-task'] = new Chart(document.getElementById('chart-spawns-per-task') as HTMLCanvasElement, {
@@ -848,8 +857,8 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.map((result, idx) => {
-          const cumData = series(result.history, s => s.metrics.totalSpawns, 'last');
-          const delta = cumData.map((v, i) => i < cumData.length - 1 ? cumData[i + 1]! - v : 0);
+          const cumData = series(getChartHistory(result), s => s.metrics.totalSpawns, 'last');
+          const delta = deltaFromPrevious(cumData);
           return ds('Spawns', delta, color(idx));
         })
       },
@@ -857,7 +866,7 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── Quest Meat Cost — forward step-delta ─────────────────────────────────
+  // ── Quest Meat Cost — delta at each completed task ───────────────────────
   if (visible('quest-meat-cost')) {
     setAggBadge('quest-meat-cost', 'STEP');
     charts['quest-meat-cost'] = new Chart(document.getElementById('chart-quest-meat-cost') as HTMLCanvasElement, {
@@ -865,11 +874,11 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.flatMap((result, idx) => {
-          const cumScoring = series(result.history, s => s.metrics.totalQuestMeatCost, 'last');
-          const cumActual = series(result.history, s => s.metrics.totalMeatSpent, 'last');
+          const cumScoring = series(getChartHistory(result), s => s.metrics.totalQuestMeatCost, 'last');
+          const cumActual = series(getChartHistory(result), s => s.metrics.totalMeatSpent, 'last');
           return [
-            ds('Actual spent', cumActual.map((v, i) => i < cumActual.length - 1 ? cumActual[i + 1]! - v : 0), color(idx)),
-            ds('Scoring cost', cumScoring.map((v, i) => i < cumScoring.length - 1 ? cumScoring[i + 1]! - v : 0), color(idx), { borderDash: [5, 3] }),
+            ds('Actual spent', deltaFromPrevious(cumActual), color(idx)),
+            ds('Scoring cost', deltaFromPrevious(cumScoring), color(idx), { borderDash: [5, 3] }),
           ];
         })
       },
@@ -934,9 +943,9 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('resources', 'GAINED + DROP');
     const meatDatasets = results.flatMap((result, idx) => {
       const clr = color(idx);
-      const cumGained  = series(result.history, s => s.metrics.totalMeatGained, 'last');
+      const cumGained  = series(getChartHistory(result), s => s.metrics.totalMeatGained, 'last');
       const gainedRate = cumGained.map((v, i) => i === 0 ? 0 : v - cumGained[i - 1]!);
-      const dropData   = series(result.history, s => s.metrics.meatPerPress, METRIC_AGGREGATION.meatPerPress!);
+      const dropData   = series(getChartHistory(result), s => s.metrics.meatPerPress, METRIC_AGGREGATION.meatPerPress!);
       return [
         ds('Meat gained/period', gainedRate, clr, { yAxisID: 'yFlow' }),
         ds('per sacrifice',                                 dropData,   '#ff9966', { yAxisID: 'yDrop', borderDash: [4, 4], stepped: true, tension: 0 }),
@@ -966,8 +975,8 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: results.flatMap((result) => [
-          ds('Rune1', series(result.history, s => s.metrics.rune1, METRIC_AGGREGATION.rune1!), '#4de2c2'),
-          ds('Rune2', series(result.history, s => s.metrics.rune2, METRIC_AGGREGATION.rune2!), '#ffd966'),
+          ds('Rune1', series(getChartHistory(result), s => s.metrics.rune1, METRIC_AGGREGATION.rune1!), '#4de2c2'),
+          ds('Rune2', series(getChartHistory(result), s => s.metrics.rune2, METRIC_AGGREGATION.rune2!), '#ffd966'),
         ])
       },
       options: xOpts('Amount')
@@ -983,7 +992,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: xLabels,
         datasets: results.map((result, idx) => fillDs(
           'Eyes',
-          series(result.history, s => s.metrics.eyes, METRIC_AGGREGATION.eyes!),
+          series(getChartHistory(result), s => s.metrics.eyes, METRIC_AGGREGATION.eyes!),
           color(idx)
         ))
       },
@@ -1000,7 +1009,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: xLabels,
         datasets: results.map((result, idx) => ds(
           'Grid cells',
-          series(result.history, s => s.metrics.gridSize, METRIC_AGGREGATION.gridSize!),
+          series(getChartHistory(result), s => s.metrics.gridSize, METRIC_AGGREGATION.gridSize!),
           color(idx),
           { stepped: true, tension: 0 }
         ))
@@ -1015,7 +1024,7 @@ function renderCharts(results: SimulationResult[]) {
     const taskCreatureColors = ['#4de2c2', '#ffd966', '#a47cff', '#ff6b8a'];
     const allCreatureTypes = new Set<string>();
     for (const result of results) {
-      for (const snapshot of result.history) {
+      for (const snapshot of getChartHistory(result)) {
         for (const type of Object.keys(snapshot.metrics.currentTaskRequirements)) {
           allCreatureTypes.add(type);
         }
@@ -1056,7 +1065,7 @@ function renderCharts(results: SimulationResult[]) {
     // Collect all generator type IDs that appear across all results
     const allGenTypes = new Set<number>();
     for (const result of results) {
-      for (const snapshot of result.history) {
+      for (const snapshot of getChartHistory(result)) {
         for (const genType of Object.keys(snapshot.metrics.generatorsByType)) {
           allGenTypes.add(Number(genType));
         }
@@ -1313,9 +1322,9 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('sessions-per-level', 'SESSIONS');
     const keyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
     const valFn = (s: SimulationSnapshot) => s.gameState.session;
-    const { labels: krakenLabels } = countDistinctBy(results[0]!.history, keyFn, valFn);
+    const { labels: krakenLabels } = countDistinctBy(getChartHistory(results[0]!), keyFn, valFn);
     const datasets = results.map((result, idx) => {
-      const { data } = countDistinctBy(result.history, keyFn, valFn);
+      const { data } = countDistinctBy(getChartHistory(result), keyFn, valFn);
       return ds('Sessions at level', data, color(idx));
     });
     charts['sessions-per-level'] = new Chart(
@@ -1341,9 +1350,9 @@ function renderCharts(results: SimulationResult[]) {
   ) => {
     if (!visible(chartKey)) return;
     setAggBadge(chartKey, 'PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricFn, aggMode);
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricFn, aggMode);
     const datasets = results.map((result, idx) => {
-      const cumData = aggregateHistory(result.history, chapterKeyFn, metricFn, aggMode).data;
+      const cumData = aggregateHistory(getChartHistory(result), chapterKeyFn, metricFn, aggMode).data;
       const deltaData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
       return ds(label, deltaData, barColor, { type: 'bar', backgroundColor: barColor + '99', borderWidth: 1 });
     });
@@ -1362,10 +1371,10 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('meat-spent-per-chapter', 'PER CHAPTER');
     const metricActual = (s: SimulationSnapshot) => s.metrics.totalMeatSpent;
     const metricScoring = (s: SimulationSnapshot) => s.metrics.totalQuestMeatCost;
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricActual, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricActual, 'last');
     const datasets = results.flatMap((result) => {
-      const cumActual = aggregateHistory(result.history, chapterKeyFn, metricActual, 'last').data;
-      const cumScoring = aggregateHistory(result.history, chapterKeyFn, metricScoring, 'last').data;
+      const cumActual = aggregateHistory(getChartHistory(result), chapterKeyFn, metricActual, 'last').data;
+      const cumScoring = aggregateHistory(getChartHistory(result), chapterKeyFn, metricScoring, 'last').data;
       const deltaActual = cumActual.map((v, i) => i === 0 ? v : v - cumActual[i - 1]!);
       const deltaScoring = cumScoring.map((v, i) => i === 0 ? v : v - cumScoring[i - 1]!);
       return [
@@ -1383,10 +1392,10 @@ function renderCharts(results: SimulationResult[]) {
     setAggBadge('runes-purchased-per-chapter', 'PER CHAPTER');
     const metricR1 = (s: SimulationSnapshot) => s.metrics.rune1Purchased;
     const metricR2 = (s: SimulationSnapshot) => s.metrics.rune2Purchased;
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, metricR1, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricR1, 'last');
     const datasets = results.flatMap((result) => {
-      const cumR1 = aggregateHistory(result.history, chapterKeyFn, metricR1, 'last').data;
-      const cumR2 = aggregateHistory(result.history, chapterKeyFn, metricR2, 'last').data;
+      const cumR1 = aggregateHistory(getChartHistory(result), chapterKeyFn, metricR1, 'last').data;
+      const cumR2 = aggregateHistory(getChartHistory(result), chapterKeyFn, metricR2, 'last').data;
       const deltaR1 = cumR1.map((v, i) => i === 0 ? v : v - cumR1[i - 1]!);
       const deltaR2 = cumR2.map((v, i) => i === 0 ? v : v - cumR2[i - 1]!);
       return [
@@ -1403,9 +1412,9 @@ function renderCharts(results: SimulationResult[]) {
   // Time per chapter — special: aggregate totalTimeSec then convert delta to minutes
   if (visible('time-per-chapter')) {
     setAggBadge('time-per-chapter', 'PER CHAPTER (MIN)');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalTimeSec, 'last');
     const datasets = results.map((result, idx) => {
-      const cumData = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTimeSec, 'last').data;
+      const cumData = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTimeSec, 'last').data;
       const deltaData = cumData.map((v, i) => Math.round((i === 0 ? v : v - cumData[i - 1]!) / 60));
       return ds('Time', deltaData, '#ce93d8', { type: 'bar', backgroundColor: '#ce93d899', borderWidth: 1 });
     });
@@ -1418,9 +1427,9 @@ function renderCharts(results: SimulationResult[]) {
   // Meat per Press per Chapter — average meatPerPress within each chapter
   if (visible('meat-per-press-per-chapter')) {
     setAggBadge('meat-per-press-per-chapter', 'AVG PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.meatPerPress, 'avg');
     const datasets = results.map((result, idx) => {
-      const data = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.meatPerPress, 'avg').data;
+      const data = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.meatPerPress, 'avg').data;
       return ds('Meat/press', data, '#ef5350', { type: 'bar', backgroundColor: '#ef535099', borderWidth: 1 });
     });
     charts['meat-per-press-per-chapter'] = new Chart(
@@ -1432,9 +1441,9 @@ function renderCharts(results: SimulationResult[]) {
   // Sessions per Chapter — how many distinct sessions in each chapter
   if (visible('sessions-per-chapter')) {
     setAggBadge('sessions-per-chapter', 'SESSIONS');
-    const { labels: chLabels } = countDistinctBy(results[0]!.history, chapterKeyFn, s => s.gameState.session);
+    const { labels: chLabels } = countDistinctBy(getChartHistory(results[0]!), chapterKeyFn, s => s.gameState.session);
     const datasets = results.map((result, idx) => {
-      const { data } = countDistinctBy(result.history, chapterKeyFn, s => s.gameState.session);
+      const { data } = countDistinctBy(getChartHistory(result), chapterKeyFn, s => s.gameState.session);
       return ds('Sessions', data, '#4dd0e1', { type: 'bar', backgroundColor: '#4dd0e199', borderWidth: 1 });
     });
     charts['sessions-per-chapter'] = new Chart(
@@ -1446,11 +1455,11 @@ function renderCharts(results: SimulationResult[]) {
   // Tasks per Session per Chapter — avg tasks completed in each session within a chapter
   if (visible('tasks-per-session-per-chapter')) {
     setAggBadge('tasks-per-session-per-chapter', 'TASKS / SESSIONS');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last');
     const datasets = results.map((result, idx) => {
-      const tasksCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
+      const tasksCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
       const tasksDelta = tasksCum.map((v, i) => i === 0 ? v : v - tasksCum[i - 1]!);
-      const { data: sessionCounts } = countDistinctBy(result.history, chapterKeyFn, s => s.gameState.session);
+      const { data: sessionCounts } = countDistinctBy(getChartHistory(result), chapterKeyFn, s => s.gameState.session);
       const avgData = tasksDelta.map((t, i) => {
         const sessions = sessionCounts[i] ?? 1;
         return Math.round((t / sessions) * 100) / 100;
@@ -1466,10 +1475,10 @@ function renderCharts(results: SimulationResult[]) {
   // Eyes per Quest per Chapter — avg eyes earned per quest within each chapter
   if (visible('eyes-per-quest-per-chapter')) {
     setAggBadge('eyes-per-quest-per-chapter', 'EYES / TASKS PER CHAPTER');
-    const { labels: chLabels } = aggregateHistory(results[0]!.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last');
+    const { labels: chLabels } = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, s => s.metrics.totalEyesGained, 'last');
     const datasets = results.map((result, idx) => {
-      const eyesCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalEyesGained, 'last').data;
-      const tasksCum = aggregateHistory(result.history, chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
+      const eyesCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalEyesGained, 'last').data;
+      const tasksCum = aggregateHistory(getChartHistory(result), chapterKeyFn, s => s.metrics.totalTasksCompleted, 'last').data;
       const eyesDelta = eyesCum.map((v, i) => i === 0 ? v : v - eyesCum[i - 1]!);
       const tasksDelta = tasksCum.map((v, i) => i === 0 ? v : v - tasksCum[i - 1]!);
       const avgData = eyesDelta.map((e, i) => {

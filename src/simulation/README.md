@@ -156,7 +156,9 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 | Creature Progress | ↓ last | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Eyes per Meat Spent | Δ ratio | — | ✅ | ✅ | — | ✅ |
 
-**Per Task** группирует тики по `s.metrics.totalTasksCompleted`. Новая точка появляется при завершении каждой `Kraken task`.
+**Per Task** использует отдельный поток `result.taskHistory`, где движок сохраняет один snapshot на каждое завершение `Kraken task`.
+Это важно, потому что один outer tick симулятора может завершить сразу много tasks, а обычный `result.history` хранит только end-of-tick snapshots.
+Новая точка появляется при завершении каждой `Kraken task`.
 Здесь `task` означает завершенную `Kraken task`; `Kraken quests` в эту агрегацию не входят.
 
 **Time (Minutes)** группирует тики по `Math.floor(totalTimeSec / 60)` — одна точка на каждую минуту оценочного игрового времени.

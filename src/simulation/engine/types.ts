@@ -232,6 +232,14 @@ export interface ActionLogEntry {
 
 export interface SimulationResult {
   config: SimulationConfig;
+  /**
+   * One snapshot per completed Kraken task.
+   *
+   * `history` remains one snapshot per outer simulator tick. A single outer
+   * tick can complete many tasks, so task-axis charts must use this stream
+   * instead of collapsing end-of-tick snapshots.
+   */
+  taskHistory: SimulationSnapshot[];
   history: SimulationSnapshot[];
   actionLog: ActionLogEntry[];
   finalState: GameSnapshot;

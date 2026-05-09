@@ -36,6 +36,7 @@ export class SimulationEngine {
   // entry point on the tick boundary.
   private env: EngineEnv;
   private history: SimulationSnapshot[];
+  private taskHistory: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
   private tickTraces: TickTrace[] = [];
@@ -95,6 +96,7 @@ export class SimulationEngine {
     }
     this.env = makeEngineEnv(rng, 0);
     this.history = [];
+    this.taskHistory = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
     this.tickTraces = [];
@@ -177,6 +179,7 @@ export class SimulationEngine {
 
     return {
       config: this.config,
+      taskHistory: this.taskHistory,
       history: this.history,
       actionLog: this.actionLog,
       finalState: this.state,
@@ -280,6 +283,7 @@ export class SimulationEngine {
         this.evaluateAndLogQuests();
         // Quest completed — stop executing remaining actions so next iteration starts fresh
         if (action.type === 'feed' && this.cumulative.totalTasksCompleted > tasksCompletedBefore) {
+          this.captureTaskSnapshot(outerTick, result.events);
           break;
         }
       }
@@ -334,16 +338,8 @@ export class SimulationEngine {
       this.cumulative.idleUpgradeTicks += 1;
     }
 
-    // Capture metrics (cumulative is already updated in action handlers like feedEntity)
-    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
-
-    // Save snapshot
-    this.history.push({
-      tick: outerTick,
-      timestamp: outerTick * this.config.tickInterval,
-      gameState: JSON.parse(JSON.stringify(this.state)),
-      metrics: JSON.parse(JSON.stringify(metrics))
-    });
+    // Save end-of-outer-tick snapshot.
+    this.history.push(this.captureSnapshot(outerTick));
 
     if (this.config.strategy.closeTickTrace) {
       const trace = this.config.strategy.closeTickTrace(outerTick, endReason);
@@ -355,6 +351,32 @@ export class SimulationEngine {
 
   /** Возвращает все TickTrace'ы за прогон. Пустой массив если стратегия не имплементит closeTickTrace. */
   getTickTraces(): readonly TickTrace[] { return this.tickTraces; }
+
+  private captureSnapshot(outerTick: number): SimulationSnapshot {
+    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
+    return {
+      tick: outerTick,
+      timestamp: outerTick * this.config.tickInterval,
+      gameState: JSON.parse(JSON.stringify(this.state)),
+      metrics: JSON.parse(JSON.stringify(metrics)),
+    };
+  }
+
+  private captureTaskSnapshot(outerTick: number, events: readonly ActionEvent[]): void {
+    const taskCompleted = events.find((event): event is Extract<ActionEvent, { type: 'task_completed' }> =>
+      event.type === 'task_completed'
+    );
+    if (!taskCompleted) return;
+
+    const snapshot = this.captureSnapshot(outerTick);
+    const completedRequirements: Record<string, number> = {};
+    for (const req of taskCompleted.creatures) {
+      completedRequirements[req.type] = req.level;
+    }
+    snapshot.metrics.currentTaskRequirements = completedRequirements;
+    snapshot.metrics.currentTaskProgress = taskCompleted.creatures.reduce((sum, req) => sum + req.count, 0);
+    this.taskHistory.push(snapshot);
+  }
 
   /**
    * Backward-compat thin wrapper: a few unit tests invoke executeAction directly
