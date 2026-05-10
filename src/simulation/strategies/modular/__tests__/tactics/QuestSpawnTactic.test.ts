@@ -24,6 +24,12 @@ function addCreatureToGrid(
   return id;
 }
 
+function completeMandatoryTasks(state: GameSnapshot): void {
+  for (const lvl of Object.keys(BALANCE.tasks.mandatory)) {
+    state.taskProgress[lvl] = 999;
+  }
+}
+
 describe('QuestSpawnTactic', () => {
   it('META: serves=[CompleteActiveQuest], produces=[spawn_generator,charge_generator,gather_meat]', () => {
     expect(META.serves).toEqual(['CompleteActiveQuest']);
@@ -37,6 +43,7 @@ describe('QuestSpawnTactic', () => {
     const goal = new CompleteActiveQuestGoal();
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.kraken.level = 5;
+    completeMandatoryTasks(state);
     const cfg = BALANCE.generators.generators[0]!;
     const out = cfg.levels[0]?.outputs?.[0];
     if (!out) throw new Error('no out');
@@ -65,6 +72,7 @@ describe('QuestSpawnTactic', () => {
       const goal = new CompleteActiveQuestGoal();
       const state = createInitialSnapshot(BALANCE, { seed: 1 });
       state.kraken.level = 5;
+      completeMandatoryTasks(state);
       const cfg = BALANCE.generators.generators[0]!;
       const out = cfg.levels[0]?.outputs?.[0];
       if (!out) throw new Error('no out');
@@ -92,6 +100,7 @@ describe('QuestSpawnTactic', () => {
       const goal = new CompleteActiveQuestGoal();
       const state = createInitialSnapshot(BALANCE, { seed: 1 });
       state.kraken.level = 5;
+      completeMandatoryTasks(state);
       const cfg = BALANCE.generators.generators[0]!;
       const out = cfg.levels[0]?.outputs?.[0];
       if (!out) throw new Error('no out');
@@ -120,6 +129,7 @@ describe('QuestSpawnTactic', () => {
       const goal = new CompleteActiveQuestGoal();
       const state = createInitialSnapshot(BALANCE, { seed: 1 });
       state.kraken.level = 5;
+      completeMandatoryTasks(state);
       const cfg = BALANCE.generators.generators[0]!;
       const out = cfg.levels[0]?.outputs?.[0];
       if (!out) throw new Error('no out');
@@ -142,11 +152,96 @@ describe('QuestSpawnTactic', () => {
       expect(proposals.some(p => p.actions[0]!.type === 'spawn_generator')).toBe(true);
     });
 
+    it('gather_meat.targetCost = реальный chargeCost Gen2 L2 (2.29), не 50', () => {
+      const tactic = new QuestSpawnTactic();
+      const goal = new CompleteActiveQuestGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.kraken.level = 7;
+      completeMandatoryTasks(state);
+      // Превращаем существующий Gen1 в Gen2 L2 — Gen2 L2 даёт Creature3, chargeCost=2.29.
+      const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
+      if (!gen) throw new Error('no gen');
+      gen.generatorId = 2;
+      gen.level = 2;
+      gen.charges = [];
+      // Sanity: Gen2 L2 chargeCost именно 2.29 (если JSON изменится — обнови ожидание).
+      const cfg = BALANCE.generators.generators.find(c => c.id === 2)!;
+      const lvlCfg = cfg.levels.find(l => l.level === 2)!;
+      expect(lvlCfg.chargeCost).toBe(2.29);
+      state.resources.meat = 0;
+      state.currentAutoTask = {
+        id: 't',
+        creatures: [{ type: 'Creature3', level: 1, count: 5 }],
+        expMultiplier: 1,
+        resMultiplier: 1,
+      };
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+      const proposals = tactic.propose(state, goal, ctx);
+      const gather = proposals.find(p => p.actions[0]!.type === 'gather_meat');
+      expect(gather).toBeDefined();
+      const action = gather!.actions[0]! as { type: 'gather_meat'; targetCost: number };
+      expect(action.targetCost).toBe(2.29);
+    });
+
+    it('meat >= chargeCost (но < 50) → charge_generator, не gather_meat (регрессия от хардкода 50)', () => {
+      const tactic = new QuestSpawnTactic();
+      const goal = new CompleteActiveQuestGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.kraken.level = 7;
+      completeMandatoryTasks(state);
+      const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
+      if (!gen) throw new Error('no gen');
+      gen.generatorId = 2;
+      gen.level = 2;
+      gen.charges = [];
+      // meat = exactly chargeCost для Gen2 L2.
+      state.resources.meat = 2.29;
+      state.currentAutoTask = {
+        id: 't',
+        creatures: [{ type: 'Creature3', level: 1, count: 5 }],
+        expMultiplier: 1,
+        resMultiplier: 1,
+      };
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+      const proposals = tactic.propose(state, goal, ctx);
+      expect(proposals.some(p => p.actions[0]!.type === 'charge_generator')).toBe(true);
+      expect(proposals.some(p => p.actions[0]!.type === 'gather_meat')).toBe(false);
+    });
+
+    it('blockSpawn=true (exact-merge на поле) → ноль gather_meat/charge_generator (gating сохраняется)', () => {
+      const tactic = new QuestSpawnTactic();
+      const goal = new CompleteActiveQuestGoal();
+      const state = createInitialSnapshot(BALANCE, { seed: 1 });
+      state.kraken.level = 7;
+      completeMandatoryTasks(state);
+      const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
+      if (!gen) throw new Error('no gen');
+      gen.generatorId = 2;
+      gen.level = 2;
+      gen.charges = [];
+      // 2x Creature3 Lv1 на гриде → exact-merge для quest target Lv2.
+      const rng = new SeededRng(7);
+      addCreatureToGrid(state, 'Creature3', 1, rng);
+      addCreatureToGrid(state, 'Creature3', 1, rng);
+      state.resources.meat = 0;
+      state.currentAutoTask = {
+        id: 't',
+        creatures: [{ type: 'Creature3', level: 2, count: 1 }],
+        expMultiplier: 1,
+        resMultiplier: 1,
+      };
+      const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+      const proposals = tactic.propose(state, goal, ctx);
+      expect(proposals.some(p => p.actions[0]!.type === 'gather_meat')).toBe(false);
+      expect(proposals.some(p => p.actions[0]!.type === 'charge_generator')).toBe(false);
+    });
+
     it('proposes spawn when no on-field progress exists (control)', () => {
       const tactic = new QuestSpawnTactic();
       const goal = new CompleteActiveQuestGoal();
       const state = createInitialSnapshot(BALANCE, { seed: 1 });
       state.kraken.level = 5;
+      completeMandatoryTasks(state);
       const cfg = BALANCE.generators.generators[0]!;
       const out = cfg.levels[0]?.outputs?.[0];
       if (!out) throw new Error('no out');

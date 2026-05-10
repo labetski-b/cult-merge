@@ -2,6 +2,7 @@ import type { GameSnapshot, GeneratorEntity } from '@domain/types';
 import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '../types';
 import { singletonPlan } from '../types';
 import { BALANCE } from '@data/loadBalance';
+import { getSacrificeChargeCost } from '../utils';
 
 export const META: TacticMeta = {
   id: 'EarlySpawn',
@@ -9,8 +10,6 @@ export const META: TacticMeta = {
   serves: ['EarlyGame'],
   produces: ['spawn_generator', 'charge_generator', 'gather_meat'],
 };
-
-const CHARGE_MEAT_TARGET = 50;
 
 export class EarlySpawnTactic implements Tactic {
   meta: TacticMeta = META;
@@ -31,9 +30,9 @@ export class EarlySpawnTactic implements Tactic {
           },
         ));
       } else {
-        const cfg = BALANCE.generators.generators.find(g => g.id === gen.generatorId);
-        if (!cfg || cfg.spawnMode === 'timer') continue;
-        if (state.resources.meat >= CHARGE_MEAT_TARGET) {
+        const chargeCost = getSacrificeChargeCost(gen, BALANCE);
+        if (chargeCost == null) continue;
+        if (state.resources.meat >= chargeCost) {
           plans.push(singletonPlan(
             { type: 'charge_generator', generatorId: gen.id },
             {
@@ -45,9 +44,9 @@ export class EarlySpawnTactic implements Tactic {
           ));
         } else {
           plans.push(singletonPlan(
-            { type: 'gather_meat', targetCost: CHARGE_MEAT_TARGET },
+            { type: 'gather_meat', targetCost: chargeCost },
             {
-              reasoning: `farm meat (${state.resources.meat}/${CHARGE_MEAT_TARGET})`,
+              reasoning: `farm meat (${state.resources.meat}/${chargeCost})`,
               expectedProgress: 0.3,
               tacticId: META.id,
               goalId: goal.meta.id,

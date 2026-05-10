@@ -54,4 +54,38 @@ describe('EarlySpawnTactic', () => {
     const proposals = tactic.propose(state, goal, ctx);
     expect(proposals.some(p => p.actions[0]!.type === 'gather_meat')).toBe(true);
   });
+
+  it('gather_meat.targetCost = реальный chargeCost генератора (Gen1 L1 = 0.5), не 50', () => {
+    const tactic = new EarlySpawnTactic();
+    const goal = new EarlyGameGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
+    if (!gen) throw new Error('no gen');
+    // Gen1 L1 config из src/data/generators.json
+    expect(gen.generatorId).toBe(1);
+    expect(gen.level).toBe(1);
+    gen.charges = [];
+    state.resources.meat = 0;
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    const gather = proposals.find(p => p.actions[0]!.type === 'gather_meat');
+    expect(gather).toBeDefined();
+    const action = gather!.actions[0]! as { type: 'gather_meat'; targetCost: number };
+    expect(action.targetCost).toBe(0.5);
+  });
+
+  it('meat >= chargeCost (но < 50) → предлагает charge_generator (регрессия от хардкода 50)', () => {
+    const tactic = new EarlySpawnTactic();
+    const goal = new EarlyGameGoal();
+    const state = createInitialSnapshot(BALANCE, { seed: 1 });
+    const gen = Object.values(state.entities).find(e => e.kind === 'generator') as GeneratorEntity | undefined;
+    if (!gen) throw new Error('no gen');
+    gen.charges = [];
+    // Gen1 L1 chargeCost = 0.5, ставим ровно 0.5
+    state.resources.meat = 0.5;
+    const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
+    const proposals = tactic.propose(state, goal, ctx);
+    expect(proposals.some(p => p.actions[0]!.type === 'charge_generator')).toBe(true);
+    expect(proposals.some(p => p.actions[0]!.type === 'gather_meat')).toBe(false);
+  });
 });

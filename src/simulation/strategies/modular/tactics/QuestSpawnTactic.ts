@@ -3,6 +3,7 @@ import type { Tactic, TacticMeta, ProposedPlan, Goal, StrategyContext } from '..
 import { singletonPlan } from '../types';
 import { genCurrentOutputTypes } from '../context';
 import { BALANCE } from '@data/loadBalance';
+import { getSacrificeChargeCost } from '../utils';
 
 export const META: TacticMeta = {
   id: 'QuestSpawn',
@@ -10,8 +11,6 @@ export const META: TacticMeta = {
   serves: ['CompleteActiveQuest'],
   produces: ['spawn_generator', 'charge_generator', 'gather_meat'],
 };
-
-const CHARGE_MEAT_TARGET = 50;
 
 /**
  * Есть ли на поле пара (>=2) существ нужного типа уровня (targetLevel - 1),
@@ -111,8 +110,6 @@ export class QuestSpawnTactic implements Tactic {
       const gen = state.entities[assignment.entityId];
       if (!gen || gen.kind !== 'generator') continue;
       const g = gen as GeneratorEntity;
-      const cfg = BALANCE.generators.generators.find(c => c.id === g.generatorId);
-      if (!cfg) continue;
       // Гард: creatureGenMap может ассоциировать gen с типом через cfg.lines
       // (потенциальный output после upgrade). Но QuestSpawn должен звать gen
       // ТОЛЬКО если current level действительно выдаёт нужный type. Иначе
@@ -143,11 +140,13 @@ export class QuestSpawnTactic implements Tactic {
             goalId: goal.meta.id,
           },
         ));
-      } else if (cfg.spawnMode !== 'timer') {
+      } else {
+        const chargeCost = getSacrificeChargeCost(g, BALANCE);
+        if (chargeCost == null) continue;
         // Charge/gather тоже под gating'ом — нет смысла гонять meat farm
         // когда можно уже завершить квест мерджом существ на поле.
         if (blockSpawn) continue;
-        if (state.resources.meat >= CHARGE_MEAT_TARGET) {
+        if (state.resources.meat >= chargeCost) {
           plans.push(singletonPlan(
             { type: 'charge_generator', generatorId: g.id },
             {
@@ -159,9 +158,9 @@ export class QuestSpawnTactic implements Tactic {
           ));
         } else {
           plans.push(singletonPlan(
-            { type: 'gather_meat', targetCost: CHARGE_MEAT_TARGET },
+            { type: 'gather_meat', targetCost: chargeCost },
             {
-              reasoning: `farm meat for quest charge`,
+              reasoning: `farm meat for quest charge (${state.resources.meat}/${chargeCost})`,
               expectedProgress: 0.4,
               tacticId: META.id,
               goalId: goal.meta.id,
