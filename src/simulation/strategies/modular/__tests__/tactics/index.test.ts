@@ -22,7 +22,7 @@ describe('tactic registry', () => {
       'QuestSpawn','QuestMerge','QuestFeed','FpStart',
       'GridFreeMerge','GridFreeFeed','BoardPlacement',
       'RuneMerge','RuneFeed','UpgradeStart',
-      'UpgradeMergeFarm','LastResortFeed',
+      'UpgradeSpawnFarm','LastResortFeed',
     ]) expect(ids.has(id)).toBe(true);
   });
 

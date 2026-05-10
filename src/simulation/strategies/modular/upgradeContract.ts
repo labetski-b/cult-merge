@@ -32,7 +32,7 @@ export function getRealActiveTask(
 
 /**
  * `feasibleCandidateExists(state, ctx)` — true iff at least one generator
- * passes the feasibility check (merges + runes both satisfied) and the slot
+ * passes the feasibility check (spawns + runes both satisfied) and the slot
  * is free. Used by `UpgradeGeneratorGoal.isActive` as the second activation
  * branch.
  */
@@ -55,7 +55,7 @@ export function feasibleCandidateExists(
  * Used in three places (single source of truth):
  *   - `UpgradeGeneratorGoal.isActive` — third activation branch;
  *   - `CompleteActiveQuestGoal.getPrerequisites` — emit prereq;
- *   - `UpgradeMergeFarmTactic` — only legitimate trigger.
+ *   - `UpgradeSpawnFarmTactic` — only legitimate trigger.
  *
  * Mandatory tasks are honored first (per `realActiveTask`); the auto-task
  * is ignored when a mandatory exists.

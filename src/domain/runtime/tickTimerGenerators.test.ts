@@ -85,7 +85,8 @@ function makeBaseSnapshot(grid: GridState): GameSnapshot {
     questState: createEmptyQuestState(),
     meatDropQueue: [],
     chapterClaimed: {},
-    mergesSpentByGen: {},
+    spawnCountByGen: {},
+    spawnsSpentByGen: {},
     activeTimedProcess: null,
     worldTimeMs: 0,
   };
@@ -277,6 +278,9 @@ describe('tickTimerGenerators', () => {
     expect(newCreatures).toHaveLength(2);
     // totalSpawns must equal the number of creatures actually placed
     expect(result.cumulativeStats.totalSpawns).toBe(2);
+    // spawnCountByGen must be incremented for the timer-mode generator (id from fixture)
+    const timerGenId = (gen as GeneratorEntity).generatorId;
+    expect(result.spawnCountByGen[timerGenId]).toBe(2);
   });
 
   it('Test 7: cheat skip + full neighbors + later merge → only 1 drop total (not 2)', () => {

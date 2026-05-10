@@ -192,6 +192,10 @@ function resolveFp(
     ...next.cumulativeStats,
     totalSpawns: next.cumulativeStats.totalSpawns + 1,
   };
+  next.spawnCountByGen = {
+    ...next.spawnCountByGen,
+    [generatorId]: (next.spawnCountByGen[generatorId] ?? 0) + 1,
+  };
 }
 
 function nextUniqueEntityId(rng: SeededRng, state: GameSnapshot): string {

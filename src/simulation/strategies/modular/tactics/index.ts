@@ -13,7 +13,7 @@ import * as boardPlace from './BoardPlacementTactic';
 import * as runeMerge from './RuneMergeTactic';
 import * as runeFeed from './RuneFeedTactic';
 import * as upgradeStart from './UpgradeStartTactic';
-import * as upgradeMergeFarm from './UpgradeMergeFarmTactic';
+import * as upgradeSpawnFarm from './UpgradeSpawnFarmTactic';
 import * as lastResort from './LastResortFeedTactic';
 
 export const tacticRegistry = [
@@ -31,7 +31,7 @@ export const tacticRegistry = [
   registerTactic(runeMerge as Record<string, unknown>, './tactics/RuneMergeTactic.ts'),
   registerTactic(runeFeed as Record<string, unknown>, './tactics/RuneFeedTactic.ts'),
   registerTactic(upgradeStart as Record<string, unknown>, './tactics/UpgradeStartTactic.ts'),
-  registerTactic(upgradeMergeFarm as Record<string, unknown>, './tactics/UpgradeMergeFarmTactic.ts'),
+  registerTactic(upgradeSpawnFarm as Record<string, unknown>, './tactics/UpgradeSpawnFarmTactic.ts'),
   registerTactic(lastResort as Record<string, unknown>, './tactics/LastResortFeedTactic.ts'),
 ];
 

@@ -13,6 +13,8 @@ export function resolveUpgradeCost(
 
 /**
  * Cumulative merges across the generator's lines (raw counter).
+ * Retained for non-upgrade consumers (statistics, tactics) — upgrade gating
+ * now uses per-generator spawn counts via getGeneratorSpawnsAvailable.
  */
 export function getGeneratorMergeProgress(
   generatorConfig: { lines: string[] },
@@ -25,29 +27,30 @@ export function getGeneratorMergeProgress(
 }
 
 /**
- * Merges available for the NEXT upgrade of this generator =
- * raw mergeCountByLine sum minus merges already spent on prior upgrades of this generator.
+ * Spawns available for the NEXT upgrade of this generator =
+ * cumulative spawnCountByGen[id] minus spawns already spent on prior upgrades
+ * of this generator.
  */
-export function getGeneratorMergesAvailable(
-  generatorConfig: { id: number; lines: string[] },
-  mergeCountByLine: Record<string, number>,
-  mergesSpentByGen: Record<number, number> | undefined
+export function getGeneratorSpawnsAvailable(
+  generatorConfig: { id: number },
+  spawnCountByGen: Record<number, number> | undefined,
+  spawnsSpentByGen: Record<number, number> | undefined
 ): number {
-  const raw = getGeneratorMergeProgress(generatorConfig, mergeCountByLine);
-  const spent = mergesSpentByGen?.[generatorConfig.id] ?? 0;
+  const raw = spawnCountByGen?.[generatorConfig.id] ?? 0;
+  const spent = spawnsSpentByGen?.[generatorConfig.id] ?? 0;
   return Math.max(0, raw - spent);
 }
 
 export type CanUpgradeResult =
   | { ok: true; row: UpgradeRow }
-  | { ok: false; reason: 'max' | 'merges' | 'runes' };
+  | { ok: false; reason: 'max' | 'spawns' | 'runes' };
 
 export function canUpgradeGenerator(
   generator: { generatorId: number; level: number },
   snapshot: {
     resources: Record<string, number>;
-    mergeCountByLine: Record<string, number>;
-    mergesSpentByGen?: Record<number, number>;
+    spawnCountByGen: Record<number, number>;
+    spawnsSpentByGen?: Record<number, number>;
   },
   balance: BalanceConfig
 ): CanUpgradeResult {
@@ -57,8 +60,8 @@ export function canUpgradeGenerator(
   const row = resolveUpgradeCost(generator.generatorId, generator.level, balance);
   if (!row) return { ok: false, reason: 'max' };
 
-  const merges = getGeneratorMergesAvailable(config, snapshot.mergeCountByLine, snapshot.mergesSpentByGen);
-  if (merges < row.mergesRequired) return { ok: false, reason: 'merges' };
+  const spawns = getGeneratorSpawnsAvailable(config, snapshot.spawnCountByGen, snapshot.spawnsSpentByGen);
+  if (spawns < row.spawnsRequired) return { ok: false, reason: 'spawns' };
 
   const runeBalance = snapshot.resources[row.runeType] ?? 0;
   if (runeBalance < row.runeCost) return { ok: false, reason: 'runes' };

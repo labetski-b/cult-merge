@@ -285,7 +285,14 @@ export const useGameStore = create<GameStore>()(
           const intermediateSnapshot = { ...state, ...mergedPartial };
           const tickedSnapshot = tickTimerGenerators(intermediateSnapshot, Date.now(), BALANCE);
           if (tickedSnapshot !== intermediateSnapshot) {
-            return { ...mergedPartial, entities: tickedSnapshot.entities, grid: tickedSnapshot.grid, rngState: tickedSnapshot.rngState, cumulativeStats: tickedSnapshot.cumulativeStats };
+            return {
+              ...mergedPartial,
+              entities: tickedSnapshot.entities,
+              grid: tickedSnapshot.grid,
+              rngState: tickedSnapshot.rngState,
+              cumulativeStats: tickedSnapshot.cumulativeStats,
+              spawnCountByGen: tickedSnapshot.spawnCountByGen,
+            };
           }
           return mergedPartial;
         });
@@ -804,7 +811,8 @@ export const useGameStore = create<GameStore>()(
             activeTimedProcess: final.activeTimedProcess,
             worldTimeMs: final.worldTimeMs,
             mergeCountByLine: final.mergeCountByLine,
-            mergesSpentByGen: final.mergesSpentByGen,
+            spawnCountByGen: final.spawnCountByGen,
+            spawnsSpentByGen: final.spawnsSpentByGen,
             cumulativeStats: final.cumulativeStats,
             predatorMergeCounts: final.predatorMergeCounts,
             predatorQueueIndex: final.predatorQueueIndex,
@@ -1033,6 +1041,7 @@ export const useGameStore = create<GameStore>()(
             grid: ticked.grid,
             rngState: ticked.rngState,
             cumulativeStats: ticked.cumulativeStats,
+            spawnCountByGen: ticked.spawnCountByGen,
           };
         });
       },
@@ -1059,6 +1068,7 @@ export const useGameStore = create<GameStore>()(
             grid: ticked.grid,
             rngState: ticked.rngState,
             cumulativeStats: ticked.cumulativeStats,
+            spawnCountByGen: ticked.spawnCountByGen,
           };
         });
       },
@@ -1137,122 +1147,12 @@ export function migrateGameStore(
   persistedState: unknown,
   persistedVersion: number
 ): unknown {
-  if (!persistedState || persistedVersion < 15) {
+  // v27 — upgrade gate switched from cumulative line-merges to per-generator
+  // spawn counts (plan `.context/plans/spawns-as-upgrade-condition.md`).
+  // Saves prior to v27 are invalidated rather than migrated.
+  if (!persistedState || persistedVersion < 27) {
     return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
   }
-
-  if (persistedVersion < 17) {
-    persistedState = { ...(persistedState as object), meatDropQueue: [] };
-  }
-
-  if (persistedVersion < 19) {
-    persistedState = { ...(persistedState as object), chapterClaimed: {} };
-  }
-
-  if (persistedVersion < 21) {
-    persistedState = {
-      ...(persistedState as object),
-      mergesSpentByGen: {},
-    };
-  }
-
-  if (persistedVersion < 22) {
-    const state = persistedState as {
-      entities?: Record<string, { kind?: string }>;
-      grid?: { cells?: (string | null)[] };
-    };
-    if (state.entities && state.grid?.cells) {
-      const newEntities: Record<string, unknown> = {};
-      const removedIds = new Set<string>();
-      for (const [id, entity] of Object.entries(state.entities)) {
-        if (entity.kind === 'flowerpot') {
-          removedIds.add(id);
-        } else {
-          newEntities[id] = entity;
-        }
-      }
-      persistedState = {
-        ...(persistedState as object),
-        entities: newEntities,
-        grid: {
-          ...state.grid,
-          cells: state.grid.cells.map((cell) =>
-            cell !== null && removedIds.has(cell) ? null : cell,
-          ),
-        },
-      };
-    }
-  }
-
-  if (persistedVersion < 24) {
-    const state = persistedState as {
-      entities?: Record<string, unknown>;
-      grid?: { cells?: (string | null)[] };
-      activeUpgrade?: { entityId?: string } | null;
-    };
-    if (state.entities && state.grid?.cells) {
-      const validIds = new Set(Object.keys(state.entities));
-      const newCells = state.grid.cells.map((cell) =>
-        cell !== null && !validIds.has(cell) ? null : cell,
-      );
-      // Heal orphan activeUpgrade.entityId inline before v26 drops the field
-      // entirely. We keep the cleared value around so v26 can read it.
-      const active = state.activeUpgrade ?? null;
-      const newActive =
-        active && typeof active.entityId === 'string' && !validIds.has(active.entityId)
-          ? null
-          : active;
-      persistedState = {
-        ...(persistedState as object),
-        grid: { ...state.grid, cells: newCells },
-        activeUpgrade: newActive,
-      };
-    }
-  }
-
-  // v25 — unified time refactor (plan 2026-05-06): seed defaults for the new
-  // `activeTimedProcess` slot and the `worldTimeMs` clock so freshly-loaded
-  // saves match the post-refactor GameSnapshot shape.
-  if (persistedVersion < 25) {
-    persistedState = {
-      ...(persistedState as object),
-      activeTimedProcess: null,
-      worldTimeMs: 0,
-    };
-  }
-
-  // v26 — Task 3 of unified-time refactor: drop legacy `activeUpgrade` field
-  // entirely. Carry over any in-flight upgrade into the canonical
-  // `activeTimedProcess` slot so an upgrade in progress at save time keeps
-  // ticking under the new shape.
-  if (persistedVersion < 26) {
-    const state = persistedState as {
-      activeUpgrade?: {
-        entityId?: string;
-        generatorId?: number;
-        startedAt?: number;
-        finishesAt?: number;
-      } | null;
-      activeTimedProcess?: unknown;
-    };
-    const au = state.activeUpgrade ?? null;
-    const next: Record<string, unknown> = { ...(persistedState as object) };
-    delete next.activeUpgrade;
-    if (au && state.activeTimedProcess == null && typeof au.entityId === 'string') {
-      const totalMs = (au.finishesAt ?? 0) - (au.startedAt ?? 0);
-      const remainingMs = Math.max(0, (au.finishesAt ?? 0) - Date.now());
-      next.activeTimedProcess = {
-        kind: 'upgrade',
-        entityId: au.entityId,
-        generatorId: au.generatorId ?? 0,
-        remainingMs,
-        totalMs: Math.max(0, totalMs),
-        startedAtWallMs: au.startedAt,
-      };
-    }
-    persistedState = next;
-  }
-
   return persistedState;
 }
 

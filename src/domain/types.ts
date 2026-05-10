@@ -201,7 +201,8 @@ export interface GameSnapshot {
   questState: QuestState;
   meatDropQueue: MeatDrop[];
   chapterClaimed: Record<number, boolean>;
-  mergesSpentByGen: Record<number, number>;
+  spawnCountByGen: Record<number, number>;
+  spawnsSpentByGen: Record<number, number>;
   /**
    * Canonical timed-process slot — single source of truth for the engine
    * invariants in plan §254-292. `null` means no in-flight upgrade/FP work;

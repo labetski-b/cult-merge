@@ -2,19 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { pickFeasibleUpgradeCandidate, realActiveTask } from './pickFeasibleUpgradeCandidate';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { BALANCE } from '@data/loadBalance';
-import type { GameSnapshot, GeneratorEntity } from '@domain/types';
+import type { GameSnapshot } from '@domain/types';
 
 /**
- * Unit tests for the feasible-first picker helper introduced by the plan
- * `2026-05-05-modular-upgrade-feasible-first.md`.
+ * Unit tests for the feasible-first picker after the spawns-as-condition
+ * refactor (plan `.context/plans/spawns-as-upgrade-condition.md`).
  *
- * Commit 1: helpers exist but no caller is wired. These tests exercise the
- * picker contract directly (deterministic, pure function) — sim behavior
- * stays unchanged because production code still uses the legacy picker.
- *
- * Full goal/scheduler-level integration lives in
- * `modular/__tests__/feasible-first-upgrade.contract.test.ts` (added in
- * commit 2).
+ * Upgrade gate: spawnCountByGen[id] - spawnsSpentByGen[id] >= spawnsRequired
+ * AND rune balance >= runeCost AND no active timed-process.
  */
 
 function withOnlyGens(
@@ -42,22 +37,22 @@ function clearMandatoryThroughLevel(state: GameSnapshot, currentLevel: number): 
 }
 
 describe('pickFeasibleUpgradeCandidate', () => {
-  it('returns null candidate when no generator has merges + runes both available', () => {
+  it('returns null candidate when no generator has spawns + runes both available', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 1 }]);
     cleared.resources.rune1 = 0;
     cleared.resources.rune2 = 0;
-    cleared.mergeCountByLine = {};
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = {};
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = null;
     const result = pickFeasibleUpgradeCandidate(cleared, BALANCE);
     expect(result.candidate).toBeNull();
     expect(result.blockedBy).toBeUndefined();
   });
 
-  it('returns null when activeTimedProcess is set (post-Task-3: legacy activeUpgrade replaced)', () => {
+  it('returns null when activeTimedProcess is set', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
@@ -70,7 +65,7 @@ describe('pickFeasibleUpgradeCandidate', () => {
     };
     base.resources.rune1 = 100;
     base.resources.rune2 = 100;
-    base.mergeCountByLine = { Creature1: 100 };
+    base.spawnCountByGen = { 1: 100 };
     base.currentAutoTask = null;
     const result = pickFeasibleUpgradeCandidate(base, BALANCE);
     expect(result.candidate).toBeNull();
@@ -83,8 +78,8 @@ describe('pickFeasibleUpgradeCandidate', () => {
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 1 }]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 0;
-    cleared.mergeCountByLine = { Creature1: 5 };
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = { 1: 5 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = null;
     const result = pickFeasibleUpgradeCandidate(cleared, BALANCE);
     expect(result.candidate).not.toBeNull();
@@ -95,16 +90,14 @@ describe('pickFeasibleUpgradeCandidate', () => {
   });
 
   it('marks candidate questRelevant when active task needs an unlocked-by-upgrade type', () => {
-    // Gen1 L1 outputs only Creature1; cfg.lines = [Creature1, Creature2].
-    // Quest needing Creature2 must flip questRelevant true.
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 1 }]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 100;
-    cleared.mergeCountByLine = { Creature1: 5, Creature2: 5 };
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = { 1: 50 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = {
       id: 'q-c2',
       creatures: [{ type: 'Creature2', level: 1, count: 3 }],
@@ -117,16 +110,14 @@ describe('pickFeasibleUpgradeCandidate', () => {
   });
 
   it('does NOT flag questRelevant for a generator already producing the needed type', () => {
-    // Gen1 L1 already produces Creature1; quest needs Creature1 → upgrade does
-    // not structurally move the quest path → NOT questRelevant.
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 1 }]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 0;
-    cleared.mergeCountByLine = { Creature1: 5 };
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = { 1: 50 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = {
       id: 'q-c1',
       creatures: [{ type: 'Creature1', level: 1, count: 5 }],
@@ -139,10 +130,6 @@ describe('pickFeasibleUpgradeCandidate', () => {
   });
 
   it('ranks quest-relevant candidate above later generator (Item 2)', () => {
-    // Gen1 L1 — feasible AND quest-relevant for Creature2 quest.
-    // Gen2 L1 — feasible, NOT quest-relevant.
-    // Gen2.krakenRequired=7 > Gen1.krakenRequired=1, so without quest-relevance
-    // Gen2 would win. With quest-relevance, Gen1 must win.
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 7;
     clearMandatoryThroughLevel(base, 7);
@@ -152,13 +139,8 @@ describe('pickFeasibleUpgradeCandidate', () => {
     ]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 100;
-    cleared.mergeCountByLine = {
-      Creature1: 50,
-      Creature2: 50,
-      Creature3: 50,
-      Creature4: 50,
-    };
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = { 1: 50, 2: 50 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = {
       id: 'q-c2',
       creatures: [{ type: 'Creature2', level: 1, count: 3 }],
@@ -181,14 +163,8 @@ describe('pickFeasibleUpgradeCandidate', () => {
     ]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 100;
-    cleared.mergeCountByLine = {
-      Creature1: 50,
-      Creature2: 50,
-      Creature3: 50,
-      Creature4: 50,
-    };
-    cleared.mergesSpentByGen = {};
-    // Quest needing Creature9 — neither Gen1 nor Gen2 line covers it.
+    cleared.spawnCountByGen = { 1: 50, 2: 50 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = {
       id: 'q-c9',
       creatures: [{ type: 'Creature9', level: 1, count: 3 }],
@@ -202,12 +178,8 @@ describe('pickFeasibleUpgradeCandidate', () => {
   });
 
   it('uses mandatory task over auto-task for relevance computation (Item 7)', () => {
-    // Mandatory at lvl 10 needs Creature5 (Gen1 lines do NOT cover).
-    // Auto-task needs Creature2 (Gen1 lines DO cover, Gen1@L1 does not produce).
-    // realActiveTask must be mandatory; candidate must NOT be questRelevant.
     const base = createInitialSnapshot(BALANCE, { seed: 1 });
     base.kraken.level = 10;
-    // Clear mandatory through level 9, leave lvl 10 active.
     for (let lvl = 1; lvl <= 9; lvl++) {
       const tasksAtLvl = BALANCE.tasks.mandatory[String(lvl)] ?? [];
       base.taskProgress[String(lvl)] = tasksAtLvl.length;
@@ -218,8 +190,8 @@ describe('pickFeasibleUpgradeCandidate', () => {
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 1 }]);
     cleared.resources.rune1 = 100;
     cleared.resources.rune2 = 100;
-    cleared.mergeCountByLine = { Creature1: 50, Creature2: 50 };
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = { 1: 50 };
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = {
       id: 'q-auto-c2',
       creatures: [{ type: 'Creature2', level: 1, count: 3 }],
@@ -232,41 +204,39 @@ describe('pickFeasibleUpgradeCandidate', () => {
     expect(result.candidate!.generatorId).toBe(1);
     expect(result.candidate!.questRelevant).toBe(false);
 
-    // Sanity: realActiveTask returns the mandatory task.
     const real = realActiveTask(cleared, BALANCE);
     expect(real).not.toBeNull();
     expect(real!.creatures[0]!.type).toBe('Creature5');
   });
 
-  it('falls back to legacy blocked-by-merges contract for the merge-farm tactic', () => {
-    // Gen1 L2: mergesRequired=2, runeCost=4 rune1.
-    // mergeCountByLine.Creature1=0 → blocked by merges; rune1=10 (≥4) → affordable.
+  it('falls back to blocked-by-spawns contract for the spawn-farm tactic', () => {
+    // Gen1 L2: spawnsRequired=2, runeCost=4 rune1.
+    // spawnCountByGen[1]=0 → blocked by spawns; rune1=10 (≥4) → affordable.
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 2 }]);
     cleared.resources.rune1 = 10;
     cleared.resources.rune2 = 0;
-    cleared.mergeCountByLine = {};
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = {};
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = null;
     const result = pickFeasibleUpgradeCandidate(cleared, BALANCE);
     expect(result.candidate).toBeNull();
     expect(result.blockedBy).toBeDefined();
     expect(result.blockedBy?.generatorId).toBe(1);
-    expect(result.blockedBy?.reason).toBe('merges');
+    expect(result.blockedBy?.reason).toBe('spawns');
   });
 
-  it('does not surface blockedBy when both merges and runes are insufficient', () => {
-    // Same gen as above, but rune1=0 → upgrade unaffordable → no blockedBy.
+  it('does not surface blockedBy when both spawns and runes are insufficient', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     base.kraken.level = 5;
     clearMandatoryThroughLevel(base, 5);
     const cleared = withOnlyGens(base, [{ id: 'g1', generatorId: 1, level: 2 }]);
     cleared.resources.rune1 = 0;
     cleared.resources.rune2 = 0;
-    cleared.mergeCountByLine = {};
-    cleared.mergesSpentByGen = {};
+    cleared.spawnCountByGen = {};
+    cleared.spawnsSpentByGen = {};
     cleared.currentAutoTask = null;
     const result = pickFeasibleUpgradeCandidate(cleared, BALANCE);
     expect(result.candidate).toBeNull();

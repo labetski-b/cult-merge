@@ -2,7 +2,7 @@ import { BALANCE } from '@data/loadBalance';
 import { useGameStore } from '@store/gameStore';
 import {
   canUpgradeGenerator,
-  getGeneratorMergesAvailable,
+  getGeneratorSpawnsAvailable,
   resolveUpgradeCost,
 } from '@domain/upgrades';
 import { getGeneratorImage } from '@ui/creatureImages';
@@ -19,8 +19,8 @@ interface Widget {
   generatorId: number;
   level: number;
   isMax: boolean;
-  mergesRequired: number | null;
-  mergesNow: number;
+  spawnsRequired: number | null;
+  spawnsNow: number;
   ready: boolean;
   img: string;
   upgradeState: 'none' | 'upgrading' | 'ready-to-collect';
@@ -38,8 +38,8 @@ function formatDuration(sec: number): string {
 
 export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
   const entities = useGameStore((s) => s.entities);
-  const mergeCountByLine = useGameStore((s) => s.mergeCountByLine);
-  const mergesSpentByGen = useGameStore((s) => s.mergesSpentByGen);
+  const spawnCountByGen = useGameStore((s) => s.spawnCountByGen);
+  const spawnsSpentByGen = useGameStore((s) => s.spawnsSpentByGen);
   const resources = useGameStore((s) => s.resources);
   const activeTimedProcess = useGameStore((s) => s.activeTimedProcess);
   const activeUpgrade =
@@ -65,13 +65,13 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
       if (!config) continue;
 
       const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE);
-      const mergesNow = getGeneratorMergesAvailable(config, mergeCountByLine, mergesSpentByGen);
+      const spawnsNow = getGeneratorSpawnsAvailable(config, spawnCountByGen, spawnsSpentByGen);
       const check = canUpgradeGenerator(
         gen,
         {
           resources,
-          mergeCountByLine,
-          mergesSpentByGen,
+          spawnCountByGen,
+          spawnsSpentByGen,
         },
         BALANCE
       );
@@ -101,8 +101,8 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
         generatorId: gen.generatorId,
         level: gen.level,
         isMax: row === null,
-        mergesRequired: row?.mergesRequired ?? null,
-        mergesNow,
+        spawnsRequired: row?.spawnsRequired ?? null,
+        spawnsNow,
         ready: check.ok && activeUpgrade === null,
         img: getGeneratorImage(gen.generatorId, gen.level),
         upgradeState,
@@ -132,8 +132,8 @@ export function GeneratorUpgradesTopBar({ onOpenModal }: Props) {
           ? 100
           : w.upgradeState === 'upgrading' || w.upgradeState === 'ready-to-collect'
             ? w.timerPercent
-            : w.mergesRequired && w.mergesRequired > 0
-              ? Math.min(100, (w.mergesNow / w.mergesRequired) * 100)
+            : w.spawnsRequired && w.spawnsRequired > 0
+              ? Math.min(100, (w.spawnsNow / w.spawnsRequired) * 100)
               : 0;
         const widgetClass =
           'generator-upgrade-widget' +

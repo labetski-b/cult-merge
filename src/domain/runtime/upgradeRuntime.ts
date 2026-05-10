@@ -31,13 +31,13 @@ export function applyStartUpgrade(
   const runeBalance = snapshot.resources[row.runeType] ?? 0;
   const durationSec = row.upgradeDurationSec ?? 0;
   const totalMs = durationSec * 1000;
-  const prevSpent = snapshot.mergesSpentByGen[entity.generatorId] ?? 0;
+  const prevSpent = snapshot.spawnsSpentByGen[entity.generatorId] ?? 0;
   return {
     ...snapshot,
     resources: { ...snapshot.resources, [row.runeType]: runeBalance - row.runeCost },
-    mergesSpentByGen: {
-      ...snapshot.mergesSpentByGen,
-      [entity.generatorId]: prevSpent + row.mergesRequired,
+    spawnsSpentByGen: {
+      ...snapshot.spawnsSpentByGen,
+      [entity.generatorId]: prevSpent + row.spawnsRequired,
     },
     activeTimedProcess: {
       kind: 'upgrade',

@@ -29,7 +29,7 @@ describe('New TickMetrics fields', () => {
     expect(sample).not.toHaveProperty('gen3PassiveSpawns');
     expect(sample).toHaveProperty('unlockedGenerators');
     expect(Array.isArray(sample.unlockedGenerators)).toBe(true);
-    expect(sample.mergesSpentByGenSnapshot).toBeDefined();
+    expect(sample.spawnsSpentByGenSnapshot).toBeDefined();
     expect(sample.generatorLevelsSnapshot).toBeDefined();
     expect(typeof sample.upgradesStarted).toBe('number');
   });

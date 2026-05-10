@@ -35,7 +35,7 @@ function makeBalanceWithTwoGens(): BalanceConfig {
         numCreatures: 15,
         outputs: [{ creatureType: 'Creature1', level: 1, chance: 1 }],
         upgrade: {
-          mergesRequired: 15,
+          spawnsRequired: 15,
           runeType: 'rune1' as const,
           runeCost: 2,
           upgradeDurationSec: 3,
@@ -123,7 +123,8 @@ function makeSnapshotWithGen1OnField(): GameSnapshot {
     questState: createEmptyQuestState(),
     meatDropQueue: [],
     chapterClaimed: {},
-    mergesSpentByGen: {},
+    spawnCountByGen: {},
+    spawnsSpentByGen: {},
     activeTimedProcess: null,
     worldTimeMs: 0,
   };
@@ -147,12 +148,12 @@ describe('generateAutoTask — scoring table sources', () => {
 });
 
 describe('generateAutoTask — phantom +1 upgrade gating', () => {
-  it('uses scoringLevel = factLvl + 1 when upgrade is affordable (runes + merges OK)', () => {
+  it('uses scoringLevel = factLvl + 1 when upgrade is affordable (runes + spawns OK)', () => {
     const config = makeBalanceWithTwoGens();
     const state = makeSnapshotWithGen1OnField();
-    // Gen1.L1 upgrade row: mergesRequired=15, runeType='rune1', runeCost=2
-    state.resources.rune1 = 100;             // plenty of runes
-    state.mergeCountByLine = { Creature1: 20 }; // plenty of merges
+    // Gen1.L1 upgrade row: spawnsRequired=15, runeType='rune1', runeCost=2
+    state.resources.rune1 = 100;          // plenty of runes
+    state.spawnCountByGen = { 1: 20 };    // plenty of spawns
     const rng = new SeededRng(1);
 
     const task = generateAutoTask(config, state, rng);
@@ -165,8 +166,8 @@ describe('generateAutoTask — phantom +1 upgrade gating', () => {
   it('uses scoringLevel = factLvl when runes are insufficient', () => {
     const config = makeBalanceWithTwoGens();
     const state = makeSnapshotWithGen1OnField();
-    state.resources.rune1 = 0;                  // not enough (need 2)
-    state.mergeCountByLine = { Creature1: 20 };
+    state.resources.rune1 = 0;            // not enough (need 2)
+    state.spawnCountByGen = { 1: 20 };
     const rng = new SeededRng(1);
 
     const task = generateAutoTask(config, state, rng);
@@ -176,11 +177,11 @@ describe('generateAutoTask — phantom +1 upgrade gating', () => {
     expect(gen1Row!.genLevel).toBe(1); // upgrade blocked → stays at L1
   });
 
-  it('uses scoringLevel = factLvl when merges are insufficient', () => {
+  it('uses scoringLevel = factLvl when spawns are insufficient', () => {
     const config = makeBalanceWithTwoGens();
     const state = makeSnapshotWithGen1OnField();
     state.resources.rune1 = 100;
-    state.mergeCountByLine = { Creature1: 0 };  // not enough (need 15)
+    state.spawnCountByGen = { 1: 0 };  // not enough (need 15)
     const rng = new SeededRng(1);
 
     const task = generateAutoTask(config, state, rng);

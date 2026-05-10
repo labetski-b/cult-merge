@@ -36,8 +36,8 @@ describe('UpgradeStartTactic', () => {
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.activeTimedProcess = null;
     // Force a feasible Gen1 candidate.
-    state.mergeCountByLine = { Creature1: 1 };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 1 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);

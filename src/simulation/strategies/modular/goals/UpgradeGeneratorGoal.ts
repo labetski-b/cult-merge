@@ -23,9 +23,9 @@ export const META: GoalMeta = {
  * (`docs/superpowers/plans/2026-05-05-modular-upgrade-feasible-first.md`).
  *
  * Strict enumeration — `rune_surplus_trigger` and the global
- * `blocked_by_merges` urgency lane are removed: hoarding by itself never
- * activates the goal, and merge-farming is now scoped to the
- * quest-prerequisite path (driven by `UpgradeMergeFarmTactic`).
+ * `blocked_by_spawns` urgency lane are removed: hoarding by itself never
+ * activates the goal, and spawn-farming is now scoped to the
+ * quest-prerequisite path (driven by `UpgradeSpawnFarmTactic`).
  */
 type UrgencyTag =
   | 'ready_collect'

@@ -263,7 +263,7 @@ describe('applyActionCore — start_upgrade / collect_upgrade (post-Task-3)', ()
     state.resources.rune1 = 1000;
     state.resources.rune2 = 1000;
     state.cumulativeStats = { ...state.cumulativeStats, totalMerges: 100 };
-    state.mergeCountByLine = { Creature1: 999, Creature2: 999 };
+    state.spawnCountByGen = { ...state.spawnCountByGen, [gen.generatorId]: 999 };
     state.worldTimeMs = 12345;
 
     const env = makeEnv(42, 0);

@@ -3,7 +3,7 @@ import { BALANCE } from '@data/loadBalance';
 import { useGameStore } from '@store/gameStore';
 import {
   canUpgradeGenerator,
-  getGeneratorMergesAvailable,
+  getGeneratorSpawnsAvailable,
   resolveUpgradeCost,
 } from '@domain/upgrades';
 import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
@@ -35,8 +35,8 @@ function formatDuration(sec: number): string {
 
 export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
   const entities = useGameStore((s) => s.entities);
-  const mergeCountByLine = useGameStore((s) => s.mergeCountByLine);
-  const mergesSpentByGen = useGameStore((s) => s.mergesSpentByGen);
+  const spawnCountByGen = useGameStore((s) => s.spawnCountByGen);
+  const spawnsSpentByGen = useGameStore((s) => s.spawnsSpentByGen);
   const resources = useGameStore((s) => s.resources);
   const activeTimedProcess = useGameStore((s) => s.activeTimedProcess);
   const activeUpgrade =
@@ -85,8 +85,8 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
             <GeneratorUpgradeCard
               key={gen.id}
               gen={gen}
-              mergeCountByLine={mergeCountByLine}
-              mergesSpentByGen={mergesSpentByGen}
+              spawnCountByGen={spawnCountByGen}
+              spawnsSpentByGen={spawnsSpentByGen}
               resources={resources}
               activeUpgrade={activeUpgrade}
             />
@@ -124,22 +124,22 @@ type UpgradeProc = Extract<ActiveTimedProcess, { kind: 'upgrade' }>;
 
 function GeneratorUpgradeCard({
   gen,
-  mergeCountByLine,
-  mergesSpentByGen,
+  spawnCountByGen,
+  spawnsSpentByGen,
   resources,
   activeUpgrade,
 }: {
   gen: GeneratorEntity;
-  mergeCountByLine: Record<string, number>;
-  mergesSpentByGen: Record<number, number>;
+  spawnCountByGen: Record<number, number>;
+  spawnsSpentByGen: Record<number, number>;
   resources: Record<string, number>;
   activeUpgrade: UpgradeProc | null;
 }) {
   const config = BALANCE.generators.generators.find((g) => g.id === gen.generatorId);
   const img = getGeneratorImage(gen.generatorId, gen.level);
   const row = resolveUpgradeCost(gen.generatorId, gen.level, BALANCE);
-  const merges = config
-    ? getGeneratorMergesAvailable(config, mergeCountByLine, mergesSpentByGen)
+  const spawnsAvailable = config
+    ? getGeneratorSpawnsAvailable(config, spawnCountByGen, spawnsSpentByGen)
     : 0;
   const currentLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level);
   const nextLevelConfig = config?.levels.find((lvl) => lvl.level === gen.level + 1);
@@ -170,8 +170,8 @@ function GeneratorUpgradeCard({
   };
 
   const isMax = row === null;
-  const required = row?.mergesRequired ?? 0;
-  const percent = required > 0 ? Math.min(100, (merges / required) * 100) : 0;
+  const required = row?.spawnsRequired ?? 0;
+  const percent = required > 0 ? Math.min(100, (spawnsAvailable / required) * 100) : 0;
 
   const isThisUpgrading = activeUpgrade?.entityId === gen.id;
   const isOtherUpgrading = activeUpgrade !== null && !isThisUpgrading;
@@ -195,7 +195,7 @@ function GeneratorUpgradeCard({
   const check = config && !isThisUpgrading && !isOtherUpgrading
     ? canUpgradeGenerator(
         gen,
-        { resources, mergeCountByLine, mergesSpentByGen },
+        { resources, spawnCountByGen, spawnsSpentByGen },
         BALANCE
       )
     : null;
@@ -369,7 +369,7 @@ function GeneratorUpgradeCard({
       ) : isOtherUpgrading ? (
         <>
           <div className="generator-upgrade-progress-label">
-            {merges} / {required} merges
+            {spawnsAvailable} / {required} spawns
           </div>
           <div className="generator-upgrade-progress-bar">
             <div
@@ -393,7 +393,7 @@ function GeneratorUpgradeCard({
       ) : (
         <>
           <div className="generator-upgrade-progress-label">
-            {merges} / {required} merges
+            {spawnsAvailable} / {required} spawns
           </div>
           <div className="generator-upgrade-progress-bar">
             <div

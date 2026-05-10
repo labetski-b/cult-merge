@@ -31,11 +31,11 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     });
   };
 
-  it('startGeneratorUpgrade deducts runes, spends merges, and sets activeTimedProcess', () => {
+  it('startGeneratorUpgrade deducts runes, spends spawns, and sets activeTimedProcess', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 50, Creature2: 50 },
+      spawnCountByGen: { 1: 100 },
     }));
 
     useGameStore.getState().startGeneratorUpgrade('gen-a');
@@ -49,7 +49,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
       expect(proc.generatorId).toBe(1);
     }
     expect(state.resources.rune1).toBe(98); // cost 2 at Gen1 L1 in current baseline
-    expect(state.mergesSpentByGen[1]).toBeGreaterThan(0);
+    expect(state.spawnsSpentByGen[1]).toBeGreaterThan(0);
     // Level is unchanged until collect
     const gen = state.entities['gen-a'] as GeneratorEntity;
     expect(gen.level).toBe(1);
@@ -59,7 +59,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 50, Creature2: 50 },
+      spawnCountByGen: { 1: 100 },
     }));
 
     useGameStore.getState().startGeneratorUpgrade('gen-a');
@@ -86,7 +86,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 50, Creature2: 50 },
+      spawnCountByGen: { 1: 100 },
     }));
 
     useGameStore.getState().startGeneratorUpgrade('gen-a');
@@ -110,7 +110,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     seedGen1L1('gen-b');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 200, Creature2: 0 },
+      spawnCountByGen: { 1: 100 },
     }));
 
     useGameStore.getState().startGeneratorUpgrade('gen-a');
@@ -124,11 +124,11 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     expect(state.resources.rune1).toBe(rune1After);
   });
 
-  it('refuses to start when merges insufficient', () => {
+  it('refuses to start when spawns insufficient', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: {},
+      spawnCountByGen: {},
     }));
 
     const before = useGameStore.getState();
@@ -145,7 +145,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 0 },
-      mergeCountByLine: { Creature1: 50, Creature2: 50 },
+      spawnCountByGen: { 1: 100 },
     }));
 
     const before = useGameStore.getState();

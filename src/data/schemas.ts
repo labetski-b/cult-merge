@@ -7,7 +7,7 @@ const outputSchema = z.object({
 });
 
 const generatorUpgradeSchema = z.object({
-  mergesRequired: z.number().int().nonnegative(),
+  spawnsRequired: z.number().int().nonnegative(),
   runeCost: z.number().int().nonnegative(),
   runeType: z.enum(['rune1', 'rune2']),
   upgradeDurationSec: z.number().nonnegative().optional(),

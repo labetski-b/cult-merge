@@ -11,9 +11,9 @@ import type { GameSnapshot, GeneratorEntity } from '@domain/types';
  */
 
 describe('applyStartUpgrade', () => {
-  it('sets activeTimedProcess (kind=upgrade), deducts runes, increments mergesSpentByGen', () => {
+  it('sets activeTimedProcess (kind=upgrade), deducts runes, increments spawnsSpentByGen', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
-    // Seed a generator at level 1 with enough merges and runes
+    // Seed a generator at level 1 with enough spawns and runes
     const entityId = 'gen-1';
     const prepared = {
       ...base,
@@ -22,8 +22,8 @@ describe('applyStartUpgrade', () => {
         [entityId]: { id: entityId, kind: 'generator' as const, generatorId: 1, level: 1, charges: [] },
       },
       resources: { ...base.resources, rune1: 100, rune2: 100 },
-      mergeCountByLine: { Creature1: 999, Creature2: 999 },
-      mergesSpentByGen: {},
+      spawnCountByGen: { 1: 999 },
+      spawnsSpentByGen: {},
     };
     const result = applyStartUpgrade(prepared, BALANCE, entityId, 1_000_000);
     const proc = result.activeTimedProcess;
@@ -38,7 +38,7 @@ describe('applyStartUpgrade', () => {
     const gen1Upgrade = gen1Def?.levels[0]?.upgrade;
     if (!gen1Upgrade) throw new Error('Test precondition: gen1 level[0].upgrade must be defined');
     expect(result.resources[gen1Upgrade.runeType]).toBe(100 - gen1Upgrade.runeCost);
-    expect(result.mergesSpentByGen[1]).toBe(gen1Upgrade.mergesRequired);
+    expect(result.spawnsSpentByGen[1]).toBe(gen1Upgrade.spawnsRequired);
   });
 
   it('returns snapshot unchanged if slot occupied', () => {
@@ -62,7 +62,7 @@ describe('applyStartUpgrade', () => {
       ...base,
       entities: { 'g1': { id: 'g1', kind: 'generator' as const, generatorId: 1, level: 1, charges: [] } },
       resources: { ...base.resources, rune1: 0, rune2: 0 },
-      mergeCountByLine: { Creature1: 999, Creature2: 999 },
+      spawnCountByGen: { 1: 999 },
     };
     expect(applyStartUpgrade(broke, BALANCE, 'g1', 0)).toBe(broke);
   });

@@ -32,6 +32,7 @@ export function tickTimerGenerators(
   let rngState = snapshot.rngState;
   let changed = false;
   let totalSpawnsPlaced = 0;
+  const spawnsByGen: Record<number, number> = {};
 
   // Single SeededRng instance for the entire call; getState() called once at exit
   const rng = new SeededRng(rngState);
@@ -80,6 +81,7 @@ export function tickTimerGenerators(
         genChanged = true;
         changed = true;
         totalSpawnsPlaced += 1;
+        spawnsByGen[gen.generatorId] = (spawnsByGen[gen.generatorId] ?? 0) + 1;
       }
     }
 
@@ -111,6 +113,7 @@ export function tickTimerGenerators(
         genChanged = true;
         changed = true;
         totalSpawnsPlaced += 1;
+        spawnsByGen[gen.generatorId] = (spawnsByGen[gen.generatorId] ?? 0) + 1;
       } else {
         // Model α: one interval of time IS spent producing this pending drop,
         // so advance lastTick by exactly one interval. The frozen pause begins
@@ -145,6 +148,12 @@ export function tickTimerGenerators(
 
   rngState = rng.getState();
 
+  const nextSpawnCountByGen = { ...snapshot.spawnCountByGen };
+  for (const [genIdStr, n] of Object.entries(spawnsByGen)) {
+    const genId = Number(genIdStr);
+    nextSpawnCountByGen[genId] = (nextSpawnCountByGen[genId] ?? 0) + n;
+  }
+
   return {
     ...snapshot,
     entities,
@@ -154,5 +163,6 @@ export function tickTimerGenerators(
       ...snapshot.cumulativeStats,
       totalSpawns: snapshot.cumulativeStats.totalSpawns + totalSpawnsPlaced,
     },
+    spawnCountByGen: nextSpawnCountByGen,
   };
 }

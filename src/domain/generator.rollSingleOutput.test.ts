@@ -14,7 +14,7 @@ interface GeneratorLevel {
   numCreatures: number;
   outputs: GeneratorOutput[];
   upgrade?: {
-    mergesRequired: number;
+    spawnsRequired: number;
     runeCost: number;
     runeType: 'rune1' | 'rune2';
     upgradeDurationSec?: number;

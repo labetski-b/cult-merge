@@ -26,7 +26,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1,
+            "spawnsRequired": 1,
             "runeType": "rune1",
             "runeCost": 2,
             "upgradeDurationSec": 3
@@ -50,7 +50,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2,
+            "spawnsRequired": 2,
             "runeType": "rune1",
             "runeCost": 4,
             "upgradeDurationSec": 6
@@ -84,7 +84,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune1",
             "runeCost": 6,
             "upgradeDurationSec": 12
@@ -128,7 +128,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune1",
             "runeCost": 9,
             "upgradeDurationSec": 24
@@ -182,7 +182,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune1",
             "runeCost": 14,
             "upgradeDurationSec": 48
@@ -246,7 +246,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune1",
             "runeCost": 21,
             "upgradeDurationSec": 96
@@ -315,7 +315,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune1",
             "runeCost": 34,
             "upgradeDurationSec": 192
@@ -389,7 +389,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune1",
             "runeCost": 54,
             "upgradeDurationSec": 384
@@ -473,7 +473,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune1",
             "runeCost": 86,
             "upgradeDurationSec": 768
@@ -585,7 +585,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune2",
             "runeCost": 3,
             "upgradeDurationSec": 3
@@ -609,7 +609,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune2",
             "runeCost": 5,
             "upgradeDurationSec": 6
@@ -643,7 +643,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune2",
             "runeCost": 8,
             "upgradeDurationSec": 12
@@ -687,7 +687,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune2",
             "runeCost": 13,
             "upgradeDurationSec": 24
@@ -741,7 +741,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune2",
             "runeCost": 20,
             "upgradeDurationSec": 48
@@ -805,7 +805,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune2",
             "runeCost": 32,
             "upgradeDurationSec": 96
@@ -874,7 +874,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune2",
             "runeCost": 51,
             "upgradeDurationSec": 192
@@ -948,7 +948,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune2",
             "runeCost": 81,
             "upgradeDurationSec": 384
@@ -1032,7 +1032,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune2",
             "runeCost": 129,
             "upgradeDurationSec": 768
@@ -1144,7 +1144,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune1",
             "runeCost": 4,
             "upgradeDurationSec": 3
@@ -1167,7 +1167,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune1",
             "runeCost": 7,
             "upgradeDurationSec": 6
@@ -1200,7 +1200,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune1",
             "runeCost": 11,
             "upgradeDurationSec": 12
@@ -1243,7 +1243,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune1",
             "runeCost": 17,
             "upgradeDurationSec": 24
@@ -1296,7 +1296,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune1",
             "runeCost": 27,
             "upgradeDurationSec": 48
@@ -1359,7 +1359,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune1",
             "runeCost": 42,
             "upgradeDurationSec": 96
@@ -1427,7 +1427,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune1",
             "runeCost": 68,
             "upgradeDurationSec": 192
@@ -1500,7 +1500,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune1",
             "runeCost": 108,
             "upgradeDurationSec": 384
@@ -1583,7 +1583,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune1",
             "runeCost": 172,
             "upgradeDurationSec": 768
@@ -1694,7 +1694,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune2",
             "runeCost": 5,
             "upgradeDurationSec": 3
@@ -1718,7 +1718,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune2",
             "runeCost": 8,
             "upgradeDurationSec": 6
@@ -1752,7 +1752,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune2",
             "runeCost": 13,
             "upgradeDurationSec": 12
@@ -1796,7 +1796,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune2",
             "runeCost": 21,
             "upgradeDurationSec": 24
@@ -1850,7 +1850,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune2",
             "runeCost": 33,
             "upgradeDurationSec": 48
@@ -1914,7 +1914,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune2",
             "runeCost": 53,
             "upgradeDurationSec": 96
@@ -1983,7 +1983,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune2",
             "runeCost": 84,
             "upgradeDurationSec": 192
@@ -2057,7 +2057,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune2",
             "runeCost": 135,
             "upgradeDurationSec": 384
@@ -2141,7 +2141,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune2",
             "runeCost": 215,
             "upgradeDurationSec": 768
@@ -2253,7 +2253,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune1",
             "runeCost": 6,
             "upgradeDurationSec": 3
@@ -2277,7 +2277,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune1",
             "runeCost": 10,
             "upgradeDurationSec": 6
@@ -2311,7 +2311,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune1",
             "runeCost": 16,
             "upgradeDurationSec": 12
@@ -2355,7 +2355,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune1",
             "runeCost": 25,
             "upgradeDurationSec": 24
@@ -2409,7 +2409,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune1",
             "runeCost": 40,
             "upgradeDurationSec": 48
@@ -2473,7 +2473,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune1",
             "runeCost": 63,
             "upgradeDurationSec": 96
@@ -2542,7 +2542,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune1",
             "runeCost": 101,
             "upgradeDurationSec": 192
@@ -2616,7 +2616,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune1",
             "runeCost": 162,
             "upgradeDurationSec": 384
@@ -2700,7 +2700,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune1",
             "runeCost": 258,
             "upgradeDurationSec": 768
@@ -2812,7 +2812,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune2",
             "runeCost": 8,
             "upgradeDurationSec": 3
@@ -2836,7 +2836,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune2",
             "runeCost": 13,
             "upgradeDurationSec": 6
@@ -2870,7 +2870,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune2",
             "runeCost": 21,
             "upgradeDurationSec": 12
@@ -2914,7 +2914,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune2",
             "runeCost": 33,
             "upgradeDurationSec": 24
@@ -2968,7 +2968,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune2",
             "runeCost": 53,
             "upgradeDurationSec": 48
@@ -3032,7 +3032,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune2",
             "runeCost": 84,
             "upgradeDurationSec": 96
@@ -3101,7 +3101,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune2",
             "runeCost": 135,
             "upgradeDurationSec": 192
@@ -3175,7 +3175,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune2",
             "runeCost": 215,
             "upgradeDurationSec": 384
@@ -3259,7 +3259,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune2",
             "runeCost": 344,
             "upgradeDurationSec": 768
@@ -3371,7 +3371,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune1",
             "runeCost": 10,
             "upgradeDurationSec": 3
@@ -3395,7 +3395,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune1",
             "runeCost": 16,
             "upgradeDurationSec": 6
@@ -3429,7 +3429,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune1",
             "runeCost": 26,
             "upgradeDurationSec": 12
@@ -3473,7 +3473,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune1",
             "runeCost": 41,
             "upgradeDurationSec": 24
@@ -3527,7 +3527,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune1",
             "runeCost": 66,
             "upgradeDurationSec": 48
@@ -3591,7 +3591,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune1",
             "runeCost": 105,
             "upgradeDurationSec": 96
@@ -3660,7 +3660,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune1",
             "runeCost": 168,
             "upgradeDurationSec": 192
@@ -3734,7 +3734,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune1",
             "runeCost": 269,
             "upgradeDurationSec": 384
@@ -3818,7 +3818,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune1",
             "runeCost": 430,
             "upgradeDurationSec": 768
@@ -3930,7 +3930,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 20,
+            "spawnsRequired": 20,
             "runeType": "rune2",
             "runeCost": 12,
             "upgradeDurationSec": 3
@@ -3954,7 +3954,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 45,
+            "spawnsRequired": 45,
             "runeType": "rune2",
             "runeCost": 20,
             "upgradeDurationSec": 6
@@ -3988,7 +3988,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 95,
+            "spawnsRequired": 95,
             "runeType": "rune2",
             "runeCost": 31,
             "upgradeDurationSec": 12
@@ -4032,7 +4032,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 180,
+            "spawnsRequired": 180,
             "runeType": "rune2",
             "runeCost": 50,
             "upgradeDurationSec": 24
@@ -4086,7 +4086,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 340,
+            "spawnsRequired": 340,
             "runeType": "rune2",
             "runeCost": 79,
             "upgradeDurationSec": 48
@@ -4150,7 +4150,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 600,
+            "spawnsRequired": 600,
             "runeType": "rune2",
             "runeCost": 126,
             "upgradeDurationSec": 96
@@ -4219,7 +4219,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1000,
+            "spawnsRequired": 1000,
             "runeType": "rune2",
             "runeCost": 202,
             "upgradeDurationSec": 192
@@ -4293,7 +4293,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 1700,
+            "spawnsRequired": 1700,
             "runeType": "rune2",
             "runeCost": 323,
             "upgradeDurationSec": 384
@@ -4377,7 +4377,7 @@
             }
           ],
           "upgrade": {
-            "mergesRequired": 2800,
+            "spawnsRequired": 2800,
             "runeType": "rune2",
             "runeCost": 516,
             "upgradeDurationSec": 768

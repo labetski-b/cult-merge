@@ -60,7 +60,7 @@ describe('GeneratorUpgradesTopBar', () => {
     });
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 50, Creature2: 50 },
+      spawnCountByGen: { 1: 50 },
     }));
 
     render(<GeneratorUpgradesTopBar />);
@@ -78,20 +78,20 @@ describe('GeneratorUpgradesTopBar', () => {
   });
 
   it('shows correct progress percentage for intermediate states', () => {
-    // Gen1 L1 requires 20 merges. 10 merges = 50%.
+    // Gen1 L2 requires spawnsRequired=2. 1 spawn = 50%.
     replaceEntities({
-      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 1, charges: [] },
+      'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 2, charges: [] },
     });
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 0 },
-      mergeCountByLine: { Creature1: 6, Creature2: 4 },
+      spawnCountByGen: { 1: 1 },
     }));
 
     const { container } = render(<GeneratorUpgradesTopBar />);
     const fill = container.querySelector('.generator-upgrade-widget .progress-fill') as HTMLElement;
     expect(fill).toBeTruthy();
     expect(fill.style.width).toBe('50%');
-    // Not READY because runes = 0 (and actually 10/20 merges too).
+    // Not READY because runes = 0.
     expect(screen.queryByText('READY')).toBeNull();
   });
 

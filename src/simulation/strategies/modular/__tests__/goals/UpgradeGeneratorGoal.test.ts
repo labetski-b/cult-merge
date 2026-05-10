@@ -75,8 +75,8 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
     state.activeTimedProcess = null;
-    state.mergeCountByLine = { Creature1: 5 };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 5 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     state.currentAutoTask = null;
@@ -99,8 +99,8 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.activeTimedProcess = null;
     state.entities = {}; // no generators on grid → no feasible candidate
     state.grid.cells.fill(null);
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
@@ -123,9 +123,9 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
       resMultiplier: 1,
     };
     state.currentTaskFed = [];
-    // No runes & no merges → no feasible candidate.
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    // No runes & no spawns → no feasible candidate.
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
     const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
@@ -144,8 +144,8 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     // High runes, no generators → previously rune_surplus_trigger fired.
     state.entities = {};
     state.grid.cells.fill(null);
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
@@ -157,8 +157,8 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     expect(goal.describe(state, ctx)).not.toMatch(/rune_surplus_trigger/);
   });
 
-  it('regression: global blocked_by_merges urgency lane is removed', () => {
-    // Setup: Gen1 L1 blocked by merges (mergesRequired=1, mergeCountByLine empty).
+  it('regression: global blocked_by_spawns urgency lane is removed', () => {
+    // Setup: Gen1 L1 blocked by spawns (spawnsRequired=1, spawnCountByGen empty).
     // rune1 is sufficient → previously T5 anti-hoarding lane (urgency 1.0)
     // would activate the goal as a global anti-hoarding signal. Per the
     // feasible-first plan that lane is removed: without an active quest path
@@ -168,13 +168,13 @@ describe('UpgradeGeneratorGoal — feasible-first contract', () => {
     state.kraken.level = 5;
     clearMandatoryThroughLevel(state, 5);
     state.activeTimedProcess = null;
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     state.currentAutoTask = null;
     const ctx = buildContext(state, makeEngineEnv(new SeededRng(1), 0), 50);
     expect(goal.isActive(state, ctx)).toBe(false);
-    expect(goal.describe(state, ctx)).not.toMatch(/blocked_by_merges/);
+    expect(goal.describe(state, ctx)).not.toMatch(/blocked_by_spawns/);
   });
 });

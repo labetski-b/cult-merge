@@ -152,7 +152,7 @@ export interface TickMetrics {
 
   // Generator state snapshots
   unlockedGenerators: number[];
-  mergesSpentByGenSnapshot: Record<number, number>;
+  spawnsSpentByGenSnapshot: Record<number, number>;
   generatorLevelsSnapshot: Record<number, number>;
 }
 

@@ -77,7 +77,7 @@ describe('upgradeContract — helpers', () => {
       clearMandatoryThroughLevel(state, 5);
       state.resources.rune1 = 0;
       state.resources.rune2 = 0;
-      state.mergeCountByLine = {};
+      state.spawnCountByGen = {};
       const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(false);
@@ -95,7 +95,7 @@ describe('upgradeContract — helpers', () => {
         totalMs: 1000,
       };
       state.resources.rune1 = 100;
-      state.mergeCountByLine = { Creature1: 100 };
+      state.spawnCountByGen = { 1: 100 };
       const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(false);
@@ -106,8 +106,8 @@ describe('upgradeContract — helpers', () => {
       state.kraken.level = 5;
       clearMandatoryThroughLevel(state, 5);
       state.resources.rune1 = 10;
-      state.mergeCountByLine = { Creature1: 5 };
-      state.mergesSpentByGen = {};
+      state.spawnCountByGen = { 1: 5 };
+      state.spawnsSpentByGen = {};
       const env = makeEngineEnv(new SeededRng(1), 0);
       const ctx = buildContext(state, env, 50);
       expect(feasibleCandidateExists(state, ctx)).toBe(true);

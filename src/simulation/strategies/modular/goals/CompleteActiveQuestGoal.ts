@@ -78,7 +78,7 @@ export class CompleteActiveQuestGoal implements Goal {
 
     // Pass 1: UpgradeGenerator prereq — gated by the shared `questRequiresUpgrade`
     // predicate (single source of truth; same call lives in
-    // `UpgradeGeneratorGoal.isActive` and `UpgradeMergeFarmTactic`). When it
+    // `UpgradeGeneratorGoal.isActive` and `UpgradeSpawnFarmTactic`). When it
     // fires we surface the (gen, level, missing type, toLevel) detail so
     // Inspector / log analysis can group decisions by tag.
     if (questRequiresUpgrade(state, ctx)) {

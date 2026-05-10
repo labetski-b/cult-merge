@@ -48,14 +48,14 @@ describe('GeneratorUpgradeModal', () => {
     expect(cards.length).toBe(2);
   });
 
-  it('UPGRADE button is disabled when merges are insufficient', () => {
+  it('UPGRADE button is disabled when spawns are insufficient', () => {
     replaceEntities({
       'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 1, charges: [] },
     });
-    // Gen1 L1 requires 20 merges and 3 rune1. Give enough runes but 0 merges.
+    // Give enough runes but 0 spawns.
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: {},
+      spawnCountByGen: {},
     }));
 
     render(<GeneratorUpgradeModal isOpen={true} onClose={() => {}} />);
@@ -67,10 +67,10 @@ describe('GeneratorUpgradeModal', () => {
     replaceEntities({
       'gen-a': { id: 'gen-a', kind: 'generator', generatorId: 1, level: 1, charges: [] },
     });
-    // Gen1 L1 requires 20 merges and 3 rune1. Enough merges, 0 runes.
+    // Enough spawns, 0 runes.
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 0 },
-      mergeCountByLine: { Creature1: 20, Creature2: 0 },
+      spawnCountByGen: { 1: 20 },
     }));
 
     render(<GeneratorUpgradeModal isOpen={true} onClose={() => {}} />);
@@ -84,7 +84,7 @@ describe('GeneratorUpgradeModal', () => {
     });
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
-      mergeCountByLine: { Creature1: 20, Creature2: 0 },
+      spawnCountByGen: { 1: 20 },
     }));
 
     render(<GeneratorUpgradeModal isOpen={true} onClose={() => {}} />);

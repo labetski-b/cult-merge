@@ -1,22 +1,22 @@
 import type { GameSnapshot, GeneratorEntity, TaskDefinition } from '@domain/types';
 import type { BalanceConfig } from '@data/schemas';
 import { getActiveMandatoryTask } from '@domain/tasks';
-import { canUpgradeGenerator, resolveUpgradeCost } from '@domain/upgrades';
+import { canUpgradeGenerator, resolveUpgradeCost, getGeneratorSpawnsAvailable } from '@domain/upgrades';
 
 /**
  * Feasible-first upgrade picker (plan 2026-05-05-modular-upgrade-feasible-first).
  *
  * Replaces the legacy `pickUpgradeCandidate` semantics for ModularStrategy:
  *
- *   - feasibility = upgrade row exists AND mergesAvailable >= mergesRequired
+ *   - feasibility = upgrade row exists AND spawnsAvailable >= spawnsRequired
  *     AND runeBalance >= runeCost AND state.activeTimedProcess === null;
  *   - quest-relevance is computed against the **real active task**
  *     (mandatory first, currentAutoTask fallback);
  *   - ranking: questRelevant desc → krakenRequired desc → generatorId desc →
  *     currentLevel desc → entityId asc;
- *   - **never** surfaces rune-surplus or blocked-by-merges as a global trigger.
+ *   - **never** surfaces rune-surplus or blocked-by-spawns as a global trigger.
  *     `blockedBy` is preserved for callers that explicitly operate inside the
- *     quest-requires-upgrade path (UpgradeMergeFarmTactic).
+ *     quest-requires-upgrade path (UpgradeSpawnFarmTactic).
  *
  * Pure, deterministic, side-effect free.
  */
@@ -32,11 +32,11 @@ export interface FeasibleUpgradeCandidate {
 
 /** Re-exported shape of `pickUpgradeCandidate`'s blockedBy for callers in the
  *  quest-requires-upgrade path. Intentionally identical so call sites keep
- *  using the same `reason: 'merges'` discriminator. */
-export interface UpgradeBlockedByMerges {
+ *  using the same `reason: 'spawns'` discriminator. */
+export interface UpgradeBlockedBySpawns {
   generatorId: number;
   entityId: string;
-  reason: 'merges';
+  reason: 'spawns';
   needed: number;
   have: number;
 }
@@ -45,10 +45,10 @@ export interface PickFeasibleUpgradeResult {
   candidate: FeasibleUpgradeCandidate | null;
   /**
    * Only populated for callers that explicitly opt into the
-   * quest-requires-upgrade flow (e.g. `UpgradeMergeFarmTactic`). The picker
+   * quest-requires-upgrade flow (e.g. `UpgradeSpawnFarmTactic`). The picker
    * itself never returns blockedBy for global / rune-surplus reasons.
    */
-  blockedBy?: UpgradeBlockedByMerges;
+  blockedBy?: UpgradeBlockedBySpawns;
 }
 
 /** Real active task: mandatory first, auto-task fallback. */
@@ -64,7 +64,7 @@ export function realActiveTask(
  *
  * Algorithm:
  *  1. If `state.activeTimedProcess !== null` → no candidate (slot busy).
- *  2. Build feasible list (merges + runes both satisfied).
+ *  2. Build feasible list (spawns + runes both satisfied).
  *  3. For each candidate compute `questRelevant`:
  *     - real active task is mandatory ?? currentAutoTask;
  *     - relevant if any unmet need has its assigned generator (via cfg.lines
@@ -73,7 +73,7 @@ export function realActiveTask(
  *       (so an upgrade structurally moves the path).
  *  4. Sort by ranking and return the top candidate.
  *  5. If no feasible candidate but at least one generator is blocked by
- *     merges with affordable runes, return blockedBy (youngest-blocked first
+ *     spawns with affordable runes, return blockedBy (youngest-blocked first
  *     — same pick semantics as legacy `pickUpgradeCandidate`).
  */
 export function pickFeasibleUpgradeCandidate(
@@ -87,7 +87,7 @@ export function pickFeasibleUpgradeCandidate(
   );
 
   const feasibleList: { gen: GeneratorEntity; krakenRequired: number; toLevel: number }[] = [];
-  const blockedByMergesList: GeneratorEntity[] = [];
+  const blockedBySpawnsList: GeneratorEntity[] = [];
 
   for (const g of gens) {
     const check = canUpgradeGenerator(g, state, balance);
@@ -104,14 +104,14 @@ export function pickFeasibleUpgradeCandidate(
       }
       continue;
     }
-    if (check.reason === 'merges') {
-      // Mirror legacy semantics: only flag merges-blocked when runes are also
-      // available — otherwise farming merges can't make the upgrade feasible.
+    if (check.reason === 'spawns') {
+      // Mirror legacy semantics: only flag spawns-blocked when runes are also
+      // available — otherwise farming spawns can't make the upgrade feasible.
       const row = resolveUpgradeCost(g.generatorId, g.level, balance);
       if (!row) continue;
       const runeBalance = state.resources[row.runeType] ?? 0;
       if (runeBalance >= row.runeCost) {
-        blockedByMergesList.push(g);
+        blockedBySpawnsList.push(g);
       }
     }
   }
@@ -142,25 +142,25 @@ export function pickFeasibleUpgradeCandidate(
     return { candidate: ranked[0]! };
   }
 
-  if (blockedByMergesList.length === 0) return { candidate: null };
+  if (blockedBySpawnsList.length === 0) return { candidate: null };
 
   // Pick youngest blocked generator (mirror legacy semantics so the
-  // UpgradeMergeFarmTactic, which still expects this contract, stays stable).
-  const sorted = [...blockedByMergesList].sort((a, b) => a.level - b.level);
+  // UpgradeSpawnFarmTactic, which still expects this contract, stays stable).
+  const sorted = [...blockedBySpawnsList].sort((a, b) => a.level - b.level);
   const pick = sorted[0]!;
   const config = balance.generators.generators.find(g => g.id === pick.generatorId);
   const row = resolveUpgradeCost(pick.generatorId, pick.level, balance);
   if (!config || !row) return { candidate: null };
 
-  const have = getMergesAvailableRaw(config, state);
+  const have = getGeneratorSpawnsAvailable(config, state.spawnCountByGen, state.spawnsSpentByGen);
 
   return {
     candidate: null,
     blockedBy: {
       generatorId: pick.generatorId,
       entityId: pick.id,
-      reason: 'merges',
-      needed: row.mergesRequired,
+      reason: 'spawns',
+      needed: row.spawnsRequired,
       have,
     },
   };
@@ -191,16 +191,4 @@ function isQuestRelevant(
     if (!currentOutputs.has(req.type)) return true;
   }
   return false;
-}
-
-function getMergesAvailableRaw(
-  config: { id: number; lines: string[] },
-  state: GameSnapshot,
-): number {
-  const raw = config.lines.reduce(
-    (sum, line) => sum + (state.mergeCountByLine[line] ?? 0),
-    0,
-  );
-  const spent = state.mergesSpentByGen?.[config.id] ?? 0;
-  return Math.max(0, raw - spent);
 }

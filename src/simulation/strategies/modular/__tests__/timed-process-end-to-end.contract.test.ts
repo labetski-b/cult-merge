@@ -39,8 +39,8 @@ describe('Task 5/6 end-to-end: starter action + scheduler short-circuit', () => 
     // Setup: feasible Gen1 upgrade.
     const state = createInitialSnapshot(BALANCE, { seed: 1 });
     state.activeTimedProcess = null;
-    state.mergeCountByLine = { Creature1: 1 };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 1 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
 

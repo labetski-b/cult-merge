@@ -48,7 +48,8 @@ function pickSnapshot(input: GameSnapshot): GameSnapshot {
     questState: input.questState,
     meatDropQueue: input.meatDropQueue,
     chapterClaimed: input.chapterClaimed,
-    mergesSpentByGen: input.mergesSpentByGen,
+    spawnCountByGen: input.spawnCountByGen,
+    spawnsSpentByGen: input.spawnsSpentByGen,
     activeTimedProcess: input.activeTimedProcess,
     worldTimeMs: input.worldTimeMs,
   };

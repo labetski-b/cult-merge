@@ -163,6 +163,10 @@ export function spawnFromGenerator(
       cumulativeStats: {
         ...snapshot.cumulativeStats,
         totalSpawns: snapshot.cumulativeStats.totalSpawns + 1
+      },
+      spawnCountByGen: {
+        ...snapshot.spawnCountByGen,
+        [generator.generatorId]: (snapshot.spawnCountByGen[generator.generatorId] ?? 0) + 1
       }
     },
     changed: true,

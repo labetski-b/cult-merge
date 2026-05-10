@@ -20,14 +20,14 @@ const makeTestBalance = (): BalanceConfig => ({
             chargeCost: 10,
             numCreatures: 1,
             outputs: [{ creatureType: 'Creature1', level: 1, chance: 1 }],
-            upgrade: { mergesRequired: 20, runeCost: 3, runeType: 'rune1' },
+            upgrade: { spawnsRequired: 20, runeCost: 3, runeType: 'rune1' },
           },
           {
             level: 2,
             chargeCost: 8,
             numCreatures: 1,
             outputs: [{ creatureType: 'Creature1', level: 1, chance: 1 }],
-            upgrade: { mergesRequired: 50, runeCost: 8, runeType: 'rune1' },
+            upgrade: { spawnsRequired: 50, runeCost: 8, runeType: 'rune1' },
           },
           {
             level: 3,
@@ -44,12 +44,12 @@ const makeTestBalance = (): BalanceConfig => ({
 describe('resolveUpgradeCost', () => {
   it('returns the upgrade row defined on the level', () => {
     const row = resolveUpgradeCost(1, 1, makeTestBalance());
-    expect(row).toEqual({ mergesRequired: 20, runeCost: 3, runeType: 'rune1' });
+    expect(row).toEqual({ spawnsRequired: 20, runeCost: 3, runeType: 'rune1' });
   });
 
   it('returns the upgrade row for the next level range', () => {
     const row = resolveUpgradeCost(1, 2, makeTestBalance());
-    expect(row).toEqual({ mergesRequired: 50, runeCost: 8, runeType: 'rune1' });
+    expect(row).toEqual({ spawnsRequired: 50, runeCost: 8, runeType: 'rune1' });
   });
 
   it('returns null for the last level (no upgrade field)', () => {
@@ -89,14 +89,15 @@ const makeGenerator = (level: number) => ({
 
 const makeSnapshot = (overrides: Partial<any> = {}): any => ({
   resources: { rune1: 10, rune2: 0, meat: 0, eyes: 0, gems: 0 },
-  mergeCountByLine: { Creature1: 10, Creature2: 10 },
+  spawnCountByGen: { 1: 100 },
+  spawnsSpentByGen: {},
   ...overrides,
 });
 
 describe('canUpgradeGenerator', () => {
   it('returns ok with row when all conditions met', () => {
     const result = canUpgradeGenerator(makeGenerator(1), makeSnapshot(), makeTestBalance());
-    expect(result).toEqual({ ok: true, row: expect.objectContaining({ mergesRequired: 20 }) });
+    expect(result).toEqual({ ok: true, row: expect.objectContaining({ spawnsRequired: 20 }) });
   });
 
   it("returns reason 'max' when no upgrade row exists", () => {
@@ -104,13 +105,13 @@ describe('canUpgradeGenerator', () => {
     expect(result).toEqual({ ok: false, reason: 'max' });
   });
 
-  it("returns reason 'merges' when mergeCountByLine sum is below required", () => {
-    const snap = makeSnapshot({ mergeCountByLine: { Creature1: 1 } });
+  it("returns reason 'spawns' when spawnCountByGen is below required", () => {
+    const snap = makeSnapshot({ spawnCountByGen: { 1: 1 } });
     const result = canUpgradeGenerator(makeGenerator(1), snap, makeTestBalance());
-    expect(result).toEqual({ ok: false, reason: 'merges' });
+    expect(result).toEqual({ ok: false, reason: 'spawns' });
   });
 
-  it("returns reason 'runes' when merges sufficient but runes are not", () => {
+  it("returns reason 'runes' when spawns sufficient but runes are not", () => {
     const snap = makeSnapshot({ resources: { rune1: 0, rune2: 0, meat: 0, eyes: 0, gems: 0 } });
     const result = canUpgradeGenerator(makeGenerator(1), snap, makeTestBalance());
     expect(result).toEqual({ ok: false, reason: 'runes' });
@@ -118,7 +119,7 @@ describe('canUpgradeGenerator', () => {
 });
 
 describe('upgradeGenerator', () => {
-  const row: UpgradeRow = { mergesRequired: 20, runeCost: 3, runeType: 'rune1' };
+  const row: UpgradeRow = { spawnsRequired: 20, runeCost: 3, runeType: 'rune1' };
 
   it('increments level by one, deducts runes, preserves charges', () => {
     const gen = { id: 'g1', kind: 'generator' as const, generatorId: 1, level: 1,

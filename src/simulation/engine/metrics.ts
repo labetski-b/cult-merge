@@ -161,7 +161,7 @@ export function captureTickMetrics(
       .filter((e): e is GeneratorEntity => e.kind === 'generator')
       .map(e => e.generatorId)
       .filter((v, i, a) => a.indexOf(v) === i),
-    mergesSpentByGenSnapshot: { ...state.mergesSpentByGen },
+    spawnsSpentByGenSnapshot: { ...state.spawnsSpentByGen },
     generatorLevelsSnapshot: Object.values(state.entities)
       .filter((e): e is GeneratorEntity => e.kind === 'generator')
       .reduce<Record<number, number>>((acc, e) => {

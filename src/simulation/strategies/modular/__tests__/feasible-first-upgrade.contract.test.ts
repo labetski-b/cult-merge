@@ -33,7 +33,7 @@ import { QuestSpawnTactic } from '../tactics/QuestSpawnTactic';
 import { QuestMergeTactic } from '../tactics/QuestMergeTactic';
 import { QuestFeedTactic } from '../tactics/QuestFeedTactic';
 import { UpgradeStartTactic } from '../tactics/UpgradeStartTactic';
-import { UpgradeMergeFarmTactic } from '../tactics/UpgradeMergeFarmTactic';
+import { UpgradeSpawnFarmTactic } from '../tactics/UpgradeSpawnFarmTactic';
 import { LastResortFeedTactic } from '../tactics/LastResortFeedTactic';
 
 // Guards
@@ -73,7 +73,7 @@ function realTactics() {
     new QuestMergeTactic(),
     new QuestFeedTactic(),
     new UpgradeStartTactic(),
-    new UpgradeMergeFarmTactic(),
+    new UpgradeSpawnFarmTactic(),
     new LastResortFeedTactic(),
   ];
 }
@@ -160,8 +160,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
   // ─── Item 1 ──────────────────────────────────────────────────────────────
   it('1. feasible candidate exists → UpgradeStart selected before CompleteActiveQuest', () => {
     const state = makeMidGameSnapshot();
-    state.mergeCountByLine = { Creature1: 1 };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 1 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 10;
     state.resources.rune2 = 0;
     state.currentAutoTask = {
@@ -191,13 +191,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     clearMandatoryThroughLevel(state, 7);
     const rng = new SeededRng(42);
     placeGen(state, 2, 1, rng);
-    state.mergeCountByLine = {
-      Creature1: 50,
-      Creature2: 50,
-      Creature3: 50,
-      Creature4: 50,
-    };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 50, 2: 50 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = {
@@ -218,13 +213,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     clearMandatoryThroughLevel(state, 7);
     const rng = new SeededRng(42);
     placeGen(state, 2, 1, rng);
-    state.mergeCountByLine = {
-      Creature1: 50,
-      Creature2: 50,
-      Creature3: 50,
-      Creature4: 50,
-    };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 50, 2: 50 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = {
@@ -243,8 +233,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
     const state = makeMidGameSnapshot();
     state.entities = {};
     state.grid.cells.fill(null);
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
     state.currentAutoTask = null;
@@ -266,8 +256,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
   // ─── Item 5 ──────────────────────────────────────────────────────────────
   it('5. quest requires upgrade → CompleteActiveQuest emits prereq UpgradeGenerator AND UpgradeGenerator.isActive=true via questRequiresUpgrade branch', () => {
     const state = makeMidGameSnapshot();
-    state.mergeCountByLine = {};
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = {};
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 0;
     state.resources.rune2 = 0;
     state.currentAutoTask = {
@@ -358,8 +348,8 @@ describe('Feasible-first upgrade contract — scheduler integration', () => {
       resMultiplier: 1,
     };
     state.currentTaskFed = [];
-    state.mergeCountByLine = { Creature1: 5, Creature2: 5 };
-    state.mergesSpentByGen = {};
+    state.spawnCountByGen = { 1: 50 };
+    state.spawnsSpentByGen = {};
     state.resources.rune1 = 100;
     state.resources.rune2 = 100;
 
