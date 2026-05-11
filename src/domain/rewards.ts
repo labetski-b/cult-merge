@@ -16,7 +16,7 @@ function getBaseRewards(
   type: string,
   level: number,
   visited: Set<string>
-): { exp: number; eyes: number } {
+): { exp: number } {
   if (visited.has(type)) {
     throw new Error(`Circular creature baseOn reference for ${type}`);
   }
@@ -27,30 +27,25 @@ function getBaseRewards(
     throw new Error(`Requested level ${level} exceeds maxLevel ${definition.maxLevel} for ${type}`);
   }
 
-  if (definition.baseExp && definition.baseEyes) {
+  if (definition.baseExp) {
     const exp = definition.baseExp[level - 1];
-    const eyes = definition.baseEyes[level - 1];
 
-    if (exp === undefined || eyes === undefined) {
+    if (exp === undefined) {
       throw new Error(`Missing base reward for ${type} at level ${level}`);
     }
 
-    return {
-      exp,
-      eyes
-    };
+    return { exp };
   }
 
   if (!definition.baseOn) {
-    throw new Error(`Creature ${type} has no baseOn and no baseExp/baseEyes`);
+    throw new Error(`Creature ${type} has no baseOn and no baseExp`);
   }
 
   visited.add(type);
   const parentRewards = getBaseRewards(config, definition.baseOn, level, visited);
 
   return {
-    exp: Math.floor(parentRewards.exp * definition.expMultiplier),
-    eyes: Math.floor(parentRewards.eyes * definition.eyesMultiplier)
+    exp: Math.floor(parentRewards.exp * definition.expMultiplier)
   };
 }
 
@@ -58,11 +53,11 @@ export function getCreatureReward(
   config: BalanceConfig,
   creatureType: string,
   level: number
-): { exp: number; eyes: number } {
+): { exp: number } {
   return getBaseRewards(config, creatureType, level, new Set<string>());
 }
 
-export function getEntityReward(config: BalanceConfig, entity: CreatureEntity): { exp: number; eyes: number } {
+export function getEntityReward(config: BalanceConfig, entity: CreatureEntity): { exp: number } {
   return getCreatureReward(config, entity.creatureType, entity.level);
 }
 
@@ -85,4 +80,3 @@ export function runeRedemptionValue(itemKey: RuneItemKey): number {
 
   return 0;
 }
-

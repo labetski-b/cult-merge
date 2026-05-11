@@ -5,6 +5,8 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import { canUpgradeGenerator } from '@domain/upgrades';
 
+type CreatureRequirement = { type: string; level: number; count: number };
+
 // This module owns Kraken tasks from tasks.json (mandatory + auto).
 // Kraken quests live in quests.ts and are the unlockable quest layer.
 
@@ -409,6 +411,76 @@ export function applyFPCounterUpdate(
   };
 }
 
+/**
+ * Compute eye reward + meat cost for a set of creature requirements via the
+ * meat-cost formula: each requirement's L1-equivalent spawn count is divided by
+ * the source generator's `l1PerMeat` to get its meat cost, summed, then
+ * multiplied by the chapter-specific `eyePerMeat` rate.
+ *
+ * Returns `undefined` when `autoConfig.eyePerMeat` is missing — caller decides
+ * the no-reward fallback (e.g. omit the field on the task).
+ *
+ * Shared between `generateAutoTask` (auto quests) and `getActiveTask`
+ * (mandatory quests are stamped on read so chapter + scoring table are taken
+ * from current game state, not the JSON definition).
+ */
+export function computeMeatCostEyeReward(
+  config: BalanceConfig,
+  state: GameSnapshot,
+  creatures: CreatureRequirement[],
+  scoringTable: ScoringEntry[],
+): { eyeReward: number; meatCost: number } | undefined {
+  const eyePerMeat = config.tasks.autoConfig?.eyePerMeat ?? null;
+  if (!eyePerMeat) return undefined;
+
+  const chapter = getCurrentChapter(config, state.resources.eyes);
+  let rate = eyePerMeat[0]?.[1] ?? 0;
+  for (const [ch, value] of eyePerMeat) {
+    if (chapter.chapter >= ch) rate = value;
+  }
+
+  let totalMeatCost = 0;
+  for (const req of creatures) {
+    const entry = scoringTable.find((e) => e.creatureType === req.type);
+    // `||` (not `??`) so timer rows with l1PerMeat=0 fall back to 1 and don't blow up to Infinity.
+    const l1pm = entry?.l1PerMeat || 1;
+    const l1Spawns = Math.pow(2, req.level - 1);
+    totalMeatCost += (l1Spawns / l1pm) * req.count;
+  }
+
+  return { eyeReward: Math.floor(totalMeatCost * rate), meatCost: totalMeatCost };
+}
+
+/**
+ * Build the `l1PerMeat` lookup scoring table for the current game state — same
+ * `meatBudget=0` table that `generateAutoTask` uses as its "empty budget"
+ * fallback. Exposed so mandatory-quest eye-reward stamping can reuse the same
+ * per-meat economics without rebuilding the world from scratch.
+ */
+export function buildL1PerMeatLookup(
+  config: BalanceConfig,
+  state: GameSnapshot,
+): ScoringEntry[] {
+  const { rows, cols } = getGridSizeForLevel(config, state.kraken.level);
+  const gridCells = rows * cols;
+  const fieldGenerators = Object.values(state.entities).filter(
+    (e): e is GeneratorEntity => e.kind === 'generator',
+  );
+  const generatorFootprint = new Set(fieldGenerators.map((g) => g.generatorId)).size;
+  const gridCap = Math.max(1, gridCells - generatorFootprint);
+
+  const fieldL1Map = new Map<string, number>();
+  for (const entity of Object.values(state.entities)) {
+    if (entity.kind === 'creature') {
+      const cr = entity as CreatureEntity;
+      const cur = fieldL1Map.get(cr.creatureType) ?? 0;
+      fieldL1Map.set(cr.creatureType, cur + Math.pow(2, cr.level - 1));
+    }
+  }
+
+  return buildScoringTable(config, state, 0, gridCap, fieldL1Map).collapsed;
+}
+
 export function generateAutoTask(
   config: BalanceConfig,
   state: GameSnapshot,
@@ -420,31 +492,10 @@ export function generateAutoTask(
   const difficultySacMap = autoConfig.difficultySacMap ?? DEFAULT_AUTO_CONFIG.difficultySacMap;
   const dualBudgetSplit = autoConfig.dualBudgetSplit ?? DEFAULT_AUTO_CONFIG.dualBudgetSplit;
 
-  // ─── Meat-cost-based eye reward ─────────────────────────────────────
-  const eyePerMeat = autoConfig.eyePerMeat ?? null;
-
-  function computeMeatCostEyeReward(
-    creatures: { type: string; level: number; count: number }[],
-    scoringTable: ScoringEntry[]
-  ): { eyeReward: number; meatCost: number } | undefined {
-    if (!eyePerMeat) return undefined;
-    const chapter = getCurrentChapter(config, state.resources.eyes);
-    let rate = eyePerMeat[0]?.[1] ?? 0;
-    for (const [ch, value] of eyePerMeat) {
-      if (chapter.chapter >= ch) rate = value;
-    }
-
-    let totalMeatCost = 0;
-    for (const req of creatures) {
-      const entry = scoringTable.find(e => e.creatureType === req.type);
-      // `||` (not `??`) so timer rows with l1PerMeat=0 fall back to 1 and don't blow up to Infinity.
-      const l1pm = entry?.l1PerMeat || 1;
-      const l1Spawns = Math.pow(2, req.level - 1);
-      totalMeatCost += (l1Spawns / l1pm) * req.count;
-    }
-
-    return { eyeReward: Math.floor(totalMeatCost * rate), meatCost: totalMeatCost };
-  }
+  const computeReward = (
+    creatures: CreatureRequirement[],
+    scoringTable: ScoringEntry[],
+  ) => computeMeatCostEyeReward(config, state, creatures, scoringTable);
 
   // ─── PHASE 1: BUDGET ─────────────────────────────────────────────────────
 
@@ -484,7 +535,7 @@ export function generateAutoTask(
   const { collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
 
   if (scoringTable.length === 0) {
-    const fallbackReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+    const fallbackReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
     return {
       id: makeTaskId(rng),
       creatures: [{ type: 'Creature1', level: 1, count: 1 }],
@@ -504,7 +555,7 @@ export function generateAutoTask(
     const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
     if (!pick) {
       // Defensive: scoringTable.length > 0 was just checked, so this shouldn't happen.
-      const fallbackReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+      const fallbackReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
       return {
         id: makeTaskId(rng),
         creatures: [{ type: 'Creature1', level: 1, count: 1 }],
@@ -525,7 +576,7 @@ export function generateAutoTask(
     // Level-repeat guard: avoid same creature+level as last completed task
     if (lastLevel === pickLevel) pickLevel = Math.max(1, pickLevel - 1);
 
-    const reward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
+    const reward = computeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
     return {
       id: makeTaskId(rng),
       creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
@@ -596,7 +647,7 @@ export function generateAutoTask(
         if (state.autoTaskLastLevels[fillerPick.creatureType] === fillerLevel) {
           fillerLevel = Math.max(1, fillerLevel - 1);
         }
-        const dualReward = computeMeatCostEyeReward([
+        const dualReward = computeReward([
             { type: mainPick.creatureType, level: mainLevel, count: 1 },
             { type: fillerPick.creatureType, level: fillerLevel, count: 1 },
           ], scoringTable);
@@ -643,7 +694,7 @@ export function generateAutoTask(
       if (state.autoTaskLastLevels[pick.creatureType] === pickLevel) {
         pickLevel = Math.max(1, pickLevel - 1);
       }
-      const singleReward = computeMeatCostEyeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], scoringTable);
+      const singleReward = computeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], scoringTable);
       return {
         id: makeTaskId(rng),
         creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
@@ -660,7 +711,7 @@ export function generateAutoTask(
     }
   }
 
-  const finalReward = computeMeatCostEyeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+  const finalReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
   // pickedGenId intentionally omitted — fallback is always non-FP, so isFPTask returns false.
   return {
     id: makeTaskId(rng),

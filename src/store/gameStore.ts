@@ -11,7 +11,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalLevelExp, getEarnedLevelExp } from '@domain/kraken';
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
-import { applyTaskMultiplier, getCreatureReward, getEntityReward } from '@domain/rewards';
+import { getEntityReward } from '@domain/rewards';
 import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { runAutocompleteSimulation } from '@domain/runtime/runAutocomplete';
@@ -684,16 +684,7 @@ export const useGameStore = create<GameStore>()(
               const isMandatoryTask = mandatoryTask !== null;
               const task = mandatoryTask ?? nextAutoTask;
               if (task && isTaskComplete(task, nextTaskFed)) {
-                let taskEyes = 0;
-                if (task.eyeReward != null) {
-                  taskEyes = task.eyeReward;
-                } else {
-                  for (const req of task.creatures) {
-                    const cr = getCreatureReward(BALANCE, req.type, req.level);
-                    taskEyes += cr.eyes * req.count;
-                  }
-                  taskEyes = Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
-                }
+                const taskEyes = task.eyeReward ?? 0;
                 totalEyes += taskEyes;
                 nextTaskFed = [];
                 tasksCompleted += 1;

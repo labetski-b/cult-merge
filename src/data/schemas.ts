@@ -61,16 +61,14 @@ const creatureSchema = z
     type: z.string().min(1),
     maxLevel: z.number().int().min(1).max(15),
     baseExp: z.array(z.number().int().positive()).optional(),
-    baseEyes: z.array(z.number().int().positive()).optional(),
     baseOn: z.string().min(1).optional(),
-    expMultiplier: z.number().positive().default(1),
-    eyesMultiplier: z.number().positive().default(1)
+    expMultiplier: z.number().positive().default(1)
   })
   .superRefine((value, ctx) => {
     if (!value.baseExp && !value.baseOn) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Creature must define either baseExp/baseEyes or baseOn'
+        message: 'Creature must define either baseExp or baseOn'
       });
     }
 
@@ -78,13 +76,6 @@ const creatureSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'baseExp length must equal maxLevel'
-      });
-    }
-
-    if (value.baseEyes && value.baseEyes.length !== value.maxLevel) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'baseEyes length must equal maxLevel'
       });
     }
   });
