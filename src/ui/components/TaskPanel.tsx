@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
 import { getTaskFedProgress } from '@domain/tasks';
-import { getCreatureReward, applyTaskMultiplier, getEntityReward, runeRedemptionValue } from '@domain/rewards';
+import { getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import { getCreatureImage } from '@ui/creatureImages';
 import { useDragContext } from '@ui/DragContext';
 import { formatCompact } from '@ui/formatCompact';
@@ -140,18 +140,7 @@ export function TaskPanel() {
 
   const allDone = progress.length > 0 && progress.every(({ requirement, fed: count }) => count >= requirement.count);
 
-  let totalEyes = 0;
-  if (task) {
-    if (task.eyeReward != null) {
-      totalEyes = task.eyeReward;
-    } else {
-      for (const req of task.creatures) {
-        const reward = getCreatureReward(BALANCE, req.type, req.level);
-        totalEyes += reward.eyes * req.count;
-      }
-      totalEyes = Math.floor(applyTaskMultiplier(totalEyes, task.resMultiplier));
-    }
-  }
+  const totalEyes = task?.eyeReward ?? 0;
 
   return (
     <section

@@ -3,6 +3,7 @@ import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp } from '@domain/kraken';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
 import { applyFPCounterUpdate, generateAutoTask, getActiveMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { stampMandatoryEyeReward } from '@domain/runtime/getActiveTask';
 import type { GameSnapshot, Resources, RuneItemKey, TaskDefinition } from '@domain/types';
 import type { RuntimeContext, RuntimeResult } from './types';
 
@@ -73,21 +74,8 @@ export function feedRuneToResources(
   };
 }
 
-function calculateTaskEyes(
-  task: TaskDefinition,
-  ctx: RuntimeContext
-): number {
-  if (task.eyeReward != null) {
-    return task.eyeReward;
-  }
-
-  let taskEyes = 0;
-  for (const req of task.creatures) {
-    const reward = getCreatureReward(ctx.balance, req.type, req.level);
-    taskEyes += reward.eyes * req.count;
-  }
-
-  return Math.floor(applyTaskMultiplier(taskEyes, task.resMultiplier));
+function calculateTaskEyes(task: TaskDefinition): number {
+  return task.eyeReward ?? 0;
 }
 
 function calculatePredictedExp(
@@ -204,7 +192,12 @@ export function feedEntity(
   }
 
   const activeMandatory = getActiveMandatoryTask(ctx.balance, snapshot);
-  const mandatoryTask = activeMandatory?.task ?? null;
+  // Mandatory tasks carry no eyeReward in JSON — stamp it from the current
+  // chapter + scoring table so `calculateTaskEyes` sees the correct value
+  // (same meat-cost formula as auto-quests).
+  const mandatoryTask = activeMandatory
+    ? stampMandatoryEyeReward(ctx.balance, snapshot, activeMandatory.task)
+    : null;
   const isMandatory = mandatoryTask !== null;
   const task = mandatoryTask ?? snapshot.currentAutoTask;
 
@@ -223,7 +216,7 @@ export function feedEntity(
     };
   }
 
-  const taskEyes = calculateTaskEyes(task, ctx);
+  const taskEyes = calculateTaskEyes(task);
   const predictedExp = calculatePredictedExp(task, ctx);
   const taskBookkeeping = buildTaskBookkeeping(snapshot, task);
 

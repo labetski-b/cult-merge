@@ -4,114 +4,97 @@
       "type": "Creature1",
       "maxLevel": 9,
       "baseExp": [1, 2, 4, 8, 16, 32, 64, 128, 256],
-      "baseEyes": [2, 4, 8, 16, 32, 64, 128, 256, 512],
-      "expMultiplier": 1,
-      "eyesMultiplier": 1
+      "expMultiplier": 1
     },
     {
       "type": "Creature2",
       "maxLevel": 9,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 2
+      "expMultiplier": 2
     },
     {
       "type": "Creature3",
       "maxLevel": 9,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 4
+      "expMultiplier": 2
     },
     {
       "type": "Creature4",
       "maxLevel": 9,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 8
+      "expMultiplier": 2
     },
     {
       "type": "Creature5",
       "maxLevel": 5,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 8
+      "expMultiplier": 2
     },
     {
       "type": "Creature6",
       "maxLevel": 5,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 8
+      "expMultiplier": 2
     },
     {
       "type": "Creature7",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature8",
       "maxLevel": 6,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature9",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature10",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature11",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature12",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature13",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature14",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature15",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     },
     {
       "type": "Creature16",
       "maxLevel": 7,
       "baseOn": "Creature1",
-      "expMultiplier": 2,
-      "eyesMultiplier": 16
+      "expMultiplier": 2
     }
   ]
 }

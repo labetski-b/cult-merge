@@ -285,7 +285,13 @@
     "10": [
       {
         "id": "mandatory_task_lvl_10_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -293,7 +299,13 @@
     "11": [
       {
         "id": "mandatory_task_lvl_11_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -301,7 +313,13 @@
     "12": [
       {
         "id": "mandatory_task_lvl_12_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -309,7 +327,13 @@
     "13": [
       {
         "id": "mandatory_task_lvl_13_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -317,7 +341,13 @@
     "14": [
       {
         "id": "mandatory_task_lvl_14_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -325,7 +355,13 @@
     "15": [
       {
         "id": "mandatory_task_lvl_15_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -333,7 +369,13 @@
     "16": [
       {
         "id": "mandatory_task_lvl_16_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -341,7 +383,13 @@
     "17": [
       {
         "id": "mandatory_task_lvl_17_1",
-        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -349,7 +397,13 @@
     "18": [
       {
         "id": "mandatory_task_lvl_18_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -357,7 +411,13 @@
     "19": [
       {
         "id": "mandatory_task_lvl_19_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -365,7 +425,13 @@
     "20": [
       {
         "id": "mandatory_task_lvl_20_1",
-        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -373,7 +439,13 @@
     "21": [
       {
         "id": "mandatory_task_lvl_21_1",
-        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -381,7 +453,13 @@
     "22": [
       {
         "id": "mandatory_task_lvl_22_1",
-        "creatures": [{ "type": "Creature6", "level": 1, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 1,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -389,7 +467,13 @@
     "23": [
       {
         "id": "mandatory_task_lvl_23_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -397,7 +481,13 @@
     "24": [
       {
         "id": "mandatory_task_lvl_24_1",
-        "creatures": [{ "type": "Creature6", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -405,7 +495,13 @@
     "25": [
       {
         "id": "mandatory_task_lvl_25_1",
-        "creatures": [{ "type": "Creature5", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -413,7 +509,13 @@
     "26": [
       {
         "id": "mandatory_task_lvl_26_1",
-        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -421,7 +523,13 @@
     "27": [
       {
         "id": "mandatory_task_lvl_27_1",
-        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -429,7 +537,13 @@
     "28": [
       {
         "id": "mandatory_task_lvl_28_1",
-        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -437,7 +551,13 @@
     "29": [
       {
         "id": "mandatory_task_lvl_29_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -445,7 +565,13 @@
     "30": [
       {
         "id": "mandatory_task_lvl_30_1",
-        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -453,7 +579,13 @@
     "31": [
       {
         "id": "mandatory_task_lvl_31_1",
-        "creatures": [{ "type": "Creature5", "level": 3, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 3,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -461,7 +593,13 @@
     "32": [
       {
         "id": "mandatory_task_lvl_32_1",
-        "creatures": [{ "type": "Creature6", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -469,7 +607,13 @@
     "33": [
       {
         "id": "mandatory_task_lvl_33_1",
-        "creatures": [{ "type": "Creature5", "level": 4, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 4,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -477,7 +621,13 @@
     "34": [
       {
         "id": "mandatory_task_lvl_34_1",
-        "creatures": [{ "type": "Creature6", "level": 2, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 2,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -485,7 +635,13 @@
     "35": [
       {
         "id": "mandatory_task_lvl_35_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -493,7 +649,13 @@
     "36": [
       {
         "id": "mandatory_task_lvl_36_1",
-        "creatures": [{ "type": "Creature6", "level": 2, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 2,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -501,7 +663,13 @@
     "37": [
       {
         "id": "mandatory_task_lvl_37_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -509,7 +677,13 @@
     "38": [
       {
         "id": "mandatory_task_lvl_38_1",
-        "creatures": [{ "type": "Creature6", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -517,7 +691,13 @@
     "39": [
       {
         "id": "mandatory_task_lvl_39_1",
-        "creatures": [{ "type": "Creature5", "level": 1, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 1,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -525,7 +705,13 @@
     "40": [
       {
         "id": "mandatory_task_lvl_40_1",
-        "creatures": [{ "type": "Creature6", "level": 1, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 1,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -533,7 +719,13 @@
     "41": [
       {
         "id": "mandatory_task_lvl_41_1",
-        "creatures": [{ "type": "Creature5", "level": 3, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 3,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -541,7 +733,13 @@
     "42": [
       {
         "id": "mandatory_task_lvl_42_1",
-        "creatures": [{ "type": "Creature6", "level": 2, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 2,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -549,7 +747,13 @@
     "43": [
       {
         "id": "mandatory_task_lvl_43_1",
-        "creatures": [{ "type": "Creature5", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -557,7 +761,13 @@
     "44": [
       {
         "id": "mandatory_task_lvl_44_1",
-        "creatures": [{ "type": "Creature6", "level": 1, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 1,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -565,7 +775,13 @@
     "45": [
       {
         "id": "mandatory_task_lvl_45_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -573,7 +789,13 @@
     "46": [
       {
         "id": "mandatory_task_lvl_46_1",
-        "creatures": [{ "type": "Creature6", "level": 3, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 3,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -581,7 +803,13 @@
     "47": [
       {
         "id": "mandatory_task_lvl_47_1",
-        "creatures": [{ "type": "Creature5", "level": 2, "count": 2 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 2,
+            "count": 2
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -589,7 +817,13 @@
     "48": [
       {
         "id": "mandatory_task_lvl_48_1",
-        "creatures": [{ "type": "Creature6", "level": 1, "count": 3 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 1,
+            "count": 3
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -597,7 +831,13 @@
     "49": [
       {
         "id": "mandatory_task_lvl_49_1",
-        "creatures": [{ "type": "Creature5", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature5",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
@@ -605,7 +845,13 @@
     "50": [
       {
         "id": "mandatory_task_lvl_50_1",
-        "creatures": [{ "type": "Creature6", "level": 5, "count": 1 }],
+        "creatures": [
+          {
+            "type": "Creature6",
+            "level": 5,
+            "count": 1
+          }
+        ],
         "expMultiplier": 0,
         "resMultiplier": 2
       }
