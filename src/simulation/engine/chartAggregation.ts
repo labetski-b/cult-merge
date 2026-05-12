@@ -1,7 +1,7 @@
 import type { SimulationSnapshot, TickMetrics } from './types';
 
 export type AggMode = 'last' | 'avg' | 'delta';
-export type XAxisMode = 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel' | 'chapter';
+export type XAxisMode = 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel' | 'chapter' | 'generators';
 
 /**
  * Aggregation mode for each metric when X-axis collapses ticks into groups (session or presses).
@@ -114,6 +114,7 @@ export function getKeyFn(xMode: XAxisMode): (snap: SimulationSnapshot) => number
     case 'time':       return (s) => Math.floor(s.metrics.totalTimeSec / 60);
     case 'krakenLevel': return (s) => s.metrics.krakenLevel;
     case 'chapter':     return (s) => s.metrics.chapter;
+    case 'generators':   return (s) => s.metrics.chapter;
   }
 }
 
