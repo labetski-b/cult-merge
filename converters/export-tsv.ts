@@ -46,11 +46,11 @@ function groupBy<T>(arr: T[], keyFn: (item: T) => number): Map<number, T[]> {
 
 function buildMergeNests(): string {
   const header = [
-    'Generator level', 'Price', 'Amount', 'Id',
+    'Generator level', 'Price', 'Amount', 'Duration', 'Merges Required', 'Id',
     'Spawn 1', 'Chance', 'Spawn 2', 'Chance', 'Spawn 3', 'Chance',
     'Capacity', 'Recharge cost',
-    '1', '2', '3', '4', '5', '6', '7', '8', '9',  // Spawn1 level dist
-    '1', '2', '3', '4', '5', '6', '7', '8', '9',  // Spawn2 level dist
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',  // Spawn1 level dist
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',  // Spawn2 level dist
     '1', '2', '3',                                   // Hard level dist
   ];
 
@@ -58,12 +58,8 @@ function buildMergeNests(): string {
   rows.push(header);
 
   const generators = BALANCE.generators.generators;
-  const flowerpot = BALANCE.flowerpots.flowerpot;
 
-  // Порядок: Gen1, Gen2, Chicken (flowerpot), Gen4, Gen5, Gen6, Gen7, Gen8
-  const genOrder = [1, 2]; // Gen1, Gen2
-  // Flowerpot вставляется после Gen2
-  const genOrderAfter = [4, 5, 6, 7, 8]; // Gen4-Gen8
+  const genOrder = [1, 2, 3, 4, 5, 6, 7, 8];
 
   type OutputEntry = { creatureType: string; level: number; chance: number };
 
@@ -73,9 +69,11 @@ function buildMergeNests(): string {
     numCreatures: number,
     chargeCost: number,
     levelIdx: number,
-    purchaseCurrency: 'rune1' | 'rune2',
-    purchaseCost: number,
+    price: string,
+    amount: string,
     idValue: string,
+    duration: string,
+    mergesRequired: string,
   ): string[] {
     // Группируем outputs по creatureType
     const byType = new Map<string, { totalChance: number; levels: Map<number, number> }>();
@@ -114,17 +112,14 @@ function buildMergeNests(): string {
       return dist;
     }
 
-    const spawn1Dist = levelDist(spawn1Data, 9);
-    const spawn2Dist = levelDist(spawn2Data, 9);
+    const spawn1Dist = levelDist(spawn1Data, 16);
+    const spawn2Dist = levelDist(spawn2Data, 16);
     const hardDist = levelDist(undefined, 3); // Hard always 0 for generators/flowerpot
 
-    // First row of a generator gets price/amount
-    const price = levelIdx === 0 ? mapCurrency(purchaseCurrency) : '';
-    const amount = levelIdx === 0 ? String(purchaseCost) : '';
     const id = idValue;
 
     return [
-      String(levelIdx + 1), price, amount, id,
+      String(levelIdx + 1), price, amount, duration, mergesRequired, id,
       line1, fmt(spawn1Chance),
       line2, fmt(spawn2Chance),
       'Hard', '0',
@@ -133,48 +128,47 @@ function buildMergeNests(): string {
     ];
   }
 
-  // Генераторы из первой группы (Gen1, Gen2)
   for (const genId of genOrder) {
-    const gen = generators.find(g => g.id === genId)!;
+    const gen = generators.find(g => g.id === genId);
+    if (!gen) continue;
+    const idValue = gen.id === 3 ? 'Chicken' : gen.eggType;
     for (let i = 0; i < gen.levels.length; i++) {
       const lvl = gen.levels[i]!;
+      const numCreatures = lvl.mode === 'sacrifice' ? lvl.numCreatures : 0;
+      const chargeCost = lvl.mode === 'sacrifice' ? lvl.chargeCost : 0;
+      let duration = '';
+      let mergesRequired = '';
+      let price = '';
+      let amount = '';
+      if (i === 0) {
+        price = mapCurrency(gen.purchaseCurrency);
+        amount = String(gen.purchaseCost);
+      } else {
+        const prev = gen.levels[i - 1]!;
+        const dur = prev.upgrade?.upgradeDurationSec;
+        duration = typeof dur === 'number' ? fmt(dur) : '';
+        const mr = prev.upgrade?.spawnsRequired;
+        mergesRequired = typeof mr === 'number' ? String(mr) : '';
+        if (prev.upgrade) {
+          price = mapCurrency(prev.upgrade.runeType);
+          amount = String(prev.upgrade.runeCost);
+        }
+      }
       rows.push(computeSpawnRow(
         lvl.outputs, gen.lines as [string, string],
-        lvl.numCreatures, lvl.chargeCost,
-        i, gen.purchaseCurrency, gen.purchaseCost, gen.eggType,
-      ));
-    }
-  }
-
-  // Flowerpot (Chicken)
-  for (let i = 0; i < flowerpot.levels.length; i++) {
-    const lvl = flowerpot.levels[i]!;
-    rows.push(computeSpawnRow(
-      lvl.outputs, flowerpot.lines as [string, string],
-      0, 0, // Capacity=0, Recharge=0
-      i, flowerpot.purchaseCurrency, flowerpot.purchaseCost, 'Chicken',
-    ));
-  }
-
-  // Генераторы из второй группы (Gen4-Gen8)
-  for (const genId of genOrderAfter) {
-    const gen = generators.find(g => g.id === genId)!;
-    for (let i = 0; i < gen.levels.length; i++) {
-      const lvl = gen.levels[i]!;
-      rows.push(computeSpawnRow(
-        lvl.outputs, gen.lines as [string, string],
-        lvl.numCreatures, lvl.chargeCost,
-        i, gen.purchaseCurrency, gen.purchaseCost, gen.eggType,
+        numCreatures, chargeCost,
+        i, price, amount, idValue,
+        duration, mergesRequired,
       ));
     }
   }
 
   // Section 2: Entity_Box
   const entityBoxRow = [
-    '1', '', '', 'Entity_Box',
+    '1', '', '', '', '', 'Entity_Box',
     'MergeRune1', '0', 'MergeRune2', '0', 'Hard', '0',
     '0', '0',
-    ...Array(9).fill('0'), ...Array(9).fill('0'), ...Array(3).fill('0'),
+    ...Array(16).fill('0'), ...Array(16).fill('0'), ...Array(3).fill('0'),
   ];
   rows.push(entityBoxRow);
 
@@ -221,13 +215,13 @@ function buildMergeNests(): string {
     const hardData = typeAgg.get('Hard');
 
     const row = [
-      String(box.id), '', '', 'Res_Box',
+      String(box.id), '', '', '', '', 'Res_Box',
       'MergeRune1', fmt(rune1Data?.totalChance ?? 0),
       'MergeRune2', fmt(rune2Data?.totalChance ?? 0),
       'Hard', fmt(hardData?.totalChance ?? 0),
       String(box.items), '0',
-      ...resLevelDist('MergeRune1', 9),
-      ...resLevelDist('MergeRune2', 9),
+      ...resLevelDist('MergeRune1', 16),
+      ...resLevelDist('MergeRune2', 16),
       ...resLevelDist('Hard', 3),
     ];
     rows.push(row);
