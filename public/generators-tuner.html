@@ -140,11 +140,25 @@
     .gen-table {
       border-collapse: separate;
       border-spacing: 0;
-      width: auto;
+      width: max-content;
+      max-width: none;
       font-size: 11px;
       font-family: var(--font-mono, "SF Mono", Menlo, monospace);
       font-variant-numeric: tabular-nums;
     }
+    .gen-table col.col-lvl { width: 48px; }
+    .gen-table col.col-mode { width: 54px; }
+    .gen-table col.col-meat { width: 68px; }
+    .gen-table col.col-spawns { width: 64px; }
+    .gen-table col.col-eff { width: 68px; }
+    .gen-table col.col-eff-meat { width: 72px; }
+    .gen-table col.col-delta { width: 62px; }
+    .gen-table col.col-prob { width: 42px; }
+    .gen-table col.col-max { width: 54px; }
+    .gen-table col.col-upgrade { width: 74px; }
+    .gen-table col.col-chapter { width: 64px; }
+    .gen-table col.col-rune { width: 62px; }
+    .gen-table col.col-time { width: 58px; }
     .gen-table th, .gen-table td {
       padding: 3px 6px;
       border-bottom: 1px solid var(--border-subtle);
@@ -204,6 +218,25 @@
       display: inline-block;
       min-width: 36px;
       text-align: left;
+    }
+    .xp-note {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .xp-summary {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .xp-summary .xp-main {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .xp-summary .xp-sub {
+      color: var(--text-tertiary);
+      font-size: 10px;
     }
 
     /* Charts panel */
@@ -396,14 +429,24 @@
       <!-- ============ RIGHT: TABS ============ -->
       <div class="right-col">
         <div class="cm-tabs" role="tablist">
-          <button class="cm-tab" data-tab="table" aria-selected="true" role="tab">Table</button>
+          <button class="cm-tab" data-tab="cost" aria-selected="true" role="tab">Cost</button>
+          <button class="cm-tab" data-tab="upgrades" aria-selected="false" role="tab">Upgrades</button>
+          <button class="cm-tab" data-tab="xp" aria-selected="false" role="tab">XP</button>
           <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
           <button class="cm-tab" data-tab="runes" aria-selected="false" role="tab">Runes</button>
           <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
         </div>
 
-        <section id="panel-table" class="panel is-active" style="padding:0;">
-          <div id="gen-tables-container"><!-- filled by JS: 8 cm-card blocks --></div>
+        <section id="panel-cost" class="panel is-active" style="padding:0;">
+          <div id="cost-tables-container"><!-- filled by JS: Cost tables --></div>
+        </section>
+
+        <section id="panel-upgrades" class="panel" style="padding:0;">
+          <div id="upgrade-tables-container"><!-- filled by JS: Upgrade tables --></div>
+        </section>
+
+        <section id="panel-xp" class="panel" style="padding:0;">
+          <div id="xp-tables-container"><!-- filled by JS: XP per meat tables --></div>
         </section>
 
         <section id="panel-charts" class="cm-card panel">
@@ -536,10 +579,12 @@
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, boxesData, runesData] = await Promise.all([
+    const [krakenProgData, boxesData, runesData, creaturesData, oldGeneratorsData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/experiments/baseline/generators.json', import.meta.url)).then(r => r.json()),
     ]);
 
     // ============================================================
@@ -549,6 +594,7 @@
     let params = structuredClone(DEFAULTS);
     const baselineResult = computeGenerators(structuredClone(BASELINE));
     const baselineGens = baselineResult.generators;
+    const oldGensById = new Map((oldGeneratorsData.generators || []).map(g => [g.id, g]));
 
     // ============================================================
     //  KNOB BUILDERS
@@ -704,6 +750,21 @@
       return `Cr${n}`;
     }
 
+    const creaturesByType = new Map((creaturesData.creatures || []).map(c => [c.type, c]));
+
+    function creatureXp(creatureType, level, seen) {
+      const visited = seen || new Set();
+      if (visited.has(creatureType)) return 0;
+      const def = creaturesByType.get(creatureType);
+      if (!def) return 0;
+      if (def.baseExp) {
+        return def.baseExp[level - 1] ?? 0;
+      }
+      if (!def.baseOn) return 0;
+      visited.add(creatureType);
+      return Math.floor(creatureXp(def.baseOn, level, visited) * (def.expMultiplier || 1));
+    }
+
     function deltaSpan(current, base) {
       if (!Number.isFinite(current) || !Number.isFinite(base) || base === 0) return '';
       const d = (current - base) / base;
@@ -753,7 +814,59 @@
           sum += o.chance * Math.pow(2, o.level - 1);
         }
       }
-      return lvl.numCreatures * sum;
+      return (lvl.numCreatures ?? 1) * sum;
+    }
+
+    function computeTotalEff(lvl) {
+      if (!lvl) return 0;
+      let total = 0;
+      for (const o of lvl.outputs) total += o.chance * Math.pow(2, o.level - 1);
+      return (lvl.numCreatures ?? 1) * total;
+    }
+
+    function getUpgradeSpawnsRequired(upgrade) {
+      if (!upgrade) return null;
+      return upgrade.spawnsRequired ?? upgrade.mergesRequired ?? null;
+    }
+
+    function computeChargeEstimate(lvl) {
+      const spawnsRequired = getUpgradeSpawnsRequired(lvl?.upgrade);
+      if (!Number.isFinite(spawnsRequired) || !Number.isFinite(lvl?.numCreatures) || lvl.numCreatures <= 0) return null;
+      return Math.ceil(spawnsRequired / lvl.numCreatures);
+    }
+
+    const LEVEL_CHAPTER_ANCHORS = [
+      { level: 1, chapter: 2 },
+      { level: 8, chapter: 5 },
+      { level: 15, chapter: 8 },
+      { level: 20, chapter: 10 },
+      { level: 26, chapter: 12 },
+      { level: 33, chapter: 14 },
+      { level: 40, chapter: 16 },
+      { level: 45, chapter: 17 },
+      { level: 49, chapter: 17 },
+    ];
+
+    function approxChapterForKrakenLevel(level) {
+      if (level <= LEVEL_CHAPTER_ANCHORS[0].level) return `Ch${LEVEL_CHAPTER_ANCHORS[0].chapter}`;
+      for (let i = 0; i < LEVEL_CHAPTER_ANCHORS.length - 1; i++) {
+        const a = LEVEL_CHAPTER_ANCHORS[i];
+        const b = LEVEL_CHAPTER_ANCHORS[i + 1];
+        if (level >= a.level && level <= b.level) {
+          const t = (level - a.level) / Math.max(1, b.level - a.level);
+          const chapter = a.chapter + t * (b.chapter - a.chapter);
+          return `Ch${Math.round(chapter)}`;
+        }
+      }
+      return `Ch${LEVEL_CHAPTER_ANCHORS[LEVEL_CHAPTER_ANCHORS.length - 1].chapter}+`;
+    }
+
+    function approxKrakenForUpgrade(genIndex, fromLevel) {
+      const start = params.genKrakenRequired[genIndex] ?? 1;
+      const next = params.genKrakenRequired[genIndex + 1] ?? 49;
+      const span = Math.max(1, next - start);
+      const t = (fromLevel - 1) / Math.max(1, params.upgradeLevels - 1);
+      return Math.round(start + t * span);
     }
 
     /**
@@ -767,34 +880,225 @@
       return null;
     }
 
-    function renderTable(currentGens) {
-      const container = document.getElementById('gen-tables-container');
-      const N_LEVELS = params.upgradeLevels;
+    function computeXpStats(gen, lvl) {
+      const isTimer = gen.spawnMode === 'timer';
+      const spawnMultiplier = isTimer ? 1 : lvl.numCreatures;
+      const byCreature = new Map();
+      let expectedXp = 0;
 
+      for (const o of lvl.outputs) {
+        const xp = o.chance * spawnMultiplier * creatureXp(o.creatureType, o.level);
+        expectedXp += xp;
+        byCreature.set(o.creatureType, (byCreature.get(o.creatureType) || 0) + xp);
+      }
+
+      const xpPerMeat = !isTimer && lvl.chargeCost > 0 ? expectedXp / lvl.chargeCost : null;
+      return { isTimer, expectedXp, xpPerMeat, byCreature };
+    }
+
+    function buildCostColgroup(order) {
+      let cols = [
+        '<col class="col-lvl">',
+        '<col class="col-meat">',
+        '<col class="col-spawns">',
+        '<col class="col-eff">',
+        '<col class="col-eff-meat">',
+        '<col class="col-delta">',
+      ].join('');
+      for (const c of order) {
+        cols += '<col class="col-prob">';
+        for (let lv = 1; lv <= c.topL; lv++) cols += '<col class="col-prob">';
+        cols += '<col class="col-eff">';
+        cols += '<col class="col-eff-meat">';
+        cols += '<col class="col-max">';
+      }
+      return `<colgroup>${cols}</colgroup>`;
+    }
+
+    function buildXpColgroup(order) {
+      let cols = [
+        '<col class="col-lvl">',
+        '<col class="col-mode">',
+        '<col class="col-meat">',
+        '<col class="col-spawns">',
+        '<col class="col-eff">',
+        '<col class="col-eff-meat">',
+        '<col class="col-eff-meat">',
+        '<col class="col-delta">',
+        '<col class="col-delta">',
+      ].join('');
+      for (const _ of order) cols += '<col class="col-eff-meat">';
+      return `<colgroup>${cols}</colgroup>`;
+    }
+
+    function buildUpgradeColgroup() {
+      return `<colgroup>
+        <col class="col-upgrade">
+        <col class="col-chapter">
+        <col class="col-chapter">
+        <col class="col-meat">
+        <col class="col-spawns">
+        <col class="col-spawns">
+        <col class="col-spawns">
+        <col class="col-eff-meat">
+        <col class="col-rune">
+        <col class="col-rune">
+        <col class="col-time">
+        <col class="col-eff">
+        <col class="col-eff">
+        <col class="col-delta">
+        <col class="col-eff-meat">
+        <col class="col-eff-meat">
+      </colgroup>`;
+    }
+
+    function renderXpTables(currentGens) {
+      const container = document.getElementById('xp-tables-container');
+      const N_LEVELS = params.upgradeLevels;
       let outerHtml = '';
+
+      outerHtml += `
+        <div class="cm-card gen-block" style="width:auto;">
+          <div class="cm-card__body">
+            <p class="xp-note">
+              XP per meat = expected XP from one full generator charge / meat cost.
+              Timer generators do not consume meat, so they show expected XP per timer spawn instead.
+              Old values use src/data/experiments/baseline/generators.json: 7 generators × 5 levels, no old meat-based Gen3.
+            </p>
+          </div>
+        </div>`;
 
       for (let gi = 0; gi < currentGens.length; gi++) {
         const g = currentGens[gi];
         const baseG = baselineGens[gi];
+        const oldG = oldGensById.get(g.id) || null;
+        const order = buildCreatureOrder(g);
+        const isTimer = g.spawnMode === 'timer';
+
+        let head = '<thead><tr>';
+        head += '<th>Lvl</th>';
+        head += '<th>Mode</th>';
+        head += '<th>Meat</th>';
+        head += `<th>${isTimer ? 'Tick' : 'Spawns'}</th>`;
+        head += `<th title="${isTimer ? 'Expected XP from one timer spawn.' : 'Expected XP from one full charged batch.'}">${isTimer ? 'XP / spawn' : 'XP / charge'}</th>`;
+        head += '<th title="Expected XP from one full charge divided by chargeCost.">XP / meat</th>';
+        head += '<th title="Old 5-level baseline XP per meat for the same generator and level.">Old XP / meat</th>';
+        head += '<th title="Current XP per meat vs old 5-level baseline.">New vs Old</th>';
+        head += '<th title="Change in XP / meat vs previous upgrade level.">Δ prev</th>';
+        for (const c of order) {
+          head += `<th class="group-start" title="${isTimer ? 'Expected XP contribution per timer spawn.' : 'XP per meat contribution from this creature line.'}">${c.short}</th>`;
+        }
+        head += '</tr></thead>';
+
+        let body = '<tbody>';
+        for (let L = 1; L <= N_LEVELS; L++) {
+          const lvl = g.levels[L - 1];
+          const baseLvl = baseG.levels[L - 1];
+          const oldLvl = oldG?.levels?.find(level => level.level === L) || null;
+          const stats = computeXpStats(g, lvl);
+          const baseStats = computeXpStats(baseG, baseLvl);
+          const oldStats = oldLvl ? computeXpStats(oldG, oldLvl) : null;
+          const prevStats = L > 1 ? computeXpStats(g, g.levels[L - 2]) : null;
+
+          let prevDelta = '—';
+          if (stats.xpPerMeat !== null && prevStats && prevStats.xpPerMeat !== null && prevStats.xpPerMeat > 0) {
+            const d = (stats.xpPerMeat / prevStats.xpPerMeat - 1) * 100;
+            const cls = d > 0 ? 'delta-pos' : (d < 0 ? 'delta-neg' : '');
+            const sign = d > 0 ? '+' : '';
+            prevDelta = `<span class="${cls}">${sign}${d.toFixed(0)}%</span>`;
+          }
+
+          const xpPerMeatCell = stats.xpPerMeat === null
+            ? '<span class="dim">—</span>'
+            : `<span class="xp-summary"><span class="xp-main">${fmtNum(stats.xpPerMeat, 1)}</span>${deltaSpan(stats.xpPerMeat, baseStats.xpPerMeat)}</span>`;
+          const oldXpPerMeatCell = oldStats?.xpPerMeat != null
+            ? fmtNum(oldStats.xpPerMeat, 1)
+            : '<span class="dim">—</span>';
+          let oldDeltaCell = '—';
+          if (stats.xpPerMeat !== null && oldStats?.xpPerMeat != null && oldStats.xpPerMeat > 0) {
+            const d = (stats.xpPerMeat / oldStats.xpPerMeat - 1) * 100;
+            const cls = d > 0 ? 'delta-pos' : (d < 0 ? 'delta-neg' : '');
+            const sign = d > 0 ? '+' : '';
+            oldDeltaCell = `<span class="${cls}">${sign}${d.toFixed(0)}%</span>`;
+          }
+
+          body += '<tr>';
+          body += `<td class="lvl-cell">L${L}</td>`;
+          body += `<td class="num">${isTimer ? 'timer' : 'sac'}</td>`;
+          body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(lvl.chargeCost, 2)}</td>`;
+          body += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
+          body += `<td class="num">${fmtNum(stats.expectedXp, 1)}</td>`;
+          body += `<td class="num">${xpPerMeatCell}</td>`;
+          body += `<td class="num">${oldXpPerMeatCell}</td>`;
+          body += `<td class="num">${oldDeltaCell}</td>`;
+          body += `<td class="num">${prevDelta}</td>`;
+
+          for (const c of order) {
+            const lineXp = stats.byCreature.get(c.name) || 0;
+            if (lineXp <= 0) {
+              body += '<td class="num group-start dim">—</td>';
+              continue;
+            }
+            const value = stats.xpPerMeat === null ? lineXp : lineXp / lvl.chargeCost;
+            body += `<td class="num group-start">${fmtNum(value, 1)}</td>`;
+          }
+          body += '</tr>';
+        }
+        body += '</tbody>';
+
+        const title = `${g.name} (${g.lines.map(creatureShort).join(' / ')})`;
+        outerHtml += `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <table class="gen-table">
+                ${buildXpColgroup(order)}${head}${body}
+              </table>
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML = outerHtml;
+    }
+
+    function renderCostTables(currentGens) {
+      const container = document.getElementById('cost-tables-container');
+      const N_LEVELS = params.upgradeLevels;
+
+      let outerHtml = '';
+
+      outerHtml += `
+        <div class="cm-card gen-block" style="width:auto;">
+          <div class="cm-card__body">
+            <p class="xp-note">
+              Cost focuses on charge economy: meat cost, spawn count, output probabilities, and L1-equivalent efficiency.
+              The key balance check is monotonic Total Eff and stable Eff / meat.
+            </p>
+          </div>
+        </div>`;
+
+      for (let gi = 0; gi < currentGens.length; gi++) {
+        const g = currentGens[gi];
+        const baseG = baselineGens[gi];
+        const isTimer = g.spawnMode === 'timer';
 
         const order = buildCreatureOrder(g);
 
-        // Header row 1 (group titles): Lvl, Meat, Spawns, then per-creature group spanning (topL + 1) cols (L1..L_top + Eff).
+        // Header row 1 (group titles): Lvl, Meat, Spawns, then per-creature group spanning probability and efficiency columns.
         let head1 = '<tr>';
         head1 += '<th rowspan="2">Lvl</th>';
         head1 += '<th rowspan="2">Meat</th>';
-        head1 += '<th rowspan="2">Spawns</th>';
+        head1 += `<th rowspan="2">${isTimer ? 'Tick' : 'Spawns'}</th>`;
         head1 += '<th rowspan="2" title="Total efficiency = Σ over all creatures (numCreatures × chance × 2^(level-1))">Total Eff</th>';
-        head1 += '<th rowspan="2">Charges</th>';
-        head1 += '<th rowspan="2">Cost</th>';
-        head1 += '<th rowspan="2">Cur</th>';
+        head1 += '<th rowspan="2" title="Total Eff divided by meat cost. Empty for timer generators.">Eff / meat</th>';
+        head1 += '<th rowspan="2" title="Change in Eff / meat vs previous level.">Δ Eff/m</th>';
         for (const c of order) {
-          const span = c.topL + 3; // Σ% + L1..L_top + Eff + Max@4
+          const span = c.topL + 4; // Σ% + L1..L_top + Eff + Eff/meat + Max@4
           head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
         }
         head1 += '</tr>';
 
-        // Header row 2: per-creature Σ% + L1..L_top + Eff + Max@4
+        // Header row 2: per-creature Σ% + L1..L_top + Eff + Eff/meat + Max@4
         let head2 = '<tr>';
         for (const c of order) {
           head2 += `<th class="group-start dim">Σ%</th>`;
@@ -802,6 +1106,7 @@
             head2 += `<th>L${lv}</th>`;
           }
           head2 += `<th>Eff</th>`;
+          head2 += `<th>Eff/m</th>`;
           head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
         }
         head2 += '</tr>';
@@ -812,46 +1117,32 @@
           const lvl = g.levels[L - 1];
           const baseLvl = baseG.levels[L - 1];
 
-          // Meat per charge = chargeCost (computed in generator-curves.mjs as
-          // baseChargeCost × totalEff(L) / totalEff(1)).
+          // Meat per charge = chargeCost for sacrifice generators. Timer generators
+          // have no meat cost and their efficiency columns are per timer spawn.
           const meat = lvl.chargeCost;
           const meatBase = baseLvl.chargeCost;
 
-          // Upgrade columns (absent on the last level).
-          const up = lvl.upgrade;
-          const upBase = baseLvl.upgrade;
-          let chargesStr, costStr, curStr;
-          let costNum = null, costBaseNum = null;
-          if (up) {
-            const charges = Math.ceil(up.mergesRequired * 2 / lvl.numCreatures);
-            chargesStr = String(charges);
-            costNum = up.runeCost;
-            costBaseNum = upBase ? upBase.runeCost : null;
-            costStr = String(up.runeCost);
-            curStr = up.runeType === 'rune1' ? 'r1' : 'r2';
-          } else {
-            chargesStr = '—';
-            costStr = '—';
-            curStr = '—';
-          }
-
           // Total Eff = Σ over all creatures (numCreatures × Σ chance_k × 2^(k-1))
-          let totalEff = 0;
-          for (const o of lvl.outputs) totalEff += o.chance * Math.pow(2, o.level - 1);
-          totalEff *= lvl.numCreatures;
+          const totalEff = computeTotalEff(lvl);
+          const totalEffPerMeat = !isTimer && meat > 0 ? totalEff / meat : null;
+          const prevTotalEffPerMeat = !isTimer && L > 1
+            ? computeTotalEff(g.levels[L - 2]) / g.levels[L - 2].chargeCost
+            : null;
+          let totalEffPerMeatDelta = '—';
+          if (totalEffPerMeat !== null && prevTotalEffPerMeat && prevTotalEffPerMeat > 0) {
+            const pct = (totalEffPerMeat / prevTotalEffPerMeat - 1) * 100;
+            const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
+            const sign = pct > 0 ? '+' : '';
+            totalEffPerMeatDelta = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
+          }
 
           let row = '<tr>';
           row += `<td class="lvl-cell">L${L}</td>`;
-          row += `<td class="num"><div class="cell-stack"><span class="cell-main">${fmtNum(meat, 1)}</span>${deltaSpan(meat, meatBase)}</div></td>`;
-          row += `<td class="num">${lvl.numCreatures}</td>`;
+          row += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : `<div class="cell-stack"><span class="cell-main">${fmtNum(meat, 2)}</span>${deltaSpan(meat, meatBase)}</div>`}</td>`;
+          row += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
           row += `<td class="num">${fmtNum(totalEff, 1)}</td>`;
-          row += `<td class="num${up ? '' : ' dim'}">${chargesStr}</td>`;
-          if (up && costBaseNum !== null) {
-            row += `<td class="num"><div class="cell-stack"><span class="cell-main">${costStr}</span>${deltaSpan(costNum, costBaseNum)}</div></td>`;
-          } else {
-            row += `<td class="num${up ? '' : ' dim'}">${costStr}</td>`;
-          }
-          row += `<td class="num${up ? '' : ' dim'}">${curStr}</td>`;
+          row += `<td class="num">${totalEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(totalEffPerMeat, 1)}</td>`;
+          row += `<td class="num">${totalEffPerMeatDelta}</td>`;
 
           for (const c of order) {
             // Σ% — total share of this creature in current level's outputs.
@@ -885,6 +1176,8 @@
               effGrowthStr = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
             }
             row += `<td class="num"><span class="eff-cell"><span class="cell-main">${effStr}</span><span class="delta-slot">${effGrowthStr}</span></span></td>`;
+            const lineEffPerMeat = !isTimer && meat > 0 && eff > 0 ? eff / meat : null;
+            row += `<td class="num">${lineEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(lineEffPerMeat, 1)}</td>`;
             // Max@4: max creature level achievable from 4 full charges of generator for this lineage.
             // L1-equivalents over 4 charges = 4 × Eff. Max level = floor(log2(L1eq)) + 1.
             const l1eq = 4 * eff;
@@ -908,8 +1201,112 @@
             <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
             <div class="cm-card__body" style="overflow-x:auto;">
               <table class="gen-table">
+                ${buildCostColgroup(order)}
                 <thead>${head1}${head2}</thead>
                 <tbody>${body}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML = outerHtml;
+    }
+
+    function renderUpgradeTables(currentGens) {
+      const container = document.getElementById('upgrade-tables-container');
+      let outerHtml = '';
+
+      outerHtml += `
+        <div class="cm-card gen-block" style="width:auto;">
+          <div class="cm-card__body">
+            <p class="xp-note">
+              Upgrades focuses on progression cost: spawned creatures required, estimated charges/meat to farm them,
+              rune cost, upgrade time, and approximate pacing. Approx chapter is derived from generator unlock pacing and design level→chapter anchors.
+            </p>
+          </div>
+        </div>`;
+
+      for (let gi = 0; gi < currentGens.length; gi++) {
+        const g = currentGens[gi];
+        const baseG = baselineGens[gi];
+        const isTimer = g.spawnMode === 'timer';
+
+        let head = '<thead><tr>';
+        head += '<th>Upgrade</th>';
+        head += '<th>Approx KL</th>';
+        head += '<th>Approx Ch</th>';
+        head += '<th>Meat / charge</th>';
+        head += `<th>${isTimer ? 'Tick' : 'Spawns / charge'}</th>`;
+        head += '<th title="Actual upgrade gate: available spawned creatures for this generator.">Spawns req</th>';
+        head += '<th title="Derived estimate: ceil(Spawns req / Spawns per charge). Empty for timer generators.">Charges est</th>';
+        head += '<th title="Derived estimate: Charges est × meat per charge. Empty for timer generators.">Meat est</th>';
+        head += '<th>Rune cost</th>';
+        head += '<th>Cur</th>';
+        head += '<th>Time</th>';
+        head += '<th>Eff before</th>';
+        head += '<th>Eff after</th>';
+        head += '<th>Eff gain</th>';
+        head += '<th>XP/m before</th>';
+        head += '<th>XP/m after</th>';
+        head += '</tr></thead>';
+
+        let body = '<tbody>';
+        for (let L = 1; L < g.levels.length; L++) {
+          const lvl = g.levels[L - 1];
+          const nextLvl = g.levels[L];
+          const baseLvl = baseG.levels[L - 1];
+          const up = lvl.upgrade;
+          const baseUp = baseLvl.upgrade;
+          if (!up) continue;
+
+          const spawnsRequired = getUpgradeSpawnsRequired(up);
+          const chargeEstimate = !isTimer ? computeChargeEstimate(lvl) : null;
+          const meatEstimate = !isTimer && chargeEstimate !== null ? chargeEstimate * lvl.chargeCost : null;
+          const effBefore = computeTotalEff(lvl);
+          const effAfter = computeTotalEff(nextLvl);
+          const effGain = effBefore > 0 ? (effAfter / effBefore - 1) * 100 : null;
+          const xpBefore = computeXpStats(g, lvl).xpPerMeat;
+          const xpAfter = computeXpStats(g, nextLvl).xpPerMeat;
+          const approxKraken = approxKrakenForUpgrade(gi, L);
+          const approxChapter = approxChapterForKrakenLevel(approxKraken);
+
+          const runeCostCell = baseUp
+            ? `<div class="cell-stack"><span class="cell-main">${up.runeCost}</span>${deltaSpan(up.runeCost, baseUp.runeCost)}</div>`
+            : String(up.runeCost);
+          const time = up.upgradeDurationSec || 0;
+          const timeLabel = time >= 60 ? `${fmtNum(time / 60, 1)}m` : `${time}s`;
+          const effGainCell = effGain === null
+            ? '—'
+            : `<span class="${effGain > 0 ? 'delta-pos' : (effGain < 0 ? 'delta-neg' : '')}">${effGain > 0 ? '+' : ''}${effGain.toFixed(0)}%</span>`;
+
+          body += '<tr>';
+          body += `<td class="lvl-cell">L${L} -> L${L + 1}</td>`;
+          body += `<td class="num">L${approxKraken}</td>`;
+          body += `<td class="num">${approxChapter}</td>`;
+          body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(lvl.chargeCost, 2)}</td>`;
+          body += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
+          body += `<td class="num">${spawnsRequired === null ? '<span class="dim">—</span>' : spawnsRequired}</td>`;
+          body += `<td class="num">${chargeEstimate === null ? '<span class="dim">—</span>' : chargeEstimate}</td>`;
+          body += `<td class="num">${meatEstimate === null ? '<span class="dim">—</span>' : fmtNum(meatEstimate, 1)}</td>`;
+          body += `<td class="num">${runeCostCell}</td>`;
+          body += `<td class="num">${up.runeType === 'rune1' ? 'r1' : 'r2'}</td>`;
+          body += `<td class="num">${timeLabel}</td>`;
+          body += `<td class="num">${fmtNum(effBefore, 1)}</td>`;
+          body += `<td class="num">${fmtNum(effAfter, 1)}</td>`;
+          body += `<td class="num">${effGainCell}</td>`;
+          body += `<td class="num">${xpBefore === null ? '<span class="dim">—</span>' : fmtNum(xpBefore, 1)}</td>`;
+          body += `<td class="num">${xpAfter === null ? '<span class="dim">—</span>' : fmtNum(xpAfter, 1)}</td>`;
+          body += '</tr>';
+        }
+        body += '</tbody>';
+
+        const title = `${g.name} upgrades (kraken: ${params.genKrakenRequired[gi]})`;
+        outerHtml += `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <table class="gen-table">
+                ${buildUpgradeColgroup()}${head}${body}
               </table>
             </div>
           </div>`;
@@ -1070,7 +1467,9 @@
     // ============================================================
     function render() {
       const result = computeGenerators(params);
-      renderTable(result.generators);
+      renderCostTables(result.generators);
+      renderUpgradeTables(result.generators);
+      renderXpTables(result.generators);
       renderCharts(result.generators);
       renderJSON(result);
       // If runes panel is active, re-render its charts so the Required curve
@@ -1095,6 +1494,18 @@
       if (name === 'charts') {
         const result = computeGenerators(params);
         renderCharts(result.generators);
+      }
+      if (name === 'cost') {
+        const result = computeGenerators(params);
+        renderCostTables(result.generators);
+      }
+      if (name === 'upgrades') {
+        const result = computeGenerators(params);
+        renderUpgradeTables(result.generators);
+      }
+      if (name === 'xp') {
+        const result = computeGenerators(params);
+        renderXpTables(result.generators);
       }
       if (name === 'runes') {
         renderRunes();

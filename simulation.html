@@ -206,6 +206,71 @@
     .sim-charts canvas {
       max-height: 300px;
     }
+    .sim-charts.is-generators-mode {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      max-width: 1040px;
+    }
+    .sim-charts.is-generators-mode .chart-container {
+      width: 100%;
+      max-width: none;
+      grid-column: 1 / -1;
+    }
+    .sim-charts.is-generators-mode .chart-key-metric {
+      max-width: none;
+      grid-column: auto;
+    }
+    .sim-charts.is-generators-mode .chart-generator-overview {
+      grid-column: 1 / 2;
+    }
+    .generator-mini-grid {
+      display: none;
+    }
+    .sim-charts.is-generators-mode .generator-mini-grid {
+      display: grid;
+      grid-column: 2 / 3;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+      align-self: stretch;
+    }
+    .sim-charts.is-generators-mode .chart-generator-mini {
+      grid-column: auto;
+      min-width: 0;
+    }
+    .sim-charts.is-generators-mode .chart-generator-mini .cm-card__head {
+      min-height: 20px;
+      padding: 5px 6px 0;
+    }
+    .sim-charts.is-generators-mode .chart-generator-mini .cm-card__title {
+      font-size: 10px;
+    }
+    .sim-charts.is-generators-mode .chart-generator-mini canvas {
+      height: 46px !important;
+      max-height: 46px;
+    }
+    .sim-charts.is-generators-mode .chart-full-width {
+      grid-column: 1 / -1;
+    }
+    .sim-charts.is-generators-mode canvas {
+      height: 220px !important;
+      max-height: 220px;
+    }
+    .sim-chart-section {
+      display: none;
+    }
+    .sim-charts.is-generators-mode .sim-chart-section--generators {
+      display: block;
+      grid-column: 1 / -1;
+      padding: 2px 0 0;
+    }
+    .sim-chart-section__title {
+      margin: 0;
+      color: var(--text-tertiary);
+      font-size: var(--fs-micro);
+      font-weight: var(--fw-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
     .sim-axis-row {
       display: flex;
       align-items: center;
@@ -529,6 +594,7 @@
           <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="time">Time</button>
           <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="krakenLevel">Kraken Level</button>
           <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="chapter">Chapter</button>
+          <button type="button" class="cm-seg__btn" aria-pressed="false" data-value="generators">Generators</button>
         </div>
       </div>
 
@@ -539,7 +605,7 @@
         <div id="quest-distribution-table-inner"></div>
       </div>
 
-      <section class="sim-charts">
+      <section class="sim-charts" id="sim-charts">
         <div class="cm-card chart-container chart-full-width">
           <div class="cm-card__head">
             <h3 class="cm-card__title">Current Task (creature level needed)</h3>
@@ -564,12 +630,24 @@
           <canvas id="chart-quest-meat-cost"></canvas>
         </div>
 
-        <div class="cm-card chart-container">
+        <div class="sim-chart-section sim-chart-section--generators">
+          <h3 class="sim-chart-section__title">KEY METRICS</h3>
+        </div>
+
+        <div class="cm-card chart-container chart-key-metric">
           <div class="cm-card__head">
-            <h3 class="cm-card__title">Kraken Level Progression</h3>
+            <h3 class="cm-card__title">Kraken Level vs Chapter</h3>
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-level"></canvas>
+        </div>
+
+        <div class="cm-card chart-container chart-key-metric">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Spawns per Session</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-generator-spawns-per-session"></canvas>
         </div>
 
         <div class="cm-card chart-container">
@@ -732,12 +810,79 @@
           <canvas id="chart-gridsize"></canvas>
         </div>
 
-        <div class="cm-card chart-container">
+        <div class="sim-chart-section sim-chart-section--generators">
+          <h3 class="sim-chart-section__title">OTHER</h3>
+        </div>
+
+        <div class="cm-card chart-container chart-generator-overview">
           <div class="cm-card__head">
             <h3 class="cm-card__title">Generators (by type &amp; level)</h3>
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-generators"></canvas>
+        </div>
+
+        <div class="generator-mini-grid">
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen1</h3></div>
+            <canvas id="chart-generator-level-1"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen2</h3></div>
+            <canvas id="chart-generator-level-2"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen3</h3></div>
+            <canvas id="chart-generator-level-3"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen4</h3></div>
+            <canvas id="chart-generator-level-4"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen5</h3></div>
+            <canvas id="chart-generator-level-5"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen6</h3></div>
+            <canvas id="chart-generator-level-6"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen7</h3></div>
+            <canvas id="chart-generator-level-7"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen8</h3></div>
+            <canvas id="chart-generator-level-8"></canvas>
+          </div>
+          <div class="cm-card chart-container chart-generator-mini">
+            <div class="cm-card__head"><h3 class="cm-card__title">Upgrades / Ch</h3></div>
+            <canvas id="chart-generator-upgrades-per-chapter"></canvas>
+          </div>
+        </div>
+
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Generator Charge Cost</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-generator-charge-cost"></canvas>
+        </div>
+
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Spawns Remaining to Next Upgrade</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-generator-spawns-remaining"></canvas>
+        </div>
+
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Runes Required for Next Upgrade</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-generator-runes-required"></canvas>
         </div>
 
         <div class="cm-card chart-container">
@@ -754,6 +899,14 @@
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-sessions-per-level"></canvas>
+        </div>
+
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Quests Completed per Kraken Level</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-quests-per-level"></canvas>
         </div>
 
         <div class="cm-card chart-container">
