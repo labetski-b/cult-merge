@@ -37,12 +37,7 @@ function main() {
     generators: gens.map((gen) => ({
       ...gen,
       levels: gen.levels.map((lvl) => {
-        const upgrade =
-          lvl.upgrade &&
-          gen.id === 1 &&
-          (lvl.level === 1 || lvl.level === 2)
-            ? { ...lvl.upgrade, mergesRequired: lvl.level }
-            : lvl.upgrade;
+        const upgrade = lvl.upgrade;
         if (gen.spawnMode === 'timer') {
           return {
             mode: 'timer',
