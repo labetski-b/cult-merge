@@ -73,6 +73,7 @@ const engine = new SimulationEngine({
 });
 
 const result = engine.run();
+const analyticsHistory = result.actionHistory.length > 0 ? result.actionHistory : result.history;
 
 function buildGeneratorChapterPacing() {
   const rowsByKey = new Map<string, {
@@ -86,7 +87,7 @@ function buildGeneratorChapterPacing() {
     meatButtonPresses: number;
   }>();
 
-  for (const snapshot of result.history) {
+  for (const snapshot of analyticsHistory) {
     const metrics = snapshot.metrics;
     for (const [genIdRaw, levelRaw] of Object.entries(metrics.generatorLevelsSnapshot)) {
       const generatorId = Number(genIdRaw);

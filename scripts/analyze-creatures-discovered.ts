@@ -1,7 +1,7 @@
 /**
  * Analyze "New creatures discovered" metric — generator unlock pacing.
  *
- * Runs production simulation (50K ticks, seed=42) and reports:
+ * Runs production simulation until Kraken Lv50 (capped at 500 ticks, seed=42) and reports:
  *   - Timeline of generator purchases (session, level, time)
  *   - Gaps between generator purchases
  *   - Timeline of new creature discoveries grouped by source generator
@@ -43,18 +43,20 @@ for (const gen of BALANCE.generators.generators) {
 }
 
 // ── Run simulation ───────────────────────────────────────────────────
-const TICKS = 50_000;
+const TARGET_KRAKEN_LEVEL = 50;
+const MAX_TICKS = 500;
 const strategy = new ModularStrategy();
 const engine = new SimulationEngine({
   seed: 42,
-  stopCondition: { type: 'ticks', value: TICKS },
-  maxTicks: TICKS,
+  stopCondition: { type: 'krakenLevel', value: TARGET_KRAKEN_LEVEL },
+  maxTicks: MAX_TICKS,
   tickInterval: 1000,
   strategy,
   balance: BALANCE,
 });
 
 const result = engine.run();
+const analyticsHistory = result.actionHistory.length > 0 ? result.actionHistory : result.history;
 
 // ── 1. Collect generator buy events ──────────────────────────────────
 interface GenBuyEvent {
@@ -152,9 +154,10 @@ interface SessionData {
   timeEndSec: number;
 }
 
-// Group history snapshots by session to get start/end levels
-const sessionSnapshots = new Map<number, { first: typeof result.history[0]; last: typeof result.history[0] }>();
-for (const snap of result.history) {
+// Group action-level snapshots by session to get exact start/end levels.
+type AnalyticsSnapshot = (typeof analyticsHistory)[number];
+const sessionSnapshots = new Map<number, { first: AnalyticsSnapshot; last: AnalyticsSnapshot }>();
+for (const snap of analyticsHistory) {
   const s = snap.gameState.session;
   if (!sessionSnapshots.has(s)) {
     sessionSnapshots.set(s, { first: snap, last: snap });
@@ -208,7 +211,7 @@ for (let s = 1; s <= maxSession; s++) {
 
 console.log('='.repeat(80));
 console.log('CREATURE DISCOVERY & GENERATOR UNLOCK PACING ANALYSIS');
-console.log(`Simulation: ${TICKS} ticks, seed=42, production BALANCE`);
+console.log(`Simulation: Kraken Lv${TARGET_KRAKEN_LEVEL} goal, max ${MAX_TICKS} ticks, seed=42, production BALANCE`);
 console.log(`Final level: ${result.summary.finalLevel}, Total sessions: ${maxSession}`);
 console.log(`Total play time: ${result.summary.totalTimeFormatted}`);
 console.log(`Total unique creatures discovered: ${discovered.size}`);

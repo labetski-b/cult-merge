@@ -7,29 +7,31 @@ import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStr
 import { BALANCE } from '../src/data/loadBalance';
 
 const strategy = new ModularStrategy();
+const TARGET_KRAKEN_LEVEL = 50;
+const MAX_TICKS = 500;
 const engine = new SimulationEngine({
   balance: BALANCE,
   seed: 42,
-  maxTicks: 6000,
-  stopCondition: { type: 'ticks', value: 6000 },
+  maxTicks: MAX_TICKS,
+  stopCondition: { type: 'krakenLevel', value: TARGET_KRAKEN_LEVEL },
   tickInterval: 1000,
   strategy,
 });
 
 const result = engine.run();
 
-// Find quest completion ticks from action log
+// Find quest completion points from action log.
 const questCompletions: { tick: number; questId: string; krakenLevel: number }[] = [];
 
-for (const snap of result.history) {
-  for (const action of snap.actions) {
-    if (action.type === 'new_quest') {
-      questCompletions.push({
-        tick: snap.tick,
-        questId: action.details,
-        krakenLevel: snap.metrics.krakenLevel,
-      });
-    }
+for (const entry of result.actionLog) {
+  if (entry.action.type === 'new_quest' && entry.note.startsWith('Quest ')) {
+    const match = entry.note.match(/^Quest\s+(.+?)\s+\(ch\d+\)\s+completed$/);
+    if (!match) continue;
+    questCompletions.push({
+      tick: entry.tick,
+      questId: match[1]!,
+      krakenLevel: entry.state.krakenLevel,
+    });
   }
 }
 
