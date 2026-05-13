@@ -60,6 +60,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.cur-per-tap {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 12px;
+  color: #9aa0aa;
+  margin-left: -2px;
+}
+
 @media (max-width: 600px) {
   .currency-bar { gap: 6px; }
   .cur-pill {

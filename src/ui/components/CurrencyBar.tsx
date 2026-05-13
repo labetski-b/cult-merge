@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { BALANCE } from '@data/loadBalance';
+import { calculateMeatDrop } from '@domain/chapters';
 import { useGameStore } from '@store/gameStore';
 import meatIcon from '@assets/resources/meat.png';
 import eyesIcon from '@assets/resources/eyes.png';
@@ -8,13 +10,23 @@ import gemsIcon from '@assets/resources/gems.png';
 import { formatCompact } from '@ui/formatCompact';
 import './CurrencyBar.css';
 
-type PillProps = { value: number; icon: React.ReactNode; label: string; children?: React.ReactNode };
+type PillProps = {
+  value: number;
+  icon: React.ReactNode;
+  label: string;
+  perTap?: number;
+  children?: React.ReactNode;
+};
 
-function Pill({ value, icon, label, children }: PillProps) {
+function Pill({ value, icon, label, perTap, children }: PillProps) {
+  const titleSuffix = perTap !== undefined ? ` (+${perTap} per tap)` : '';
   return (
-    <div className="cur-pill" title={`${label}: ${value}`}>
+    <div className="cur-pill" title={`${label}: ${value}${titleSuffix}`}>
       {icon}
       <span className="cur-value">{formatCompact(value)}</span>
+      {perTap !== undefined && (
+        <span className="cur-per-tap">(+{formatCompact(perTap)})</span>
+      )}
       {children}
     </div>
   );
@@ -25,6 +37,12 @@ export function CurrencyBar() {
   const drops = useGameStore((s) => s.meatDropQueue);
   const consumeMeatDrop = useGameStore((s) => s.consumeMeatDrop);
   const scheduledRef = useRef<Set<number>>(new Set());
+  // Mirror the formula used by `getMeat` action in gameStore so the per-tap
+  // suffix stays in sync with what one click of "Get meat" yields.
+  const meatPerTap = useMemo(
+    () => calculateMeatDrop(BALANCE, resources.eyes),
+    [resources.eyes]
+  );
 
   useEffect(() => {
     for (const d of drops) {
@@ -39,7 +57,12 @@ export function CurrencyBar() {
 
   return (
     <div className="currency-bar">
-      <Pill label="Meat" icon={<img className="cur-icon" src={meatIcon} alt="" />} value={resources.meat}>
+      <Pill
+        label="Meat"
+        icon={<img className="cur-icon" src={meatIcon} alt="" />}
+        value={resources.meat}
+        perTap={meatPerTap}
+      >
         {drops.map((d) => (
           <div key={d.id} className="currency-float">
             +{d.amount} Meat
