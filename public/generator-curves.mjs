@@ -41,6 +41,8 @@
  * @property {number} chargeCostMaxLevelDiscount
  * @property {Record<string, number>} chargeCostOverrideByGenLevel
  * @property {Record<string, number>} chargeCostChapterOverrideByGenLevel
+ * @property {Record<string, number>} upgradeRuneCostOverrideByGenLevel
+ * @property {Record<string, number>} upgradeSpawnsRequiredOverrideByGenLevel
  * @property {number} baseUpgradeCost
  * @property {number} levelGrowth
  * @property {number[]} genMultipliers
@@ -87,6 +89,8 @@ export const DEFAULTS = {
   chargeCostMaxLevelDiscount: 0.6,
   chargeCostOverrideByGenLevel: {},
   chargeCostChapterOverrideByGenLevel: {},
+  upgradeRuneCostOverrideByGenLevel: {},
+  upgradeSpawnsRequiredOverrideByGenLevel: {},
 
   baseUpgradeCost: 4,
   levelGrowth: 1.6,
@@ -542,11 +546,22 @@ function generateGen(genIdx, P) {
     if (L < P.upgradeLevels) {
       const baseCost = P.baseUpgradeCost * Math.pow(P.levelGrowth, L - 1);
       const unitsCost = Math.ceil(baseCost * P.genMultipliers[genIdx]);
-      const spawnsRequired = genIdx === 0 && (L === 1 || L === 2)
+      const formulaSpawnsRequired = genIdx === 0 && (L === 1 || L === 2)
         ? L
         : P.mergesRequiredByL[L - 1];
+      const formulaRuneCost = Math.ceil(unitsCost / 2);
+
+      const upOverrideKey = `${genId}:${L}`;
+      const spawnsOverride = P.upgradeSpawnsRequiredOverrideByGenLevel?.[upOverrideKey];
+      const runeOverride = P.upgradeRuneCostOverrideByGenLevel?.[upOverrideKey];
+      const spawnsRequired = Number.isFinite(spawnsOverride)
+        ? Math.max(0, Math.round(spawnsOverride))
+        : formulaSpawnsRequired;
+      const runeCost = Number.isFinite(runeOverride)
+        ? Math.max(0, Math.round(runeOverride))
+        : formulaRuneCost;
+
       sumUpgradeUnits += unitsCost;
-      const runeCost = Math.ceil(unitsCost / 2);
       lvl.upgrade = {
         spawnsRequired,
         runeType: P.genUpgradeRune[genIdx],
