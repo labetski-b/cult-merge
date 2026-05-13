@@ -35,6 +35,8 @@
     .page-head .actions {
       display: flex;
       gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
     }
 
     .layout {
@@ -149,9 +151,20 @@
     .gen-table col.col-lvl { width: 48px; }
     .gen-table col.col-mode { width: 54px; }
     .gen-table col.col-meat { width: 68px; }
+    .gen-table col.col-meat-cost { width: 48px; }
+    .gen-table col.col-meat-edit { width: 76px; }
     .gen-table col.col-spawns { width: 64px; }
+    .gen-table col.col-spawns-cost { width: 42px; }
     .gen-table col.col-eff { width: 68px; }
     .gen-table col.col-eff-meat { width: 72px; }
+    .gen-table col.col-eff-meat-total { width: 92px; }
+    .gen-table col.col-sim-pivot { width: 78px; }
+    .gen-table td.sim-pivot-cell { padding: 4px 6px; text-align: right; }
+    .gen-table .sim-pivot-line { font-size: 10px; line-height: 1.3; white-space: nowrap; }
+    .gen-table .sim-pivot-line + .sim-pivot-line { margin-top: 2px; padding-top: 2px; border-top: 1px dashed var(--border-subtle); }
+    .gen-table .sim-pivot-lvl { color: var(--text-primary); font-weight: 600; }
+    .gen-table .sim-pivot-meat { color: var(--text-secondary); }
+    .gen-table .sim-pivot-charge { color: var(--text-tertiary); }
     .gen-table col.col-delta { width: 62px; }
     .gen-table col.col-prob { width: 42px; }
     .gen-table col.col-max { width: 54px; }
@@ -175,6 +188,10 @@
     .gen-table th.group-head {
       border-bottom: 1px solid var(--border-subtle);
     }
+    .gen-table--cost th { text-align: right; }
+    .gen-table--cost th.group-head,
+    .gen-table--cost th.lvl-head { text-align: center; }
+    .gen-table th.th-two-line { line-height: 1.15; }
     .gen-table td.lvl-cell {
       text-align: left;
       font-weight: 600;
@@ -205,6 +222,57 @@
     .gen-table .cell-sub {
       color: var(--text-tertiary);
       font-size: 10px;
+    }
+    .gen-table td.sim-ch-mismatch {
+      color: #ff9b9b;
+      background: rgba(184, 54, 74, 0.16);
+    }
+    .gen-table td.sim-ch-mismatch .cell-main {
+      color: #ffb1b1;
+      font-weight: 600;
+    }
+    .table-input {
+      width: 58px;
+      height: 22px;
+      padding: 0 4px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-0);
+      color: var(--text-primary);
+      font: inherit;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .table-input--chapter {
+      width: 48px;
+    }
+    .table-input.is-override {
+      border-color: var(--accent-primary);
+      background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-0));
+    }
+    .table-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+    .mini-btn {
+      height: 22px;
+      padding: 0 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font: inherit;
+      cursor: pointer;
+    }
+    .mini-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--accent-primary);
+    }
+    .status-pill {
+      color: var(--text-tertiary);
+      font-size: 12px;
     }
     .delta-pos { color: var(--success); font-size: 10px; }
     .delta-neg { color: var(--danger); font-size: 10px; }
@@ -413,7 +481,9 @@
       <h1>Generators Tuner</h1>
       <div class="actions">
         <button id="btn-reset" class="cm-btn cm-btn--ghost">Reset to baseline</button>
+        <button id="btn-save-balance" class="cm-btn cm-btn--ghost">Save Balance</button>
         <button id="btn-copy" class="cm-btn cm-btn--primary">Copy JSON</button>
+        <span id="save-status" class="status-pill"></span>
       </div>
     </div>
 
@@ -422,7 +492,7 @@
       <div class="cm-card controls">
         <h3>Tuning</h3>
         <div id="grp-tune"></div>
-        <h3 style="margin-top:16px;">Base charge cost (meat) per generator</h3>
+        <h3 style="margin-top:16px;">Charge chapter multiplier per generator</h3>
         <div id="grp-charge-per-gen"></div>
       </div>
 
@@ -430,6 +500,7 @@
       <div class="right-col">
         <div class="cm-tabs" role="tablist">
           <button class="cm-tab" data-tab="cost" aria-selected="true" role="tab">Cost</button>
+          <button class="cm-tab" data-tab="chapter-fit" aria-selected="false" role="tab">Chapter Fit</button>
           <button class="cm-tab" data-tab="upgrades" aria-selected="false" role="tab">Upgrades</button>
           <button class="cm-tab" data-tab="xp" aria-selected="false" role="tab">XP</button>
           <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
@@ -439,6 +510,10 @@
 
         <section id="panel-cost" class="panel is-active" style="padding:0;">
           <div id="cost-tables-container"><!-- filled by JS: Cost tables --></div>
+        </section>
+
+        <section id="panel-chapter-fit" class="panel" style="padding:0;">
+          <div id="chapter-fit-container"><!-- filled by JS: chapter fit table --></div>
         </section>
 
         <section id="panel-upgrades" class="panel" style="padding:0;">
@@ -575,26 +650,95 @@
   </div>
 
   <script type="module">
-    import { DEFAULTS, BASELINE, computeGenerators, interpolate } from './generator-curves.mjs';
+    import {
+      DEFAULTS,
+      BASELINE,
+      computeGenerators,
+      interpolate,
+      chargeChapterForGeneratorLevel,
+      meatForChargeChapter,
+    } from './generator-curves.mjs';
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, boxesData, runesData, creaturesData, oldGeneratorsData] = await Promise.all([
+    const [krakenProgData, boxesData, runesData, creaturesData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/baseline/generators.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./sim-runs/latest/generator-chapters.json', import.meta.url))
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
     ]);
 
     // ============================================================
     //  STATE
     // ============================================================
     /** @type {import('./generator-curves.mjs').GeneratorParams} */
-    let params = structuredClone(DEFAULTS);
+    const STORAGE_KEY = 'cult-merge-generators-tuner-params-v2';
+
+    function normalizeParams(raw) {
+      const next = structuredClone(DEFAULTS);
+      if (raw && typeof raw === 'object') Object.assign(next, raw);
+      next.chargeCostMultiplierByGen = Array.isArray(next.chargeCostMultiplierByGen)
+        ? next.chargeCostMultiplierByGen.slice(0, next.gens)
+        : DEFAULTS.chargeCostMultiplierByGen.slice();
+      next.chargeCostOverrideByGenLevel = next.chargeCostOverrideByGenLevel || {};
+      next.chargeCostChapterOverrideByGenLevel = next.chargeCostChapterOverrideByGenLevel || {};
+      return next;
+    }
+
+    function loadStoredParams() {
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        return normalizeParams(stored ? JSON.parse(stored) : null);
+      } catch {
+        return normalizeParams(null);
+      }
+    }
+
+    function persistParams() {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(params));
+      } catch {
+        // localStorage can be unavailable in some embedded browsers; tuning still works in memory.
+      }
+    }
+
+    let params = loadStoredParams();
     const baselineResult = computeGenerators(structuredClone(BASELINE));
     const baselineGens = baselineResult.generators;
     const oldGensById = new Map((oldGeneratorsData.generators || []).map(g => [g.id, g]));
+    const simChapterByGenLevel = new Map(
+      (simGeneratorChaptersData?.rows || []).map(row => [`${row.generatorId}:${row.level}`, row])
+    );
+
+    function genLevelKey(genId, level) {
+      return `${genId}:${level}`;
+    }
+
+    function hasChargeOverride(genId, level) {
+      return Object.prototype.hasOwnProperty.call(params.chargeCostOverrideByGenLevel, genLevelKey(genId, level));
+    }
+
+    function hasChapterOverride(genId, level) {
+      return Object.prototype.hasOwnProperty.call(params.chargeCostChapterOverrideByGenLevel, genLevelKey(genId, level));
+    }
+
+    function setChargeOverride(genId, level, value) {
+      const key = genLevelKey(genId, level);
+      if (!Number.isFinite(value)) delete params.chargeCostOverrideByGenLevel[key];
+      else params.chargeCostOverrideByGenLevel[key] = Math.max(1, Math.round(value));
+      render();
+    }
+
+    function setChapterOverride(genId, level, value) {
+      const key = genLevelKey(genId, level);
+      if (!Number.isFinite(value)) delete params.chargeCostChapterOverrideByGenLevel[key];
+      else params.chargeCostChapterOverrideByGenLevel[key] = Math.max(1, Math.round(value));
+      render();
+    }
 
     // ============================================================
     //  KNOB BUILDERS
@@ -706,18 +850,27 @@
       });
       registerKnob(kLG, () => params.levelGrowth);
 
+      const kChargeDiscount = makeKnob(grp, {
+        label: 'Old gen disc',
+        title: 'Доля chapter meat на L10. Чем ниже, тем дешевле старые прокачанные генераторы относительно новых.',
+        min: 0.4, max: 1.0, step: 0.05,
+        value: params.chargeCostMaxLevelDiscount,
+        onChange: (v) => { params.chargeCostMaxLevelDiscount = v; render(); },
+      });
+      registerKnob(kChargeDiscount, () => params.chargeCostMaxLevelDiscount);
+
       const grpCharge = document.getElementById('grp-charge-per-gen');
       grpCharge.innerHTML = '';
       for (let i = 0; i < 8; i++) {
         const idx = i;
         const kCharge = makeKnob(grpCharge, {
           label: `Gen${i + 1}`,
-          title: `Стоимость заряда (мясо) Gen${i + 1} на L=1. На L>1: chargeCost(L) = baseChargeCostByGen[${i}] × totalEff(L) / totalEff(1).`,
-          min: 0.1, max: 10.0, step: 0.05,
-          value: params.baseChargeCostByGen[idx],
-          onChange: (v) => { params.baseChargeCostByGen[idx] = v; render(); },
+          title: `Множитель chapter meat для Gen${i + 1}. Итоговая цена: floor(meat@chapter × multiplier × levelDiscount), целое и минимум 1.`,
+          min: 0.5, max: 1.5, step: 0.05,
+          value: params.chargeCostMultiplierByGen[idx],
+          onChange: (v) => { params.chargeCostMultiplierByGen[idx] = v; render(); },
         });
-        registerKnob(kCharge, () => params.baseChargeCostByGen[idx]);
+        registerKnob(kCharge, () => params.chargeCostMultiplierByGen[idx]);
       }
     }
 
@@ -729,6 +882,7 @@
       if (!Number.isFinite(v)) return '—';
       const f = digits ?? 2;
       const s = v.toFixed(f);
+      if (!s.includes('.')) return s;
       return s.replace(/\.?0+$/, '') || '0';
     }
 
@@ -899,20 +1053,55 @@
     function buildCostColgroup(order) {
       let cols = [
         '<col class="col-lvl">',
+        '<col class="col-chapter">',
+        '<col class="col-chapter">',
         '<col class="col-meat">',
-        '<col class="col-spawns">',
-        '<col class="col-eff">',
-        '<col class="col-eff-meat">',
-        '<col class="col-delta">',
+        '<col class="col-meat-cost">',
+        '<col class="col-spawns-cost">',
+        '<col class="col-eff-meat-total">',
       ].join('');
       for (const c of order) {
         cols += '<col class="col-prob">';
         for (let lv = 1; lv <= c.topL; lv++) cols += '<col class="col-prob">';
         cols += '<col class="col-eff">';
-        cols += '<col class="col-eff-meat">';
+        cols += '<col class="col-eff-meat-total">';
         cols += '<col class="col-max">';
       }
       return `<colgroup>${cols}</colgroup>`;
+    }
+
+    function buildCostColgroupSlim(order) {
+      let cols = [
+        '<col class="col-lvl">',
+        '<col class="col-chapter">',
+        '<col class="col-chapter">',
+        '<col class="col-meat">',
+        '<col class="col-meat-edit">',
+        '<col class="col-eff-meat-total">',
+      ].join('');
+      for (const _ of order) {
+        cols += '<col class="col-eff-meat-total">';
+        cols += '<col class="col-max">';
+      }
+      return `<colgroup>${cols}</colgroup>`;
+    }
+
+    function buildCostColgroupShared(order) {
+      let cols = ['<col class="col-lvl">', '<col class="col-spawns-cost">'].join('');
+      for (const c of order) {
+        cols += '<col class="col-prob">';
+        for (let lv = 1; lv <= c.topL; lv++) cols += '<col class="col-prob">';
+        cols += '<col class="col-eff">';
+        cols += '<col class="col-max">';
+        cols += '<col class="col-max">';
+        cols += '<col class="col-max">';
+      }
+      return `<colgroup>${cols}</colgroup>`;
+    }
+
+    function roleLabel(i) {
+      const names = ['CrMain', 'CrSecond', 'CrThird', 'CrFourth', 'CrFifth'];
+      return names[i] || `Cr#${i + 1}`;
     }
 
     function buildXpColgroup(order) {
@@ -1071,102 +1260,59 @@
         <div class="cm-card gen-block" style="width:auto;">
           <div class="cm-card__body">
             <p class="xp-note">
-              Cost focuses on charge economy: meat cost, spawn count, output probabilities, and L1-equivalent efficiency.
-              The key balance check is monotonic Total Eff and stable Eff / meat.
+              Cost focuses on charge economy. The spawn distribution, spawn count, and per-creature Eff are common across
+              sacrifice generators (shown once below). Per-generator tables list only what differs: meat, Total Eff / Eff per meat,
+              and per-creature L1/m, Max@4. Timer generators have their own structure shown in full.
             </p>
           </div>
         </div>`;
 
-      for (let gi = 0; gi < currentGens.length; gi++) {
-        const g = currentGens[gi];
-        const baseG = baselineGens[gi];
-        const isTimer = g.spawnMode === 'timer';
+      // Shared spawn-distribution table for sacrifice generators (structure identical across all sacrifice gens).
+      const canonGen = currentGens.find(g => g.spawnMode !== 'timer');
+      if (canonGen) {
+        const sharedOrder = buildCreatureOrder(canonGen);
 
-        const order = buildCreatureOrder(g);
-
-        // Header row 1 (group titles): Lvl, Meat, Spawns, then per-creature group spanning probability and efficiency columns.
-        let head1 = '<tr>';
-        head1 += '<th rowspan="2">Lvl</th>';
-        head1 += '<th rowspan="2">Meat</th>';
-        head1 += `<th rowspan="2">${isTimer ? 'Tick' : 'Spawns'}</th>`;
-        head1 += '<th rowspan="2" title="Total efficiency = Σ over all creatures (numCreatures × chance × 2^(level-1))">Total Eff</th>';
-        head1 += '<th rowspan="2" title="Total Eff divided by meat cost. Empty for timer generators.">Eff / meat</th>';
-        head1 += '<th rowspan="2" title="Change in Eff / meat vs previous level.">Δ Eff/m</th>';
-        for (const c of order) {
-          const span = c.topL + 4; // Σ% + L1..L_top + Eff + Eff/meat + Max@4
-          head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
+        let sHead1 = '<tr>';
+        sHead1 += '<th class="lvl-head" rowspan="2">Lvl</th>';
+        sHead1 += '<th rowspan="2">Spawns</th>';
+        for (let i = 0; i < sharedOrder.length; i++) {
+          const c = sharedOrder[i];
+          const span = c.topL + 5; // Σ% + L1..L_top + L1/charge + Max@2 + Max@4 + Max@8
+          sHead1 += `<th class="group-head group-start" style="text-align:left;" colspan="${span}">${roleLabel(i)}</th>`;
         }
-        head1 += '</tr>';
+        sHead1 += '</tr>';
 
-        // Header row 2: per-creature Σ% + L1..L_top + Eff + Eff/meat + Max@4
-        let head2 = '<tr>';
-        for (const c of order) {
-          head2 += `<th class="group-start dim">Σ%</th>`;
-          for (let lv = 1; lv <= c.topL; lv++) {
-            head2 += `<th>L${lv}</th>`;
-          }
-          head2 += `<th>Eff</th>`;
-          head2 += `<th>Eff/m</th>`;
-          head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
+        let sHead2 = '<tr>';
+        for (const c of sharedOrder) {
+          sHead2 += `<th class="group-start dim">Σ%</th>`;
+          for (let lv = 1; lv <= c.topL; lv++) sHead2 += `<th>L${lv}</th>`;
+          sHead2 += `<th>L1/charge</th>`;
+          sHead2 += `<th title="Max creature level achievable from 2 full charges of this generator">Max@2</th>`;
+          sHead2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
+          sHead2 += `<th title="Max creature level achievable from 8 full charges of this generator">Max@8</th>`;
         }
-        head2 += '</tr>';
+        sHead2 += '</tr>';
 
-        // Body rows: one per upgrade level.
-        let body = '';
+        let sBody = '';
         for (let L = 1; L <= N_LEVELS; L++) {
-          const lvl = g.levels[L - 1];
-          const baseLvl = baseG.levels[L - 1];
-
-          // Meat per charge = chargeCost for sacrifice generators. Timer generators
-          // have no meat cost and their efficiency columns are per timer spawn.
-          const meat = lvl.chargeCost;
-          const meatBase = baseLvl.chargeCost;
-
-          // Total Eff = Σ over all creatures (numCreatures × Σ chance_k × 2^(k-1))
-          const totalEff = computeTotalEff(lvl);
-          const totalEffPerMeat = !isTimer && meat > 0 ? totalEff / meat : null;
-          const prevTotalEffPerMeat = !isTimer && L > 1
-            ? computeTotalEff(g.levels[L - 2]) / g.levels[L - 2].chargeCost
-            : null;
-          let totalEffPerMeatDelta = '—';
-          if (totalEffPerMeat !== null && prevTotalEffPerMeat && prevTotalEffPerMeat > 0) {
-            const pct = (totalEffPerMeat / prevTotalEffPerMeat - 1) * 100;
-            const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
-            const sign = pct > 0 ? '+' : '';
-            totalEffPerMeatDelta = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
-          }
-
+          const lvl = canonGen.levels[L - 1];
           let row = '<tr>';
           row += `<td class="lvl-cell">L${L}</td>`;
-          row += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : `<div class="cell-stack"><span class="cell-main">${fmtNum(meat, 2)}</span>${deltaSpan(meat, meatBase)}</div>`}</td>`;
-          row += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
-          row += `<td class="num">${fmtNum(totalEff, 1)}</td>`;
-          row += `<td class="num">${totalEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(totalEffPerMeat, 1)}</td>`;
-          row += `<td class="num">${totalEffPerMeatDelta}</td>`;
-
-          for (const c of order) {
-            // Σ% — total share of this creature in current level's outputs.
+          row += `<td class="num">${lvl.numCreatures}</td>`;
+          for (const c of sharedOrder) {
             let sum = 0;
-            for (const o of lvl.outputs) {
-              if (o.creatureType === c.name) sum += o.chance;
-            }
-            if (sum === 0) {
-              row += `<td class="num group-start dim">—</td>`;
-            } else {
-              row += `<td class="num group-start dim">${Math.round(sum * 100)}%</td>`;
-            }
+            for (const o of lvl.outputs) if (o.creatureType === c.name) sum += o.chance;
+            row += sum === 0
+              ? `<td class="num group-start dim">—</td>`
+              : `<td class="num group-start dim">${Math.round(sum * 100)}%</td>`;
             for (let lv = 1; lv <= c.topL; lv++) {
               const ch = chanceFor(lvl, c.name, lv);
-              if (ch === null || ch === 0) {
-                row += `<td class="num dim">—</td>`;
-              } else {
-                row += `<td class="num">${Math.round(ch * 100)}%</td>`;
-              }
+              row += (ch === null || ch === 0)
+                ? `<td class="num dim">—</td>`
+                : `<td class="num">${Math.round(ch * 100)}%</td>`;
             }
-            // Eff column for this creature. Delta = % growth vs previous level for the same lineage.
             const eff = computeEff(lvl, c.name);
-            const effPrev = L > 1 ? computeEff(g.levels[L - 2], c.name) : 0;
-            const effBase = computeEff(baseLvl, c.name);
+            const effPrev = L > 1 ? computeEff(canonGen.levels[L - 2], c.name) : 0;
             const effStr = eff > 0 ? fmtNum(eff, 1) : '—';
             let effGrowthStr = '';
             if (eff > 0 && effPrev > 0) {
@@ -1176,10 +1322,166 @@
               effGrowthStr = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
             }
             row += `<td class="num"><span class="eff-cell"><span class="cell-main">${effStr}</span><span class="delta-slot">${effGrowthStr}</span></span></td>`;
-            const lineEffPerMeat = !isTimer && meat > 0 && eff > 0 ? eff / meat : null;
-            row += `<td class="num">${lineEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(lineEffPerMeat, 1)}</td>`;
-            // Max@4: max creature level achievable from 4 full charges of generator for this lineage.
-            // L1-equivalents over 4 charges = 4 × Eff. Max level = floor(log2(L1eq)) + 1.
+            for (const charges of [2, 4, 8]) {
+              const l1eq = charges * eff;
+              const maxLvl = l1eq >= 1 ? Math.floor(Math.log2(l1eq)) + 1 : 0;
+              row += `<td class="num">${maxLvl > 0 ? `L${maxLvl}` : '<span class="dim">—</span>'}</td>`;
+            }
+          }
+          row += '</tr>';
+          sBody += row;
+        }
+
+        outerHtml += `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">Common spawn distribution — sacrifice generators</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <table class="gen-table gen-table--cost">
+                ${buildCostColgroupShared(sharedOrder)}
+                <thead>${sHead1}${sHead2}</thead>
+                <tbody>${sBody}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      for (let gi = 0; gi < currentGens.length; gi++) {
+        const g = currentGens[gi];
+        const baseG = baselineGens[gi];
+        const isTimer = g.spawnMode === 'timer';
+
+        const order = buildCreatureOrder(g);
+
+        let head1 = '<tr>';
+        let head2 = '<tr>';
+        head1 += '<th class="lvl-head" rowspan="2">Lvl</th>';
+        head1 += '<th rowspan="2" title="Editable planned chapter used by the charge-cost formula.">CH(plan)</th>';
+        head1 += '<th class="group-start" rowspan="2" title="Read-only chapter from the latest simulation artifact.">CH(sim)</th>';
+        head1 += '<th class="th-two-line" rowspan="2" title="Meat per sacrifice at the moment the simulation reached this Gen/L.">Meat/s<br>(sim)</th>';
+        head1 += `<th class="th-two-line group-start" rowspan="2">${isTimer ? 'Tick' : 'Meat<br>/charge'}</th>`;
+        if (isTimer) head1 += '<th rowspan="2">Spawns</th>';
+        head1 += '<th rowspan="2" title="Expected XP from one full charge divided by meat cost. Δ vs previous level shown inline. Empty for timer generators.">XP/m</th>';
+        for (const c of order) {
+          const span = isTimer ? (c.topL + 4) : 2; // timer: full (Σ%+Ls+Eff+Eff/m+Max@4); sacrifice: Eff/m + Max@4
+          head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
+        }
+        head1 += '</tr>';
+
+        for (const c of order) {
+          if (isTimer) {
+            head2 += `<th class="group-start dim">Σ%</th>`;
+            for (let lv = 1; lv <= c.topL; lv++) head2 += `<th>L${lv}</th>`;
+            head2 += `<th>Eff</th>`;
+            head2 += `<th title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
+            head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
+          } else {
+            head2 += `<th class="group-start" title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
+            head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
+          }
+        }
+        head2 += '</tr>';
+
+        // Body rows: one per upgrade level.
+        let body = '';
+        for (let L = 1; L <= N_LEVELS; L++) {
+          const lvl = g.levels[L - 1];
+          const baseLvl = baseG.levels[L - 1];
+
+          const meat = lvl.chargeCost;
+          const approxChapter = chargeChapterForGeneratorLevel(params, gi, L);
+          const chapterMeat = meatForChargeChapter(params, approxChapter);
+          const simRow = simChapterByGenLevel.get(`${g.id}:${L}`) || null;
+          const simChapter = simRow?.chapter ?? null;
+          const simMismatch = simChapter !== null && simChapter !== approxChapter;
+          const chapterIsOverride = hasChapterOverride(g.id, L);
+          const chargeIsOverride = hasChargeOverride(g.id, L);
+
+          const xpStats = computeXpStats(g, lvl);
+          const xpPerMeat = xpStats.xpPerMeat;
+          const prevXpPerMeat = L > 1 ? computeXpStats(g, g.levels[L - 2]).xpPerMeat : null;
+          let xpPerMeatDelta = '';
+          if (xpPerMeat !== null && prevXpPerMeat !== null && prevXpPerMeat > 0) {
+            const pct = (xpPerMeat / prevXpPerMeat - 1) * 100;
+            const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
+            const sign = pct > 0 ? '+' : '';
+            xpPerMeatDelta = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
+          }
+
+          let row = '<tr>';
+          row += `<td class="lvl-cell">L${L}</td>`;
+          row += `<td class="num" title="Avg get-meat in Ch${approxChapter}: ${fmtNum(chapterMeat, 1)}">
+            <input
+              class="table-input table-input--chapter"
+              type="number"
+              min="1"
+              step="1"
+              value="${approxChapter}"
+              data-role="chapter-override"
+              data-gen-id="${g.id}"
+              data-level="${L}"
+              title="CH(plan). Empty value returns this row to formula."
+            />
+          </td>`;
+          row += `<td class="num group-start ${simMismatch ? 'sim-ch-mismatch' : ''}" title="${simChapter === null ? 'No CH(sim) in latest simulation artifact.' : `Latest simulation saw this row at Ch${simChapter}.`}">
+            ${simChapter === null ? '<span class="dim">—</span>' : `<span class="cell-main">Ch${simChapter}</span>`}
+          </td>`;
+          const simMeat = simRow?.meatPerPress ?? null;
+          row += `<td class="num" title="${simMeat === null ? 'No sim meat/sacrifice data.' : `Avg meat per sacrifice when sim reached this row.`}">${simMeat === null ? '<span class="dim">—</span>' : fmtNum(simMeat, 1)}</td>`;
+          if (isTimer) {
+            row += `<td class="num dim group-start">${Math.round(g.tickIntervalSec / 60)}m</td>`;
+            row += `<td class="num">${lvl.numCreatures ?? 1}</td>`;
+          } else {
+            row += `<td class="num group-start">
+              <div class="cell-stack">
+                <input
+                  class="table-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="${meat}"
+                  data-role="charge-override"
+                  data-gen-id="${g.id}"
+                  data-level="${L}"
+                  title="Meat charge. Empty value returns this row to formula."
+                />
+              </div>
+            </td>`;
+          }
+          row += `<td class="num">${xpPerMeat === null ? '<span class="dim">—</span>' : `<span class="eff-cell"><span class="cell-main">${fmtNum(xpPerMeat, 1)}</span><span class="delta-slot">${xpPerMeatDelta}</span></span>`}</td>`;
+
+          for (const c of order) {
+            const eff = computeEff(lvl, c.name);
+            const effBase = computeEff(baseLvl, c.name);
+            const effPrev = L > 1 ? computeEff(g.levels[L - 2], c.name) : 0;
+
+            if (isTimer) {
+              // Full per-creature columns for timer gen.
+              let sum = 0;
+              for (const o of lvl.outputs) if (o.creatureType === c.name) sum += o.chance;
+              row += sum === 0
+                ? `<td class="num group-start dim">—</td>`
+                : `<td class="num group-start dim">${Math.round(sum * 100)}%</td>`;
+              for (let lv = 1; lv <= c.topL; lv++) {
+                const ch = chanceFor(lvl, c.name, lv);
+                row += (ch === null || ch === 0)
+                  ? `<td class="num dim">—</td>`
+                  : `<td class="num">${Math.round(ch * 100)}%</td>`;
+              }
+              const effStr = eff > 0 ? fmtNum(eff, 1) : '—';
+              let effGrowthStr = '';
+              if (eff > 0 && effPrev > 0) {
+                const pct = (eff / effPrev - 1) * 100;
+                const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
+                const sign = pct > 0 ? '+' : '';
+                effGrowthStr = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
+              }
+              row += `<td class="num"><span class="eff-cell"><span class="cell-main">${effStr}</span><span class="delta-slot">${effGrowthStr}</span></span></td>`;
+              row += `<td class="num dim">—</td>`;
+            } else {
+              const lineEffPerMeat = meat > 0 && eff > 0 ? eff / meat : null;
+              row += `<td class="num group-start">${lineEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(lineEffPerMeat, 1)}</td>`;
+            }
+
             const l1eq = 4 * eff;
             const maxLvl = l1eq >= 1 ? Math.floor(Math.log2(l1eq)) + 1 : 0;
             const maxLvlBase = (4 * effBase) >= 1 ? Math.floor(Math.log2(4 * effBase)) + 1 : 0;
@@ -1195,13 +1497,14 @@
         }
 
         const title = `${g.name} (kraken: ${params.genKrakenRequired[gi]})`;
+        const colgroup = isTimer ? buildCostColgroup(order) : buildCostColgroupSlim(order);
 
         outerHtml += `
           <div class="cm-card gen-block">
             <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
             <div class="cm-card__body" style="overflow-x:auto;">
-              <table class="gen-table">
-                ${buildCostColgroup(order)}
+              <table class="gen-table gen-table--cost">
+                ${colgroup}
                 <thead>${head1}${head2}</thead>
                 <tbody>${body}</tbody>
               </table>
@@ -1210,6 +1513,137 @@
       }
 
       container.innerHTML = outerHtml;
+    }
+
+    function renderChapterFitTable(currentGens) {
+      const container = document.getElementById('chapter-fit-container');
+
+      const runMeta = simGeneratorChaptersData
+        ? `Latest sim: seed ${simGeneratorChaptersData.seed}, ${simGeneratorChaptersData.ticks} ticks, generated ${simGeneratorChaptersData.generatedAt}.`
+        : 'No simulation chapter artifact yet. Run `npm run sim -- 300 "" 42 --quiet --until-level 50` to generate public/sim-runs/latest/generator-chapters.json.';
+
+      const simRows = simGeneratorChaptersData?.rows || [];
+      const genNameById = new Map(currentGens.map(g => [g.id, g.name]));
+
+      // First-appearance summary: one row per generator showing CH(sim) where L1 was first reached.
+      const firstAppearanceRows = simRows
+        .filter(r => r.level === 1)
+        .sort((a, b) => a.generatorId - b.generatorId);
+      let firstApp = '';
+      if (firstAppearanceRows.length > 0) {
+        let firstBody = '';
+        for (const r of firstAppearanceRows) {
+          firstBody += '<tr>';
+          firstBody += `<td class="lvl-cell">${genNameById.get(r.generatorId) ?? `Gen${r.generatorId}`}</td>`;
+          firstBody += `<td class="num">Ch${r.chapter}</td>`;
+          firstBody += `<td class="num">L${r.krakenLevel}</td>`;
+          firstBody += `<td class="num">${fmtNum(r.meatPerPress, 1)}</td>`;
+          firstBody += `<td class="num">${r.tick}</td>`;
+          firstBody += '</tr>';
+        }
+        firstApp = `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">First appearance per generator (sim)</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <table class="gen-table">
+                <colgroup>
+                  <col class="col-upgrade">
+                  <col class="col-chapter">
+                  <col class="col-chapter">
+                  <col class="col-meat">
+                  <col class="col-time">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Generator</th>
+                    <th title="First chapter where the simulation reached this generator at level 1.">CH(sim)</th>
+                    <th title="Kraken level at first appearance.">Kraken</th>
+                    <th title="Average meat per sacrifice at that moment.">Meat/s</th>
+                    <th title="Simulation tick at first appearance.">Tick</th>
+                  </tr>
+                </thead>
+                <tbody>${firstBody}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      // Pivot: Gen × CH(sim) cross-table. Each cell lists the levels of that gen
+      // first reached in that chapter, with Meat/s (sim) and current Meat charge.
+      let pivotHtml = '';
+      if (simRows.length > 0) {
+        const chapters = [...new Set(simRows.map(r => r.chapter))].sort((a, b) => a - b);
+        const genIds = [...new Set(simRows.map(r => r.generatorId))].sort((a, b) => a - b);
+        const pivotByGen = new Map();
+        for (const r of simRows) {
+          if (!pivotByGen.has(r.generatorId)) pivotByGen.set(r.generatorId, new Map());
+          const byCh = pivotByGen.get(r.generatorId);
+          if (!byCh.has(r.chapter)) byCh.set(r.chapter, []);
+          byCh.get(r.chapter).push(r);
+        }
+
+        let pivotHead = '<tr><th class="lvl-head">Gen</th>';
+        for (const ch of chapters) pivotHead += `<th>Ch${ch}</th>`;
+        pivotHead += '</tr>';
+
+        let pivotBody = '';
+        for (const gid of genIds) {
+          const gen = currentGens.find(g => g.id === gid);
+          pivotBody += `<tr><td class="lvl-cell">${genNameById.get(gid) ?? `Gen${gid}`}</td>`;
+          const byCh = pivotByGen.get(gid);
+          for (const ch of chapters) {
+            const cellRows = (byCh.get(ch) || []).slice().sort((a, b) => a.level - b.level);
+            if (cellRows.length === 0) {
+              pivotBody += `<td class="num dim">—</td>`;
+            } else {
+              const lines = cellRows.map(r => {
+                const lvl = gen?.levels[r.level - 1];
+                const charge = lvl?.chargeCost;
+                const chargeStr = Number.isFinite(charge) && charge > 0 ? fmtNum(charge, 0) : '—';
+                return `<div class="sim-pivot-line" title="L${r.level} · Meat/s ${fmtNum(r.meatPerPress, 1)} · charge ${chargeStr}"><span class="sim-pivot-lvl">L${r.level}:</span> <span class="sim-pivot-meat">${fmtNum(r.meatPerPress, 0)}</span> / <span class="sim-pivot-charge">${chargeStr}</span></div>`;
+              }).join('');
+              pivotBody += `<td class="sim-pivot-cell">${lines}</td>`;
+            }
+          }
+          pivotBody += '</tr>';
+        }
+
+        let pivotColgroup = '<col class="col-upgrade">';
+        for (const _ of chapters) pivotColgroup += '<col class="col-sim-pivot">';
+
+        pivotHtml = `
+          <div class="cm-card gen-block">
+            <div class="cm-card__head"><h3 class="cm-card__title">Gen × CH(sim) — levels recorded per chapter</h3></div>
+            <div class="cm-card__body" style="overflow-x:auto;">
+              <p class="xp-note" style="margin-bottom:8px;">
+                Each cell shows levels of the generator that the simulation first reached in this chapter.
+                Format per line: <b>L{level}</b> · Meat/s (sim) · Meat charge (current params).
+              </p>
+              <table class="gen-table">
+                <colgroup>${pivotColgroup}</colgroup>
+                <thead>${pivotHead}</thead>
+                <tbody>${pivotBody}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML = `
+        <div class="cm-card gen-block" style="width:auto;">
+          <div class="cm-card__body">
+            <p class="xp-note">
+              Chapter Fit ties the meat price curve to progression. CH(plan) is editable and used by the charge-cost formula;
+              CH(sim) is read-only from the latest simulation artifact.
+              ${runMeta}
+            </p>
+            <div class="row">
+              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-chapter-overrides">Clear CH(plan) overrides</button>
+              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-charge-overrides">Clear Meat overrides</button>
+            </div>
+          </div>
+        </div>
+        ${firstApp}
+        ${pivotHtml}`;
     }
 
     function renderUpgradeTables(currentGens) {
@@ -1221,7 +1655,7 @@
           <div class="cm-card__body">
             <p class="xp-note">
               Upgrades focuses on progression cost: spawned creatures required, estimated charges/meat to farm them,
-              rune cost, upgrade time, and approximate pacing. Approx chapter is derived from generator unlock pacing and design level→chapter anchors.
+              rune cost, upgrade time, and approximate pacing. CH(plan) is derived from generator unlock pacing and design level→chapter anchors.
             </p>
           </div>
         </div>`;
@@ -1234,7 +1668,7 @@
         let head = '<thead><tr>';
         head += '<th>Upgrade</th>';
         head += '<th>Approx KL</th>';
-        head += '<th>Approx Ch</th>';
+        head += '<th>CH(plan)</th>';
         head += '<th>Meat / charge</th>';
         head += `<th>${isTimer ? 'Tick' : 'Spawns / charge'}</th>`;
         head += '<th title="Actual upgrade gate: available spawned creatures for this generator.">Spawns req</th>';
@@ -1456,18 +1890,47 @@
       chartTotal(currentGens);
     }
 
+    function serializeGeneratorsForBalance(generators) {
+      return {
+        generators: generators.map((gen) => ({
+          ...gen,
+          levels: gen.levels.map((lvl) => {
+            const upgrade = lvl.upgrade;
+            if (gen.spawnMode === 'timer') {
+              return {
+                mode: 'timer',
+                level: lvl.level,
+                tickIntervalSec: gen.tickIntervalSec,
+                outputs: lvl.outputs,
+                ...(upgrade ? { upgrade } : {}),
+              };
+            }
+            return {
+              mode: 'sacrifice',
+              level: lvl.level,
+              chargeCost: lvl.chargeCost,
+              numCreatures: lvl.numCreatures,
+              outputs: lvl.outputs,
+              ...(upgrade ? { upgrade } : {}),
+            };
+          }),
+        })),
+      };
+    }
+
     function renderJSON(result) {
       const out = document.getElementById('json-out');
-      // Gen1-only mode: emit just the first generator.
-      out.textContent = JSON.stringify({ generators: result.generators.slice(0, 1) }, null, 2);
+      out.textContent = JSON.stringify(serializeGeneratorsForBalance(result.generators), null, 2);
     }
 
     // ============================================================
     //  RENDER LOOP
     // ============================================================
     function render() {
+      persistParams();
       const result = computeGenerators(params);
       renderCostTables(result.generators);
+      renderChapterFitTable(result.generators);
       renderUpgradeTables(result.generators);
       renderXpTables(result.generators);
       renderCharts(result.generators);
@@ -1499,6 +1962,10 @@
         const result = computeGenerators(params);
         renderCostTables(result.generators);
       }
+      if (name === 'chapter-fit') {
+        const result = computeGenerators(params);
+        renderChapterFitTable(result.generators);
+      }
       if (name === 'upgrades') {
         const result = computeGenerators(params);
         renderUpgradeTables(result.generators);
@@ -1525,7 +1992,8 @@
     }
 
     document.getElementById('btn-reset').addEventListener('click', () => {
-      params = structuredClone(DEFAULTS);
+      params = normalizeParams(null);
+      try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
       syncAllKnobs();
       render();
     });
@@ -1539,7 +2007,7 @@
 
     async function copyJSON(btn) {
       const result = computeGenerators(params);
-      const txt = JSON.stringify({ generators: result.generators.slice(0, 1) }, null, 2);
+      const txt = JSON.stringify(serializeGeneratorsForBalance(result.generators), null, 2);
       try {
         await navigator.clipboard.writeText(txt);
         flashCopied(btn);
@@ -1558,6 +2026,67 @@
     }
     document.getElementById('btn-copy').addEventListener('click', (e) => copyJSON(e.currentTarget));
     document.getElementById('btn-copy-inline').addEventListener('click', (e) => copyJSON(e.currentTarget));
+
+    async function saveBalance(btn) {
+      const status = document.getElementById('save-status');
+      const result = computeGenerators(params);
+      const payload = serializeGeneratorsForBalance(result.generators);
+      btn.disabled = true;
+      status.textContent = 'Saving...';
+      try {
+        const response = await fetch('/__generator-tuner/save-generators', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `HTTP ${response.status}`);
+        }
+        status.textContent = 'Saved to src/data/generators.json';
+        setTimeout(() => { if (status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Save failed; use Copy JSON';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('btn-save-balance').addEventListener('click', (e) => saveBalance(e.currentTarget));
+
+    document.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const role = target.dataset.role;
+      if (role !== 'charge-override' && role !== 'chapter-override') return;
+
+      const genId = Number(target.dataset.genId);
+      const level = Number(target.dataset.level);
+      const value = target.value.trim() === '' ? NaN : Number(target.value);
+      if (!Number.isFinite(genId) || !Number.isFinite(level)) return;
+
+      if (role === 'charge-override') setChargeOverride(genId, level, value);
+      else setChapterOverride(genId, level, value);
+    });
+
+    document.addEventListener('click', (event) => {
+      const button = event.target instanceof Element ? event.target.closest('[data-action]') : null;
+      if (!(button instanceof HTMLElement)) return;
+      const action = button.dataset.action;
+
+      if (action === 'clear-chapter-overrides') {
+        params.chargeCostChapterOverrideByGenLevel = {};
+        render();
+        return;
+      }
+
+      if (action === 'clear-charge-overrides') {
+        params.chargeCostOverrideByGenLevel = {};
+        render();
+        return;
+      }
+    });
 
     // ============================================================
     //  RUNES TAB

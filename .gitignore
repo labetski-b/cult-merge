@@ -19,3 +19,5 @@ public/sim-runs/
 
 # Claude Code runtime artifacts (scheduled tasks, sandbox)
 .claude/
+src/data/*.d.ts
+src/data/*.js

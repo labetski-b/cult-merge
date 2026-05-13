@@ -573,6 +573,7 @@ export const useGameStore = create<GameStore>()(
           const rng = new SeededRng(state.rngState);
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
           const nextEntities = { ...state.entities };
+          const nextSpawnCountByGen = { ...state.spawnCountByGen };
           let nextMeat = state.resources.meat;
           let spawned = 0;
 
@@ -607,6 +608,7 @@ export const useGameStore = create<GameStore>()(
               nextGrid.cells[freeSlots[0]!] = creatureId;
               nextEntities[creatureId] = { id: creatureId, kind: 'creature', creatureType: spawn!.creatureType, level: spawn!.level };
               gen = { ...gen, charges: rest };
+              nextSpawnCountByGen[gen.generatorId] = (nextSpawnCountByGen[gen.generatorId] ?? 0) + 1;
               spawned += 1;
             }
 
@@ -621,6 +623,7 @@ export const useGameStore = create<GameStore>()(
             resources: { ...state.resources, meat: nextMeat },
             rngState: rng.getState(),
             cumulativeStats: { ...state.cumulativeStats, totalSpawns: state.cumulativeStats.totalSpawns + spawned },
+            spawnCountByGen: nextSpawnCountByGen,
             lastMessage: `Spawned ${spawned} creatures.`
           };
         });
