@@ -103,6 +103,7 @@ export interface TickMetrics {
   totalExpGained: number;
   totalEyesGained: number;
   totalTasksCompleted: number;
+  totalTasksCompletedByGen: Record<number, number>;
   totalMeatSpent: number;
   totalMeatSpentOnCharges: number;
   totalCreaturesFed: number;
@@ -240,6 +241,15 @@ export interface SimulationResult {
    * instead of collapsing end-of-tick snapshots.
    */
   taskHistory: SimulationSnapshot[];
+  /**
+   * One full snapshot per logged action/event.
+   *
+   * This is the primary analytics stream for chart slices such as Session,
+   * Sacrifices, Kraken Level, Chapter, and Time. `history` is only an
+   * end-of-outer-tick stream and can skip short-lived states when a tick
+   * performs many actions.
+   */
+  actionHistory: SimulationSnapshot[];
   history: SimulationSnapshot[];
   actionLog: ActionLogEntry[];
   finalState: GameSnapshot;
@@ -250,6 +260,7 @@ export interface CumulativeMetrics {
   totalExpGained: number;
   totalEyesGained: number;
   totalTasksCompleted: number;
+  totalTasksCompletedByGen: Record<number, number>;
   totalMeatSpent: number;
   totalMeatSpentOnCharges: number;
   totalCreaturesFed: number;

@@ -9,6 +9,7 @@ export function initCumulativeMetrics(): CumulativeMetrics {
     totalExpGained: 0,
     totalEyesGained: 0,
     totalTasksCompleted: 0,
+    totalTasksCompletedByGen: {},
     totalMeatSpent: 0,
     totalMeatSpentOnCharges: 0,
     totalCreaturesFed: 0,
@@ -131,6 +132,7 @@ export function captureTickMetrics(
     // Cumulative (snapshot scalar fields; object fields need explicit shallow copy)
     ...cumulative,
     maxCreatureLevelByType: { ...cumulative.maxCreatureLevelByType },
+    totalTasksCompletedByGen: { ...cumulative.totalTasksCompletedByGen },
 
     // Time tracking
     sessionTimeSec,
@@ -213,44 +215,46 @@ export function prepareChartData(results: SimulationResult[]): Record<string, Ch
   if (results.length === 0) return {};
 
   const colors = ['#4de2c2', '#ffd966', '#a47cff'];
-  const ticks = results[0]!.history.map(s => s.tick);
+  const getAnalyticsHistory = (result: SimulationResult) =>
+    result.actionHistory.length > 0 ? result.actionHistory : result.history;
+  const labels = getAnalyticsHistory(results[0]!).map((_, i) => i);
 
   return {
     krakenLevel: {
-      labels: ticks,
+      labels,
       datasets: results.map((result, idx) => ({
         label: result.config.strategy.name,
-        data: result.history.map(s => s.metrics.krakenLevel),
+        data: getAnalyticsHistory(result).map(s => s.metrics.krakenLevel),
         borderColor: colors[idx % colors.length]!,
         backgroundColor: colors[idx % colors.length]!,
         fill: false
       }))
     },
     eyes: {
-      labels: ticks,
+      labels,
       datasets: results.map((result, idx) => ({
         label: result.config.strategy.name,
-        data: result.history.map(s => s.metrics.eyes),
+        data: getAnalyticsHistory(result).map(s => s.metrics.eyes),
         borderColor: colors[idx % colors.length]!,
         backgroundColor: colors[idx % colors.length]!,
         fill: false
       }))
     },
     exp: {
-      labels: ticks,
+      labels,
       datasets: results.map((result, idx) => ({
         label: result.config.strategy.name,
-        data: result.history.map(s => s.metrics.totalExpGained),
+        data: getAnalyticsHistory(result).map(s => s.metrics.totalExpGained),
         borderColor: colors[idx % colors.length]!,
         backgroundColor: colors[idx % colors.length]!,
         fill: false
       }))
     },
     tasks: {
-      labels: ticks,
+      labels,
       datasets: results.map((result, idx) => ({
         label: result.config.strategy.name,
-        data: result.history.map(s => s.metrics.totalTasksCompleted),
+        data: getAnalyticsHistory(result).map(s => s.metrics.totalTasksCompleted),
         borderColor: colors[idx % colors.length]!,
         backgroundColor: colors[idx % colors.length]!,
         fill: false

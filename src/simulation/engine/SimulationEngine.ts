@@ -37,6 +37,7 @@ export class SimulationEngine {
   private env: EngineEnv;
   private history: SimulationSnapshot[];
   private taskHistory: SimulationSnapshot[];
+  private actionHistory: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
   private tickTraces: TickTrace[] = [];
@@ -68,6 +69,22 @@ export class SimulationEngine {
    *  fingerprint сравнения после tick boundary. */
   private lastTickWasIdle = false;
 
+  /** Lazy map of creature type → owning generator id, built from balance config
+   *  on first access. Used to attribute completed quests to the gen that produces
+   *  the target creature line. */
+  private creatureGenIdCache: Map<string, number> | null = null;
+
+  private getGenIdForCreatureType(creatureType: string): number | null {
+    if (this.creatureGenIdCache === null) {
+      const map = new Map<string, number>();
+      for (const gen of this.config.balance.generators.generators) {
+        for (const line of gen.lines) map.set(line, gen.id);
+      }
+      this.creatureGenIdCache = map;
+    }
+    return this.creatureGenIdCache.get(creatureType) ?? null;
+  }
+
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
     const strategy = input.strategy ?? new ModularStrategy(balance);
@@ -97,6 +114,7 @@ export class SimulationEngine {
     this.env = makeEngineEnv(rng, 0);
     this.history = [];
     this.taskHistory = [];
+    this.actionHistory = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
     this.tickTraces = [];
@@ -180,6 +198,7 @@ export class SimulationEngine {
     return {
       config: this.config,
       taskHistory: this.taskHistory,
+      actionHistory: this.actionHistory,
       history: this.history,
       actionLog: this.actionLog,
       finalState: this.state,
@@ -362,6 +381,26 @@ export class SimulationEngine {
     };
   }
 
+  private captureAnalyticsSnapshot(outerTick: number): SimulationSnapshot {
+    const metrics = captureTickMetrics(this.state, this.cumulative, this.config.balance, this.sessionTimeSec);
+    const gameState = {
+      kraken: { ...this.state.kraken },
+      session: this.state.session,
+      meatButtonPresses: this.state.meatButtonPresses,
+      spawnCountByGen: { ...this.state.spawnCountByGen },
+      spawnsSpentByGen: { ...this.state.spawnsSpentByGen },
+      cumulativeStats: {
+        totalRunesFed: this.state.cumulativeStats.totalRunesFed,
+      },
+    } as unknown as GameSnapshot;
+    return {
+      tick: outerTick,
+      timestamp: outerTick * this.config.tickInterval,
+      gameState,
+      metrics: JSON.parse(JSON.stringify(metrics)),
+    };
+  }
+
   private captureTaskSnapshot(outerTick: number, events: readonly ActionEvent[]): void {
     const taskCompleted = events.find((event): event is Extract<ActionEvent, { type: 'task_completed' }> =>
       event.type === 'task_completed'
@@ -466,6 +505,18 @@ export class SimulationEngine {
           this.cumulative.totalEyesGained += event.eyesGained;
           this.cumulative.totalTasksCompleted += 1;
           this.cumulative.totalQuestMeatCost += event.meatCost;
+
+          // Attribute this quest to the generator(s) that produce its target creatures.
+          // Count +1 per unique generator referenced — quests that require multiple
+          // creature types touch each contributing gen exactly once.
+          const seenGens = new Set<number>();
+          for (const c of event.creatures) {
+            const genId = this.getGenIdForCreatureType(c.type);
+            if (genId === null || seenGens.has(genId)) continue;
+            seenGens.add(genId);
+            this.cumulative.totalTasksCompletedByGen[genId] =
+              (this.cumulative.totalTasksCompletedByGen[genId] ?? 0) + 1;
+          }
           if (this.currentQuestUsedSkipTimer) {
             this.cumulative.questsClosedViaGen3Skip += 1;
           }
@@ -704,6 +755,7 @@ export class SimulationEngine {
       fieldSnapshot: this.captureFieldSnapshot(),
       note
     });
+    this.actionHistory.push(this.captureAnalyticsSnapshot(this.currentTick));
   }
 
   /**
