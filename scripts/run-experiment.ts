@@ -3,12 +3,12 @@
  * Balance JSON files are NOT modified — experiment overrides are loaded
  * from experiments/<name>/ (generators.json, chapters_data_analytics.json, creatures.json, kraken_progression.json).
  *
- * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts <name> [ticks] [filter]
+ * Usage: npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts <name> [maxTicks] [filter]
  *
  * Examples:
  *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 50000
- *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 50000 charge_generator
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 500
+ *   npx tsx --tsconfig tsconfig.app.json scripts/run-experiment.ts charge-cost 500 charge_generator
  *
  * Each experiment lives in src/data/experiments/<name>/ with its own README.md.
  */
@@ -29,7 +29,8 @@ if (!expName) {
   process.exit(1);
 }
 
-const ticks = parseInt(process.argv[3] ?? '50000', 10);
+const TARGET_KRAKEN_LEVEL = 50;
+const ticks = parseInt(process.argv[3] ?? '500', 10);
 const filter = process.argv[4]?.toLowerCase() ?? '';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -85,20 +86,21 @@ const expBalance = {
 
 // ── Run experiment simulation ───────────────────────────────────────────────
 
-console.log(`Running ${expName} (${ticks} ticks)...`);
+console.log(`Running ${expName} (goal Kraken Lv${TARGET_KRAKEN_LEVEL}, max ${ticks} ticks)...`);
 const expEngine = new SimulationEngine({
   seed: 42,
-  stopCondition: { type: 'ticks', value: ticks },
+  stopCondition: { type: 'krakenLevel', value: TARGET_KRAKEN_LEVEL },
   maxTicks: ticks,
   tickInterval: 1000,
   strategy: new ModularStrategy(expBalance),
   balance: expBalance,
 });
 const experiment = expEngine.run();
+const analyticsHistory = experiment.actionHistory.length > 0 ? experiment.actionHistory : experiment.history;
 
-// ── Extract metrics from last history snapshot ──────────────────────────────
+// ── Extract metrics from last analytics snapshot ────────────────────────────
 
-const last = experiment.history[experiment.history.length - 1];
+const last = analyticsHistory[analyticsHistory.length - 1];
 const totalCharges = last?.metrics.totalCharges ?? 0;
 const finalSession = last?.gameState.session ?? 1;
 const avgChargesPerSession = finalSession > 0 ? totalCharges / finalSession : 0;
@@ -111,7 +113,7 @@ const pad = (s: string | number, n: number) => String(s).padStart(n, ' ');
 
 console.log('');
 console.log('═══════════════════════════════════════════════════════════════');
-console.log(`  EXPERIMENT: ${expName}  (seed=42, ${ticks} ticks)`);
+console.log(`  EXPERIMENT: ${expName}  (seed=42, goal Lv${TARGET_KRAKEN_LEVEL}, max ${ticks} ticks)`);
 console.log('═══════════════════════════════════════════════════════════════');
 console.log(`  ${'Final level'.padEnd(26)} ${pad(experiment.summary.finalLevel, 10)}`);
 console.log(`  ${'Tasks completed'.padEnd(26)} ${pad(experiment.summary.totalTasksCompleted, 10)}`);
@@ -135,7 +137,8 @@ interface ChapterMilestone {
 function extractChapterMilestones(result: ReturnType<SimulationEngine['run']>): ChapterMilestone[] {
   const milestones: ChapterMilestone[] = [];
   const seen = new Set<number>();
-  for (const snap of result.history) {
+  const snapshots = result.actionHistory.length > 0 ? result.actionHistory : result.history;
+  for (const snap of snapshots) {
     const ch = snap.metrics.chapter;
     if (!seen.has(ch)) {
       seen.add(ch);

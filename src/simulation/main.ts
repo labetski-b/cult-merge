@@ -176,7 +176,7 @@ async function handleRunSimulation(e: Event) {
     const engine = new SimulationEngine({
       seed,
       stopCondition,
-      maxTicks: 50_000,
+      maxTicks: 500,
       tickInterval: 100,
       strategy: STRATEGY,
       balance: BALANCE,
@@ -190,7 +190,8 @@ async function handleRunSimulation(e: Event) {
     lastModularTraces = captureTrace ? engine.getTickTraces().slice() : [];
     if (downloadTraceBtn) downloadTraceBtn.disabled = lastModularTraces.length === 0;
 
-    console.log('First 3 ticks metrics:', result.history.slice(0, 3).map(h => ({
+    const debugHistory = result.actionHistory.length > 0 ? result.actionHistory : result.history;
+    console.log('First 3 analytics metrics:', debugHistory.slice(0, 3).map(h => ({
       tick: h.tick,
       krakenLevel: h.metrics.krakenLevel,
       eyes: h.metrics.eyes,
@@ -541,7 +542,11 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   gems:                 ['sessions', 'presses', 'time'],
   'sessions-per-level': ['krakenLevel'],
   'quests-per-level':   ['krakenLevel'],
+  'meat-spent-per-level': ['krakenLevel'],
+  'sacrifices-per-level': ['krakenLevel'],
   'tasks-per-chapter':     ['chapter'],
+  'quests-per-gen-per-chapter': ['chapter', 'generators'],
+  'quests-per-gen-pct-per-chapter': ['chapter', 'generators'],
   'spawns-per-chapter':    ['chapter'],
   'creatures-per-chapter': ['chapter'],
   'time-per-chapter':      ['chapter'],
@@ -572,8 +577,10 @@ function getXAxisLabels(history: SimulationSnapshot[]): { labels: number[]; titl
 }
 
 function getChartHistory(result: SimulationResult): SimulationSnapshot[] {
-  if (getCurrentXAxisMode() !== 'tasks') return result.history;
-  return result.taskHistory.length > 0 ? result.taskHistory : result.history;
+  if (getCurrentXAxisMode() === 'tasks') {
+    return result.taskHistory.length > 0 ? result.taskHistory : (result.actionHistory.length > 0 ? result.actionHistory : result.history);
+  }
+  return result.actionHistory.length > 0 ? result.actionHistory : result.history;
 }
 
 /**
@@ -786,7 +793,7 @@ function renderCharts(results: SimulationResult[]) {
   // ── Spawns per Session — own Session x-axis inside Generators mode ───────
   if (visible('generator-spawns-per-session')) {
     setAggBadge('generator-spawns-per-session', 'PER SESSION');
-    const sessionLabels = aggregateHistory(results[0]!.history, s => s.gameState.session, s => s.metrics.totalSpawns, 'last').labels;
+    const sessionLabels = aggregateHistory(getChartHistory(results[0]!), s => s.gameState.session, s => s.metrics.totalSpawns, 'last').labels;
     const sessionXAxis = {
       title: { display: true, text: 'Session', color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
       ticks: { color: '#e8f1f5', font: { size: TICK_FONT_SIZE }, maxTicksLimit: X_MAX_TICKS, autoSkip: true },
@@ -798,7 +805,7 @@ function renderCharts(results: SimulationResult[]) {
         labels: sessionLabels,
         datasets: [
           ...results.map((result, idx) => {
-            const cumSpawns = aggregateHistory(result.history, s => s.gameState.session, s => s.metrics.totalSpawns, 'last').data;
+            const cumSpawns = aggregateHistory(getChartHistory(result), s => s.gameState.session, s => s.metrics.totalSpawns, 'last').data;
             return ds('Spawns', deltaFromPrevious(cumSpawns), color(idx), {
               type: 'bar',
               backgroundColor: `${color(idx)}99`,
@@ -1648,6 +1655,42 @@ function renderCharts(results: SimulationResult[]) {
     );
   }
 
+  // ── Meat Spent per Kraken Level ──────────────────────────────────────────
+  if (visible('meat-spent-per-level')) {
+    setAggBadge('meat-spent-per-level', 'PER LEVEL');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const metricFn = (s: SimulationSnapshot) => s.metrics.totalMeatSpent;
+    const { labels: krLabels } = aggregateHistory(getChartHistory(results[0]!), krakenKeyFn, metricFn, 'last');
+    const barColor = '#f08267';
+    const datasets = results.map(result => {
+      const cumData = aggregateHistory(getChartHistory(result), krakenKeyFn, metricFn, 'last').data;
+      const deltaData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+      return ds('Meat', deltaData, barColor, { type: 'bar', backgroundColor: barColor + '99', borderWidth: 1 });
+    });
+    charts['meat-spent-per-level'] = new Chart(
+      document.getElementById('chart-meat-spent-per-level') as HTMLCanvasElement,
+      { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('Meat spent') }
+    );
+  }
+
+  // ── Sacrifices (Charges) per Kraken Level ────────────────────────────────
+  if (visible('sacrifices-per-level')) {
+    setAggBadge('sacrifices-per-level', 'PER LEVEL');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const metricFn = (s: SimulationSnapshot) => s.metrics.totalCharges;
+    const { labels: krLabels } = aggregateHistory(getChartHistory(results[0]!), krakenKeyFn, metricFn, 'last');
+    const barColor = '#c084ff';
+    const datasets = results.map(result => {
+      const cumData = aggregateHistory(getChartHistory(result), krakenKeyFn, metricFn, 'last').data;
+      const deltaData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+      return ds('Sacrifices', deltaData, barColor, { type: 'bar', backgroundColor: barColor + '99', borderWidth: 1 });
+    });
+    charts['sacrifices-per-level'] = new Chart(
+      document.getElementById('chart-sacrifices-per-level') as HTMLCanvasElement,
+      { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('Sacrifices') }
+    );
+  }
+
   // ── Chapter-based charts ─────────────────────────────────────────────────
   const chapterKeyFn = (s: SimulationSnapshot) => s.metrics.chapter;
 
@@ -1674,6 +1717,101 @@ function renderCharts(results: SimulationResult[]) {
   };
 
   makeChapterBarChart('tasks-per-chapter', s => s.metrics.totalTasksCompleted, 'last', 'Tasks', 'Tasks', '#4fc3f7');
+
+  // ── Quests per Generator per Chapter ─────────────────────────────────────
+  // Stacked bar: each chapter on X, each generator a stack segment. Uses
+  // totalTasksCompletedByGen cumulative metric (engine attributes a completed
+  // quest to each unique gen that produces a creature in its requirement set).
+  if (visible('quests-per-gen-per-chapter')) {
+    setAggBadge('quests-per-gen-per-chapter', 'PER CHAPTER');
+    // Discover gen ids actually referenced in any snapshot.
+    const genIds = new Set<number>();
+    for (const result of results) {
+      for (const s of getChartHistory(result)) {
+        for (const k of Object.keys(s.metrics.totalTasksCompletedByGen ?? {})) genIds.add(Number(k));
+      }
+    }
+    const sortedGenIds = [...genIds].sort((a, b) => a - b);
+    const genPalette = ['#2ad4b3', '#f08267', '#6aa3ff', '#c084ff', '#e8b339', '#ef5a6f', '#5fd1d8', '#b8c473'];
+    const { labels: chLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      chapterKeyFn,
+      s => s.metrics.totalTasksCompleted,
+      'last'
+    );
+    const datasets = sortedGenIds.flatMap((genId, gIdx) => {
+      const clr = genPalette[gIdx % genPalette.length]!;
+      const metricFn = (s: SimulationSnapshot) => s.metrics.totalTasksCompletedByGen?.[genId] ?? 0;
+      return results.map(result => {
+        const cumData = aggregateHistory(getChartHistory(result), chapterKeyFn, metricFn, 'last').data;
+        const deltaData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+        return ds(`Gen${genId}`, deltaData, clr, {
+          type: 'bar',
+          backgroundColor: clr + 'cc',
+          borderWidth: 1,
+          stack: 'gen',
+        });
+      });
+    });
+    charts['quests-per-gen-per-chapter'] = new Chart(
+      document.getElementById('chart-quests-per-gen-per-chapter') as HTMLCanvasElement,
+      {
+        type: 'bar',
+        data: { labels: chLabels, datasets },
+        options: {
+          ...xOpts('Quests'),
+          scales: {
+            ...((xOpts('Quests') as { scales?: Record<string, unknown> }).scales ?? {}),
+            x: { stacked: true },
+            y: { stacked: true, title: { display: true, text: 'Quests' } },
+          },
+        },
+      }
+    );
+
+    // ── Quests per Generator per Chapter — 100% stacked share ──────────────
+    if (visible('quests-per-gen-pct-per-chapter')) {
+      setAggBadge('quests-per-gen-pct-per-chapter', 'PER CHAPTER %');
+      // Pre-compute per-gen delta arrays (same as above) plus column totals.
+      const perGenDeltas: number[][] = sortedGenIds.map(genId => {
+        const metricFn = (s: SimulationSnapshot) => s.metrics.totalTasksCompletedByGen?.[genId] ?? 0;
+        const cumData = aggregateHistory(getChartHistory(results[0]!), chapterKeyFn, metricFn, 'last').data;
+        return cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
+      });
+      const chapterTotals = chLabels.map((_, chIdx) =>
+        perGenDeltas.reduce((sum, arr) => sum + (arr[chIdx] ?? 0), 0)
+      );
+      const pctDatasets = sortedGenIds.map((genId, gIdx) => {
+        const clr = genPalette[gIdx % genPalette.length]!;
+        const pctData = perGenDeltas[gIdx]!.map((v, chIdx) => {
+          const tot = chapterTotals[chIdx] ?? 0;
+          return tot > 0 ? (v / tot) * 100 : 0;
+        });
+        return ds(`Gen${genId}`, pctData, clr, {
+          type: 'bar',
+          backgroundColor: clr + 'cc',
+          borderWidth: 1,
+          stack: 'gen-pct',
+        });
+      });
+      charts['quests-per-gen-pct-per-chapter'] = new Chart(
+        document.getElementById('chart-quests-per-gen-pct-per-chapter') as HTMLCanvasElement,
+        {
+          type: 'bar',
+          data: { labels: chLabels, datasets: pctDatasets },
+          options: {
+            ...xOpts('% of quests'),
+            scales: {
+              ...((xOpts('% of quests') as { scales?: Record<string, unknown> }).scales ?? {}),
+              x: { stacked: true },
+              y: { stacked: true, min: 0, max: 100, title: { display: true, text: '% of quests' } },
+            },
+          },
+        }
+      );
+    }
+  }
+
   makeChapterBarChart('spawns-per-chapter', s => s.metrics.totalSpawns, 'last', 'Spawns', 'Spawns', '#ff9966');
   makeChapterBarChart('creatures-per-chapter', s => s.metrics.totalUniqueCreatures, 'last', 'Unique Creatures', 'Creatures', '#81c784');
   makeChapterBarChart('generators-per-chapter', s => Object.keys(s.metrics.generatorsByType).length, 'last', 'Generators', 'Generators', '#a1887f');

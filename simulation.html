@@ -524,7 +524,7 @@
 
           <div class="cm-field">
             <label class="cm-label" for="stop-value">Value</label>
-            <input class="cm-input is-mono" type="number" id="stop-value" value="10" min="1">
+            <input class="cm-input is-mono" type="number" id="stop-value" value="50" min="1">
           </div>
 
           <div class="cm-field sim-controls__trace">
@@ -656,6 +656,22 @@
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-runes"></canvas>
+        </div>
+
+        <div class="cm-card chart-container chart-key-metric">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Meat spent per Kraken Level</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-meat-spent-per-level"></canvas>
+        </div>
+
+        <div class="cm-card chart-container chart-key-metric">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Sacrifices per Kraken Level</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-sacrifices-per-level"></canvas>
         </div>
 
         <div class="cm-card chart-container">
@@ -915,6 +931,20 @@
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-tasks-per-chapter"></canvas>
+        </div>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Quests per Generator per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-quests-per-gen-per-chapter"></canvas>
+        </div>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Quests per Generator per Chapter (share %)</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-quests-per-gen-pct-per-chapter"></canvas>
         </div>
         <div class="cm-card chart-container">
           <div class="cm-card__head">

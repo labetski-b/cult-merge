@@ -256,6 +256,15 @@
       gap: 4px;
       justify-content: flex-end;
     }
+    .rune-cost-inline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+    .rune-cost-inline .cell-sub {
+      line-height: 1;
+    }
     .mini-btn {
       height: 22px;
       padding: 0 6px;
@@ -686,6 +695,8 @@
         : DEFAULTS.chargeCostMultiplierByGen.slice();
       next.chargeCostOverrideByGenLevel = next.chargeCostOverrideByGenLevel || {};
       next.chargeCostChapterOverrideByGenLevel = next.chargeCostChapterOverrideByGenLevel || {};
+      next.upgradeRuneCostOverrideByGenLevel = next.upgradeRuneCostOverrideByGenLevel || {};
+      next.upgradeSpawnsRequiredOverrideByGenLevel = next.upgradeSpawnsRequiredOverrideByGenLevel || {};
       return next;
     }
 
@@ -730,6 +741,28 @@
       const key = genLevelKey(genId, level);
       if (!Number.isFinite(value)) delete params.chargeCostOverrideByGenLevel[key];
       else params.chargeCostOverrideByGenLevel[key] = Math.max(1, Math.round(value));
+      render();
+    }
+
+    function hasUpgradeRuneOverride(genId, level) {
+      return Object.prototype.hasOwnProperty.call(params.upgradeRuneCostOverrideByGenLevel, genLevelKey(genId, level));
+    }
+
+    function hasUpgradeSpawnsOverride(genId, level) {
+      return Object.prototype.hasOwnProperty.call(params.upgradeSpawnsRequiredOverrideByGenLevel, genLevelKey(genId, level));
+    }
+
+    function setUpgradeRuneOverride(genId, level, value) {
+      const key = genLevelKey(genId, level);
+      if (!Number.isFinite(value)) delete params.upgradeRuneCostOverrideByGenLevel[key];
+      else params.upgradeRuneCostOverrideByGenLevel[key] = Math.max(0, Math.round(value));
+      render();
+    }
+
+    function setUpgradeSpawnsOverride(genId, level, value) {
+      const key = genLevelKey(genId, level);
+      if (!Number.isFinite(value)) delete params.upgradeSpawnsRequiredOverrideByGenLevel[key];
+      else params.upgradeSpawnsRequiredOverrideByGenLevel[key] = Math.max(0, Math.round(value));
       render();
     }
 
@@ -1059,13 +1092,15 @@
         '<col class="col-meat-cost">',
         '<col class="col-spawns-cost">',
         '<col class="col-eff-meat-total">',
+        '<col class="col-chapter">',
+        '<col class="col-spawns">',
+        '<col class="col-rune">',
       ].join('');
       for (const c of order) {
         cols += '<col class="col-prob">';
         for (let lv = 1; lv <= c.topL; lv++) cols += '<col class="col-prob">';
         cols += '<col class="col-eff">';
         cols += '<col class="col-eff-meat-total">';
-        cols += '<col class="col-max">';
       }
       return `<colgroup>${cols}</colgroup>`;
     }
@@ -1078,10 +1113,12 @@
         '<col class="col-meat">',
         '<col class="col-meat-edit">',
         '<col class="col-eff-meat-total">',
+        '<col class="col-chapter">',
+        '<col class="col-spawns">',
+        '<col class="col-rune">',
       ].join('');
       for (const _ of order) {
         cols += '<col class="col-eff-meat-total">';
-        cols += '<col class="col-max">';
       }
       return `<colgroup>${cols}</colgroup>`;
     }
@@ -1139,6 +1176,54 @@
         <col class="col-eff-meat">
         <col class="col-eff-meat">
       </colgroup>`;
+    }
+
+    function renderRequiredSpawnsCell(genId, level, upgrade, baseUpgrade) {
+      if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
+      const spawnsRequired = getUpgradeSpawnsRequired(upgrade);
+      const overrideClass = hasUpgradeSpawnsOverride(genId, level) ? ' is-override' : '';
+      return `<td class="num">
+        <div class="cell-stack">
+          <input
+            class="table-input${overrideClass}"
+            type="number"
+            min="0"
+            step="1"
+            value="${spawnsRequired ?? ''}"
+            data-role="upgrade-spawns-override"
+            data-gen-id="${genId}"
+            data-level="${level}"
+            title="Spawns required. Empty value returns this row to formula."
+          />
+        </div>
+      </td>`;
+    }
+
+    function renderRequiredRuneCostCell(genId, level, upgrade, baseUpgrade, showCurrency = false) {
+      if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
+      const overrideClass = hasUpgradeRuneOverride(genId, level) ? ' is-override' : '';
+      const currency = upgrade.runeType === 'rune1' ? 'r1' : 'r2';
+      return `<td class="num">
+        <div class="rune-cost-inline">
+          <input
+            class="table-input${overrideClass}"
+            type="number"
+            min="0"
+            step="1"
+            value="${upgrade.runeCost}"
+            data-role="upgrade-rune-override"
+            data-gen-id="${genId}"
+            data-level="${level}"
+            title="Rune cost. Empty value returns this row to formula."
+          />
+          ${showCurrency ? `<span class="cell-sub">${currency}</span>` : ''}
+        </div>
+      </td>`;
+    }
+
+    function renderRuneCurrencyCell(upgrade) {
+      if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
+      return `<td class="num">${upgrade.runeType === 'rune1' ? 'r1' : 'r2'}</td>`;
     }
 
     function renderXpTables(currentGens) {
@@ -1262,7 +1347,8 @@
             <p class="xp-note">
               Cost focuses on charge economy. The spawn distribution, spawn count, and per-creature Eff are common across
               sacrifice generators (shown once below). Per-generator tables list only what differs: meat, Total Eff / Eff per meat,
-              and per-creature L1/m, Max@4. Timer generators have their own structure shown in full.
+              upgrade requirements, rune cost, and per-creature L1/m. Req. Spawns and Req. Rune Cost are shared with
+              Upgrades and are saved by Save Balance.
             </p>
           </div>
         </div>`;
@@ -1361,8 +1447,11 @@
         head1 += `<th class="th-two-line group-start" rowspan="2">${isTimer ? 'Tick' : 'Meat<br>/charge'}</th>`;
         if (isTimer) head1 += '<th rowspan="2">Spawns</th>';
         head1 += '<th rowspan="2" title="Expected XP from one full charge divided by meat cost. Δ vs previous level shown inline. Empty for timer generators.">XP/m</th>';
+        head1 += '<th class="th-two-line group-start" rowspan="2" title="Kraken level from the latest simulation artifact.">Kr.Lvl<br>(sim)</th>';
+        head1 += '<th class="th-two-line" rowspan="2" title="Actual upgrade gate: available spawned creatures for this generator. Editable and shared with Upgrades.">Req.<br>Spawns</th>';
+        head1 += '<th class="th-two-line" rowspan="2" title="Rune cost and currency for this level upgrade. Editable and shared with Upgrades.">Req. Rune<br>Cost (Cur)</th>';
         for (const c of order) {
-          const span = isTimer ? (c.topL + 4) : 2; // timer: full (Σ%+Ls+Eff+Eff/m+Max@4); sacrifice: Eff/m + Max@4
+          const span = isTimer ? (c.topL + 3) : 1; // timer: full (Σ%+Ls+Eff+Eff/m); sacrifice: Eff/m
           head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
         }
         head1 += '</tr>';
@@ -1373,10 +1462,8 @@
             for (let lv = 1; lv <= c.topL; lv++) head2 += `<th>L${lv}</th>`;
             head2 += `<th>Eff</th>`;
             head2 += `<th title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
-            head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
           } else {
             head2 += `<th class="group-start" title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
-            head2 += `<th title="Max creature level achievable from 4 full charges of this generator">Max@4</th>`;
           }
         }
         head2 += '</tr>';
@@ -1386,6 +1473,8 @@
         for (let L = 1; L <= N_LEVELS; L++) {
           const lvl = g.levels[L - 1];
           const baseLvl = baseG.levels[L - 1];
+          const up = lvl.upgrade || null;
+          const baseUp = baseLvl.upgrade || null;
 
           const meat = lvl.chargeCost;
           const approxChapter = chargeChapterForGeneratorLevel(params, gi, L);
@@ -1448,10 +1537,12 @@
             </td>`;
           }
           row += `<td class="num">${xpPerMeat === null ? '<span class="dim">—</span>' : `<span class="eff-cell"><span class="cell-main">${fmtNum(xpPerMeat, 1)}</span><span class="delta-slot">${xpPerMeatDelta}</span></span>`}</td>`;
+          row += `<td class="num group-start" title="${simRow?.krakenLevel == null ? 'No Kraken level in latest simulation artifact.' : `Latest simulation saw this row at Kraken L${simRow.krakenLevel}.`}">${simRow?.krakenLevel == null ? '<span class="dim">—</span>' : `L${simRow.krakenLevel}`}</td>`;
+          row += renderRequiredSpawnsCell(g.id, L, up, baseUp);
+          row += renderRequiredRuneCostCell(g.id, L, up, baseUp, true);
 
           for (const c of order) {
             const eff = computeEff(lvl, c.name);
-            const effBase = computeEff(baseLvl, c.name);
             const effPrev = L > 1 ? computeEff(g.levels[L - 2], c.name) : 0;
 
             if (isTimer) {
@@ -1481,15 +1572,6 @@
               const lineEffPerMeat = meat > 0 && eff > 0 ? eff / meat : null;
               row += `<td class="num group-start">${lineEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(lineEffPerMeat, 1)}</td>`;
             }
-
-            const l1eq = 4 * eff;
-            const maxLvl = l1eq >= 1 ? Math.floor(Math.log2(l1eq)) + 1 : 0;
-            const maxLvlBase = (4 * effBase) >= 1 ? Math.floor(Math.log2(4 * effBase)) + 1 : 0;
-            const maxStr = maxLvl > 0 ? `L${maxLvl}` : '—';
-            const maxDelta = maxLvl - maxLvlBase;
-            const maxDeltaStr = maxDelta === 0 ? '' :
-              `<span class="${maxDelta > 0 ? 'delta-pos' : 'delta-neg'}">${maxDelta > 0 ? '+' : ''}${maxDelta}</span>`;
-            row += `<td class="num"><div class="cell-stack"><span class="cell-main">${maxStr}</span>${maxDeltaStr}</div></td>`;
           }
 
           row += '</tr>';
@@ -1520,7 +1602,7 @@
 
       const runMeta = simGeneratorChaptersData
         ? `Latest sim: seed ${simGeneratorChaptersData.seed}, ${simGeneratorChaptersData.ticks} ticks, generated ${simGeneratorChaptersData.generatedAt}.`
-        : 'No simulation chapter artifact yet. Run `npm run sim -- 300 "" 42 --quiet --until-level 50` to generate public/sim-runs/latest/generator-chapters.json.';
+        : 'No simulation chapter artifact yet. Run `npm run sim -- 500 "" 42 --quiet --until-level 50` to generate public/sim-runs/latest/generator-chapters.json.';
 
       const simRows = simGeneratorChaptersData?.rows || [];
       const genNameById = new Map(currentGens.map(g => [g.id, g.name]));
@@ -1655,8 +1737,14 @@
           <div class="cm-card__body">
             <p class="xp-note">
               Upgrades focuses on progression cost: spawned creatures required, estimated charges/meat to farm them,
-              rune cost, upgrade time, and approximate pacing. CH(plan) is derived from generator unlock pacing and design level→chapter anchors.
+              rune cost, upgrade time, and approximate pacing. <b>Spawns req</b> and <b>Rune cost</b> are editable —
+              use the <b>Save Balance</b> button in the top-right to persist all overrides (Cost + Upgrades) to
+              <code>src/data/generators.json</code>.
             </p>
+            <div class="row" style="gap:8px;">
+              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-upgrade-spawns-overrides">Clear Spawns overrides</button>
+              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-upgrade-rune-overrides">Clear Rune overrides</button>
+            </div>
           </div>
         </div>`;
 
@@ -1667,21 +1755,21 @@
 
         let head = '<thead><tr>';
         head += '<th>Upgrade</th>';
-        head += '<th>Approx KL</th>';
+        head += '<th class="th-two-line">Approx<br>KL</th>';
         head += '<th>CH(plan)</th>';
-        head += '<th>Meat / charge</th>';
-        head += `<th>${isTimer ? 'Tick' : 'Spawns / charge'}</th>`;
-        head += '<th title="Actual upgrade gate: available spawned creatures for this generator.">Spawns req</th>';
-        head += '<th title="Derived estimate: ceil(Spawns req / Spawns per charge). Empty for timer generators.">Charges est</th>';
-        head += '<th title="Derived estimate: Charges est × meat per charge. Empty for timer generators.">Meat est</th>';
-        head += '<th>Rune cost</th>';
+        head += '<th class="th-two-line">Meat<br>/ charge</th>';
+        head += `<th class="th-two-line">${isTimer ? 'Tick' : 'Spawns<br>/ charge'}</th>`;
+        head += '<th class="th-two-line" title="Actual upgrade gate: available spawned creatures for this generator.">Spawns<br>req</th>';
+        head += '<th class="th-two-line" title="Derived estimate: ceil(Spawns req / Spawns per charge). Empty for timer generators.">Charges<br>est</th>';
+        head += '<th class="th-two-line" title="Derived estimate: Charges est × meat per charge. Empty for timer generators.">Meat<br>est</th>';
+        head += '<th class="th-two-line">Rune<br>cost</th>';
         head += '<th>Cur</th>';
         head += '<th>Time</th>';
-        head += '<th>Eff before</th>';
-        head += '<th>Eff after</th>';
-        head += '<th>Eff gain</th>';
-        head += '<th>XP/m before</th>';
-        head += '<th>XP/m after</th>';
+        head += '<th class="th-two-line">Eff<br>before</th>';
+        head += '<th class="th-two-line">Eff<br>after</th>';
+        head += '<th class="th-two-line">Eff<br>gain</th>';
+        head += '<th class="th-two-line">XP/m<br>before</th>';
+        head += '<th class="th-two-line">XP/m<br>after</th>';
         head += '</tr></thead>';
 
         let body = '<tbody>';
@@ -1704,9 +1792,6 @@
           const approxKraken = approxKrakenForUpgrade(gi, L);
           const approxChapter = approxChapterForKrakenLevel(approxKraken);
 
-          const runeCostCell = baseUp
-            ? `<div class="cell-stack"><span class="cell-main">${up.runeCost}</span>${deltaSpan(up.runeCost, baseUp.runeCost)}</div>`
-            : String(up.runeCost);
           const time = up.upgradeDurationSec || 0;
           const timeLabel = time >= 60 ? `${fmtNum(time / 60, 1)}m` : `${time}s`;
           const effGainCell = effGain === null
@@ -1719,11 +1804,11 @@
           body += `<td class="num">${approxChapter}</td>`;
           body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(lvl.chargeCost, 2)}</td>`;
           body += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
-          body += `<td class="num">${spawnsRequired === null ? '<span class="dim">—</span>' : spawnsRequired}</td>`;
+          body += renderRequiredSpawnsCell(g.id, L, up, baseUp);
           body += `<td class="num">${chargeEstimate === null ? '<span class="dim">—</span>' : chargeEstimate}</td>`;
           body += `<td class="num">${meatEstimate === null ? '<span class="dim">—</span>' : fmtNum(meatEstimate, 1)}</td>`;
-          body += `<td class="num">${runeCostCell}</td>`;
-          body += `<td class="num">${up.runeType === 'rune1' ? 'r1' : 'r2'}</td>`;
+          body += renderRequiredRuneCostCell(g.id, L, up, baseUp);
+          body += renderRuneCurrencyCell(up);
           body += `<td class="num">${timeLabel}</td>`;
           body += `<td class="num">${fmtNum(effBefore, 1)}</td>`;
           body += `<td class="num">${fmtNum(effAfter, 1)}</td>`;
@@ -2027,12 +2112,12 @@
     document.getElementById('btn-copy').addEventListener('click', (e) => copyJSON(e.currentTarget));
     document.getElementById('btn-copy-inline').addEventListener('click', (e) => copyJSON(e.currentTarget));
 
-    async function saveBalance(btn) {
-      const status = document.getElementById('save-status');
+    async function saveBalance(btn, statusElId) {
+      const status = document.getElementById(statusElId || 'save-status');
       const result = computeGenerators(params);
       const payload = serializeGeneratorsForBalance(result.generators);
       btn.disabled = true;
-      status.textContent = 'Saving...';
+      if (status) status.textContent = 'Saving...';
       try {
         const response = await fetch('/__generator-tuner/save-generators', {
           method: 'POST',
@@ -2043,23 +2128,24 @@
           const text = await response.text();
           throw new Error(text || `HTTP ${response.status}`);
         }
-        status.textContent = 'Saved to src/data/generators.json';
-        setTimeout(() => { if (status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
+        if (status) status.textContent = 'Saved to src/data/generators.json + generated';
+        setTimeout(() => { if (status && status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
       } catch (err) {
         console.error(err);
-        status.textContent = 'Save failed; use Copy JSON';
+        if (status) status.textContent = 'Save failed; use Copy JSON';
       } finally {
         btn.disabled = false;
       }
     }
 
-    document.getElementById('btn-save-balance').addEventListener('click', (e) => saveBalance(e.currentTarget));
+    document.getElementById('btn-save-balance').addEventListener('click', (e) => saveBalance(e.currentTarget, 'save-status'));
 
     document.addEventListener('change', (event) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       const role = target.dataset.role;
-      if (role !== 'charge-override' && role !== 'chapter-override') return;
+      const allowedRoles = ['charge-override', 'chapter-override', 'upgrade-spawns-override', 'upgrade-rune-override'];
+      if (!allowedRoles.includes(role)) return;
 
       const genId = Number(target.dataset.genId);
       const level = Number(target.dataset.level);
@@ -2067,7 +2153,9 @@
       if (!Number.isFinite(genId) || !Number.isFinite(level)) return;
 
       if (role === 'charge-override') setChargeOverride(genId, level, value);
-      else setChapterOverride(genId, level, value);
+      else if (role === 'chapter-override') setChapterOverride(genId, level, value);
+      else if (role === 'upgrade-spawns-override') setUpgradeSpawnsOverride(genId, level, value);
+      else if (role === 'upgrade-rune-override') setUpgradeRuneOverride(genId, level, value);
     });
 
     document.addEventListener('click', (event) => {
@@ -2083,6 +2171,18 @@
 
       if (action === 'clear-charge-overrides') {
         params.chargeCostOverrideByGenLevel = {};
+        render();
+        return;
+      }
+
+      if (action === 'clear-upgrade-spawns-overrides') {
+        params.upgradeSpawnsRequiredOverrideByGenLevel = {};
+        render();
+        return;
+      }
+
+      if (action === 'clear-upgrade-rune-overrides') {
+        params.upgradeRuneCostOverrideByGenLevel = {};
         render();
         return;
       }

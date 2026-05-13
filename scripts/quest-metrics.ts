@@ -1,6 +1,6 @@
 /**
  * Extract cumulative metrics at key kraken levels for quest balancing.
- * Interpolates by TICKS (real time), not by kraken levels.
+ * Runs until Kraken Lv50, capped by MAX_TICKS as a safety limit.
  * Usage: npx tsx --tsconfig tsconfig.app.json scripts/quest-metrics.ts
  */
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine';
@@ -8,16 +8,19 @@ import { ModularStrategy } from '../src/simulation/strategies/modular/ModularStr
 import { BALANCE } from '../src/data/loadBalance';
 
 const strategy = new ModularStrategy();
+const TARGET_KRAKEN_LEVEL = 50;
+const MAX_TICKS = 500;
 const engine = new SimulationEngine({
   balance: BALANCE,
   seed: 42,
-  maxTicks: 6000,
-  stopCondition: { type: 'ticks', value: 6000 },
+  maxTicks: MAX_TICKS,
+  stopCondition: { type: 'krakenLevel', value: TARGET_KRAKEN_LEVEL },
   tickInterval: 1000,
   strategy,
 });
 
 const result = engine.run();
+const analyticsHistory = result.actionHistory.length > 0 ? result.actionHistory : result.history;
 
 // Track metrics at each kraken level
 const targetLevels = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33];
@@ -44,7 +47,7 @@ metricsAtLevel.push({
   runesFed: 0,
 });
 
-for (const snap of result.history) {
+for (const snap of analyticsHistory) {
   const m = snap.metrics;
   const level = m.krakenLevel;
   if (targetLevels.includes(level) && !seenLevels.has(level)) {
@@ -141,4 +144,4 @@ for (const ch of chapters) {
   }
 }
 
-console.log(`\nFinal: Lv${result.summary.finalLevel}, ${result.summary.duration} ticks`);
+console.log(`\nFinal: Lv${result.summary.finalLevel}, ${result.summary.duration}/${MAX_TICKS} ticks (goal Lv${TARGET_KRAKEN_LEVEL})`);
