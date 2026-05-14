@@ -131,7 +131,12 @@ function buildMergeNests(): string {
   for (const genId of genOrder) {
     const gen = generators.find(g => g.id === genId);
     if (!gen) continue;
-    const idValue = gen.id === 3 ? 'Chicken' : gen.eggType;
+    const idValue =
+      gen.id === 3
+        ? 'Chicken'
+        : gen.id > 3
+          ? gen.eggType.replace(/\d+$/, m => String(parseInt(m, 10) - 1))
+          : gen.eggType;
     for (let i = 0; i < gen.levels.length; i++) {
       const lvl = gen.levels[i]!;
       const numCreatures = lvl.mode === 'sacrifice' ? lvl.numCreatures : 0;
