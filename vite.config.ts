@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import fs from 'node:fs';
-import { generatorsDataSchema } from './src/data/schemas';
+import { generatorsDataSchema, krakenProgressionDataSchema } from './src/data/schemas';
 
 /**
  * Normalize a payload coming from the tuner UI so that every level carries the
@@ -54,21 +54,43 @@ function generatorTunerSavePlugin() {
         req.on('end', () => {
           try {
             const rawParsed = JSON.parse(body);
-            const normalized = normalizeGeneratorsPayload(rawParsed);
-            const result = generatorsDataSchema.safeParse(normalized);
-            if (!result.success) {
+            const payload = rawParsed && typeof rawParsed === 'object' && 'generators' in rawParsed
+              ? rawParsed as { generators?: unknown; krakenProgression?: unknown }
+              : { generators: rawParsed, krakenProgression: undefined };
+
+            const normalizedGenerators = normalizeGeneratorsPayload({ generators: payload.generators });
+            const generatorsResult = generatorsDataSchema.safeParse(normalizedGenerators);
+            if (!generatorsResult.success) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ ok: false, error: 'schema-validation-failed', issues: result.error.issues }, null, 2));
+              res.end(JSON.stringify({ ok: false, error: 'generators-schema-validation-failed', issues: generatorsResult.error.issues }, null, 2));
               return;
             }
 
-            const json = JSON.stringify(result.data, null, 2) + '\n';
+            let krakenProgressionData: unknown = undefined;
+            if (payload.krakenProgression !== undefined) {
+              const krakenResult = krakenProgressionDataSchema.safeParse(payload.krakenProgression);
+              if (!krakenResult.success) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ ok: false, error: 'kraken-progression-schema-validation-failed', issues: krakenResult.error.issues }, null, 2));
+                return;
+              }
+              krakenProgressionData = krakenResult.data;
+            }
+
+            const json = JSON.stringify(generatorsResult.data, null, 2) + '\n';
             const targets = [
               path.resolve(__dirname, 'src/data/generators.json'),
               path.resolve(__dirname, 'src/data/generators.generated.json'),
             ];
             for (const target of targets) fs.writeFileSync(target, json, 'utf8');
+
+            if (krakenProgressionData !== undefined) {
+              const krakenJson = JSON.stringify(krakenProgressionData, null, 2) + '\n';
+              targets.push(path.resolve(__dirname, 'src/data/kraken_progression.json'));
+              fs.writeFileSync(targets[targets.length - 1]!, krakenJson, 'utf8');
+            }
 
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: true, targets }));

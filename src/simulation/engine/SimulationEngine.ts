@@ -85,6 +85,26 @@ export class SimulationEngine {
     return this.creatureGenIdCache.get(creatureType) ?? null;
   }
 
+  private classifyFeedAction(action: SimulationAction): 'quest' | 'free' | null {
+    if (action.type !== 'feed') return null;
+
+    const entity = this.state.entities[action.entityId];
+    if (!entity || entity.kind !== 'creature') return null;
+
+    const task = getActiveTask(this.config.balance, this.state);
+    if (!task) return 'free';
+
+    for (const req of task.creatures) {
+      if (req.type !== entity.creatureType || req.level !== entity.level) continue;
+      const alreadyFed = this.state.currentTaskFed.filter(
+        (fed) => fed.type === req.type && fed.level === req.level,
+      ).length;
+      if (alreadyFed < req.count) return 'quest';
+    }
+
+    return 'free';
+  }
+
   constructor(input: SimulationConfigInput) {
     const balance = input.balance ?? DEFAULT_BALANCE;
     const strategy = input.strategy ?? new ModularStrategy(balance);
@@ -240,6 +260,7 @@ export class SimulationEngine {
         const action = decision.actions[i]!;
         this.totalActions++;
         const note = this.buildActionNote(action);
+        const feedKind = this.classifyFeedAction(action);
         const taskBefore = this.captureTaskLabel();
         const tasksCompletedBefore = this.cumulative.totalTasksCompleted;
 
@@ -270,7 +291,7 @@ export class SimulationEngine {
         // Spec rev 2 § 5.6.
         this.state = result.nextState;
         this.env = result.nextEnv;
-        this.applyEvents(action, result.events);
+        this.applyEvents(action, result.events, feedKind);
         const stateChanged = result.stateChanged;
 
         // Mirror legacy timing semantics: legacy SimulationEngine advanced
@@ -440,7 +461,11 @@ export class SimulationEngine {
    * action effects is updated. It must remain pure of state/env mutation
    * beyond updating cumulative metrics and pendingEventLogs.
    */
-  private applyEvents(action: SimulationAction, events: readonly ActionEvent[]): void {
+  private applyEvents(
+    action: SimulationAction,
+    events: readonly ActionEvent[],
+    feedKind: 'quest' | 'free' | null = null,
+  ): void {
     // Action-type-level bookkeeping that doesn't need an event payload.
     if (action.type === 'gather_meat') {
       // applyActionCore mutates action.count / action.meatGained in place; the
@@ -484,6 +509,11 @@ export class SimulationEngine {
           break;
         case 'creature_fed':
           this.cumulative.totalExpGained += event.expGained;
+          if (feedKind === 'quest') {
+            this.cumulative.totalQuestFeedExpGained += event.expGained;
+          } else {
+            this.cumulative.totalFreeFeedExpGained += event.expGained;
+          }
           break;
         case 'grid_resized': {
           const expandAction: SimulationAction = {

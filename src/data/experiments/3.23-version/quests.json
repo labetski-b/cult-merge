@@ -1,0 +1,60 @@
+{
+  "chapters": [
+    {
+      "id": 1,
+      "name": "Пробуждение",
+      "unlocksGenerator": 2,
+      "quests": [
+        { "id": "ch1_q1", "type": 5, "params": { "level": 6 }, "target": 6, "description": "Достигни уровня 6 кракена" }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Цветок пустоты",
+      "unlocksGenerator": 3,
+      "quests": [
+        { "id": "ch2_q1", "type": 5, "params": { "level": 10 }, "target": 10, "description": "Достигни уровня 10 кракена" }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Охота начинается",
+      "unlocksGenerator": 4,
+      "quests": [
+        { "id": "ch3_q1", "type": 5, "params": { "level": 13 }, "target": 13, "description": "Достигни уровня 13 кракена" }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Рунный мастер",
+      "unlocksGenerator": 5,
+      "quests": [
+        { "id": "ch4_q1", "type": 5, "params": { "level": 18 }, "target": 18, "description": "Достигни уровня 18 кракена" }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Сила хаоса",
+      "unlocksGenerator": 6,
+      "quests": [
+        { "id": "ch5_q1", "type": 5, "params": { "level": 23 }, "target": 23, "description": "Достигни уровня 23 кракена" }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Покоритель бездны",
+      "unlocksGenerator": 7,
+      "quests": [
+        { "id": "ch6_q1", "type": 5, "params": { "level": 28 }, "target": 28, "description": "Достигни уровня 28 кракена" }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Последний ритуал",
+      "unlocksGenerator": 8,
+      "quests": [
+        { "id": "ch7_q1", "type": 5, "params": { "level": 33 }, "target": 33, "description": "Достигни уровня 33 кракена" }
+      ]
+    }
+  ]
+}

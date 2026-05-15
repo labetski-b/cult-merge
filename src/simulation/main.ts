@@ -3,6 +3,7 @@ import { SimulationEngine } from './engine/SimulationEngine';
 import { ModularStrategy } from './strategies/modular/ModularStrategy';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorSpawnsAvailable, resolveUpgradeCost } from '@domain/upgrades';
+import { getTotalLevelExp } from '@domain/kraken';
 import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
 import { METRIC_AGGREGATION, aggregateHistory, countDistinctBy, getKeyFn, type AggMode, type XAxisMode } from './engine/chartAggregation';
@@ -518,7 +519,7 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   runes:              ['sessions', 'presses', 'tasks', 'time'],
   session:            ['presses'],
   'session-time':     ['sessions'],
-  generators:         ['sessions', 'presses', 'tasks', 'time', 'generators'],
+  generators:         ['sessions', 'presses', 'tasks', 'time', 'krakenLevel', 'generators'],
   'generator-level-1': ['generators'],
   'generator-level-2': ['generators'],
   'generator-level-3': ['generators'],
@@ -528,12 +529,13 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   'generator-level-7': ['generators'],
   'generator-level-8': ['generators'],
   'generator-upgrades-per-chapter': ['generators'],
+  'generator-upgrades-per-level': ['krakenLevel'],
   'generator-spawns-per-session': ['generators'],
-  'generator-charge-cost': ['generators'],
+  'generator-charge-cost': ['krakenLevel', 'generators'],
   'generator-spawns-remaining': ['generators'],
   'generator-runes-required': ['generators'],
   'creature-progress': ['sessions', 'presses', 'tasks', 'time'],
-  'unique-creatures': ['sessions', 'time'],
+  'unique-creatures': ['sessions', 'time', 'krakenLevel'],
   activity:           ['sessions', 'presses', 'time'],
   charges:            ['sessions', 'presses', 'time'],
   'runes-flow':       ['sessions', 'presses', 'time'],
@@ -542,9 +544,14 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   gems:                 ['sessions', 'presses', 'time'],
   'sessions-per-level': ['krakenLevel'],
   'quests-per-level':   ['krakenLevel'],
+  'eyes-vs-next-chapter-per-level': ['krakenLevel'],
   'meat-spent-per-level': ['krakenLevel'],
   'sacrifices-per-level': ['krakenLevel'],
+  'xp-required-per-level': ['krakenLevel'],
+  'xp-per-meat-per-level': ['krakenLevel'],
+  'xp-source-per-level': ['krakenLevel'],
   'tasks-per-chapter':     ['chapter'],
+  'kraken-levels-per-chapter': ['chapter'],
   'quests-per-gen-per-chapter': ['chapter', 'generators'],
   'quests-per-gen-pct-per-chapter': ['chapter', 'generators'],
   'spawns-per-chapter':    ['chapter'],
@@ -615,6 +622,7 @@ function renderCharts(results: SimulationResult[]) {
   // Apply visibility: show/hide containers based on current X-axis mode
   const currentMode = getCurrentXAxisMode();
   document.getElementById('sim-charts')?.classList.toggle('is-generators-mode', currentMode === 'generators');
+  document.getElementById('sim-charts')?.classList.toggle('is-kraken-mode', currentMode === 'krakenLevel');
   for (const [chartKey, allowedModes] of Object.entries(CHART_VISIBILITY)) {
     const container = document.getElementById(`chart-${chartKey}`)
       ?.closest('.chart-container') as HTMLElement | null;
@@ -1320,9 +1328,34 @@ function renderCharts(results: SimulationResult[]) {
     }
   }
 
-  // ── Generator Charge Cost — by chapter in Generators mode ───────────────
+  // ── Generator Charge Cost — by Kraken level / chapter ───────────────────
+  if (visible('generator-upgrades-per-level')) {
+    setAggBadge('generator-upgrades-per-level', 'PER LEVEL');
+    charts['generator-upgrades-per-level'] = new Chart(
+      document.getElementById('chart-generator-upgrades-per-level') as HTMLCanvasElement,
+      {
+        type: 'bar',
+        data: {
+          labels: xLabels,
+          datasets: results.map((result, idx) => {
+            const cumUpgrades = series(getChartHistory(result), s => s.metrics.upgradesStarted, 'last');
+            const clr = color(idx);
+            return ds('Upgrades', deltaFromPrevious(cumUpgrades), clr, {
+              type: 'bar',
+              backgroundColor: `${clr}99`,
+              borderWidth: 1,
+            });
+          }),
+        },
+        options: xOpts('Generator upgrades', { ticks: { color: '#e8f1f5', stepSize: 1 } }),
+      },
+    );
+  }
+
+  // ── Generator Charge Cost — by Kraken level / chapter ───────────────────
   if (visible('generator-charge-cost')) {
-    setAggBadge('generator-charge-cost', 'LAST BY CHAPTER');
+    const chargeCostByLevel = currentMode === 'krakenLevel';
+    setAggBadge('generator-charge-cost', chargeCostByLevel ? 'LINES BY KRAKEN LEVEL' : 'LAST BY CHAPTER');
     charts['generator-charge-cost'] = new Chart(document.getElementById('chart-generator-charge-cost') as HTMLCanvasElement, {
       type: 'line',
       data: {
@@ -1340,7 +1373,7 @@ function renderCharts(results: SimulationResult[]) {
             'Meat / press',
             series(h0, s => s.metrics.meatPerPress, 'avg'),
             '#ef5350',
-            { stepped: true, tension: 0, borderDash: [7, 4], borderWidth: 3, yAxisID: 'yCharge' }
+            { type: 'line', stepped: true, tension: 0, borderDash: [7, 4], borderWidth: 3, yAxisID: 'yCharge' }
           ),
         ]
       },
@@ -1539,9 +1572,15 @@ function renderCharts(results: SimulationResult[]) {
     });
   }
 
-  // ── New Creatures Discovered — delta per session ──────────────────────────
+  // ── New Creatures Discovered — delta per selected period ──────────────────
   if (visible('unique-creatures')) {
-    setAggBadge('unique-creatures', 'DELTA');
+    const periodLabel = currentMode === 'krakenLevel'
+      ? 'level'
+      : currentMode === 'time'
+        ? 'minute'
+        : 'session';
+    const periodAxisLabel = currentMode === 'krakenLevel' ? 'Kraken Level' : periodLabel;
+    setAggBadge('unique-creatures', currentMode === 'krakenLevel' ? 'PER LEVEL' : 'DELTA');
     const cumData = series(h0, s => s.metrics.totalUniqueCreatures, 'last');
     const rateData = cumData.map((v, i) => i === 0 ? v : v - cumData[i - 1]!);
     charts['unique-creatures'] = new Chart(document.getElementById('chart-unique-creatures') as HTMLCanvasElement, {
@@ -1549,14 +1588,22 @@ function renderCharts(results: SimulationResult[]) {
       data: {
         labels: xLabels,
         datasets: [
-          ds('New combos/session', rateData, '#7cffb2'),
-          ds('Total unique (cumul.)', cumData, '#4de2c2', { borderDash: [4, 4], yAxisID: 'yCumul' }),
+          ds(`New discovered/${periodLabel}`, rateData, '#7cffb2', {
+            type: 'bar',
+            backgroundColor: '#7cffb299',
+            borderWidth: 1,
+          }),
+          ds('Total unique (cumul.)', cumData, '#4de2c2', {
+            type: 'line',
+            borderDash: [4, 4],
+            yAxisID: 'yCumul',
+          }),
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: true,
         scales: {
-          y:      { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'New per session', color: '#7cffb2' }, ticks: { color: '#7cffb2', stepSize: 1 }, grid: { color: GRID_COLOR } },
+          y:      { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: `New per ${periodAxisLabel}`, color: '#7cffb2' }, ticks: { color: '#7cffb2', stepSize: 1 }, grid: { color: GRID_COLOR } },
           yCumul: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Total unique',    color: '#4de2c2' }, ticks: { color: '#4de2c2' }, grid: { drawOnChartArea: false } },
           x: xAxis,
         },
@@ -1621,19 +1668,70 @@ function renderCharts(results: SimulationResult[]) {
   if (visible('sessions-per-level')) {
     setAggBadge('sessions-per-level', 'SESSIONS');
     const keyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
-    const valFn = (s: SimulationSnapshot) => s.gameState.session;
-    const { labels: krakenLabels } = countDistinctBy(getChartHistory(results[0]!), keyFn, valFn);
-    const datasets = results.map((result, idx) => {
-      const { data } = countDistinctBy(getChartHistory(result), keyFn, valFn);
-      return ds('Sessions at level', data, color(idx));
+    const sessionFn = (s: SimulationSnapshot) => s.gameState.session;
+    const { labels: krakenLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      keyFn,
+      sessionFn,
+      'first',
+    );
+
+    const startColor = '#ffb84d';
+    const deltaColor = '#4de2c2';
+
+    const datasets = results.flatMap((result, idx) => {
+      const history = getChartHistory(result);
+      const startSessions = aggregateHistory(history, keyFn, sessionFn, 'first').data;
+      const deltas: (number | null)[] = startSessions.map((v, i) =>
+        i < startSessions.length - 1 ? (startSessions[i + 1]! - v) : null,
+      );
+
+      const labelSuffix = results.length > 1 ? ` #${idx + 1}` : '';
+      return [
+        ds(`Session # at level start${labelSuffix}`, startSessions, startColor, {
+          type: 'line',
+          borderWidth: 2,
+          pointRadius: 3,
+          yAxisID: 'y',
+        }),
+        ds(`Sessions on level${labelSuffix}`, deltas as unknown as number[], deltaColor, {
+          type: 'bar',
+          backgroundColor: `${deltaColor}99`,
+          borderWidth: 1,
+          yAxisID: 'y1',
+        }),
+      ];
     });
+
+    const baseOpts = xOpts('Sessions');
     charts['sessions-per-level'] = new Chart(
       document.getElementById('chart-sessions-per-level') as HTMLCanvasElement,
       {
-        type: 'line',
+        type: 'bar',
         data: { labels: krakenLabels, datasets },
-        options: xOpts('Sessions'),
-      }
+        options: {
+          ...baseOpts,
+          scales: {
+            x: baseOpts.scales.x,
+            y: {
+              type: 'linear',
+              position: 'left',
+              beginAtZero: true,
+              title: { display: true, text: 'Session #', color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
+              ticks: { color: '#e8f1f5', font: { size: TICK_FONT_SIZE } },
+              grid: { color: GRID_COLOR },
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              beginAtZero: true,
+              title: { display: true, text: 'Sessions on level', color: deltaColor, font: { size: TICK_FONT_SIZE } },
+              ticks: { color: deltaColor, font: { size: TICK_FONT_SIZE } },
+              grid: { drawOnChartArea: false },
+            },
+          },
+        },
+      },
     );
   }
 
@@ -1652,6 +1750,68 @@ function renderCharts(results: SimulationResult[]) {
     charts['quests-per-level'] = new Chart(
       document.getElementById('chart-quests-per-level') as HTMLCanvasElement,
       { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('Quests') }
+    );
+  }
+
+  // ── Eyes Gained vs Needed to Next Chapter per Kraken Level ───────────────
+  if (visible('eyes-vs-next-chapter-per-level')) {
+    setAggBadge('eyes-vs-next-chapter-per-level', 'PER LEVEL');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const { labels: krLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      krakenKeyFn,
+      s => s.metrics.totalEyesGained,
+      'last',
+    );
+
+    const chapterEndEyes = results[0]!.config.balance.chapters
+      .slice()
+      .sort((a, b) => a.chapter - b.chapter)
+      .reduce<Array<{ chapter: number; endEyes: number }>>((acc, chapter) => {
+        const prev = acc[acc.length - 1]?.endEyes ?? 0;
+        acc.push({ chapter: chapter.chapter, endEyes: prev + chapter.merge_resource });
+        return acc;
+      }, []);
+    const eyesToNextChapter = (totalEyes: number): number => {
+      const current = chapterEndEyes.find(chapter => totalEyes < chapter.endEyes);
+      return current ? Math.max(0, current.endEyes - totalEyes) : 0;
+    };
+
+    const datasets = results.flatMap((result, idx) => {
+      const totalEyesByLevel = aggregateHistory(
+        getChartHistory(result),
+        krakenKeyFn,
+        s => s.metrics.totalEyesGained,
+        'last',
+      ).data;
+      const gained = deltaFromPrevious(totalEyesByLevel);
+      const needed = totalEyesByLevel.map(eyesToNextChapter);
+      const gainedColor = '#4de2c2';
+      const neededColor = '#ff9d4d';
+      const labelSuffix = results.length > 1 ? ` #${idx + 1}` : '';
+      return [
+        ds(`Eyes gained${labelSuffix}`, gained, gainedColor, {
+          type: 'bar',
+          backgroundColor: `${gainedColor}99`,
+          borderWidth: 1,
+        }),
+        ds(`Eyes to next chapter${labelSuffix}`, needed, neededColor, {
+          type: 'line',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 5,
+        }),
+      ];
+    });
+
+    charts['eyes-vs-next-chapter-per-level'] = new Chart(
+      document.getElementById('chart-eyes-vs-next-chapter-per-level') as HTMLCanvasElement,
+      {
+        type: 'bar',
+        data: { labels: krLabels, datasets },
+        options: xOpts('Eyes'),
+      },
     );
   }
 
@@ -1691,6 +1851,120 @@ function renderCharts(results: SimulationResult[]) {
     );
   }
 
+  // ── XP Required per Kraken Level ─────────────────────────────────────────
+  if (visible('xp-required-per-level')) {
+    setAggBadge('xp-required-per-level', 'BALANCE');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const { labels: krLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      krakenKeyFn,
+      (s) => s.metrics.krakenLevel,
+      'last',
+    );
+    const barColor = '#ffd966';
+    const data = krLabels.map((level) =>
+      getTotalLevelExp(results[0]!.config.balance, { level, step: 0, currentExp: 0 }),
+    );
+    charts['xp-required-per-level'] = new Chart(
+      document.getElementById('chart-xp-required-per-level') as HTMLCanvasElement,
+      {
+        type: 'bar',
+        data: {
+          labels: krLabels,
+          datasets: [
+            ds('XP required to next level', data, barColor, {
+              type: 'bar',
+              backgroundColor: barColor + '99',
+              borderWidth: 1,
+            }),
+          ],
+        },
+        options: xOpts('XP required'),
+      },
+    );
+  }
+
+  // ── XP per Meat Spent per Kraken Level ───────────────────────────────────
+  if (visible('xp-per-meat-per-level')) {
+    setAggBadge('xp-per-meat-per-level', 'RATIO');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const { labels: krLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      krakenKeyFn,
+      (s) => s.metrics.totalExpGained,
+      'last',
+    );
+    const ratioColor = '#7cffb2';
+    const datasets = results.map((result) => {
+      const history = getChartHistory(result);
+      const expCum = aggregateHistory(history, krakenKeyFn, s => s.metrics.totalExpGained, 'last').data;
+      const meatCum = aggregateHistory(history, krakenKeyFn, s => s.metrics.totalMeatSpent, 'last').data;
+      const expDelta = deltaFromPrevious(expCum);
+      const meatDelta = deltaFromPrevious(meatCum);
+      const ratio = expDelta.map((xp, i) => {
+        const meat = meatDelta[i] ?? 0;
+        return meat > 0 ? xp / meat : 0;
+      });
+      return ds('XP / meat spent', ratio, ratioColor, {
+        type: 'bar',
+        backgroundColor: ratioColor + '99',
+        borderWidth: 1,
+      });
+    });
+    charts['xp-per-meat-per-level'] = new Chart(
+      document.getElementById('chart-xp-per-meat-per-level') as HTMLCanvasElement,
+      { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('XP per meat') },
+    );
+  }
+
+  // ── XP Source per Kraken Level ───────────────────────────────────────────
+  if (visible('xp-source-per-level')) {
+    setAggBadge('xp-source-per-level', 'PER LEVEL');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const { labels: krLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      krakenKeyFn,
+      (s) => s.metrics.totalExpGained,
+      'last',
+    );
+    const datasets = results.flatMap((result) => {
+      const history = getChartHistory(result);
+      const questCum = aggregateHistory(history, krakenKeyFn, s => s.metrics.totalQuestFeedExpGained, 'last').data;
+      const freeCum = aggregateHistory(history, krakenKeyFn, s => s.metrics.totalFreeFeedExpGained, 'last').data;
+      return [
+        ds('Quest-target feeding XP', deltaFromPrevious(questCum), '#4de2c2', {
+          type: 'bar',
+          backgroundColor: '#4de2c299',
+          borderWidth: 1,
+          stack: 'xp',
+        }),
+        ds('Free feeding XP', deltaFromPrevious(freeCum), '#a47cff', {
+          type: 'bar',
+          backgroundColor: '#a47cff99',
+          borderWidth: 1,
+          stack: 'xp',
+        }),
+      ];
+    });
+    charts['xp-source-per-level'] = new Chart(
+      document.getElementById('chart-xp-source-per-level') as HTMLCanvasElement,
+      {
+        type: 'bar',
+        data: { labels: krLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: yAxis('XP gained', { stacked: true }),
+            x: { ...xAxis, stacked: true },
+          },
+          plugins: commonPlugins,
+          interaction: commonInteraction,
+        },
+      },
+    );
+  }
+
   // ── Chapter-based charts ─────────────────────────────────────────────────
   const chapterKeyFn = (s: SimulationSnapshot) => s.metrics.chapter;
 
@@ -1717,6 +1991,37 @@ function renderCharts(results: SimulationResult[]) {
   };
 
   makeChapterBarChart('tasks-per-chapter', s => s.metrics.totalTasksCompleted, 'last', 'Tasks', 'Tasks', '#4fc3f7');
+
+  if (visible('kraken-levels-per-chapter')) {
+    setAggBadge('kraken-levels-per-chapter', 'PER CHAPTER');
+    const { labels: chLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      chapterKeyFn,
+      s => s.metrics.krakenLevel,
+      'last',
+    );
+    const datasets = results.map((result) => {
+      const maxKrakenByChapter = aggregateHistory(
+        getChartHistory(result),
+        chapterKeyFn,
+        s => s.metrics.krakenLevel,
+        'last',
+      ).data;
+      const gained = maxKrakenByChapter.map((level, i) => {
+        const prev = i === 0 ? 0 : maxKrakenByChapter[i - 1]!;
+        return Math.max(0, level - prev);
+      });
+      return ds('Kraken levels', gained, '#5fd1d8', {
+        type: 'bar',
+        backgroundColor: '#5fd1d899',
+        borderWidth: 1,
+      });
+    });
+    charts['kraken-levels-per-chapter'] = new Chart(
+      document.getElementById('chart-kraken-levels-per-chapter') as HTMLCanvasElement,
+      { type: 'bar', data: { labels: chLabels, datasets }, options: xOpts('Kraken levels gained') },
+    );
+  }
 
   // ── Quests per Generator per Chapter ─────────────────────────────────────
   // Stacked bar: each chapter on X, each generator a stack segment. Uses
