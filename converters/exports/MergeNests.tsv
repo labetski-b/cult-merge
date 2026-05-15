@@ -29,56 +29,56 @@ Generator level	Price	Amount	Duration	Merges Required	Id	Spawn 1	Chance	Spawn 2	
 8	MergeRune1	90	192	1000	Chicken	Creature5	0.81	Creature6	0.19	Hard	0	0	0	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 9	MergeRune1	120	384	1700	Chicken	Creature5	0.8	Creature6	0.2	Hard	0	0	0	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
 10	MergeRune1	180	768	2800	Chicken	Creature5	0.82	Creature6	0.18	Hard	0	0	0	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
-1	MergeRune2	13			Egg_Creature4	Creature7	1	Creature8	0	Hard	0	15	8	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-2	MergeRune2	10	3	20	Egg_Creature4	Creature7	1	Creature8	0	Hard	0	17	9	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-3	MergeRune2	15	6	45	Egg_Creature4	Creature7	0.8	Creature8	0.2	Hard	0	19	10	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-4	MergeRune2	20	12	95	Egg_Creature4	Creature7	0.8	Creature8	0.2	Hard	0	21	11	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-5	MergeRune2	25	24	180	Egg_Creature4	Creature7	0.8	Creature8	0.2	Hard	0	23	12	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-6	MergeRune2	35	48	340	Egg_Creature4	Creature7	0.8	Creature8	0.2	Hard	0	25	13	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-7	MergeRune2	60	96	600	Egg_Creature4	Creature7	0.79	Creature8	0.21	Hard	0	27	15	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-8	MergeRune2	90	192	1000	Egg_Creature4	Creature7	0.81	Creature8	0.19	Hard	0	29	17	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-9	MergeRune2	120	384	1700	Egg_Creature4	Creature7	0.8	Creature8	0.2	Hard	0	31	19	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
-10	MergeRune2	180	768	2800	Egg_Creature4	Creature7	0.82	Creature8	0.18	Hard	0	33	21	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
-1	MergeRune1	15			Egg_Creature5	Creature9	1	Creature10	0	Hard	0	15	10	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-2	MergeRune1	6	3	20	Egg_Creature5	Creature9	1	Creature10	0	Hard	0	17	11	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-3	MergeRune1	10	6	45	Egg_Creature5	Creature9	0.8	Creature10	0.2	Hard	0	19	12	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-4	MergeRune1	16	12	95	Egg_Creature5	Creature9	0.8	Creature10	0.2	Hard	0	21	13	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-5	MergeRune1	25	24	180	Egg_Creature5	Creature9	0.8	Creature10	0.2	Hard	0	23	15	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-6	MergeRune1	40	48	340	Egg_Creature5	Creature9	0.8	Creature10	0.2	Hard	0	25	17	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-7	MergeRune1	63	96	600	Egg_Creature5	Creature9	0.79	Creature10	0.21	Hard	0	27	19	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-8	MergeRune1	101	192	1000	Egg_Creature5	Creature9	0.81	Creature10	0.19	Hard	0	29	20	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-9	MergeRune1	162	384	1700	Egg_Creature5	Creature9	0.8	Creature10	0.2	Hard	0	31	22	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
-10	MergeRune1	258	768	2800	Egg_Creature5	Creature9	0.82	Creature10	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
-1	MergeRune2	20			Egg_Creature6	Creature11	1	Creature12	0	Hard	0	15	12	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-2	MergeRune2	8	3	20	Egg_Creature6	Creature11	1	Creature12	0	Hard	0	17	14	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-3	MergeRune2	13	6	45	Egg_Creature6	Creature11	0.8	Creature12	0.2	Hard	0	19	15	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-4	MergeRune2	21	12	95	Egg_Creature6	Creature11	0.8	Creature12	0.2	Hard	0	21	16	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-5	MergeRune2	33	24	180	Egg_Creature6	Creature11	0.8	Creature12	0.2	Hard	0	23	17	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-6	MergeRune2	53	48	340	Egg_Creature6	Creature11	0.8	Creature12	0.2	Hard	0	25	19	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-7	MergeRune2	84	96	600	Egg_Creature6	Creature11	0.79	Creature12	0.21	Hard	0	27	20	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-8	MergeRune2	135	192	1000	Egg_Creature6	Creature11	0.81	Creature12	0.19	Hard	0	29	21	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-9	MergeRune2	215	384	1700	Egg_Creature6	Creature11	0.8	Creature12	0.2	Hard	0	31	22	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
-10	MergeRune2	344	768	2800	Egg_Creature6	Creature11	0.82	Creature12	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
-1	MergeRune1	25			Egg_Creature7	Creature13	1	Creature14	0	Hard	0	15	15	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-2	MergeRune1	10	3	20	Egg_Creature7	Creature13	1	Creature14	0	Hard	0	17	16	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-3	MergeRune1	16	6	45	Egg_Creature7	Creature13	0.8	Creature14	0.2	Hard	0	19	17	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-4	MergeRune1	26	12	95	Egg_Creature7	Creature13	0.8	Creature14	0.2	Hard	0	21	18	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-5	MergeRune1	41	24	180	Egg_Creature7	Creature13	0.8	Creature14	0.2	Hard	0	23	19	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-6	MergeRune1	66	48	340	Egg_Creature7	Creature13	0.8	Creature14	0.2	Hard	0	25	20	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-7	MergeRune1	105	96	600	Egg_Creature7	Creature13	0.79	Creature14	0.21	Hard	0	27	21	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-8	MergeRune1	168	192	1000	Egg_Creature7	Creature13	0.81	Creature14	0.19	Hard	0	29	22	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-9	MergeRune1	269	384	1700	Egg_Creature7	Creature13	0.8	Creature14	0.2	Hard	0	31	23	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
-10	MergeRune1	430	768	2800	Egg_Creature7	Creature13	0.82	Creature14	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
-1	MergeRune2	30			Egg_Creature8	Creature15	1	Creature16	0	Hard	0	15	17	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-2	MergeRune2	12	3	20	Egg_Creature8	Creature15	1	Creature16	0	Hard	0	17	18	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-3	MergeRune2	20	6	45	Egg_Creature8	Creature15	0.8	Creature16	0.2	Hard	0	19	19	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-4	MergeRune2	31	12	95	Egg_Creature8	Creature15	0.8	Creature16	0.2	Hard	0	21	20	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-5	MergeRune2	50	24	180	Egg_Creature8	Creature15	0.8	Creature16	0.2	Hard	0	23	21	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-6	MergeRune2	79	48	340	Egg_Creature8	Creature15	0.8	Creature16	0.2	Hard	0	25	22	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-7	MergeRune2	126	96	600	Egg_Creature8	Creature15	0.79	Creature16	0.21	Hard	0	27	23	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-8	MergeRune2	202	192	1000	Egg_Creature8	Creature15	0.81	Creature16	0.19	Hard	0	29	24	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-9	MergeRune2	323	384	1700	Egg_Creature8	Creature15	0.8	Creature16	0.2	Hard	0	31	25	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
-10	MergeRune2	516	768	2800	Egg_Creature8	Creature15	0.82	Creature16	0.18	Hard	0	33	26	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	MergeRune2	13			Egg_Creature3	Creature7	1	Creature8	0	Hard	0	15	8	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+2	MergeRune2	10	3	20	Egg_Creature3	Creature7	1	Creature8	0	Hard	0	17	9	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+3	MergeRune2	15	6	45	Egg_Creature3	Creature7	0.8	Creature8	0.2	Hard	0	19	10	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+4	MergeRune2	20	12	95	Egg_Creature3	Creature7	0.8	Creature8	0.2	Hard	0	21	11	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+5	MergeRune2	25	24	180	Egg_Creature3	Creature7	0.8	Creature8	0.2	Hard	0	23	12	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+6	MergeRune2	35	48	340	Egg_Creature3	Creature7	0.8	Creature8	0.2	Hard	0	25	13	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+7	MergeRune2	60	96	600	Egg_Creature3	Creature7	0.79	Creature8	0.21	Hard	0	27	15	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+8	MergeRune2	90	192	1000	Egg_Creature3	Creature7	0.81	Creature8	0.19	Hard	0	29	17	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+9	MergeRune2	120	384	1700	Egg_Creature3	Creature7	0.8	Creature8	0.2	Hard	0	31	19	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
+10	MergeRune2	180	768	2800	Egg_Creature3	Creature7	0.82	Creature8	0.18	Hard	0	33	21	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	MergeRune1	15			Egg_Creature4	Creature9	1	Creature10	0	Hard	0	15	10	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+2	MergeRune1	6	3	20	Egg_Creature4	Creature9	1	Creature10	0	Hard	0	17	11	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+3	MergeRune1	10	6	45	Egg_Creature4	Creature9	0.8	Creature10	0.2	Hard	0	19	12	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+4	MergeRune1	16	12	95	Egg_Creature4	Creature9	0.8	Creature10	0.2	Hard	0	21	13	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+5	MergeRune1	25	24	180	Egg_Creature4	Creature9	0.8	Creature10	0.2	Hard	0	23	15	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+6	MergeRune1	40	48	340	Egg_Creature4	Creature9	0.8	Creature10	0.2	Hard	0	25	17	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+7	MergeRune1	63	96	600	Egg_Creature4	Creature9	0.79	Creature10	0.21	Hard	0	27	19	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+8	MergeRune1	101	192	1000	Egg_Creature4	Creature9	0.81	Creature10	0.19	Hard	0	29	20	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+9	MergeRune1	162	384	1700	Egg_Creature4	Creature9	0.8	Creature10	0.2	Hard	0	31	22	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
+10	MergeRune1	258	768	2800	Egg_Creature4	Creature9	0.82	Creature10	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	MergeRune2	20			Egg_Creature5	Creature11	1	Creature12	0	Hard	0	15	12	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+2	MergeRune2	8	3	20	Egg_Creature5	Creature11	1	Creature12	0	Hard	0	17	14	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+3	MergeRune2	13	6	45	Egg_Creature5	Creature11	0.8	Creature12	0.2	Hard	0	19	15	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+4	MergeRune2	21	12	95	Egg_Creature5	Creature11	0.8	Creature12	0.2	Hard	0	21	16	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+5	MergeRune2	33	24	180	Egg_Creature5	Creature11	0.8	Creature12	0.2	Hard	0	23	17	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+6	MergeRune2	53	48	340	Egg_Creature5	Creature11	0.8	Creature12	0.2	Hard	0	25	19	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+7	MergeRune2	84	96	600	Egg_Creature5	Creature11	0.79	Creature12	0.21	Hard	0	27	20	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+8	MergeRune2	135	192	1000	Egg_Creature5	Creature11	0.81	Creature12	0.19	Hard	0	29	21	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+9	MergeRune2	215	384	1700	Egg_Creature5	Creature11	0.8	Creature12	0.2	Hard	0	31	22	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
+10	MergeRune2	344	768	2800	Egg_Creature5	Creature11	0.82	Creature12	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	MergeRune1	25			Egg_Creature6	Creature13	1	Creature14	0	Hard	0	15	15	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+2	MergeRune1	10	3	20	Egg_Creature6	Creature13	1	Creature14	0	Hard	0	17	16	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+3	MergeRune1	16	6	45	Egg_Creature6	Creature13	0.8	Creature14	0.2	Hard	0	19	17	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+4	MergeRune1	26	12	95	Egg_Creature6	Creature13	0.8	Creature14	0.2	Hard	0	21	18	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+5	MergeRune1	41	24	180	Egg_Creature6	Creature13	0.8	Creature14	0.2	Hard	0	23	19	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+6	MergeRune1	66	48	340	Egg_Creature6	Creature13	0.8	Creature14	0.2	Hard	0	25	20	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+7	MergeRune1	105	96	600	Egg_Creature6	Creature13	0.79	Creature14	0.21	Hard	0	27	21	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+8	MergeRune1	168	192	1000	Egg_Creature6	Creature13	0.81	Creature14	0.19	Hard	0	29	22	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+9	MergeRune1	269	384	1700	Egg_Creature6	Creature13	0.8	Creature14	0.2	Hard	0	31	23	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
+10	MergeRune1	430	768	2800	Egg_Creature6	Creature13	0.82	Creature14	0.18	Hard	0	33	24	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	MergeRune2	30			Egg_Creature7	Creature15	1	Creature16	0	Hard	0	15	17	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+2	MergeRune2	12	3	20	Egg_Creature7	Creature15	1	Creature16	0	Hard	0	17	18	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+3	MergeRune2	20	6	45	Egg_Creature7	Creature15	0.8	Creature16	0.2	Hard	0	19	19	0.36	0.48	0.16	0	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+4	MergeRune2	31	12	95	Egg_Creature7	Creature15	0.8	Creature16	0.2	Hard	0	21	20	0.21	0.44	0.29	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0.6	0.4	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+5	MergeRune2	50	24	180	Egg_Creature7	Creature15	0.8	Creature16	0.2	Hard	0	23	21	0.13	0.35	0.35	0.15	0.02	0	0	0	0	0	0	0	0	0	0	0	0.35	0.5	0.15	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+6	MergeRune2	79	48	340	Egg_Creature7	Creature15	0.8	Creature16	0.2	Hard	0	25	22	0.13	0.25	0.33	0.21	0.07	0.01	0	0	0	0	0	0	0	0	0	0	0.2	0.45	0.3	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+7	MergeRune2	126	96	600	Egg_Creature7	Creature15	0.79	Creature16	0.21	Hard	0	27	23	0.13	0.18	0.28	0.25	0.13	0.04	0	0	0	0	0	0	0	0	0	0	0.14	0.33	0.33	0.14	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+8	MergeRune2	202	192	1000	Egg_Creature7	Creature15	0.81	Creature16	0.19	Hard	0	29	24	0.12	0.11	0.23	0.27	0.17	0.07	0.01	0	0	0	0	0	0	0	0	0	0.11	0.26	0.37	0.21	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+9	MergeRune2	323	384	1700	Egg_Creature7	Creature15	0.8	Creature16	0.2	Hard	0	31	25	0.13	0.13	0.18	0.22	0.2	0.1	0.04	0.01	0	0	0	0	0	0	0	0	0.1	0.15	0.3	0.25	0.15	0.05	0	0	0	0	0	0	0	0	0	0	0	0	0
+10	MergeRune2	516	768	2800	Egg_Creature7	Creature15	0.82	Creature16	0.18	Hard	0	33	26	0.12	0.12	0.12	0.23	0.2	0.13	0.06	0.01	0	0	0	0	0	0	0	0	0.11	0.11	0.28	0.28	0.17	0.06	0	0	0	0	0	0	0	0	0	0	0	0	0
 1					Entity_Box	MergeRune1	0	MergeRune2	0	Hard	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 1					Res_Box	MergeRune1	1	MergeRune2	0	Hard	0	4	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 2					Res_Box	MergeRune1	1	MergeRune2	0	Hard	0	2	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
