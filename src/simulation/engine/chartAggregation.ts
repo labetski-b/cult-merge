@@ -1,12 +1,13 @@
 import type { SimulationSnapshot, TickMetrics } from './types';
 
-export type AggMode = 'last' | 'avg' | 'delta';
+export type AggMode = 'last' | 'first' | 'avg' | 'delta';
 export type XAxisMode = 'sessions' | 'presses' | 'tasks' | 'time' | 'krakenLevel' | 'chapter' | 'generators';
 
 /**
  * Aggregation mode for each metric when X-axis collapses ticks into groups (session or presses).
  *
  * - 'last':  last tick's value in the group — for state/level/cumulative metrics
+ * - 'first': first tick's value in the group — for capturing entry-state metrics (e.g. session # when a level was first reached)
  * - 'avg':   arithmetic mean across all ticks in the group — for balance/inventory metrics
  * - 'delta': last minus first value in the group — for activity-per-session metrics (future use)
  *
@@ -22,6 +23,8 @@ export const METRIC_AGGREGATION: Partial<Record<keyof TickMetrics, AggMode>> = {
 
   // Cumulative counters — take the final value of the group
   totalExpGained:       'last',
+  totalQuestFeedExpGained: 'last',
+  totalFreeFeedExpGained: 'last',
   totalTasksCompleted:  'last',
   totalMeatSpent:       'last',
   totalMeatSpentOnCharges: 'last',
@@ -72,6 +75,7 @@ function reduce(values: number[], mode: AggMode): number {
   if (values.length === 0) return 0;
   switch (mode) {
     case 'last':  return values[values.length - 1]!;
+    case 'first': return values[0]!;
     case 'avg':   return values.reduce((a, b) => a + b, 0) / values.length;
     case 'delta': return values[values.length - 1]! - values[0]!;
   }

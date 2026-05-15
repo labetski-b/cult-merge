@@ -263,6 +263,28 @@
       grid-column: 1 / -1;
       padding: 2px 0 0;
     }
+    .sim-charts.is-kraken-mode .sim-chart-section--kraken-generators {
+      display: block;
+      grid-column: 1 / -1;
+      padding: 2px 0 0;
+    }
+    .sim-charts.is-kraken-mode .sim-chart-section--progression {
+      display: block;
+      grid-column: 1 / -1;
+      padding: 2px 0 0;
+    }
+    .sim-chart-section--progression .sim-chart-section__row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-4);
+      margin-top: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+    .sim-charts.is-kraken-mode .sim-chart-section--progression .chart-container {
+      width: 100%;
+      max-width: none;
+      grid-column: auto;
+    }
     .sim-chart-section__title {
       margin: 0;
       color: var(--text-tertiary);
@@ -606,6 +628,74 @@
       </div>
 
       <section class="sim-charts" id="sim-charts">
+        <div class="sim-chart-section sim-chart-section--progression">
+          <h3 class="sim-chart-section__title">PROGRESSION</h3>
+          <div class="sim-chart-section__row">
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">Meat spent per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-meat-spent-per-level"></canvas>
+            </div>
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">Sacrifices per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-sacrifices-per-level"></canvas>
+            </div>
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">Sessions per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-sessions-per-level"></canvas>
+            </div>
+          </div>
+          <div class="sim-chart-section__row">
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">Quests Completed per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-quests-per-level"></canvas>
+            </div>
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">XP Required per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-xp-required-per-level"></canvas>
+            </div>
+          </div>
+          <div class="sim-chart-section__row">
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">XP per Meat Spent per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-xp-per-meat-per-level"></canvas>
+            </div>
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">XP Source per Kraken Level</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-xp-source-per-level"></canvas>
+            </div>
+          </div>
+          <div class="sim-chart-section__row">
+            <div class="cm-card chart-container chart-key-metric">
+              <div class="cm-card__head">
+                <h3 class="cm-card__title">New Creatures Discovered</h3>
+                <span class="cm-badge cm-badge--neutral agg-badge"></span>
+              </div>
+              <canvas id="chart-unique-creatures"></canvas>
+            </div>
+          </div>
+        </div>
+
         <div class="cm-card chart-container chart-full-width">
           <div class="cm-card__head">
             <h3 class="cm-card__title">Current Task (creature level needed)</h3>
@@ -658,36 +748,12 @@
           <canvas id="chart-runes"></canvas>
         </div>
 
-        <div class="cm-card chart-container chart-key-metric">
-          <div class="cm-card__head">
-            <h3 class="cm-card__title">Meat spent per Kraken Level</h3>
-            <span class="cm-badge cm-badge--neutral agg-badge"></span>
-          </div>
-          <canvas id="chart-meat-spent-per-level"></canvas>
-        </div>
-
-        <div class="cm-card chart-container chart-key-metric">
-          <div class="cm-card__head">
-            <h3 class="cm-card__title">Sacrifices per Kraken Level</h3>
-            <span class="cm-badge cm-badge--neutral agg-badge"></span>
-          </div>
-          <canvas id="chart-sacrifices-per-level"></canvas>
-        </div>
-
         <div class="cm-card chart-container">
           <div class="cm-card__head">
             <h3 class="cm-card__title">Tasks Completed</h3>
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-tasks"></canvas>
-        </div>
-
-        <div class="cm-card chart-container">
-          <div class="cm-card__head">
-            <h3 class="cm-card__title">New Creatures Discovered</h3>
-            <span class="cm-badge cm-badge--neutral agg-badge"></span>
-          </div>
-          <canvas id="chart-unique-creatures"></canvas>
         </div>
 
         <div class="cm-card chart-container">
@@ -830,12 +896,24 @@
           <h3 class="sim-chart-section__title">OTHER</h3>
         </div>
 
+        <div class="sim-chart-section sim-chart-section--kraken-generators">
+          <h3 class="sim-chart-section__title">GENERATORS</h3>
+        </div>
+
         <div class="cm-card chart-container chart-generator-overview">
           <div class="cm-card__head">
             <h3 class="cm-card__title">Generators (by type &amp; level)</h3>
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-generators"></canvas>
+        </div>
+
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Generator Upgrades per Kraken Level</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-generator-upgrades-per-level"></canvas>
         </div>
 
         <div class="generator-mini-grid">
@@ -911,18 +989,10 @@
 
         <div class="cm-card chart-container">
           <div class="cm-card__head">
-            <h3 class="cm-card__title">Sessions per Kraken Level</h3>
+            <h3 class="cm-card__title">Eyes Gained vs Needed to Next Chapter</h3>
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
-          <canvas id="chart-sessions-per-level"></canvas>
-        </div>
-
-        <div class="cm-card chart-container">
-          <div class="cm-card__head">
-            <h3 class="cm-card__title">Quests Completed per Kraken Level</h3>
-            <span class="cm-badge cm-badge--neutral agg-badge"></span>
-          </div>
-          <canvas id="chart-quests-per-level"></canvas>
+          <canvas id="chart-eyes-vs-next-chapter-per-level"></canvas>
         </div>
 
         <div class="cm-card chart-container">
@@ -931,6 +1001,13 @@
             <span class="cm-badge cm-badge--neutral agg-badge"></span>
           </div>
           <canvas id="chart-tasks-per-chapter"></canvas>
+        </div>
+        <div class="cm-card chart-container">
+          <div class="cm-card__head">
+            <h3 class="cm-card__title">Kraken Levels Gained per Chapter</h3>
+            <span class="cm-badge cm-badge--neutral agg-badge"></span>
+          </div>
+          <canvas id="chart-kraken-levels-per-chapter"></canvas>
         </div>
         <div class="cm-card chart-container">
           <div class="cm-card__head">

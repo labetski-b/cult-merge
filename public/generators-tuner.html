@@ -336,6 +336,17 @@
       border-radius: var(--radius-sm, 6px);
       display: block;
     }
+    .krakenlvl-summary {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .krakenlvl-controls {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
 
     /* Runes panel */
     .runes-controls {
@@ -512,6 +523,7 @@
           <button class="cm-tab" data-tab="chapter-fit" aria-selected="false" role="tab">Chapter Fit</button>
           <button class="cm-tab" data-tab="upgrades" aria-selected="false" role="tab">Upgrades</button>
           <button class="cm-tab" data-tab="xp" aria-selected="false" role="tab">XP</button>
+          <button class="cm-tab" data-tab="krakenlvl" aria-selected="false" role="tab">KrakenLvl</button>
           <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
           <button class="cm-tab" data-tab="runes" aria-selected="false" role="tab">Runes</button>
           <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
@@ -531,6 +543,41 @@
 
         <section id="panel-xp" class="panel" style="padding:0;">
           <div id="xp-tables-container"><!-- filled by JS: XP per meat tables --></div>
+        </section>
+
+        <section id="panel-krakenlvl" class="cm-card panel">
+          <p class="krakenlvl-summary">
+            XP required to complete each Kraken Level. The backup curve uses
+            <code>src/data/experiments/3.23-version/kraken_progression.json</code>;
+            the production curve uses <code>src/data/kraken_progression.json</code>.
+          </p>
+          <div class="row krakenlvl-controls">
+            <label class="knob-label" for="kraken-post-l7-increment">Post-L7 XP increment</label>
+            <input
+              id="kraken-post-l7-increment"
+              class="cm-input"
+              type="number"
+              min="0"
+              step="1"
+              value="90"
+              data-role="kraken-post-l7-increment"
+              style="width:90px;"
+            />
+            <span class="status-pill">Recalculates production L8+</span>
+          </div>
+          <div class="charts-grid">
+            <div class="chart-block">
+              <h4>3.23 version backup</h4>
+              <canvas id="chart-krakenlvl-backup" width="600" height="260"></canvas>
+            </div>
+            <div class="chart-block">
+              <h4>Production balance</h4>
+              <canvas id="chart-krakenlvl-production" width="600" height="260"></canvas>
+            </div>
+          </div>
+          <div style="overflow-x:auto; margin-top:16px;">
+            <table class="gen-table" id="krakenlvl-table"></table>
+          </div>
         </section>
 
         <section id="panel-charts" class="cm-card panel">
@@ -670,8 +717,9 @@
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, boxesData, runesData, creaturesData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
+    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/experiments/3.23-version/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
@@ -686,6 +734,7 @@
     // ============================================================
     /** @type {import('./generator-curves.mjs').GeneratorParams} */
     const STORAGE_KEY = 'cult-merge-generators-tuner-params-v2';
+    const KRAKEN_STORAGE_KEY = 'cult-merge-generators-tuner-krakenlvl-v1';
 
     function normalizeParams(raw) {
       const next = structuredClone(DEFAULTS);
@@ -717,10 +766,52 @@
       }
     }
 
+    function krakenProgressionSignature(data) {
+      const progression = Array.isArray(data?.progression) ? data.progression : [];
+      const last = progression[progression.length - 1] || {};
+      return JSON.stringify({
+        rows: progression.length,
+        defaultStepExp: data?.defaultStepExp,
+        defaultSteps: data?.defaultSteps,
+        last,
+      });
+    }
+
+    function loadStoredKrakenDraft() {
+      try {
+        const stored = window.localStorage.getItem(KRAKEN_STORAGE_KEY);
+        if (!stored) return null;
+        const parsed = JSON.parse(stored);
+        if (!parsed || typeof parsed !== 'object') return null;
+        if (!parsed.krakenProgression || !Array.isArray(parsed.krakenProgression.progression)) return null;
+        if (parsed.sourceSignature !== krakenProgressionSignature(krakenProgData)) return null;
+        return {
+          krakenProgression: structuredClone(parsed.krakenProgression),
+          postL7Increment: Number(parsed.postL7Increment),
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function persistKrakenDraft() {
+      try {
+        window.localStorage.setItem(KRAKEN_STORAGE_KEY, JSON.stringify({
+          sourceSignature: krakenProgressionSignature(krakenProgData),
+          krakenProgression: krakenProgProductionData,
+          postL7Increment: krakenPostL7Increment,
+        }));
+      } catch {
+        // localStorage can be unavailable; Save Balance still persists to disk.
+      }
+    }
+
     let params = loadStoredParams();
     const baselineResult = computeGenerators(structuredClone(BASELINE));
     const baselineGens = baselineResult.generators;
     const oldGensById = new Map((oldGeneratorsData.generators || []).map(g => [g.id, g]));
+    const storedKrakenDraft = loadStoredKrakenDraft();
+    let krakenProgProductionData = storedKrakenDraft?.krakenProgression || structuredClone(krakenProgData);
     const simChapterByGenLevel = new Map(
       (simGeneratorChaptersData?.rows || []).map(row => [`${row.generatorId}:${row.level}`, row])
     );
@@ -1971,6 +2062,186 @@
       }
     }
 
+    function buildKrakenLevelXpData(progressionData) {
+      const byLevel = new Map();
+      for (const entry of progressionData.progression || []) {
+        const level = Number(entry.level);
+        const expRequired = Number(entry.expRequired);
+        if (!Number.isFinite(level) || !Number.isFinite(expRequired)) continue;
+        byLevel.set(level, (byLevel.get(level) || 0) + expRequired);
+      }
+      return [...byLevel.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([level, xp]) => ({ level, xp }));
+    }
+
+    const krakenLvlBackupXp = buildKrakenLevelXpData(krakenProgBackupData);
+    let krakenLvlProductionXp = buildKrakenLevelXpData(krakenProgProductionData);
+    const KRAKEN_INCREMENT_BASE_LEVEL = 7;
+
+    function inferPostL7Increment() {
+      const base = getKrakenTotalXp(krakenProgProductionData, KRAKEN_INCREMENT_BASE_LEVEL);
+      const next = getKrakenTotalXp(krakenProgProductionData, KRAKEN_INCREMENT_BASE_LEVEL + 1);
+      const diff = next - base;
+      return Number.isFinite(diff) && diff >= 0 ? diff : 90;
+    }
+
+    let krakenPostL7Increment = Number.isFinite(storedKrakenDraft?.postL7Increment) && storedKrakenDraft.postL7Increment >= 0
+      ? Math.round(storedKrakenDraft.postL7Increment)
+      : inferPostL7Increment();
+
+    function drawKrakenLevelXpChart(canvasId, data, color, yMaxShared) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !data.length) return;
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+
+      const pad = { l: 54, r: 12, t: 12, b: 24 };
+      const x0 = pad.l, y0 = pad.t, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+      const xMin = data[0].level;
+      const xMax = data[data.length - 1].level;
+      const yMax = Math.max(1, yMaxShared || Math.max(...data.map(d => d.xp)) * 1.1);
+
+      drawAxes(ctx, x0, y0, plotW, plotH, xMin, xMax, 0, yMax, 'Kraken Level', 'XP');
+
+      const slotW = plotW / Math.max(1, data.length);
+      const barW = Math.min(slotW * 0.7, 14);
+      ctx.fillStyle = color;
+      for (const d of data) {
+        const x = x0 + ((d.level - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
+        const barH = (d.xp / yMax) * plotH;
+        ctx.fillRect(x - barW / 2, y0 + plotH - barH, barW, barH);
+      }
+
+      const labelColor = getCssColor('--text-secondary', '#aaa');
+      ctx.fillStyle = labelColor;
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      const last = data[data.length - 1];
+      ctx.fillText(`L${last.level}: ${Math.round(last.xp)} XP`, x0 + plotW, y0 + 4);
+    }
+
+    function renderKrakenLvlCharts() {
+      krakenLvlProductionXp = buildKrakenLevelXpData(krakenProgProductionData);
+      const backupLevelSet = new Set(krakenLvlBackupXp.map(d => d.level));
+      const krakenLvlProductionXpFiltered = krakenLvlProductionXp.filter(d => backupLevelSet.has(d.level));
+      const maxXp = Math.max(
+        ...krakenLvlBackupXp.map(d => d.xp),
+        ...krakenLvlProductionXpFiltered.map(d => d.xp),
+        1,
+      );
+      const yMax = maxXp * 1.1;
+      drawKrakenLevelXpChart('chart-krakenlvl-backup', krakenLvlBackupXp, '#ffd96699', yMax);
+      drawKrakenLevelXpChart('chart-krakenlvl-production', krakenLvlProductionXpFiltered, '#2ad4b399', yMax);
+    }
+
+    function getKrakenTotalXp(data, level) {
+      let total = 0;
+      for (const entry of data.progression || []) {
+        if (entry.level === level) total += entry.expRequired;
+      }
+      return total;
+    }
+
+    function hasKrakenLevel(data, level) {
+      return (data.progression || []).some(entry => entry.level === level);
+    }
+
+    function isKrakenStepEditable(level, step) {
+      const original = (krakenProgData.progression || [])
+        .find(entry => entry.level === level && entry.step === step);
+      return original ? original.expRequired > 0 : true;
+    }
+
+    function setKrakenTotalXp(level, totalXp) {
+      if (!Number.isFinite(totalXp)) return;
+      const entries = (krakenProgProductionData.progression || [])
+        .filter(entry => entry.level === level)
+        .sort((a, b) => a.step - b.step);
+      if (!entries.length) return;
+
+      const editable = entries.some(entry => isKrakenStepEditable(entry.level, entry.step))
+        ? entries.filter(entry => isKrakenStepEditable(entry.level, entry.step))
+        : entries;
+      const safeTotal = Math.max(0, Math.round(totalXp));
+      const base = Math.floor(safeTotal / editable.length);
+      let remainder = safeTotal - base * editable.length;
+      for (const entry of editable) {
+        entry.expRequired = base + (remainder > 0 ? 1 : 0);
+        if (remainder > 0) remainder -= 1;
+      }
+    }
+
+    function applyPostL7Increment() {
+      const baseXp = getKrakenTotalXp(krakenProgProductionData, KRAKEN_INCREMENT_BASE_LEVEL);
+      const levels = [...new Set((krakenProgProductionData.progression || []).map(entry => entry.level))]
+        .filter(level => level > KRAKEN_INCREMENT_BASE_LEVEL)
+        .sort((a, b) => a - b);
+      for (const level of levels) {
+        setKrakenTotalXp(level, baseXp + krakenPostL7Increment * (level - KRAKEN_INCREMENT_BASE_LEVEL));
+      }
+    }
+
+    function serializeKrakenProgressionForBalance() {
+      return structuredClone(krakenProgProductionData);
+    }
+
+    function renderKrakenLvlTable() {
+      const table = document.getElementById('krakenlvl-table');
+      if (!table) return;
+      const levels = [...new Set([
+        ...krakenLvlBackupXp.map(d => d.level),
+        ...krakenLvlProductionXp.map(d => d.level),
+      ])].sort((a, b) => a - b);
+
+      let head = '<thead><tr>';
+      head += '<th>Lvl</th>';
+      head += '<th>Backup XP</th>';
+      head += '<th>Production XP</th>';
+      head += '<th>Steps</th>';
+      head += '</tr></thead>';
+
+      let body = '<tbody>';
+      for (const level of levels) {
+        const hasBackup = hasKrakenLevel(krakenProgBackupData, level);
+        const backup = hasBackup ? getKrakenTotalXp(krakenProgBackupData, level) : null;
+        const production = getKrakenTotalXp(krakenProgProductionData, level);
+        const isChanged = backup !== null && production !== backup;
+        const steps = (krakenProgProductionData.progression || [])
+          .filter(entry => entry.level === level)
+          .sort((a, b) => a.step - b.step)
+          .map(entry => `${entry.step}:${entry.expRequired}`)
+          .join(' / ');
+        body += '<tr>';
+        body += `<td class="lvl-cell">L${level}</td>`;
+        body += `<td class="num">${backup === null ? '<span class="dim">—</span>' : backup}</td>`;
+        body += `<td class="num">
+          <input
+            class="table-input${isChanged ? ' is-override' : ''}"
+            type="number"
+            min="0"
+            step="1"
+            value="${production}"
+            data-role="kraken-xp-total"
+            data-level="${level}"
+            title="Total XP required to complete this Kraken Level."
+          />
+        </td>`;
+        body += `<td class="num dim">${steps}</td>`;
+        body += '</tr>';
+      }
+      body += '</tbody>';
+      table.innerHTML = head + body;
+    }
+
+    function renderKrakenLvl() {
+      const incrementInput = document.getElementById('kraken-post-l7-increment');
+      if (incrementInput instanceof HTMLInputElement) incrementInput.value = String(krakenPostL7Increment);
+      renderKrakenLvlCharts();
+      renderKrakenLvlTable();
+    }
+
     function renderCharts(currentGens) {
       chartTotal(currentGens);
     }
@@ -2018,6 +2289,7 @@
       renderChapterFitTable(result.generators);
       renderUpgradeTables(result.generators);
       renderXpTables(result.generators);
+      renderKrakenLvl();
       renderCharts(result.generators);
       renderJSON(result);
       // If runes panel is active, re-render its charts so the Required curve
@@ -2059,6 +2331,9 @@
         const result = computeGenerators(params);
         renderXpTables(result.generators);
       }
+      if (name === 'krakenlvl') {
+        renderKrakenLvl();
+      }
       if (name === 'runes') {
         renderRunes();
       }
@@ -2078,7 +2353,12 @@
 
     document.getElementById('btn-reset').addEventListener('click', () => {
       params = normalizeParams(null);
-      try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+      krakenProgProductionData = structuredClone(krakenProgData);
+      krakenPostL7Increment = inferPostL7Increment();
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(KRAKEN_STORAGE_KEY);
+      } catch {}
       syncAllKnobs();
       render();
     });
@@ -2115,7 +2395,10 @@
     async function saveBalance(btn, statusElId) {
       const status = document.getElementById(statusElId || 'save-status');
       const result = computeGenerators(params);
-      const payload = serializeGeneratorsForBalance(result.generators);
+      const payload = {
+        generators: serializeGeneratorsForBalance(result.generators).generators,
+        krakenProgression: serializeKrakenProgressionForBalance(),
+      };
       btn.disabled = true;
       if (status) status.textContent = 'Saving...';
       try {
@@ -2128,7 +2411,7 @@
           const text = await response.text();
           throw new Error(text || `HTTP ${response.status}`);
         }
-        if (status) status.textContent = 'Saved to src/data/generators.json + generated';
+        if (status) status.textContent = 'Saved generators + kraken progression';
         setTimeout(() => { if (status && status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
       } catch (err) {
         console.error(err);
@@ -2144,6 +2427,25 @@
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       const role = target.dataset.role;
+      if (role === 'kraken-xp-total') {
+        const level = Number(target.dataset.level);
+        const value = Number(target.value);
+        if (!Number.isFinite(level) || !Number.isFinite(value)) return;
+        setKrakenTotalXp(level, value);
+        if (level === KRAKEN_INCREMENT_BASE_LEVEL) applyPostL7Increment();
+        persistKrakenDraft();
+        renderKrakenLvl();
+        return;
+      }
+      if (role === 'kraken-post-l7-increment') {
+        const value = Number(target.value);
+        if (!Number.isFinite(value)) return;
+        krakenPostL7Increment = Math.max(0, Math.round(value));
+        applyPostL7Increment();
+        persistKrakenDraft();
+        renderKrakenLvl();
+        return;
+      }
       const allowedRoles = ['charge-override', 'chapter-override', 'upgrade-spawns-override', 'upgrade-rune-override'];
       if (!allowedRoles.includes(role)) return;
 
@@ -2156,6 +2458,29 @@
       else if (role === 'chapter-override') setChapterOverride(genId, level, value);
       else if (role === 'upgrade-spawns-override') setUpgradeSpawnsOverride(genId, level, value);
       else if (role === 'upgrade-rune-override') setUpgradeRuneOverride(genId, level, value);
+    });
+
+    document.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.dataset.role === 'kraken-post-l7-increment') {
+        const value = Number(target.value);
+        if (!Number.isFinite(value)) return;
+        krakenPostL7Increment = Math.max(0, Math.round(value));
+        applyPostL7Increment();
+        persistKrakenDraft();
+        renderKrakenLvlCharts();
+        renderKrakenLvlTable();
+        return;
+      }
+      if (target.dataset.role !== 'kraken-xp-total') return;
+      const level = Number(target.dataset.level);
+      const value = Number(target.value);
+      if (!Number.isFinite(level) || !Number.isFinite(value)) return;
+      setKrakenTotalXp(level, value);
+      if (level === KRAKEN_INCREMENT_BASE_LEVEL) applyPostL7Increment();
+      persistKrakenDraft();
+      renderKrakenLvlCharts();
     });
 
     document.addEventListener('click', (event) => {
@@ -2983,6 +3308,8 @@
       if (active.dataset.tab === 'charts') {
         const result = computeGenerators(params);
         renderCharts(result.generators);
+      } else if (active.dataset.tab === 'krakenlvl') {
+        renderKrakenLvlCharts();
       } else if (active.dataset.tab === 'runes' && runesState.data) {
         const result = computeGenerators(params);
         const required = computeRequiredCurves(runesState.data, result.generators);

@@ -7,6 +7,8 @@ import type { TickMetrics, CumulativeMetrics, SimulationResult } from './types';
 export function initCumulativeMetrics(): CumulativeMetrics {
   return {
     totalExpGained: 0,
+    totalQuestFeedExpGained: 0,
+    totalFreeFeedExpGained: 0,
     totalEyesGained: 0,
     totalTasksCompleted: 0,
     totalTasksCompletedByGen: {},

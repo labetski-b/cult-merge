@@ -101,6 +101,8 @@ export interface TickMetrics {
 
   // Cumulative metrics
   totalExpGained: number;
+  totalQuestFeedExpGained: number;
+  totalFreeFeedExpGained: number;
   totalEyesGained: number;
   totalTasksCompleted: number;
   totalTasksCompletedByGen: Record<number, number>;
@@ -258,6 +260,8 @@ export interface SimulationResult {
 
 export interface CumulativeMetrics {
   totalExpGained: number;
+  totalQuestFeedExpGained: number;
+  totalFreeFeedExpGained: number;
   totalEyesGained: number;
   totalTasksCompleted: number;
   totalTasksCompletedByGen: Record<number, number>;
