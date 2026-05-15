@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upgrade Pacing Matrix - CULT.MERGE</title>
+  <link rel="stylesheet" href="design-system/tokens.css" />
+  <link rel="stylesheet" href="design-system/components.css" />
+  <style>
+    :root {
+      --cell-w: 42px;
+      --lane-label-w: 176px;
+      --ok: #2ad4b3;
+      --gap: #ef5a6f;
+      --rune: #6aa3ff;
+      --spawn: #e8b339;
+      --actual: #f08267;
+      --cap: #c084ff;
+    }
+
+    body {
+      min-width: 1180px;
+      background:
+        linear-gradient(180deg, rgba(42, 212, 179, 0.05), transparent 280px),
+        var(--surface-0);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      letter-spacing: 0;
+    }
+
+    .page {
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .title .sub {
+      color: var(--text-tertiary);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background: var(--surface-1);
+      padding: 12px;
+      min-height: 78px;
+    }
+
+    .metric .label {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric .value {
+      margin-top: 6px;
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric .note {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-top: 7px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .side {
+      position: sticky;
+      top: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background: var(--surface-1);
+      padding: 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-default);
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .chip.ok {
+      color: var(--ok);
+      background: rgba(42, 212, 179, 0.12);
+      border-color: rgba(42, 212, 179, 0.34);
+    }
+
+    .chip.warn {
+      color: var(--warning);
+      background: rgba(232, 179, 57, 0.13);
+      border-color: rgba(232, 179, 57, 0.32);
+    }
+
+    .chip.bad {
+      color: var(--danger);
+      background: rgba(239, 90, 111, 0.13);
+      border-color: rgba(239, 90, 111, 0.34);
+    }
+
+    .control-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 58px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .field-row label {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .field-row span {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .field-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-primary);
+    }
+
+    .num-box {
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--surface-0);
+      border: 1px solid var(--border-default);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .gate {
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      padding: 8px;
+      min-width: 0;
+    }
+
+    .gate .k {
+      color: var(--text-tertiary);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .gate .v {
+      margin-top: 4px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .main {
+      display: grid;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .matrix-panel {
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background: var(--surface-1);
+      overflow: hidden;
+    }
+
+    .matrix-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-default);
+      background: rgba(15, 23, 41, 0.72);
+    }
+
+    .matrix-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--text-tertiary);
+      display: inline-block;
+    }
+
+    .dot.ok { background: var(--ok); }
+    .dot.gap { background: var(--gap); }
+    .dot.rune { background: var(--rune); }
+    .dot.spawn { background: var(--spawn); }
+    .dot.actual { background: var(--actual); }
+    .dot.cap { background: var(--cap); }
+
+    .scroll-x {
+      overflow-x: auto;
+      padding: 12px 14px 14px;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: var(--lane-label-w) repeat(31, var(--cell-w));
+      width: max-content;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cell,
+    .lane-label {
+      min-height: 34px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+    }
+
+    .lane-label {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--surface-1);
+      padding-right: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .level-cell {
+      min-height: 28px;
+      justify-content: center;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border-default);
+      background: var(--surface-2);
+      font-family: var(--font-mono);
+    }
+
+    .cell {
+      justify-content: center;
+      position: relative;
+      border-left: 1px solid rgba(148, 173, 230, 0.06);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .cell.zero {
+      background: rgba(239, 90, 111, 0.09);
+      color: var(--danger);
+    }
+
+    .cell.discovery {
+      background: rgba(42, 212, 179, 0.08);
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .cell.discovery.high {
+      background: rgba(42, 212, 179, 0.17);
+    }
+
+    .cell.unlock {
+      color: var(--text-primary);
+      background: rgba(106, 163, 255, 0.14);
+      font-weight: 700;
+    }
+
+    .cell.content {
+      color: var(--text-primary);
+      background: rgba(192, 132, 255, 0.11);
+      font-weight: 700;
+    }
+
+    .cell.actual {
+      background: rgba(240, 130, 103, 0.14);
+      color: var(--actual);
+      font-weight: 700;
+    }
+
+    .bar {
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 8px;
+      border-radius: 999px;
+      opacity: 0.9;
+    }
+
+    .bar.rune { background: var(--rune); }
+    .bar.spawn { background: var(--spawn); }
+    .bar.window { background: linear-gradient(90deg, var(--rune), var(--spawn)); }
+    .bar.cap { background: var(--cap); }
+
+    .cell .tick {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--surface-0);
+      border: 1px solid currentColor;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text-tertiary);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td.mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .outputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .output-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 21px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .output-pill.new {
+      color: var(--cap);
+      border-color: rgba(192, 132, 255, 0.34);
+      background: rgba(192, 132, 255, 0.12);
+    }
+
+    .violations {
+      display: grid;
+      gap: 8px;
+    }
+
+    .violation {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(239, 90, 111, 0.28);
+      background: rgba(239, 90, 111, 0.08);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .violation .level {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--danger);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .violation .reason {
+      color: var(--text-secondary);
+      font-size: 12px;
+      min-width: 0;
+    }
+
+    .mini-bars {
+      display: grid;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .mini-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 42px;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .mini-track {
+      height: 8px;
+      background: var(--surface-0);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .mini-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent-primary);
+    }
+
+    .mini-fill.rune { background: var(--rune); }
+    .mini-fill.spawn { background: var(--spawn); }
+    .mini-fill.gap { background: var(--gap); }
+
+    @media (max-width: 1240px) {
+      .metric-strip {
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+      }
+
+      .layout,
+      .details-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="title">
+        <h1>Upgrade Pacing Matrix</h1>
+        <div class="sub">Seed 42 simulation snapshot, Kraken L20-L50, production balance data</div>
+      </div>
+      <div class="toolbar">
+        <div class="cm-seg" role="tablist" aria-label="View">
+          <button class="cm-seg__btn" aria-pressed="true">Levels</button>
+          <button class="cm-seg__btn" aria-pressed="false">Generators</button>
+          <button class="cm-seg__btn" aria-pressed="false">Violations</button>
+        </div>
+        <button class="cm-btn cm-btn--sm cm-btn--primary" type="button">Run validation</button>
+      </div>
+    </header>
+
+    <section class="metric-strip" aria-label="Summary">
+      <div class="metric">
+        <div class="label">Coverage</div>
+        <div class="value">19 / 31</div>
+        <div class="note">Kraken levels with new creature</div>
+      </div>
+      <div class="metric">
+        <div class="label">Empty levels</div>
+        <div class="value">12</div>
+        <div class="note">L22, L25, L26, L32, L39...</div>
+      </div>
+      <div class="metric">
+        <div class="label">Biggest drought</div>
+        <div class="value">2</div>
+        <div class="note">Level-based streaks in L20-L50</div>
+      </div>
+      <div class="metric">
+        <div class="label">Late unlocks</div>
+        <div class="value">3</div>
+        <div class="note">Gen6 L23, Gen7 L28, Gen8 L33</div>
+      </div>
+      <div class="metric">
+        <div class="label">Observed discoveries</div>
+        <div class="value">66</div>
+        <div class="note">Unique creature:type-level pairs</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="side" aria-label="Controls">
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Selected Upgrade</h2>
+            <span class="chip warn">Gen6 L3 -> L4</span>
+          </div>
+
+          <div class="control-stack">
+            <div class="field-row">
+              <label>
+                <span>Rune2 cost</span>
+                <input id="runeCost" type="range" min="8" max="42" value="21" />
+              </label>
+              <div id="runeCostValue" class="num-box">21</div>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>Spawns required</span>
+                <input id="spawnReq" type="range" min="20" max="180" value="95" />
+              </label>
+              <div id="spawnReqValue" class="num-box">95</div>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>C12 output pressure</span>
+                <input id="outputPressure" type="range" min="8" max="35" value="20" />
+              </label>
+              <div id="outputPressureValue" class="num-box">20%</div>
+            </div>
+          </div>
+
+          <div class="gate-grid">
+            <div class="gate">
+              <div class="k">Rune gate</div>
+              <div id="runeGate" class="v">L25</div>
+            </div>
+            <div class="gate">
+              <div class="k">Spawn gate</div>
+              <div id="spawnGate" class="v">L26</div>
+            </div>
+            <div class="gate">
+              <div class="k">Affordable</div>
+              <div id="affordableGate" class="v">L26</div>
+            </div>
+          </div>
+
+          <div class="mini-bars" aria-label="Gate pressure">
+            <div class="mini-row">
+              <span>Runes</span>
+              <div class="mini-track"><div id="runeFill" class="mini-fill rune" style="width: 62%"></div></div>
+              <span id="runePct">62%</span>
+            </div>
+            <div class="mini-row">
+              <span>Spawns</span>
+              <div class="mini-track"><div id="spawnFill" class="mini-fill spawn" style="width: 53%"></div></div>
+              <span id="spawnPct">53%</span>
+            </div>
+            <div class="mini-row">
+              <span>Gap risk</span>
+              <div class="mini-track"><div id="gapFill" class="mini-fill gap" style="width: 75%"></div></div>
+              <span id="gapPct">75%</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Validation</h2>
+            <span class="chip bad">12 gaps</span>
+          </div>
+          <div class="violations">
+            <div class="violation">
+              <div class="level">L25</div>
+              <div class="reason">Gen6 output has already exposed C11/C12 early; next capability jump lands later.</div>
+              <span class="chip bad">0 new</span>
+            </div>
+            <div class="violation">
+              <div class="level">L26</div>
+              <div class="reason">Spawn gate for the next Gen6/Gen5 upgrade is the likely blocker.</div>
+              <span class="chip bad">0 new</span>
+            </div>
+            <div class="violation">
+              <div class="level">L32</div>
+              <div class="reason">Gen7 content repeats before Gen8 unlock becomes visible.</div>
+              <span class="chip bad">0 new</span>
+            </div>
+            <div class="violation">
+              <div class="level">L49</div>
+              <div class="reason">Late game has no new generator; only high merges can feed discoveries.</div>
+              <span class="chip bad">0 new</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="main">
+        <section class="matrix-panel">
+          <div class="matrix-head">
+            <h2 class="matrix-title">Kraken Level Coverage</h2>
+            <div class="legend">
+              <span class="legend-item"><span class="dot ok"></span>discovery</span>
+              <span class="legend-item"><span class="dot gap"></span>gap</span>
+              <span class="legend-item"><span class="dot rune"></span>unlock/runes</span>
+              <span class="legend-item"><span class="dot spawn"></span>spawn gate</span>
+              <span class="legend-item"><span class="dot cap"></span>capability</span>
+              <span class="legend-item"><span class="dot actual"></span>selected estimate</span>
+            </div>
+          </div>
+          <div class="scroll-x">
+            <div id="timeline" class="timeline" aria-label="Level timeline"></div>
+          </div>
+        </section>
+
+        <section class="details-grid">
+          <section class="matrix-panel">
+            <div class="matrix-head">
+              <h2 class="matrix-title">Upgrade Window Inspector</h2>
+              <span class="chip ok">real generator config</span>
+            </div>
+            <div class="scroll-x">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Upgrade</th>
+                    <th>Cost</th>
+                    <th>Output unlock</th>
+                    <th>Observed nearby discoveries</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="upgradeRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="matrix-panel">
+            <div class="matrix-head">
+              <h2 class="matrix-title">Output Curve</h2>
+              <span class="chip">Gen6 production rows</span>
+            </div>
+            <div class="scroll-x">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Gen Level</th>
+                    <th>Charge</th>
+                    <th>Creatures</th>
+                    <th>Outputs</th>
+                    <th>Next upgrade</th>
+                  </tr>
+                </thead>
+                <tbody id="outputRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const levels = Array.from({ length: 31 }, (_, i) => i + 20);
+
+    const discoveriesByLevel = {
+      20: { count: 2, labels: ['C2 L7', 'C6 L4'] },
+      21: { count: 5, labels: ['C5 L6', 'C10 L1', 'C9 L6', 'C10 L2', 'C10 L3'] },
+      22: { count: 0, labels: [] },
+      23: { count: 4, labels: ['C11 L1', 'C11 L2', 'C11 L3', 'C11 L4'] },
+      24: { count: 8, labels: ['C11 L5', 'C10 L4', 'C12 L1', 'C12 L2', 'C12 L3', 'C11 L6', 'C12 L4', 'C9 L7'] },
+      25: { count: 0, labels: [] },
+      26: { count: 0, labels: [] },
+      27: { count: 1, labels: ['C9 L8'] },
+      28: { count: 5, labels: ['C13 L1', 'C13 L2', 'C13 L3', 'C13 L4', 'C13 L5'] },
+      29: { count: 3, labels: ['C10 L5', 'C12 L5', 'C11 L7'] },
+      30: { count: 8, labels: ['C14 L1', 'C14 L2', 'C13 L6', 'C5 L7', 'C14 L3', 'C13 L7', 'C1 L10', 'C1 L11'] },
+      31: { count: 1, labels: ['C14 L4'] },
+      32: { count: 0, labels: [] },
+      33: { count: 6, labels: ['C11 L8', 'C15 L1', 'C15 L2', 'C15 L3', 'C15 L4', 'C7 L9'] },
+      34: { count: 1, labels: ['C8 L6'] },
+      35: { count: 1, labels: ['C10 L6'] },
+      36: { count: 4, labels: ['C16 L1', 'C16 L2', 'C15 L5', 'C16 L3'] },
+      37: { count: 3, labels: ['C14 L5', 'C13 L8', 'C15 L6'] },
+      38: { count: 1, labels: ['C11 L9'] },
+      39: { count: 0, labels: [] },
+      40: { count: 1, labels: ['C3 L10'] },
+      41: { count: 1, labels: ['C9 L9'] },
+      42: { count: 5, labels: ['C8 L7', 'C15 L7', 'C15 L8', 'C16 L4', 'C16 L5'] },
+      43: { count: 0, labels: [] },
+      44: { count: 1, labels: ['C15 L9'] },
+      45: { count: 0, labels: [] },
+      46: { count: 1, labels: ['C13 L9'] },
+      47: { count: 0, labels: [] },
+      48: { count: 1, labels: ['C6 L5'] },
+      49: { count: 0, labels: [] },
+      50: { count: 0, labels: [] },
+    };
+
+    const unlocks = {
+      23: 'Gen6',
+      28: 'Gen7',
+      33: 'Gen8',
+    };
+
+    const contentByGenerator = {
+      Gen5: { 21: 'C10', 24: 'C9+', 27: 'C9', 29: 'C10', 35: 'C10', 41: 'C9' },
+      Gen6: { 23: 'C11', 24: 'C12', 29: 'C11+', 33: 'C11', 38: 'C11' },
+      Gen7: { 28: 'C13', 30: 'C14', 31: 'C14', 37: 'C13+', 46: 'C13' },
+      Gen8: { 33: 'C15', 36: 'C16', 37: 'C15', 42: 'C16+', 44: 'C15' },
+    };
+
+    const windowMarks = {
+      'Rune gates': { 23: 'G6', 28: 'G7', 33: 'G8' },
+      'Spawn gates': { 25: 'G6', 32: 'G7', 39: 'G8' },
+      'Selected window': { 24: 'R', 25: 'S', 26: 'A' },
+    };
+
+    const upgradeRows = [
+      {
+        upgrade: 'Gen6 L1 -> L2',
+        cost: '20 spawns, 8 rune2',
+        unlock: ['C11 L2'],
+        nearby: 'L23: C11 L1-L4',
+        status: 'OK',
+      },
+      {
+        upgrade: 'Gen6 L2 -> L3',
+        cost: '45 spawns, 13 rune2',
+        unlock: ['C11 L3', 'C12 L1'],
+        nearby: 'L24: C12 L1-L4',
+        status: 'EARLY SPIKE',
+      },
+      {
+        upgrade: 'Gen6 L3 -> L4',
+        cost: '95 spawns, 21 rune2',
+        unlock: ['C11 L4', 'C12 L2'],
+        nearby: 'L25-L26: no new',
+        status: 'GAP RISK',
+      },
+      {
+        upgrade: 'Gen7 L2 -> L3',
+        cost: '45 spawns, 16 rune1',
+        unlock: ['C13 L3', 'C14 L1'],
+        nearby: 'L30: C14 L1-L3',
+        status: 'OK',
+      },
+      {
+        upgrade: 'Gen8 L2 -> L3',
+        cost: '45 spawns, 20 rune2',
+        unlock: ['C15 L3', 'C16 L1'],
+        nearby: 'L36: C16 L1-L3',
+        status: 'LATE',
+      },
+    ];
+
+    const gen6Rows = [
+      {
+        level: 'L1',
+        charge: 12,
+        creatures: 15,
+        outputs: [{ t: 'C11 L1', p: '100%' }],
+        next: '20 spawns / 8 rune2',
+      },
+      {
+        level: 'L2',
+        charge: 14,
+        creatures: 17,
+        outputs: [{ t: 'C11 L1', p: '60%' }, { t: 'C11 L2', p: '40%', n: true }],
+        next: '45 spawns / 13 rune2',
+      },
+      {
+        level: 'L3',
+        charge: 15,
+        creatures: 19,
+        outputs: [{ t: 'C11 L1', p: '29%' }, { t: 'C11 L2', p: '38%' }, { t: 'C11 L3', p: '13%', n: true }, { t: 'C12 L1', p: '20%', n: true }],
+        next: '95 spawns / 21 rune2',
+      },
+      {
+        level: 'L4',
+        charge: 16,
+        creatures: 21,
+        outputs: [{ t: 'C11 L1', p: '17%' }, { t: 'C11 L2', p: '35%' }, { t: 'C11 L3', p: '23%' }, { t: 'C11 L4', p: '5%', n: true }, { t: 'C12 L1', p: '12%' }, { t: 'C12 L2', p: '8%', n: true }],
+        next: '180 spawns / 33 rune2',
+      },
+      {
+        level: 'L5',
+        charge: 17,
+        creatures: 23,
+        outputs: [{ t: 'C11 L3', p: '28%' }, { t: 'C11 L4', p: '12%' }, { t: 'C11 L5', p: '2%', n: true }, { t: 'C12 L2', p: '10%' }, { t: 'C12 L3', p: '3%', n: true }],
+        next: '340 spawns / 53 rune2',
+      },
+    ];
+
+    function titleForLevel(level) {
+      const d = discoveriesByLevel[level];
+      if (!d || d.labels.length === 0) return `L${level}: no new discoveries`;
+      return `L${level}: ${d.labels.join(', ')}`;
+    }
+
+    function appendLane(container, label, values, kind) {
+      const lane = document.createElement('div');
+      lane.className = 'lane-label';
+      lane.textContent = label;
+      container.appendChild(lane);
+
+      for (const level of levels) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const value = values[level];
+
+        if (kind === 'discoveries') {
+          const d = discoveriesByLevel[level];
+          cell.title = titleForLevel(level);
+          if (d.count === 0) {
+            cell.classList.add('zero');
+            cell.textContent = '0';
+          } else {
+            cell.classList.add('discovery');
+            if (d.count >= 5) cell.classList.add('high');
+            cell.textContent = `+${d.count}`;
+          }
+        } else if (kind === 'unlock') {
+          if (value) {
+            cell.classList.add('unlock');
+            cell.textContent = value;
+          }
+        } else if (kind === 'content') {
+          if (value) {
+            cell.classList.add('content');
+            cell.textContent = value;
+          }
+        } else if (kind === 'marks') {
+          if (value) {
+            const bar = document.createElement('span');
+            bar.className = label === 'Rune gates' ? 'bar rune' : label === 'Spawn gates' ? 'bar spawn' : 'bar window';
+            cell.appendChild(bar);
+            const tick = document.createElement('span');
+            tick.className = 'tick';
+            tick.textContent = value;
+            cell.appendChild(tick);
+            if (value === 'A') cell.classList.add('actual');
+          }
+        }
+        container.appendChild(cell);
+      }
+    }
+
+    function renderTimeline() {
+      const el = document.getElementById('timeline');
+      el.innerHTML = '';
+
+      const blank = document.createElement('div');
+      blank.className = 'lane-label level-cell';
+      blank.textContent = 'Kraken Level';
+      el.appendChild(blank);
+      for (const level of levels) {
+        const cell = document.createElement('div');
+        cell.className = 'cell level-cell';
+        cell.textContent = level;
+        el.appendChild(cell);
+      }
+
+      appendLane(el, 'New discoveries', discoveriesByLevel, 'discoveries');
+      appendLane(el, 'Generator unlocks', unlocks, 'unlock');
+      appendLane(el, 'Gen5 capability', contentByGenerator.Gen5, 'content');
+      appendLane(el, 'Gen6 capability', contentByGenerator.Gen6, 'content');
+      appendLane(el, 'Gen7 capability', contentByGenerator.Gen7, 'content');
+      appendLane(el, 'Gen8 capability', contentByGenerator.Gen8, 'content');
+      appendLane(el, 'Rune gates', windowMarks['Rune gates'], 'marks');
+      appendLane(el, 'Spawn gates', windowMarks['Spawn gates'], 'marks');
+      appendLane(el, 'Selected window', windowMarks['Selected window'], 'marks');
+    }
+
+    function renderTables() {
+      const upgradeBody = document.getElementById('upgradeRows');
+      upgradeBody.innerHTML = upgradeRows.map(row => `
+        <tr>
+          <td class="mono">${row.upgrade}</td>
+          <td class="mono">${row.cost}</td>
+          <td><div class="outputs">${row.unlock.map(x => `<span class="output-pill new">${x}</span>`).join('')}</div></td>
+          <td>${row.nearby}</td>
+          <td><span class="chip ${row.status.includes('RISK') ? 'bad' : row.status.includes('EARLY') || row.status.includes('LATE') ? 'warn' : 'ok'}">${row.status}</span></td>
+        </tr>
+      `).join('');
+
+      const outputBody = document.getElementById('outputRows');
+      outputBody.innerHTML = gen6Rows.map(row => `
+        <tr>
+          <td class="mono">${row.level}</td>
+          <td class="mono">${row.charge}</td>
+          <td class="mono">${row.creatures}</td>
+          <td><div class="outputs">${row.outputs.map(o => `<span class="output-pill ${o.n ? 'new' : ''}">${o.t} ${o.p}</span>`).join('')}</div></td>
+          <td class="mono">${row.next}</td>
+        </tr>
+      `).join('');
+    }
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function updateControls() {
+      const runeCost = Number(document.getElementById('runeCost').value);
+      const spawnReq = Number(document.getElementById('spawnReq').value);
+      const pressure = Number(document.getElementById('outputPressure').value);
+
+      setText('runeCostValue', runeCost);
+      setText('spawnReqValue', spawnReq);
+      setText('outputPressureValue', `${pressure}%`);
+
+      const runeGate = 23 + Math.ceil(runeCost / 10);
+      const spawnGate = 23 + Math.ceil(spawnReq / 35);
+      const outputGate = pressure >= 26 ? -1 : pressure >= 18 ? 0 : 1;
+      const affordable = Math.max(23, runeGate, spawnGate) + outputGate;
+
+      setText('runeGate', `L${runeGate}`);
+      setText('spawnGate', `L${spawnGate}`);
+      setText('affordableGate', `L${affordable}`);
+
+      const runePct = Math.min(100, Math.round((runeCost / 42) * 100));
+      const spawnPct = Math.min(100, Math.round((spawnReq / 180) * 100));
+      const gapPct = Math.max(5, Math.min(100, (affordable - 23) * 25));
+
+      document.getElementById('runeFill').style.width = `${runePct}%`;
+      document.getElementById('spawnFill').style.width = `${spawnPct}%`;
+      document.getElementById('gapFill').style.width = `${gapPct}%`;
+      setText('runePct', `${runePct}%`);
+      setText('spawnPct', `${spawnPct}%`);
+      setText('gapPct', `${gapPct}%`);
+
+      windowMarks['Selected window'] = {
+        [Math.max(20, Math.min(50, runeGate))]: 'R',
+        [Math.max(20, Math.min(50, spawnGate))]: 'S',
+        [Math.max(20, Math.min(50, affordable))]: 'A',
+      };
+      renderTimeline();
+    }
+
+    renderTimeline();
+    renderTables();
+    updateControls();
+
+    for (const id of ['runeCost', 'spawnReq', 'outputPressure']) {
+      document.getElementById(id).addEventListener('input', updateControls);
+    }
+  </script>
+</body>
+</html>
