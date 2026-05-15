@@ -44,4 +44,31 @@ describe('SimulationEngine taskHistory', () => {
     expect(tickLevels).not.toContain(4);
     expect(actionLevels).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
+
+  it('captures generated auto-task creature cravings with generator level context', { timeout: 60000 }, () => {
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'tasks', value: 12 },
+      maxTicks: 500,
+      tickInterval: 100,
+      strategy: new ModularStrategy(),
+      balance: BALANCE,
+      captureTrace: false,
+    });
+
+    const result = engine.run();
+
+    expect(result.autoTaskHistory.length).toBeGreaterThan(0);
+    for (const entry of result.autoTaskHistory) {
+      expect(entry.taskId.startsWith('auto_')).toBe(true);
+      expect(entry.creatures.length).toBeGreaterThan(0);
+      for (const req of entry.creatures) {
+        expect(req.type).toMatch(/^Creature\d+$/);
+        expect(req.level).toBeGreaterThanOrEqual(1);
+        expect(req.genId).not.toBeNull();
+        expect(req.genLevel).not.toBeNull();
+        expect(req.genLevel).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
 });

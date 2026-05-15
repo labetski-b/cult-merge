@@ -4,7 +4,7 @@ import { ModularStrategy } from './strategies/modular/ModularStrategy';
 import { BALANCE } from '@data/loadBalance';
 import { getGeneratorSpawnsAvailable, resolveUpgradeCost } from '@domain/upgrades';
 import { getTotalLevelExp } from '@domain/kraken';
-import type { SimulationResult, ActionLogEntry, SimulationSnapshot } from './engine/types';
+import type { SimulationResult, ActionLogEntry, SimulationSnapshot, AutoTaskHistoryEntry } from './engine/types';
 import type { CreatureEntity, GeneratorEntity } from '@domain/types';
 import { METRIC_AGGREGATION, aggregateHistory, countDistinctBy, getKeyFn, type AggMode, type XAxisMode } from './engine/chartAggregation';
 
@@ -36,6 +36,7 @@ const progressContainer = document.getElementById('progress-container') as HTMLD
 const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
 const progressText = document.getElementById('progress-text') as HTMLSpanElement;
 const summaryBody = document.getElementById('summary-body') as HTMLTableSectionElement;
+const cravingsBody = document.getElementById('cravings-body') as HTMLDivElement | null;
 const captureTraceInput = document.getElementById('capture-trace') as HTMLInputElement | null;
 
 // Action Log UI Elements
@@ -215,6 +216,7 @@ async function handleRunSimulation(e: Event) {
     renderSummaryTable(currentResults);
     renderCharts(currentResults);
     renderActionLog(currentResults, LOG_REFS);
+    renderCravings(currentResults);
   }
 
   // Re-enable controls
@@ -390,6 +392,260 @@ function renderActionLog(results: SimulationResult[], refs: ActionLogRefs) {
     row.addEventListener('click', () => showFieldPopup(entry));
     refs.body.appendChild(row);
   }
+}
+
+type CravingCell = {
+  task: AutoTaskHistoryEntry;
+  type: string;
+  level: number;
+  count: number;
+  genId: number | null;
+  genLevel: number | null;
+  localIndex: number;
+  repeatsPrevious: boolean;
+};
+
+function creatureSortKey(type: string): number {
+  const m = type.match(/^Creature(\d+)$/);
+  return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function levelColor(level: number): string {
+  const palette = [
+    '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa',
+    '#22d3ee', '#fb7185', '#84cc16', '#f97316', '#e879f9',
+  ];
+  return palette[(Math.max(1, level) - 1) % palette.length]!;
+}
+
+function formatCravingReq(req: AutoTaskHistoryEntry['creatures'][number]): string {
+  return `${req.type.replace(/^Creature/, 'C')} L${req.level}`;
+}
+
+function formatCravingGen(req: AutoTaskHistoryEntry['creatures'][number]): string {
+  const gen = req.genId === null ? 'Gen?' : `Gen${req.genId}`;
+  const level = req.genLevel === null ? 'L?' : `L${req.genLevel}`;
+  return `${gen} ${level}`;
+}
+
+function wireCravingsSubtabs(container: HTMLElement): void {
+  const buttons = [...container.querySelectorAll<HTMLButtonElement>('.cravings-subtab')];
+  const panels = [...container.querySelectorAll<HTMLElement>('[data-cravings-panel]')];
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      const view = button.dataset.cravingsView;
+      for (const b of buttons) b.setAttribute('aria-selected', b === button ? 'true' : 'false');
+      for (const panel of panels) {
+        panel.classList.toggle('hidden', panel.dataset.cravingsPanel !== view);
+      }
+    });
+  }
+}
+
+function renderCravings(results: SimulationResult[]) {
+  if (!cravingsBody) return;
+  cravingsBody.innerHTML = '';
+
+  const history = results[0]?.autoTaskHistory ?? [];
+  if (history.length === 0) {
+    cravingsBody.innerHTML = `
+      <div class="cm-card cravings-empty">
+        <div class="cm-card__head">
+          <h2 class="cm-card__title">Cravings</h2>
+        </div>
+        <p>Run simulation to see generated auto-task creature levels.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const byCreature = new Map<string, CravingCell[]>();
+  for (const task of history) {
+    for (const req of task.creatures) {
+      const cells = byCreature.get(req.type) ?? [];
+      const prev = cells[cells.length - 1];
+      cells.push({
+        task,
+        type: req.type,
+        level: req.level,
+        count: req.count,
+        genId: req.genId,
+        genLevel: req.genLevel,
+        localIndex: cells.length + 1,
+        repeatsPrevious: prev?.level === req.level,
+      });
+      byCreature.set(req.type, cells);
+    }
+  }
+
+  const creatureTypes = [...byCreature.keys()].sort((a, b) => {
+    const ak = creatureSortKey(a);
+    const bk = creatureSortKey(b);
+    return ak === bk ? a.localeCompare(b) : ak - bk;
+  });
+
+  const totalCells = [...byCreature.values()].reduce((sum, cells) => sum + cells.length, 0);
+  const summary = document.createElement('section');
+  summary.className = 'cm-card cravings-summary';
+  summary.innerHTML = `
+    <div class="cm-card__head">
+      <h2 class="cm-card__title">Cravings</h2>
+      <span class="cm-badge cm-badge--neutral">${history.length} auto tasks</span>
+    </div>
+    <div class="cravings-meta">
+      <span>${creatureTypes.length} creatures</span>
+      <span>${totalCells} creature picks</span>
+      <span>Squares are ordered per creature; red outline means same level as previous pick for that creature.</span>
+    </div>
+    <div class="cravings-subtabs" role="tablist" aria-label="Cravings views">
+      <button type="button" class="cravings-subtab" aria-selected="true" data-cravings-view="creatures">By Creature</button>
+      <button type="button" class="cravings-subtab" aria-selected="false" data-cravings-view="quests">Quest List</button>
+    </div>
+    <div class="cravings-legend">
+      ${Array.from({ length: 10 }, (_, i) => {
+        const level = i + 1;
+        return `<span><i style="background:${levelColor(level)}"></i>L${level}</span>`;
+      }).join('')}
+    </div>
+  `;
+  cravingsBody.appendChild(summary);
+
+  const creaturePanel = document.createElement('div');
+  creaturePanel.className = 'cravings-panel';
+  creaturePanel.dataset.cravingsPanel = 'creatures';
+  cravingsBody.appendChild(creaturePanel);
+
+  const questPanel = document.createElement('section');
+  questPanel.className = 'cm-card cravings-quest-list hidden';
+  questPanel.dataset.cravingsPanel = 'quests';
+  questPanel.innerHTML = `
+    <div class="cm-card__head">
+      <h3 class="cm-card__title">Auto Quest List</h3>
+      <span class="cm-badge cm-badge--neutral">${history.length} rows</span>
+    </div>
+    <div class="cravings-column-help" aria-label="Quest list column meanings">
+      <span><b>#</b> quest order</span>
+      <span><b>Quest</b> required Creature levels</span>
+      <span><b>Count</b> required amount</span>
+      <span><b>Gen Level</b> generator state when quest was generated</span>
+      <span><b>D</b> auto difficulty</span>
+      <span><b>After Tasks</b> completed tasks before generation</span>
+      <span><b>K</b> Kraken level</span>
+      <span><b>Time</b> simulated time</span>
+    </div>
+    <div class="cravings-scroll">
+      <table class="cm-table cravings-quest-table">
+        <colgroup>
+          <col class="cq-col-num">
+          <col class="cq-col-quest">
+          <col class="cq-col-count">
+          <col class="cq-col-gen">
+          <col class="cq-col-difficulty">
+          <col class="cq-col-after">
+          <col class="cq-col-kraken">
+          <col class="cq-col-time">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Quest</th>
+            <th>Count</th>
+            <th>Gen Level</th>
+            <th>D</th>
+            <th>After Tasks</th>
+            <th>K</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${history.map(task => {
+            const quest = task.creatures.map(req => formatCravingReq(req)).join(' + ');
+            const count = task.creatures.map(req => `x${req.count}`).join(' + ');
+            const gens = task.creatures.map(req => formatCravingGen(req)).join(' + ');
+            return `
+              <tr>
+                <td>${task.sequence}</td>
+                <td class="left cravings-quest-target">${escapeHtml(quest)}</td>
+                <td>${escapeHtml(count)}</td>
+                <td>${escapeHtml(gens)}</td>
+                <td>${task.difficulty ?? ''}</td>
+                <td>${task.generatedAfterTasksCompleted}</td>
+                <td>${task.krakenLevel}</td>
+                <td>${formatTimeSec(task.totalTimeSec)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  cravingsBody.appendChild(questPanel);
+
+  for (const creatureType of creatureTypes) {
+    const cells = byCreature.get(creatureType)!;
+    const creatureNum = creatureType.replace(/^Creature/, 'C');
+    const repeatCount = cells.filter(c => c.repeatsPrevious).length;
+
+    const groups: Array<{ key: string; label: string; cells: CravingCell[] }> = [];
+    for (const cell of cells) {
+      const genLabel = cell.genId === null ? 'Gen ?' : `Gen${cell.genId}`;
+      const levelLabel = cell.genLevel === null ? 'L?' : `L${cell.genLevel}`;
+      const key = `${cell.genId ?? 'x'}:${cell.genLevel ?? 'x'}`;
+      const last = groups[groups.length - 1];
+      if (last?.key === key) {
+        last.cells.push(cell);
+      } else {
+        groups.push({ key, label: `${genLabel} ${levelLabel}`, cells: [cell] });
+      }
+    }
+
+    const card = document.createElement('section');
+    card.className = 'cm-card cravings-card';
+    card.innerHTML = `
+      <div class="cm-card__head">
+        <h3 class="cm-card__title">${escapeHtml(creatureNum)} <span>${escapeHtml(creatureType)}</span></h3>
+        <div class="cravings-stats">
+          <span>${cells.length} picks</span>
+          <span>${repeatCount} repeats</span>
+        </div>
+      </div>
+      <div class="cravings-scroll">
+        <table class="cravings-table">
+          <tbody>
+            ${groups.map(group => `
+              <tr>
+                <th>${escapeHtml(group.label)}</th>
+                <td>
+                  <div class="cravings-cells">
+                    ${group.cells.map(cell => {
+                      const title = [
+                        `${cell.type} L${cell.level} x${cell.count}`,
+                        `creature pick #${cell.localIndex}`,
+                        `auto task #${cell.task.sequence}`,
+                        `after ${cell.task.generatedAfterTasksCompleted} completed tasks`,
+                        `K${cell.task.krakenLevel}`,
+                        `tick ${cell.task.generatedAtTick}`,
+                        `time ${formatTimeSec(cell.task.totalTimeSec)}`,
+                        cell.task.difficulty === undefined ? null : `difficulty ${cell.task.difficulty}`,
+                      ].filter(Boolean).join(' | ');
+                      const repeatClass = cell.repeatsPrevious ? ' is-repeat' : '';
+                      const countBadge = cell.count > 1
+                        ? `<span class="cravings-cell-count">×${cell.count}</span>`
+                        : '';
+                      return `<span class="cravings-cell${repeatClass}" style="background:${levelColor(cell.level)}" title="${escapeHtml(title)}">L${cell.level}${countBadge}</span>`;
+                    }).join('')}
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    creaturePanel.appendChild(card);
+  }
+
+  wireCravingsSubtabs(cravingsBody);
 }
 
 type FieldCell = NonNullable<ActionLogEntry['fieldSnapshot']>['grid']['cells'][number];

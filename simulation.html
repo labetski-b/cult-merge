@@ -460,6 +460,216 @@
       white-space: pre;
     }
 
+    /* Cravings tab */
+    #cravings-body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+    .cravings-summary .cm-card__head,
+    .cravings-card .cm-card__head {
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cravings-meta,
+    .cravings-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      color: var(--text-tertiary);
+      font-size: var(--fs-small);
+    }
+    .cravings-meta span,
+    .cravings-stats span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+    }
+    .cravings-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: var(--space-3);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+    }
+    .cravings-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .cravings-legend i {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+    .cravings-subtabs {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      margin-top: var(--space-3);
+      padding: 3px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+    }
+    .cravings-subtab {
+      height: 28px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-tertiary);
+      font: inherit;
+      font-size: var(--fs-small);
+      font-weight: var(--fw-medium);
+      cursor: pointer;
+    }
+    .cravings-subtab[aria-selected="true"] {
+      background: var(--surface-3);
+      color: var(--text-primary);
+    }
+    .cravings-panel {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+    .cravings-panel.hidden,
+    .cravings-quest-list.hidden {
+      display: none;
+    }
+    .cravings-card .cm-card__title span {
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      font-weight: var(--fw-medium);
+    }
+    .cravings-scroll {
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .cravings-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 6px;
+    }
+    .cravings-table th {
+      width: 88px;
+      min-width: 88px;
+      padding: 4px 10px 4px 0;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      font-weight: var(--fw-semibold);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .cravings-table td {
+      padding: 4px 0;
+    }
+    .cravings-cells {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 4px;
+      min-height: 26px;
+      align-items: center;
+    }
+    .cravings-cell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 24px;
+      width: 24px;
+      height: 24px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #08111f;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: var(--fw-bold);
+      line-height: 1;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    }
+    .cravings-cell.is-repeat {
+      border-color: var(--danger);
+      box-shadow:
+        0 0 0 1px var(--danger),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+    }
+    .cravings-cell-count {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      border-radius: 999px;
+      border: 1px solid var(--surface-0);
+      background: var(--danger);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: var(--fw-bold);
+      line-height: 13px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+    .cravings-empty p {
+      margin: 0;
+      color: var(--text-tertiary);
+    }
+    .cravings-quest-list {
+      width: max-content;
+      max-width: 100%;
+    }
+    .cravings-column-help {
+      display: grid;
+      grid-template-columns: repeat(2, max-content);
+      gap: 6px 12px;
+      margin-bottom: var(--space-3);
+      color: var(--text-tertiary);
+      font-size: var(--fs-small);
+    }
+    .cravings-column-help span {
+      white-space: nowrap;
+    }
+    .cravings-column-help b {
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-weight: var(--fw-semibold);
+    }
+    .cravings-quest-table {
+      width: max-content;
+      min-width: 0;
+      table-layout: fixed;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+    .cravings-quest-table .cq-col-num { width: 44px; }
+    .cravings-quest-table .cq-col-quest { width: 168px; }
+    .cravings-quest-table .cq-col-count { width: 74px; }
+    .cravings-quest-table .cq-col-gen { width: 132px; }
+    .cravings-quest-table .cq-col-difficulty { width: 48px; }
+    .cravings-quest-table .cq-col-after { width: 98px; }
+    .cravings-quest-table .cq-col-kraken { width: 44px; }
+    .cravings-quest-table .cq-col-time { width: 82px; }
+    .cravings-quest-table th,
+    .cravings-quest-table td {
+      white-space: nowrap;
+    }
+    .cravings-quest-table .cravings-quest-target {
+      color: var(--text-primary);
+      font-weight: var(--fw-semibold);
+    }
+
     /* Quest Rewards table customisation atop cm-table */
     .qr-pos { color: var(--success); }
     .qr-neg { color: var(--danger); }
@@ -575,6 +785,7 @@
     <div class="cm-tabs" role="tablist" id="sim-tabs">
       <button class="cm-tab" role="tab" aria-selected="true" data-tab="tab-summary">Summary</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-charts">Charts</button>
+      <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-cravings">Cravings</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-action-log">Action Log</button>
       <button class="cm-tab" role="tab" aria-selected="false" data-tab="tab-quest-rewards" style="display:none">Quest Rewards</button>
     </div>
@@ -1094,6 +1305,17 @@
           <canvas id="chart-eyes-per-quest-per-chapter"></canvas>
         </div>
       </section>
+    </div>
+
+    <div class="sim-tab-panel hidden" id="tab-cravings">
+      <div id="cravings-body">
+        <section class="cm-card cravings-empty">
+          <div class="cm-card__head">
+            <h2 class="cm-card__title">Cravings</h2>
+          </div>
+          <p>Run simulation to see generated auto-task creature levels.</p>
+        </section>
+      </div>
     </div>
 
     <div class="sim-tab-panel hidden" id="tab-action-log">

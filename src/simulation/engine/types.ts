@@ -233,6 +233,27 @@ export interface ActionLogEntry {
   note: string;
 }
 
+export interface AutoTaskHistoryEntry {
+  sequence: number;
+  taskId: string;
+  generatedAtTick: number;
+  generatedAfterTasksCompleted: number;
+  krakenLevel: number;
+  session: number;
+  totalTimeSec: number;
+  difficulty?: number;
+  debugMeatBudget?: number;
+  debugMeatCost?: number;
+  pickedGenId?: number;
+  creatures: Array<{
+    type: string;
+    level: number;
+    count: number;
+    genId: number | null;
+    genLevel: number | null;
+  }>;
+}
+
 export interface SimulationResult {
   config: SimulationConfig;
   /**
@@ -254,6 +275,7 @@ export interface SimulationResult {
   actionHistory: SimulationSnapshot[];
   history: SimulationSnapshot[];
   actionLog: ActionLogEntry[];
+  autoTaskHistory: AutoTaskHistoryEntry[];
   finalState: GameSnapshot;
   summary: SimulationSummary;
 }
