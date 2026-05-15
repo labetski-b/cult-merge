@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import fs from 'node:fs';
-import { generatorsDataSchema, krakenProgressionDataSchema } from './src/data/schemas';
+import { generatorsDataSchema, krakenProgressionDataSchema, tasksDataSchema } from './src/data/schemas';
 
 /**
  * Normalize a payload coming from the tuner UI so that every level carries the
@@ -54,9 +54,9 @@ function generatorTunerSavePlugin() {
         req.on('end', () => {
           try {
             const rawParsed = JSON.parse(body);
-            const payload = rawParsed && typeof rawParsed === 'object' && 'generators' in rawParsed
-              ? rawParsed as { generators?: unknown; krakenProgression?: unknown }
-              : { generators: rawParsed, krakenProgression: undefined };
+            const payload: { generators?: unknown; krakenProgression?: unknown; tasks?: unknown } = rawParsed && typeof rawParsed === 'object' && 'generators' in rawParsed
+              ? rawParsed as { generators?: unknown; krakenProgression?: unknown; tasks?: unknown }
+              : { generators: rawParsed, krakenProgression: undefined, tasks: undefined };
 
             const normalizedGenerators = normalizeGeneratorsPayload({ generators: payload.generators });
             const generatorsResult = generatorsDataSchema.safeParse(normalizedGenerators);
@@ -79,6 +79,18 @@ function generatorTunerSavePlugin() {
               krakenProgressionData = krakenResult.data;
             }
 
+            let tasksData: unknown = undefined;
+            if (payload.tasks !== undefined) {
+              const tasksResult = tasksDataSchema.safeParse(payload.tasks);
+              if (!tasksResult.success) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ ok: false, error: 'tasks-schema-validation-failed', issues: tasksResult.error.issues }, null, 2));
+                return;
+              }
+              tasksData = tasksResult.data;
+            }
+
             const json = JSON.stringify(generatorsResult.data, null, 2) + '\n';
             const targets = [
               path.resolve(__dirname, 'src/data/generators.json'),
@@ -90,6 +102,12 @@ function generatorTunerSavePlugin() {
               const krakenJson = JSON.stringify(krakenProgressionData, null, 2) + '\n';
               targets.push(path.resolve(__dirname, 'src/data/kraken_progression.json'));
               fs.writeFileSync(targets[targets.length - 1]!, krakenJson, 'utf8');
+            }
+
+            if (tasksData !== undefined) {
+              const tasksJson = JSON.stringify(tasksData, null, 2) + '\n';
+              targets.push(path.resolve(__dirname, 'src/data/tasks.json'));
+              fs.writeFileSync(targets[targets.length - 1]!, tasksJson, 'utf8');
             }
 
             res.setHeader('Content-Type', 'application/json');

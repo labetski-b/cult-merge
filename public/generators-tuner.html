@@ -475,6 +475,145 @@
       border-radius: 0;
     }
 
+    /* Cravings panel */
+    .cravings-grid {
+      display: grid;
+      grid-template-columns: max-content max-content max-content max-content;
+      gap: 10px;
+      align-items: start;
+      justify-content: start;
+      width: max-content;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .cravings-block { width: max-content; }
+    .cravings-block h4 {
+      margin: 0 0 8px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .cravings-table {
+      width: auto;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 11px;
+      font-family: var(--font-mono, "SF Mono", Menlo, monospace);
+      font-variant-numeric: tabular-nums;
+    }
+    .cravings-table th,
+    .cravings-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .cravings-table th {
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .cravings-table td:first-child,
+    .cravings-table th:first-child {
+      text-align: left;
+    }
+    .cravings-input {
+      width: 54px;
+      height: 24px;
+      padding: 0 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-0);
+      color: var(--text-primary);
+      font: inherit;
+      text-align: right;
+    }
+    .cravings-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .cravings-flow-controls {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      margin-top: 8px;
+      width: max-content;
+    }
+    .cravings-delete-zone {
+      min-width: 132px;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      color: var(--text-tertiary);
+      background: var(--surface-0);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cravings-delete-zone.is-drop-target {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: rgba(184, 54, 74, 0.12);
+    }
+    .cravings-drag {
+      cursor: grab;
+    }
+    .cravings-drag:active {
+      cursor: grabbing;
+    }
+    .cravings-row.is-dragging {
+      opacity: 0.45;
+    }
+    .cravings-row.is-drop-before td {
+      border-top: 2px solid var(--accent-primary);
+    }
+    .cravings-row.is-drop-after td {
+      border-bottom: 2px solid var(--accent-primary);
+    }
+    .cravings-note {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .cravings-chart-block {
+      width: max-content;
+      max-width: 100%;
+      margin-top: 16px;
+      overflow-x: auto;
+    }
+    .cravings-chart-block h4 {
+      margin: 0 0 8px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .cravings-chart {
+      display: block;
+      width: auto;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+    }
+    .cravings-legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .cravings-legend .swatch {
+      display: inline-block;
+      width: 18px;
+      height: 2px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+
     /* JSON panel */
     .json-pre {
       white-space: pre-wrap;
@@ -493,6 +632,15 @@
     /* small */
     .row { display: flex; align-items: center; gap: 8px; }
     .spacer { flex: 1; }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .controls {
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -526,6 +674,7 @@
           <button class="cm-tab" data-tab="krakenlvl" aria-selected="false" role="tab">KrakenLvl</button>
           <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
           <button class="cm-tab" data-tab="runes" aria-selected="false" role="tab">Runes</button>
+          <button class="cm-tab" data-tab="cravings" aria-selected="false" role="tab">Cravings</button>
           <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
         </div>
 
@@ -693,6 +842,43 @@
           </div>
         </section>
 
+        <section id="panel-cravings" class="cm-card panel">
+          <p class="cravings-note">
+            Auto-task craving balance from <code>src/data/tasks.json</code>. Saved values update
+            <code>autoConfig.difficultyFlow</code> and <code>autoConfig.difficultySacMap</code>.
+          </p>
+          <div class="cravings-grid">
+            <div class="cravings-block">
+              <h4>Difficulty flow</h4>
+              <div id="cravings-flow-container"></div>
+              <div class="cravings-flow-controls">
+                <button type="button" class="cm-btn cm-btn--sm" data-action="craving-add-step">Add step</button>
+                <div id="cravings-delete-zone" class="cravings-delete-zone">Drop here to delete</div>
+              </div>
+            </div>
+            <div class="cravings-block">
+              <h4>Difficulty sacrifices</h4>
+              <div id="cravings-sac-container"></div>
+            </div>
+            <div class="cravings-block">
+              <h4>Baseline flow</h4>
+              <div id="cravings-baseline-flow-container"></div>
+            </div>
+            <div class="cravings-block">
+              <h4>Baseline sacrifices</h4>
+              <div id="cravings-baseline-sac-container"></div>
+            </div>
+          </div>
+          <div class="cravings-chart-block">
+            <h4>Flow curve</h4>
+            <canvas id="cravings-flow-chart" class="cravings-chart" width="560" height="220"></canvas>
+            <div class="cravings-legend">
+              <span><span class="swatch" style="background:#ff9d4d;"></span>Sacrifices</span>
+              <span><span class="swatch" style="background:#8a8f98;"></span>Baseline</span>
+            </div>
+          </div>
+        </section>
+
         <section id="panel-json" class="cm-card panel">
           <div class="row" style="margin-bottom:8px;">
             <span style="color: var(--text-secondary); font-size: 12px;">Generated JSON (8 generators × 10 levels)</span>
@@ -717,12 +903,13 @@
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
+    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, tasksData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/3.23-version/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/tasks.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/baseline/generators.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./sim-runs/latest/generator-chapters.json', import.meta.url))
         .then(r => r.ok ? r.json() : null)
@@ -735,6 +922,12 @@
     /** @type {import('./generator-curves.mjs').GeneratorParams} */
     const STORAGE_KEY = 'cult-merge-generators-tuner-params-v2';
     const KRAKEN_STORAGE_KEY = 'cult-merge-generators-tuner-krakenlvl-v1';
+    const CRAVINGS_STORAGE_KEY = 'cult-merge-generators-tuner-cravings-v1';
+    const DEFAULT_CRAVINGS = {
+      difficultyFlow: [1, 1, 2, 2, 3, 2, 4, 2, 5],
+      difficultySacMap: [0, 0, 0.5, 0.8, 1, 2, 2],
+    };
+    const MAX_CRAVING_DIFFICULTY = 6;
 
     function normalizeParams(raw) {
       const next = structuredClone(DEFAULTS);
@@ -806,7 +999,58 @@
       }
     }
 
+    function normalizeCravingsDraft(raw) {
+      const source = raw && typeof raw === 'object' ? raw : {};
+      const autoConfig = tasksData?.autoConfig || {};
+      const baseFlow = Array.isArray(autoConfig.difficultyFlow)
+        ? autoConfig.difficultyFlow
+        : DEFAULT_CRAVINGS.difficultyFlow;
+      const baseSacMap = Array.isArray(autoConfig.difficultySacMap)
+        ? autoConfig.difficultySacMap
+        : DEFAULT_CRAVINGS.difficultySacMap;
+      const rawFlow = Array.isArray(source.difficultyFlow) ? source.difficultyFlow : baseFlow;
+      const rawSacMap = Array.isArray(source.difficultySacMap) ? source.difficultySacMap : baseSacMap;
+
+      const difficultyFlow = rawFlow.map((value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.min(MAX_CRAVING_DIFFICULTY, Math.max(1, Math.round(n))) : 1;
+      });
+      while (difficultyFlow.length < DEFAULT_CRAVINGS.difficultyFlow.length) {
+        difficultyFlow.push(DEFAULT_CRAVINGS.difficultyFlow[difficultyFlow.length]);
+      }
+
+      const difficultySacMap = rawSacMap.slice(0, MAX_CRAVING_DIFFICULTY + 1).map((value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.max(0, n) : 0;
+      });
+      while (difficultySacMap.length <= MAX_CRAVING_DIFFICULTY) {
+        difficultySacMap.push(DEFAULT_CRAVINGS.difficultySacMap[difficultySacMap.length] ?? difficultySacMap[difficultySacMap.length - 1] ?? 0);
+      }
+      difficultySacMap[0] = 0;
+
+      return { difficultyFlow, difficultySacMap };
+    }
+
+    function loadStoredCravingsDraft() {
+      try {
+        const stored = window.localStorage.getItem(CRAVINGS_STORAGE_KEY);
+        return normalizeCravingsDraft(stored ? JSON.parse(stored) : null);
+      } catch {
+        return normalizeCravingsDraft(null);
+      }
+    }
+
+    function persistCravingsDraft() {
+      try {
+        window.localStorage.setItem(CRAVINGS_STORAGE_KEY, JSON.stringify(cravingsState));
+      } catch {
+        // localStorage can be unavailable; Save Balance still persists to disk.
+      }
+    }
+
+    const baselineCravingsState = normalizeCravingsDraft(null);
     let params = loadStoredParams();
+    let cravingsState = loadStoredCravingsDraft();
     const baselineResult = computeGenerators(structuredClone(BASELINE));
     const baselineGens = baselineResult.generators;
     const oldGensById = new Map((oldGeneratorsData.generators || []).map(g => [g.id, g]));
@@ -2279,6 +2523,258 @@
       out.textContent = JSON.stringify(serializeGeneratorsForBalance(result.generators), null, 2);
     }
 
+    function serializeTasksForBalance() {
+      const next = structuredClone(tasksData);
+      next.autoConfig = {
+        ...(next.autoConfig || {}),
+        difficultyFlow: cravingsState.difficultyFlow.map((value) => Math.min(MAX_CRAVING_DIFFICULTY, Math.max(1, Math.round(Number(value) || 1)))),
+        difficultySacMap: cravingsState.difficultySacMap.map((value, index) => index === 0 ? 0 : Math.max(0, Number(value) || 0)),
+      };
+      return next;
+    }
+
+    function clampCravingDifficulty(value) {
+      const n = Number(value);
+      return Number.isFinite(n)
+        ? Math.min(MAX_CRAVING_DIFFICULTY, Math.max(1, Math.round(n)))
+        : 1;
+    }
+
+    function setCravingFlowStep(index, value) {
+      if (!Number.isFinite(index) || index < 0 || index >= cravingsState.difficultyFlow.length) return;
+      cravingsState.difficultyFlow[index] = clampCravingDifficulty(value);
+      persistCravingsDraft();
+    }
+
+    function insertCravingFlowStep(index, value) {
+      const insertAt = Math.min(cravingsState.difficultyFlow.length, Math.max(0, Math.round(index)));
+      cravingsState.difficultyFlow.splice(insertAt, 0, clampCravingDifficulty(value));
+      persistCravingsDraft();
+      renderCravings();
+    }
+
+    function removeCravingFlowStep(index) {
+      if (!Number.isFinite(index) || index < 0 || index >= cravingsState.difficultyFlow.length) return;
+      if (cravingsState.difficultyFlow.length <= 1) return;
+      cravingsState.difficultyFlow.splice(index, 1);
+      persistCravingsDraft();
+      renderCravings();
+    }
+
+    function moveCravingFlowStep(fromIndex, insertionIndex) {
+      if (!Number.isFinite(fromIndex) || !Number.isFinite(insertionIndex)) return;
+      if (fromIndex < 0 || fromIndex >= cravingsState.difficultyFlow.length) return;
+      const to = Math.min(cravingsState.difficultyFlow.length, Math.max(0, Math.round(insertionIndex)));
+      const adjustedTo = fromIndex < to ? to - 1 : to;
+      if (fromIndex === adjustedTo) return;
+      const [step] = cravingsState.difficultyFlow.splice(fromIndex, 1);
+      cravingsState.difficultyFlow.splice(adjustedTo, 0, step);
+      persistCravingsDraft();
+      renderCravings();
+    }
+
+    function addCravingFlowStep() {
+      const last = cravingsState.difficultyFlow[cravingsState.difficultyFlow.length - 1] ?? 1;
+      insertCravingFlowStep(cravingsState.difficultyFlow.length, last);
+    }
+
+    function drawCravingsFlowChart() {
+      const canvas = document.getElementById('cravings-flow-chart');
+      if (!(canvas instanceof HTMLCanvasElement)) return;
+      const flow = cravingsState.difficultyFlow;
+      const minWidth = 420;
+      const width = Math.max(minWidth, 90 + flow.length * 46);
+      const height = 220;
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const styles = getComputedStyle(document.documentElement);
+      const text = styles.getPropertyValue('--text-secondary').trim() || '#a0a0a0';
+      const grid = styles.getPropertyValue('--border-subtle').trim() || '#444';
+      const sacrificesColor = '#ff9d4d';
+      const baselineColor = '#8a8f98';
+      const bg = styles.getPropertyValue('--surface-2').trim() || '#202020';
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      const padL = 46;
+      const padR = 44;
+      const padT = 18;
+      const padB = 36;
+      const plotW = width - padL - padR;
+      const plotH = height - padT - padB;
+      const baselineFlow = baselineCravingsState.difficultyFlow;
+      const maxSac = Math.max(
+        1,
+        ...flow.map(d => cravingsState.difficultySacMap[d] ?? 0),
+        ...baselineFlow.map(d => baselineCravingsState.difficultySacMap[d] ?? 0),
+      );
+
+      ctx.strokeStyle = grid;
+      ctx.lineWidth = 1;
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = text;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i <= 4; i++) {
+        const value = (maxSac / 4) * i;
+        const y = padT + plotH - (value / maxSac) * plotH;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(width - padR, y);
+        ctx.stroke();
+        ctx.fillText(fmtNum(value, 1), padL - 8, y);
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (let i = 0; i < flow.length; i++) {
+        const x = flow.length === 1 ? padL + plotW / 2 : padL + (i / (flow.length - 1)) * plotW;
+        if (i % Math.ceil(flow.length / 12) === 0) ctx.fillText(String(i + 1), x, height - padB + 10);
+      }
+
+      function pointForSacrifices(seriesFlow, sacMap, i) {
+        const x = seriesFlow.length === 1 ? padL + plotW / 2 : padL + (i / Math.max(1, seriesFlow.length - 1)) * plotW;
+        const sacrifices = sacMap[seriesFlow[i]] ?? 0;
+        const y = padT + plotH - (sacrifices / maxSac) * plotH;
+        return { x, y };
+      }
+
+      function drawLine(seriesFlow, sacMap, color) {
+        if (seriesFlow.length === 0) return;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < seriesFlow.length; i++) {
+          const p = pointForSacrifices(seriesFlow, sacMap, i);
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+        for (let i = 0; i < seriesFlow.length; i++) {
+          const p = pointForSacrifices(seriesFlow, sacMap, i);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      drawLine(baselineFlow, baselineCravingsState.difficultySacMap, baselineColor);
+      drawLine(flow, cravingsState.difficultySacMap, sacrificesColor);
+
+      ctx.fillStyle = text;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('step', padL, height - 18);
+      ctx.textAlign = 'right';
+      ctx.fillText(`sac max ${fmtNum(maxSac, 1)}`, width - padR, 6);
+    }
+
+    function renderCravings() {
+      const flowContainer = document.getElementById('cravings-flow-container');
+      const sacContainer = document.getElementById('cravings-sac-container');
+      const baselineFlowContainer = document.getElementById('cravings-baseline-flow-container');
+      const baselineSacContainer = document.getElementById('cravings-baseline-sac-container');
+      if (!flowContainer || !sacContainer || !baselineFlowContainer || !baselineSacContainer) return;
+
+      let flowRows = '';
+      for (let i = 0; i < cravingsState.difficultyFlow.length; i++) {
+        const value = cravingsState.difficultyFlow[i];
+        const sacrifices = cravingsState.difficultySacMap[value] ?? 0;
+        flowRows += `
+          <tr class="cravings-row" data-craving-index="${i}">
+            <td>
+              <button
+                type="button"
+                class="mini-btn cravings-drag"
+                draggable="true"
+                data-role="craving-drag"
+                data-index="${i}"
+                title="Drag to reorder"
+              >Move</button>
+            </td>
+            <td>#${i + 1}</td>
+            <td>
+              <input
+                class="cravings-input"
+                type="number"
+                min="1"
+                max="${MAX_CRAVING_DIFFICULTY}"
+                step="1"
+                value="${value}"
+                data-role="craving-flow"
+                data-index="${i}"
+              />
+            </td>
+            <td>${fmtNum(sacrifices, 1)}</td>
+          </tr>`;
+      }
+      flowContainer.innerHTML = `
+        <table class="cravings-table">
+          <thead>
+            <tr><th></th><th>Step</th><th>D</th><th>Sacrifices</th></tr>
+          </thead>
+          <tbody>${flowRows}</tbody>
+        </table>`;
+
+      let sacRows = '';
+      for (let d = 1; d <= MAX_CRAVING_DIFFICULTY; d++) {
+        sacRows += `
+          <tr>
+            <td>D${d}</td>
+            <td>
+              <input
+                class="cravings-input"
+                type="number"
+                min="0"
+                step="0.1"
+                value="${cravingsState.difficultySacMap[d]}"
+                data-role="craving-sac"
+                data-difficulty="${d}"
+              />
+            </td>
+          </tr>`;
+      }
+      sacContainer.innerHTML = `
+        <table class="cravings-table">
+          <thead>
+            <tr><th>Difficulty</th><th>Sacrifices</th></tr>
+          </thead>
+          <tbody>${sacRows}</tbody>
+        </table>`;
+
+      let baselineRows = '';
+      for (let i = 0; i < baselineCravingsState.difficultyFlow.length; i++) {
+        const value = baselineCravingsState.difficultyFlow[i];
+        const sacrifices = baselineCravingsState.difficultySacMap[value] ?? 0;
+        baselineRows += `<tr><td>#${i + 1}</td><td>D${value}</td><td>${fmtNum(sacrifices, 1)}</td></tr>`;
+      }
+      let baselineSacRows = '';
+      for (let d = 1; d <= MAX_CRAVING_DIFFICULTY; d++) {
+        baselineSacRows += `<tr><td>D${d}</td><td>${fmtNum(baselineCravingsState.difficultySacMap[d] ?? 0, 1)}</td></tr>`;
+      }
+      baselineFlowContainer.innerHTML = `
+        <table class="cravings-table">
+          <thead>
+            <tr><th>Step</th><th>D</th><th>Sacrifices</th></tr>
+          </thead>
+          <tbody>${baselineRows}</tbody>
+        </table>`;
+      baselineSacContainer.innerHTML = `
+        <table class="cravings-table">
+          <thead>
+            <tr><th>Difficulty</th><th>Sacrifices</th></tr>
+          </thead>
+          <tbody>${baselineSacRows}</tbody>
+        </table>`;
+      drawCravingsFlowChart();
+    }
+
     // ============================================================
     //  RENDER LOOP
     // ============================================================
@@ -2291,6 +2787,7 @@
       renderXpTables(result.generators);
       renderKrakenLvl();
       renderCharts(result.generators);
+      renderCravings();
       renderJSON(result);
       // If runes panel is active, re-render its charts so the Required curve
       // reflects the updated params (MC data stays cached — only the required
@@ -2337,6 +2834,9 @@
       if (name === 'runes') {
         renderRunes();
       }
+      if (name === 'cravings') {
+        renderCravings();
+      }
     }
     document.querySelectorAll('.cm-tab').forEach(t => {
       t.addEventListener('click', () => switchTab(t.dataset.tab));
@@ -2353,11 +2853,13 @@
 
     document.getElementById('btn-reset').addEventListener('click', () => {
       params = normalizeParams(null);
+      cravingsState = normalizeCravingsDraft(null);
       krakenProgProductionData = structuredClone(krakenProgData);
       krakenPostL7Increment = inferPostL7Increment();
       try {
         window.localStorage.removeItem(STORAGE_KEY);
         window.localStorage.removeItem(KRAKEN_STORAGE_KEY);
+        window.localStorage.removeItem(CRAVINGS_STORAGE_KEY);
       } catch {}
       syncAllKnobs();
       render();
@@ -2398,6 +2900,7 @@
       const payload = {
         generators: serializeGeneratorsForBalance(result.generators).generators,
         krakenProgression: serializeKrakenProgressionForBalance(),
+        tasks: serializeTasksForBalance(),
       };
       btn.disabled = true;
       if (status) status.textContent = 'Saving...';
@@ -2411,7 +2914,7 @@
           const text = await response.text();
           throw new Error(text || `HTTP ${response.status}`);
         }
-        if (status) status.textContent = 'Saved generators + kraken progression';
+        if (status) status.textContent = 'Saved generators + kraken progression + tasks';
         setTimeout(() => { if (status && status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
       } catch (err) {
         console.error(err);
@@ -2446,6 +2949,23 @@
         renderKrakenLvl();
         return;
       }
+      if (role === 'craving-flow') {
+        const index = Number(target.dataset.index);
+        const value = Number(target.value);
+        setCravingFlowStep(index, value);
+        renderCravings();
+        return;
+      }
+      if (role === 'craving-sac') {
+        const difficulty = Number(target.dataset.difficulty);
+        const value = Number(target.value);
+        if (!Number.isFinite(difficulty) || !Number.isFinite(value)) return;
+        cravingsState.difficultySacMap[difficulty] = Math.max(0, value);
+        cravingsState.difficultySacMap[0] = 0;
+        persistCravingsDraft();
+        renderCravings();
+        return;
+      }
       const allowedRoles = ['charge-override', 'chapter-override', 'upgrade-spawns-override', 'upgrade-rune-override'];
       if (!allowedRoles.includes(role)) return;
 
@@ -2473,6 +2993,23 @@
         renderKrakenLvlTable();
         return;
       }
+      if (target.dataset.role === 'craving-flow') {
+        const index = Number(target.dataset.index);
+        const value = Number(target.value);
+        setCravingFlowStep(index, value);
+        drawCravingsFlowChart();
+        return;
+      }
+      if (target.dataset.role === 'craving-sac') {
+        const difficulty = Number(target.dataset.difficulty);
+        const value = Number(target.value);
+        if (!Number.isFinite(difficulty) || !Number.isFinite(value)) return;
+        cravingsState.difficultySacMap[difficulty] = Math.max(0, value);
+        cravingsState.difficultySacMap[0] = 0;
+        persistCravingsDraft();
+        drawCravingsFlowChart();
+        return;
+      }
       if (target.dataset.role !== 'kraken-xp-total') return;
       const level = Number(target.dataset.level);
       const value = Number(target.value);
@@ -2487,6 +3024,11 @@
       const button = event.target instanceof Element ? event.target.closest('[data-action]') : null;
       if (!(button instanceof HTMLElement)) return;
       const action = button.dataset.action;
+
+      if (action === 'craving-add-step') {
+        addCravingFlowStep();
+        return;
+      }
 
       if (action === 'clear-chapter-overrides') {
         params.chargeCostChapterOverrideByGenLevel = {};
@@ -2511,6 +3053,83 @@
         render();
         return;
       }
+    });
+
+    let cravingDragIndex = null;
+    let cravingDropRow = null;
+    let cravingDropClass = '';
+
+    function clearCravingDropMarker() {
+      if (cravingDropRow && cravingDropClass) cravingDropRow.classList.remove(cravingDropClass);
+      cravingDropRow = null;
+      cravingDropClass = '';
+      const deleteZone = document.getElementById('cravings-delete-zone');
+      if (deleteZone) deleteZone.classList.remove('is-drop-target');
+    }
+
+    document.addEventListener('dragstart', (event) => {
+      const handle = event.target instanceof Element ? event.target.closest('[data-role="craving-drag"]') : null;
+      if (!(handle instanceof HTMLElement)) return;
+      const index = Number(handle.dataset.index);
+      if (!Number.isFinite(index)) return;
+      cravingDragIndex = index;
+      const row = handle.closest('.cravings-row');
+      if (row) row.classList.add('is-dragging');
+      event.dataTransfer?.setData('text/plain', String(index));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+
+    document.addEventListener('dragover', (event) => {
+      if (cravingDragIndex === null) return;
+      const deleteZone = event.target instanceof Element ? event.target.closest('.cravings-delete-zone') : null;
+      if (deleteZone instanceof HTMLElement) {
+        event.preventDefault();
+        clearCravingDropMarker();
+        deleteZone.classList.add('is-drop-target');
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        return;
+      }
+      const row = event.target instanceof Element ? event.target.closest('.cravings-row') : null;
+      if (!(row instanceof HTMLElement)) return;
+      event.preventDefault();
+      const rect = row.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      const cls = after ? 'is-drop-after' : 'is-drop-before';
+      if (row !== cravingDropRow || cls !== cravingDropClass) {
+        clearCravingDropMarker();
+        cravingDropRow = row;
+        cravingDropClass = cls;
+        row.classList.add(cls);
+      }
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    });
+
+    document.addEventListener('drop', (event) => {
+      if (cravingDragIndex === null) return;
+      const deleteZone = event.target instanceof Element ? event.target.closest('.cravings-delete-zone') : null;
+      if (deleteZone instanceof HTMLElement) {
+        event.preventDefault();
+        const index = cravingDragIndex;
+        clearCravingDropMarker();
+        cravingDragIndex = null;
+        removeCravingFlowStep(index);
+        return;
+      }
+      const row = event.target instanceof Element ? event.target.closest('.cravings-row') : null;
+      if (!(row instanceof HTMLElement)) return;
+      event.preventDefault();
+      const targetIndex = Number(row.dataset.cravingIndex);
+      const rect = row.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      clearCravingDropMarker();
+      moveCravingFlowStep(cravingDragIndex, targetIndex + (after ? 1 : 0));
+      cravingDragIndex = null;
+    });
+
+    document.addEventListener('dragend', () => {
+      document.querySelectorAll('.cravings-row.is-dragging').forEach(row => row.classList.remove('is-dragging'));
+      clearCravingDropMarker();
+      cravingDragIndex = null;
     });
 
     // ============================================================
