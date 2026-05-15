@@ -1,4 +1,4 @@
-import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity } from '@domain/types';
+import type { BoxEntity, CreatureEntity, GameSnapshot, GeneratorEntity, RuneEntity, TaskDefinition } from '@domain/types';
 import { getFreeCellIndexes } from '@domain/grid';
 import { generateAutoTask, applyFPCounterUpdate } from '@domain/tasks';
 import { evaluateAllQuests } from '@domain/quests';
@@ -7,7 +7,7 @@ import { getActiveTask } from '@domain/runtime/getActiveTask';
 import { SeededRng } from '@infra/rng';
 import { BALANCE as DEFAULT_BALANCE } from '@data/loadBalance';
 import { ModularStrategy } from '../strategies/modular/ModularStrategy';
-import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry } from './types';
+import type { SimulationConfig, SimulationAction, StrategyDecision, SimulationResult, SimulationSnapshot, CumulativeMetrics, ActionLogEntry, AutoTaskHistoryEntry } from './types';
 import type { TickEndReason, TickTrace } from './trace';
 import { initCumulativeMetrics, captureTickMetrics } from './metrics';
 import { getActionTimeSec } from './actionTime';
@@ -40,6 +40,8 @@ export class SimulationEngine {
   private actionHistory: SimulationSnapshot[];
   private cumulative: CumulativeMetrics;
   private actionLog: ActionLogEntry[];
+  private autoTaskHistory: AutoTaskHistoryEntry[];
+  private recordedAutoTaskIds = new Set<string>();
   private tickTraces: TickTrace[] = [];
   private currentTick = 0;
   private discoveredCreatures = new Set<string>(); // "creatureType:level" first-seen tracker
@@ -137,6 +139,7 @@ export class SimulationEngine {
     this.actionHistory = [];
     this.cumulative = initCumulativeMetrics();
     this.actionLog = [];
+    this.autoTaskHistory = [];
     this.tickTraces = [];
   }
 
@@ -221,9 +224,47 @@ export class SimulationEngine {
       actionHistory: this.actionHistory,
       history: this.history,
       actionLog: this.actionLog,
+      autoTaskHistory: this.autoTaskHistory,
       finalState: this.state,
       summary
     };
+  }
+
+  private recordAutoTask(task: TaskDefinition | null): void {
+    if (!task || !task.id.startsWith('auto_')) return;
+    if (this.recordedAutoTaskIds.has(task.id)) return;
+    this.recordedAutoTaskIds.add(task.id);
+
+    const generatorLevels = new Map<number, number>();
+    for (const entity of Object.values(this.state.entities)) {
+      if (entity.kind !== 'generator') continue;
+      const gen = entity as GeneratorEntity;
+      generatorLevels.set(gen.generatorId, Math.max(generatorLevels.get(gen.generatorId) ?? 0, gen.level));
+    }
+
+    this.autoTaskHistory.push({
+      sequence: this.autoTaskHistory.length + 1,
+      taskId: task.id,
+      generatedAtTick: this.currentTick,
+      generatedAfterTasksCompleted: this.cumulative.totalTasksCompleted,
+      krakenLevel: this.state.kraken.level,
+      session: this.state.session,
+      totalTimeSec: this.cumulative.totalTimeSec,
+      difficulty: task.difficulty,
+      debugMeatBudget: task.debugMeatBudget,
+      debugMeatCost: task.debugMeatCost,
+      pickedGenId: task.pickedGenId,
+      creatures: task.creatures.map(req => {
+        const genId = this.getGenIdForCreatureType(req.type);
+        return {
+          type: req.type,
+          level: req.level,
+          count: req.count,
+          genId,
+          genLevel: genId === null ? null : (generatorLevels.get(genId) ?? null),
+        };
+      }),
+    });
   }
 
   /** Safety net: ensure currentAutoTask exists (e.g. first tick after kraken reaches level 2). */
@@ -232,6 +273,7 @@ export class SimulationEngine {
     if (getActiveTask(this.config.balance, this.state)) return;
     const newTask = generateAutoTask(this.config.balance, this.state, this.env.rng);
     this.state.currentAutoTask = newTask;
+    this.recordAutoTask(newTask);
     const fpUpdate = applyFPCounterUpdate(newTask, this.state, this.config.balance);
     if (fpUpdate) {
       this.state.meatPressesAtLastFP = fpUpdate.meatPressesAtLastFP;
@@ -553,6 +595,7 @@ export class SimulationEngine {
           this.currentQuestUsedSkipTimer = false;
           this.taskNumber++;
           this.config.strategy.onQuestCompleted?.();
+          this.recordAutoTask(this.state.currentAutoTask);
           const completedAction: SimulationAction = {
             type: 'quest_completed',
             taskLabel: event.taskId,
