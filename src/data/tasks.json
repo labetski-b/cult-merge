@@ -90,14 +90,15 @@
   "autoConfig": {
     "difficultyFlow": [
       1,
+      2,
+      3,
+      5,
+      3,
       1,
       2,
       2,
-      3,
-      2,
       4,
-      2,
-      5
+      6
     ],
     "difficultySacMap": [
       0,
@@ -105,7 +106,8 @@
       0.5,
       0.8,
       1,
-      2
+      2,
+      2.5
     ],
     "dualQuestProbability": 0.5,
     "dualBudgetSplit": [
