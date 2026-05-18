@@ -7,6 +7,7 @@ import type { SimulationAction } from '../actions';
 import { makeEngineEnv } from '../env';
 import { applyActionCore } from '../applyActionCore';
 import { advanceTime } from '../advanceTime';
+import { SimulationEngine } from '../SimulationEngine';
 
 /**
  * Task 4 of plan 2026-05-06-modular-unified-time.md — FP rewrite onto
@@ -184,6 +185,101 @@ describe('Task 4 — FP advanceTime resolution', () => {
     for (const id of occupied) {
       expect(result.nextState.entities[id]).toBeDefined();
     }
+  });
+
+  it('FP resolution records spawned creature as seen', () => {
+    const state = emptyGridSnapshot();
+    const cfg = timerGenCfg();
+    const gen: GeneratorEntity = {
+      id: 'gFP',
+      kind: 'generator',
+      generatorId: cfg.id,
+      level: 1,
+      charges: [],
+    };
+    state.entities = { gFP: gen };
+    state.grid.cells[4] = 'gFP';
+    state.cumulativeStats.maxCreatureLevelByType = {};
+    state.activeTimedProcess = {
+      kind: 'fp',
+      entityId: 'gFP',
+      generatorId: cfg.id,
+      remainingMs: 1_000,
+    };
+
+    const result = advanceTime(state, 1_000, BALANCE);
+    const creature = Object.values(result.nextState.entities).find(
+      (entity): entity is Extract<typeof entity, { kind: 'creature' }> => entity.kind === 'creature',
+    );
+
+    expect(creature).toBeDefined();
+    expect(result.nextState.cumulativeStats.maxCreatureLevelByType[creature!.creatureType]).toBe(
+      creature!.level,
+    );
+    expect(result.events).toContainEqual({
+      type: 'generator_spawned',
+      creatureType: creature!.creatureType,
+      level: creature!.level,
+    });
+  });
+
+  it('SimulationEngine preserves FP spawned creature seen max after cumulative sync', () => {
+    const state = emptyGridSnapshot();
+    const cfg = timerGenCfg();
+    const gen: GeneratorEntity = {
+      id: 'gFP',
+      kind: 'generator',
+      generatorId: cfg.id,
+      level: 1,
+      charges: [],
+    };
+    state.entities = { gFP: gen };
+    state.grid.cells[4] = 'gFP';
+    state.cumulativeStats.maxCreatureLevelByType = {};
+    state.activeTimedProcess = {
+      kind: 'fp',
+      entityId: 'gFP',
+      generatorId: cfg.id,
+      remainingMs: 1_000,
+    };
+
+    let used = false;
+    const engine = new SimulationEngine({
+      seed: 42,
+      stopCondition: { type: 'ticks', value: 1 },
+      maxTicks: 1,
+      tickInterval: 1000,
+      balance: BALANCE,
+      initialSnapshot: state,
+      strategy: {
+        name: 'resolve-once',
+        description: 'Resolve one staged FP process.',
+        decide() {
+          if (used) return { actions: [], done: true };
+          used = true;
+          return {
+            actions: [{
+              type: 'skip_time',
+              deltaMs: 1_000,
+              reason: 'fp',
+              entityId: 'gFP',
+              generatorId: cfg.id,
+            }],
+            done: false,
+          };
+        },
+      },
+    });
+
+    const result = engine.run();
+    const creature = Object.values(result.finalState.entities).find(
+      (entity): entity is Extract<typeof entity, { kind: 'creature' }> => entity.kind === 'creature',
+    );
+
+    expect(creature).toBeDefined();
+    expect(result.finalState.cumulativeStats.maxCreatureLevelByType[creature!.creatureType]).toBe(
+      creature!.level,
+    );
   });
 
   it('FP resolution clears the slot even when no free neighbor (creature dropped, stays consistent)', () => {

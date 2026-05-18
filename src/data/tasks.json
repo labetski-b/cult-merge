@@ -90,15 +90,14 @@
   "autoConfig": {
     "difficultyFlow": [
       1,
+      1,
       2,
-      3,
-      5,
-      3,
+      4,
       1,
       2,
       2,
-      4,
-      6
+      2,
+      5
     ],
     "difficultySacMap": [
       0,
@@ -106,14 +105,39 @@
       0.5,
       0.8,
       1,
-      2,
-      2.5
+      2
     ],
     "dualQuestProbability": 0.5,
     "dualBudgetSplit": [
       0.7,
       0.3
     ],
+    "fpAutoQuest": {
+      "sacrificesRequired": 5,
+      "questsPerKrakenLevelLimit": 2,
+      "expectedTicksByDifficulty": [
+        [
+          1,
+          0
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          5,
+          8
+        ]
+      ]
+    },
     "eyePerMeat": [
       [
         2,

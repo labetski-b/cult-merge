@@ -105,6 +105,14 @@ export const autoConfigSchema = z.object({
   // auto tasks inside the Kraken-task loop, not Kraken quests.
   dualQuestProbability: z.number().min(0).max(1).optional(),
   dualBudgetSplit: z.tuple([z.number(), z.number()]).optional(),
+  fpAutoQuest: z.object({
+    sacrificesRequired: z.number().int().nonnegative().optional(),
+    questsPerKrakenLevelLimit: z.number().int().nonnegative().optional(),
+    expectedTicksByDifficulty: z.array(z.tuple([
+      z.number().int().positive(),
+      z.number().nonnegative(),
+    ])).optional(),
+  }).optional(),
   eyeRewardByChapter: z.array(z.tuple([z.number().int(), z.number()])).optional(),
   difficultyEyeMultiplier: z.array(z.number().min(0)).optional(),
   eyePerMeat: z.array(z.tuple([z.number().int(), z.number()])).optional(),

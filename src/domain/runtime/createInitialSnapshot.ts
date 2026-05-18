@@ -60,6 +60,7 @@ export function createInitialSnapshot(
     lastAutoTaskLine: null,
     autoTaskLineCompletions: {},
     autoTaskLastLevels: {},
+    recentAutoQuestHistory: [],
     session: 1,
     meatButtonPresses: 0,
     meatPressesAtLastFP: 0,

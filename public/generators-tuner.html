@@ -479,7 +479,8 @@
     .cravings-grid {
       display: grid;
       grid-template-columns: max-content max-content max-content max-content;
-      gap: 10px;
+      column-gap: 12px;
+      row-gap: 10px;
       align-items: start;
       justify-content: start;
       width: max-content;
@@ -487,6 +488,11 @@
       overflow-x: auto;
     }
     .cravings-block { width: max-content; }
+    .cravings-block--baseline-start {
+      margin-left: 28px;
+      padding-left: 28px;
+      border-left: 1px solid var(--border-subtle);
+    }
     .cravings-block h4 {
       margin: 0 0 8px;
       font-size: var(--fs-small, 12px);
@@ -501,11 +507,16 @@
       font-family: var(--font-mono, "SF Mono", Menlo, monospace);
       font-variant-numeric: tabular-nums;
     }
+    .cravings-table col.col-handle { width: 42px; }
+    .cravings-table col.col-step { width: 42px; }
+    .cravings-table col.col-difficulty { width: 42px; }
+    .cravings-table col.col-sacrifice { width: 54px; }
+    .cravings-table col.col-input { width: 62px; }
     .cravings-table th,
     .cravings-table td {
       padding: 4px 6px;
       border-bottom: 1px solid var(--border-subtle);
-      text-align: right;
+      text-align: center;
       white-space: nowrap;
     }
     .cravings-table th {
@@ -513,8 +524,12 @@
       color: var(--text-secondary);
       font-weight: 600;
     }
-    .cravings-table td:first-child,
-    .cravings-table th:first-child {
+    .cravings-table td.col-label,
+    .cravings-table th.col-label {
+      text-align: left;
+    }
+    .cravings-table td.col-sacrifice,
+    .cravings-table th.col-sacrifice {
       text-align: left;
     }
     .cravings-input {
@@ -849,7 +864,7 @@
           </p>
           <div class="cravings-grid">
             <div class="cravings-block">
-              <h4>Difficulty flow</h4>
+              <h4>Flow</h4>
               <div id="cravings-flow-container"></div>
               <div class="cravings-flow-controls">
                 <button type="button" class="cm-btn cm-btn--sm" data-action="craving-add-step">Add step</button>
@@ -857,15 +872,15 @@
               </div>
             </div>
             <div class="cravings-block">
-              <h4>Difficulty sacrifices</h4>
+              <h4>Sac map</h4>
               <div id="cravings-sac-container"></div>
             </div>
-            <div class="cravings-block">
+            <div class="cravings-block cravings-block--baseline-start">
               <h4>Baseline flow</h4>
               <div id="cravings-baseline-flow-container"></div>
             </div>
             <div class="cravings-block">
-              <h4>Baseline sacrifices</h4>
+              <h4>Baseline sac</h4>
               <div id="cravings-baseline-sac-container"></div>
             </div>
           </div>
@@ -925,9 +940,10 @@
     const CRAVINGS_STORAGE_KEY = 'cult-merge-generators-tuner-cravings-v1';
     const DEFAULT_CRAVINGS = {
       difficultyFlow: [1, 1, 2, 2, 3, 2, 4, 2, 5],
-      difficultySacMap: [0, 0, 0.5, 0.8, 1, 2, 2],
+      difficultySacMap: [0, 0, 0.5, 0.8, 1, 2],
     };
-    const MAX_CRAVING_DIFFICULTY = 6;
+    const BASELINE_CRAVINGS = structuredClone(DEFAULT_CRAVINGS);
+    const MAX_CRAVING_DIFFICULTY = 5;
 
     function normalizeParams(raw) {
       const next = structuredClone(DEFAULTS);
@@ -1048,7 +1064,7 @@
       }
     }
 
-    const baselineCravingsState = normalizeCravingsDraft(null);
+    const baselineCravingsState = normalizeCravingsDraft(BASELINE_CRAVINGS);
     let params = loadStoredParams();
     let cravingsState = loadStoredCravingsDraft();
     const baselineResult = computeGenerators(structuredClone(BASELINE));
@@ -2688,7 +2704,7 @@
         const sacrifices = cravingsState.difficultySacMap[value] ?? 0;
         flowRows += `
           <tr class="cravings-row" data-craving-index="${i}">
-            <td>
+            <td class="col-handle">
               <button
                 type="button"
                 class="mini-btn cravings-drag"
@@ -2698,8 +2714,8 @@
                 title="Drag to reorder"
               >Move</button>
             </td>
-            <td>#${i + 1}</td>
-            <td>
+            <td class="col-step">#${i + 1}</td>
+            <td class="col-difficulty">
               <input
                 class="cravings-input"
                 type="number"
@@ -2711,13 +2727,19 @@
                 data-index="${i}"
               />
             </td>
-            <td>${fmtNum(sacrifices, 1)}</td>
+            <td class="col-sacrifice">${fmtNum(sacrifices, 1)}</td>
           </tr>`;
       }
       flowContainer.innerHTML = `
         <table class="cravings-table">
+          <colgroup>
+            <col class="col-handle" />
+            <col class="col-step" />
+            <col class="col-difficulty" />
+            <col class="col-sacrifice" />
+          </colgroup>
           <thead>
-            <tr><th></th><th>Step</th><th>D</th><th>Sacrifices</th></tr>
+            <tr><th></th><th title="Step">#</th><th title="Difficulty">D</th><th class="col-sacrifice" title="Sacrifices">Sac</th></tr>
           </thead>
           <tbody>${flowRows}</tbody>
         </table>`;
@@ -2726,8 +2748,8 @@
       for (let d = 1; d <= MAX_CRAVING_DIFFICULTY; d++) {
         sacRows += `
           <tr>
-            <td>D${d}</td>
-            <td>
+            <td class="col-label">${d}</td>
+            <td class="col-difficulty">
               <input
                 class="cravings-input"
                 type="number"
@@ -2742,8 +2764,12 @@
       }
       sacContainer.innerHTML = `
         <table class="cravings-table">
+          <colgroup>
+            <col class="col-difficulty" />
+            <col class="col-input" />
+          </colgroup>
           <thead>
-            <tr><th>Difficulty</th><th>Sacrifices</th></tr>
+            <tr><th class="col-label" title="Difficulty">D</th><th title="Sacrifices">Sac</th></tr>
           </thead>
           <tbody>${sacRows}</tbody>
         </table>`;
@@ -2752,23 +2778,32 @@
       for (let i = 0; i < baselineCravingsState.difficultyFlow.length; i++) {
         const value = baselineCravingsState.difficultyFlow[i];
         const sacrifices = baselineCravingsState.difficultySacMap[value] ?? 0;
-        baselineRows += `<tr><td>#${i + 1}</td><td>D${value}</td><td>${fmtNum(sacrifices, 1)}</td></tr>`;
+        baselineRows += `<tr><td class="col-step">#${i + 1}</td><td class="col-difficulty">${value}</td><td class="col-sacrifice">${fmtNum(sacrifices, 1)}</td></tr>`;
       }
       let baselineSacRows = '';
       for (let d = 1; d <= MAX_CRAVING_DIFFICULTY; d++) {
-        baselineSacRows += `<tr><td>D${d}</td><td>${fmtNum(baselineCravingsState.difficultySacMap[d] ?? 0, 1)}</td></tr>`;
+        baselineSacRows += `<tr><td class="col-label">${d}</td><td class="col-sacrifice">${fmtNum(baselineCravingsState.difficultySacMap[d] ?? 0, 1)}</td></tr>`;
       }
       baselineFlowContainer.innerHTML = `
         <table class="cravings-table">
+          <colgroup>
+            <col class="col-step" />
+            <col class="col-difficulty" />
+            <col class="col-sacrifice" />
+          </colgroup>
           <thead>
-            <tr><th>Step</th><th>D</th><th>Sacrifices</th></tr>
+            <tr><th title="Step">#</th><th title="Difficulty">D</th><th class="col-sacrifice" title="Sacrifices">Sac</th></tr>
           </thead>
           <tbody>${baselineRows}</tbody>
         </table>`;
       baselineSacContainer.innerHTML = `
         <table class="cravings-table">
+          <colgroup>
+            <col class="col-difficulty" />
+            <col class="col-sacrifice" />
+          </colgroup>
           <thead>
-            <tr><th>Difficulty</th><th>Sacrifices</th></tr>
+            <tr><th class="col-label" title="Difficulty">D</th><th class="col-sacrifice" title="Sacrifices">Sac</th></tr>
           </thead>
           <tbody>${baselineSacRows}</tbody>
         </table>`;
@@ -2853,7 +2888,7 @@
 
     document.getElementById('btn-reset').addEventListener('click', () => {
       params = normalizeParams(null);
-      cravingsState = normalizeCravingsDraft(null);
+      cravingsState = normalizeCravingsDraft(BASELINE_CRAVINGS);
       krakenProgProductionData = structuredClone(krakenProgData);
       krakenPostL7Increment = inferPostL7Increment();
       try {

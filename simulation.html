@@ -542,7 +542,9 @@
       gap: var(--space-4);
     }
     .cravings-panel.hidden,
-    .cravings-quest-list.hidden {
+    .cravings-quest-list.hidden,
+    .cravings-kl-panel.hidden,
+    .cravings-kl-charts-panel.hidden {
       display: none;
     }
     .cravings-card .cm-card__title span {
@@ -626,6 +628,195 @@
       margin: 0;
       color: var(--text-tertiary);
     }
+    .cravings-kl-panel {
+      width: max-content;
+      max-width: 100%;
+    }
+    .cravings-kl-empty {
+      margin: 0;
+      color: var(--text-tertiary);
+    }
+    .cravings-kl-table {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cravings-kl-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cravings-kl-header {
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      font-weight: var(--fw-semibold);
+      color: var(--text-secondary);
+    }
+    .cravings-kl-quests {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-height: 26px;
+    }
+    .cravings-kl-quest {
+      display: inline-flex;
+      gap: 0;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 3px;
+    }
+    .cravings-kl-cell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      color: #ffffff;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: var(--fw-bold);
+      line-height: 1;
+    }
+    .cravings-kl-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      padding: 8px 0;
+      margin-bottom: 4px;
+    }
+    .cravings-kl-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cravings-kl-legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      flex-shrink: 0;
+    }
+    .cravings-kl-legend-label {
+      font-size: 11px;
+      font-family: var(--font-mono, monospace);
+      color: var(--text-secondary);
+    }
+    .cravings-kl-cell-count {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      border-radius: 999px;
+      border: 1px solid var(--surface-0);
+      background: var(--danger);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: var(--fw-bold);
+      line-height: 13px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+    .cravings-kl-charts-panel {
+      width: 100%;
+      max-width: 100%;
+    }
+    .cravings-kl-chart-help {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: var(--space-3);
+      color: var(--text-tertiary);
+      font-size: var(--fs-small);
+    }
+    .cravings-kl-chart-help span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+    }
+    .cravings-kl-chart-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+    .cravings-kl-chart-card {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      overflow: hidden;
+    }
+    .cravings-kl-chart-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-3) var(--space-2);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .cravings-kl-chart-head h4 {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: var(--fs-body);
+      font-weight: var(--fw-semibold);
+    }
+    .cravings-kl-chart-head span {
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      white-space: nowrap;
+    }
+    .cravings-kl-chart-scroll {
+      overflow-x: auto;
+      padding: var(--space-3);
+    }
+    .cravings-kl-chart-svg {
+      display: block;
+      min-width: 100%;
+      font-family: var(--font-mono);
+      overflow: visible;
+    }
+    .cravings-kl-chart-axis {
+      stroke: var(--chart-axis);
+      stroke-width: 1;
+    }
+    .cravings-kl-chart-grid-line,
+    .cravings-kl-chart-x-tick {
+      stroke: var(--chart-grid);
+      stroke-width: 1;
+    }
+    .cravings-kl-chart-x-label,
+    .cravings-kl-chart-y-label,
+    .cravings-kl-chart-axis-title {
+      fill: var(--text-tertiary);
+      font-size: 10px;
+    }
+    .cravings-kl-chart-axis-title {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: var(--fw-medium);
+    }
+    .cravings-kl-chart-point rect {
+      stroke: rgba(255, 255, 255, 0.45);
+      stroke-width: 1;
+      shape-rendering: crispEdges;
+    }
+    .cravings-kl-chart-point text {
+      fill: #08111f;
+      font-size: 8px;
+      font-weight: var(--fw-bold);
+      pointer-events: none;
+    }
+    .cravings-kl-chart-point .cravings-kl-chart-count {
+      fill: var(--danger);
+      font-size: 8px;
+    }
     .cravings-quest-list {
       width: max-content;
       max-width: 100%;
@@ -700,6 +891,16 @@
           <circle cx="11" cy="18" r="2"></circle>
         </svg>
         <span>Generators tuner</span>
+      </a>
+      <a class="sim-header__link" href="scoring-table-debug.html" target="_blank" rel="noopener" title="Auto quest scoring debug">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 6h16"></path>
+          <path d="M4 12h16"></path>
+          <path d="M4 18h16"></path>
+          <path d="M8 4v16"></path>
+          <path d="M15 4v16"></path>
+        </svg>
+        <span>Scoring debug</span>
       </a>
       <a class="sim-header__link" href="strategy-inspector.html" target="_blank" rel="noopener" title="Strategy inspector">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -147,6 +147,27 @@ describe('generateAutoTask — scoring table sources', () => {
   });
 });
 
+describe('generateAutoTask — difficulty 1 cheap quest rerun', () => {
+  it('reruns scoring as difficulty 2 when the difficulty 1 pick requires less L1 than 10 generator spawns', () => {
+    const config = makeBalanceWithTwoGens();
+    config.tasks = {
+      ...config.tasks,
+      autoConfig: {
+        ...config.tasks.autoConfig,
+        dualQuestProbability: 0,
+      },
+    };
+    const state = makeSnapshotWithGen1OnField();
+    const rng = new SeededRng(1);
+
+    const task = generateAutoTask(config, state, rng);
+
+    expect(task.difficulty).toBe(2);
+    expect(task.debugMeatBudget).toBeGreaterThan(0);
+    expect(task.debugScoringTable?.every((row) => row.meatBudget === task.debugMeatBudget)).toBe(true);
+  });
+});
+
 describe('generateAutoTask — phantom +1 upgrade gating', () => {
   it('uses scoringLevel = factLvl + 1 when upgrade is affordable (runes + spawns OK)', () => {
     const config = makeBalanceWithTwoGens();
@@ -245,6 +266,35 @@ function addTimerGenOnField(state: GameSnapshot): void {
   } satisfies GeneratorEntity;
 }
 
+function withAutoQuestScoringV2<T>(fn: () => T): T {
+  const oldVitest = process.env.VITEST;
+  const oldNodeEnv = process.env.NODE_ENV;
+  const oldFlag = process.env.AUTO_QUEST_SCORING_V2;
+  const oldNavigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  process.env.VITEST = 'false';
+  process.env.NODE_ENV = 'development';
+  process.env.AUTO_QUEST_SCORING_V2 = '1';
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: 'node' },
+    configurable: true,
+  });
+  try {
+    return fn();
+  } finally {
+    if (oldVitest === undefined) delete process.env.VITEST;
+    else process.env.VITEST = oldVitest;
+    if (oldNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = oldNodeEnv;
+    if (oldFlag === undefined) delete process.env.AUTO_QUEST_SCORING_V2;
+    else process.env.AUTO_QUEST_SCORING_V2 = oldFlag;
+    if (oldNavigatorDescriptor) {
+      Object.defineProperty(globalThis, 'navigator', oldNavigatorDescriptor);
+    } else {
+      Reflect.deleteProperty(globalThis, 'navigator');
+    }
+  }
+}
+
 describe('generateAutoTask — Flower Pot scoring', () => {
   it('scores timer-mode generator with 8-tick window formula', () => {
     const config = makeBalanceWithTimerGen();
@@ -274,6 +324,58 @@ describe('generateAutoTask — Flower Pot scoring', () => {
     const creatures = new Set(timerRows.map((e) => e.creatureType));
     expect(creatures.has('Creature5')).toBe(true);
     expect(creatures.has('Creature7')).toBe(true);
+  });
+});
+
+describe('generateAutoTask v2 — Flower Pot difficulty windows', () => {
+  it('difficulty 1 uses 0 FP ticks and keeps an on-board FP pick instead of rerunning as difficulty 2', () => {
+    withAutoQuestScoringV2(() => {
+      const config = makeBalanceWithTimerGen();
+      const state = makeSnapshotWithGen1OnField();
+      state.grid = createGrid(5, 5);
+      state.entities = {};
+      state.grid.cells[0] = 'fp1';
+      state.entities.fp1 = {
+        id: 'fp1',
+        kind: 'generator',
+        generatorId: 3,
+        level: 1,
+        charges: [],
+      } satisfies GeneratorEntity;
+      state.grid.cells[1] = 'c5';
+      state.entities.c5 = {
+        id: 'c5',
+        kind: 'creature',
+        creatureType: 'Creature5',
+        level: 1,
+      } satisfies CreatureEntity;
+      state.autoTaskLineCompletions = {};
+      state.meatButtonPresses = 0;
+      state.meatPressesAtLastFP = 0;
+
+      const task = generateAutoTask(config, state, new SeededRng(1));
+
+      expect(task.difficulty).toBe(1);
+      expect(task.debugOriginalDifficulty).toBe(1);
+      expect(task.debugDifficultyRerun).toBeUndefined();
+      expect(task.creatures).toEqual([{ type: 'Creature5', level: 1, count: 1 }]);
+      expect(task.debugAutoQuestSelectedRows?.[0]?.spawnL1Capacity).toBe(0);
+    });
+  });
+
+  it('keeps v2 debug payload compact and out of the full runtime task state', () => {
+    withAutoQuestScoringV2(() => {
+      const state = makeSnapshotWithGen1OnField();
+
+      const task = generateAutoTask(BALANCE, state, new SeededRng(1));
+
+      expect(task.debugAutoQuestScoringRows).toBeUndefined();
+      expect(task.debugScoringTable).toBeUndefined();
+      expect(task.debugAutoQuestSelectedRows?.length).toBe(task.creatures.length);
+      expect(task.debugAutoQuestDecision?.rowCount).toBeGreaterThan(task.debugAutoQuestDecision!.rowLimit);
+      expect(task.debugAutoQuestDecision?.topAllowedRows.length).toBeLessThanOrEqual(task.debugAutoQuestDecision!.rowLimit);
+      expect(task.debugAutoQuestDecision?.topRejectedRows.length).toBeLessThanOrEqual(task.debugAutoQuestDecision!.rowLimit);
+    });
   });
 });
 
@@ -410,6 +512,10 @@ describe('isFPTask', () => {
     expect(isFPTask(makeTask(3), config)).toBe(true);
   });
 
+  it('returns true when any pickedGenIds entry points at a timer generator', () => {
+    expect(isFPTask({ ...makeTask(1), pickedGenIds: [1, 3] }, config)).toBe(true);
+  });
+
   it('returns false when pickedGenId points at a sacrifice generator', () => {
     expect(isFPTask(makeTask(1), config)).toBe(false);
   });
@@ -442,6 +548,23 @@ describe('applyFPCounterUpdate', () => {
     expect(update!.meatPressesAtLastFP).toBe(17);
     // bumps KL3 to 2, KL2 untouched
     expect(update!.fpQuestsByKrakenLevel).toEqual({ 2: 1, 3: 2 });
+  });
+
+  it('returns one counter update when a dual task includes FP only in pickedGenIds', () => {
+    const state = makeSnapshotWithGen1OnField();
+    state.meatButtonPresses = 21;
+    state.kraken.level = 4;
+    state.fpQuestsByKrakenLevel = { 4: 1 };
+
+    const task = {
+      ...makeTask(1),
+      pickedGenIds: [1, 3],
+    };
+    const update = applyFPCounterUpdate(task, state, config);
+
+    expect(update).not.toBeNull();
+    expect(update!.meatPressesAtLastFP).toBe(21);
+    expect(update!.fpQuestsByKrakenLevel).toEqual({ 4: 2 });
   });
 
   it('returns null when task is non-FP (pickedGenId points at sacrifice gen)', () => {

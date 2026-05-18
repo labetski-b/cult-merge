@@ -1,9 +1,15 @@
 import type { BalanceConfig, TimerLevelConfig } from '@data/schemas';
-import type { CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
+import type { AutoQuestDifficultyRerunDebug, AutoQuestScoringDecisionDebug, AutoQuestScoringDebugRow, CreatureEntity, Entity, FedCreature, GameSnapshot, GeneratorEntity, RecentAutoQuestHistoryEntry, ScoringTableEntry, TaskDefinition, TaskRequirement } from '@domain/types';
 import type { SeededRng } from '@infra/rng';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import { canUpgradeGenerator } from '@domain/upgrades';
+import {
+  buildAutoQuestScoringTable,
+  getAutoQuestBudgetContext,
+  type AutoQuestScoringResult,
+  type AutoQuestScoringRow,
+} from '@domain/autoQuestScoring';
 
 type CreatureRequirement = { type: string; level: number; count: number };
 
@@ -96,14 +102,166 @@ export function selectCreaturesForTask(task: TaskDefinition, creatures: Creature
 // ─── Auto-task generation (Scoring Table algorithm) ─────────────────────────
 
 const DEFAULT_AUTO_CONFIG = {
-  difficultyFlow: [1, 1, 2, 2, 3, 4, 2, 5],
-  difficultySacMap: [0, 0, 0.8, 1.2, 1.7, 2.0],  // index = difficulty level
+  difficultyFlow: [1, 1, 2, 2, 3, 2, 4, 2, 5],
+  difficultySacMap: [0, 0, 0.5, 0.8, 1, 2],  // index = difficulty level
   // Legacy config name kept for JSON compatibility: this still means
   // "dual-requirement auto task", not a Kraken quest.
   dualQuestProbability: 0.5,
   dualBudgetSplit: [0.7, 0.3] as [number, number],
+  fpAutoQuest: {
+    sacrificesRequired: 5,
+    questsPerKrakenLevelLimit: 2,
+    expectedTicksByDifficulty: [
+      [1, 0],
+      [2, 2],
+      [3, 4],
+      [4, 8],
+      [5, 8],
+    ] as [number, number][],
+  },
   eyePerMeat: null as [number, number][] | null,
 };
+
+interface ResolvedFPAutoQuestConfig {
+  sacrificesRequired: number;
+  questsPerKrakenLevelLimit: number;
+  expectedTicksByDifficulty: [number, number][];
+}
+
+function getFPAutoQuestConfig(config: BalanceConfig): ResolvedFPAutoQuestConfig {
+  const raw = config.tasks.autoConfig?.fpAutoQuest;
+  return {
+    sacrificesRequired: raw?.sacrificesRequired ?? DEFAULT_AUTO_CONFIG.fpAutoQuest.sacrificesRequired,
+    questsPerKrakenLevelLimit: raw?.questsPerKrakenLevelLimit ?? DEFAULT_AUTO_CONFIG.fpAutoQuest.questsPerKrakenLevelLimit,
+    expectedTicksByDifficulty: raw?.expectedTicksByDifficulty ?? DEFAULT_AUTO_CONFIG.fpAutoQuest.expectedTicksByDifficulty,
+  };
+}
+
+function getFPExpectedTicksForDifficulty(
+  fpConfig: ResolvedFPAutoQuestConfig,
+  difficulty: number,
+): number {
+  let expectedTicks = DEFAULT_AUTO_CONFIG.fpAutoQuest.expectedTicksByDifficulty[0]?.[1] ?? 0;
+  for (const [minDifficulty, ticks] of fpConfig.expectedTicksByDifficulty) {
+    if (difficulty >= minDifficulty) expectedTicks = ticks;
+  }
+  return Math.max(0, expectedTicks);
+}
+
+const DIFFICULTY_ONE_REROLL_DIFFICULTY = 2;
+const DIFFICULTY_ONE_MIN_GENERATOR_SPAWNS = 3;
+const RECENT_AUTO_QUEST_HISTORY_LIMIT = 24;
+const AUTO_QUEST_DECISION_ROW_LIMIT = 12;
+
+function getMeatBudgetForDifficulty(
+  difficulty: number,
+  difficultySacMap: number[],
+  meatDrop: number,
+): number {
+  return (difficultySacMap[difficulty] ?? 0) * meatDrop;
+}
+
+function shouldRerunDifficultyOneAsDifficultyTwo(
+  config: BalanceConfig,
+  pick: Pick<ScoringEntry, 'genId' | 'genLevel' | 'creatureType'>,
+  questRequiredL1: number,
+): boolean {
+  const tenSpawnL1 = getTenSpawnL1ForScoringPick(config, pick);
+  return Number.isFinite(questRequiredL1) && questRequiredL1 < tenSpawnL1;
+}
+
+function getTenSpawnL1ForScoringPick(
+  config: BalanceConfig,
+  pick: Pick<ScoringEntry, 'genId' | 'genLevel' | 'creatureType'>,
+): number {
+  const generator = config.generators.generators.find((g) => g.id === pick.genId);
+  const levelConfig = generator?.levels.find((level) => level.level === pick.genLevel);
+  if (!levelConfig) return 0;
+
+  const l1PerSpawn = levelConfig.outputs
+    .filter((output) => output.creatureType === pick.creatureType)
+    .reduce((sum, output) => sum + output.chance * Math.pow(2, output.level - 1), 0);
+  return l1PerSpawn * DIFFICULTY_ONE_MIN_GENERATOR_SPAWNS;
+}
+
+function isAutoQuestScoringV2Enabled(): boolean {
+  const maybeProcess = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+    localStorage?: Storage;
+    document?: Document;
+    navigator?: Navigator;
+  };
+  if (maybeProcess.process?.env?.VITEST === 'true' || maybeProcess.process?.env?.NODE_ENV === 'test') return false;
+  if (maybeProcess.navigator?.userAgent.toLowerCase().includes('jsdom')) return false;
+  if (maybeProcess.process?.env?.AUTO_QUEST_SCORING_V2 === '1') return true;
+  if (maybeProcess.process?.env?.AUTO_QUEST_SCORING_V2 === '0') return false;
+  try {
+    const browserFlag = maybeProcess.localStorage?.getItem('cult-merge-autoquest-scoring-v2-enabled');
+    if (browserFlag === '1') return true;
+    if (browserFlag === '0') return false;
+  } catch {
+    // Ignore storage errors and fall through to the browser default.
+  }
+  return maybeProcess.document !== undefined;
+}
+
+function getAutoQuestScoringV2RuntimeConfig(): {
+  weights?: Parameters<typeof buildAutoQuestScoringTable>[2]['weights'];
+  freshnessHorizon?: number;
+  levelWindowBelowSeenMax?: number;
+  lineExposureTarget?: number;
+  secondaryLineExposureMultiplier?: number;
+} {
+  const maybeProcess = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+    localStorage?: Storage;
+  };
+  const raw = maybeProcess.process?.env?.AUTO_QUEST_SCORING_CONFIG_JSON;
+  let rawConfig = raw;
+  if (!rawConfig) {
+    try {
+      rawConfig = maybeProcess.localStorage?.getItem('cult-merge-autoquest-scoring-test-config-v1') ?? undefined;
+    } catch {
+      rawConfig = undefined;
+    }
+  }
+  if (!rawConfig) return {};
+  try {
+    const parsed = JSON.parse(rawConfig) as {
+      weights?: Parameters<typeof buildAutoQuestScoringTable>[2]['weights'];
+      freshnessHorizon?: number;
+      levelWindowBelowSeenMax?: number;
+      lineExposureTarget?: number;
+      secondaryLineExposureMultiplier?: number;
+    };
+    return {
+      weights: parsed.weights,
+      freshnessHorizon: parsed.freshnessHorizon,
+      levelWindowBelowSeenMax: parsed.levelWindowBelowSeenMax,
+      lineExposureTarget: parsed.lineExposureTarget,
+      secondaryLineExposureMultiplier: parsed.secondaryLineExposureMultiplier,
+    };
+  } catch {
+    return {};
+  }
+}
+
+export function appendRecentAutoQuestHistory(
+  history: RecentAutoQuestHistoryEntry[] | undefined,
+  task: Pick<TaskDefinition, 'creatures'>,
+  limit = RECENT_AUTO_QUEST_HISTORY_LIMIT,
+): RecentAutoQuestHistoryEntry[] {
+  const previous = history ?? [];
+  const lastSequence = previous.reduce((max, entry) => Math.max(max, entry.sequence), 0);
+  const next = [
+    ...previous,
+    {
+      sequence: lastSequence + 1,
+      creatures: task.creatures.map((requirement) => ({ ...requirement })),
+    },
+  ];
+  return next.slice(-Math.max(1, limit));
+}
 
 /** How many L1-equivalents of `creatureType` a generator produces per charge. */
 export function getExpectedL1PerCharge(
@@ -383,7 +541,8 @@ function pickWithFPGate(
 }
 
 export function isFPTask(task: TaskDefinition, config: BalanceConfig): boolean {
-  return task.pickedGenId !== undefined && isFPGenerator(task.pickedGenId, config);
+  const pickedGenIds = task.pickedGenIds ?? (task.pickedGenId !== undefined ? [task.pickedGenId] : []);
+  return pickedGenIds.some((genId) => isFPGenerator(genId, config));
 }
 
 /**
@@ -481,11 +640,295 @@ export function buildL1PerMeatLookup(
   return buildScoringTable(config, state, 0, gridCap, fieldL1Map).collapsed;
 }
 
+function computeEyeRewardFromScoringRows(
+  config: BalanceConfig,
+  state: GameSnapshot,
+  rows: AutoQuestScoringRow[],
+): { eyeReward: number; meatCost: number } | undefined {
+  const eyePerMeat = config.tasks.autoConfig?.eyePerMeat ?? null;
+  if (!eyePerMeat) return undefined;
+
+  const chapter = getCurrentChapter(config, state.resources.eyes);
+  let rate = eyePerMeat[0]?.[1] ?? 0;
+  for (const [ch, value] of eyePerMeat) {
+    if (chapter.chapter >= ch) rate = value;
+  }
+
+  const meatCost = rows.reduce((sum, row) => sum + row.estimatedMeatCost, 0);
+  return { eyeReward: Math.floor(meatCost * rate), meatCost };
+}
+
+function toAutoQuestScoringDebugRow(row: AutoQuestScoringRow): AutoQuestScoringDebugRow {
+  return {
+    slot: row.slot,
+    genId: row.genId,
+    genLevel: row.genLevel,
+    creatureType: row.creatureType,
+    level: row.level,
+    count: row.count,
+    boardCellCap: row.boardCellCap,
+    requiredL1: row.requiredL1,
+    l1PerCharge: row.l1PerCharge,
+    l1PerMeat: row.l1PerMeat,
+    meatBudget: row.meatBudget,
+    seenMaxLevel: row.seenMaxLevel,
+    playerLevelCap: row.playerLevelCap,
+    levelDistanceFromCap: row.levelDistanceFromCap,
+    levelDistanceFromSeenMax: row.levelDistanceFromSeenMax,
+    maxAllowedCount: row.maxAllowedCount,
+    spawnL1Capacity: row.spawnL1Capacity,
+    fieldL1: row.fieldL1,
+    totalL1Capacity: row.totalL1Capacity,
+    estimatedMeatCost: row.estimatedMeatCost,
+    lineUnlockOrder: row.lineUnlockOrder,
+    lineNoveltyScore: row.lineNoveltyScore,
+    lineLastSeenAgo: row.lineLastSeenAgo,
+    lineFreshnessScore: row.lineFreshnessScore,
+    questLastSeenAgo: row.questLastSeenAgo,
+    questFreshnessScore: row.questFreshnessScore,
+    budgetUseScore: row.budgetUseScore,
+    lineCompletions: row.lineCompletions,
+    lineExposureScore: row.lineExposureScore,
+    lineExposureRoleMultiplier: row.lineExposureRoleMultiplier,
+    fieldSupportScore: row.fieldSupportScore,
+    levelScore: row.levelScore,
+    weightedContributions: { ...row.weightedContributions },
+    score: row.score,
+    forbiddenReasons: [...row.forbiddenReasons],
+  };
+}
+
+function buildAutoQuestDecisionDebug(
+  tables: AutoQuestScoringResult[],
+  selectedRows: AutoQuestScoringRow[],
+  rowLimit = AUTO_QUEST_DECISION_ROW_LIMIT,
+): AutoQuestScoringDecisionDebug {
+  const allRows = tables.flatMap((table) => table.rows);
+  const allowedRows = allRows.filter((row) => row.forbiddenReasons.length === 0);
+  const rejectedRows = allRows.filter((row) => row.forbiddenReasons.length > 0);
+  const reasonCounts = new Map<string, number>();
+
+  for (const row of rejectedRows) {
+    for (const reason of row.forbiddenReasons) {
+      reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
+    }
+  }
+
+  return {
+    rowCount: allRows.length,
+    allowedRowCount: allowedRows.length,
+    rejectedRowCount: rejectedRows.length,
+    rowLimit,
+    contexts: tables.map((table) => ({ ...table.context })),
+    selectedRows: selectedRows.map(toAutoQuestScoringDebugRow),
+    topAllowedRows: allowedRows.slice(0, rowLimit).map(toAutoQuestScoringDebugRow),
+    topRejectedRows: rejectedRows.slice(0, rowLimit).map(toAutoQuestScoringDebugRow),
+    rejectedReasonCounts: [...reasonCounts.entries()]
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
+  };
+}
+
+function makeTaskFromScoringRows(
+  config: BalanceConfig,
+  state: GameSnapshot,
+  rng: SeededRng,
+  rows: AutoQuestScoringRow[],
+  difficulty: number,
+  meatBudget: number,
+  debugTables: AutoQuestScoringResult[],
+  originalDifficulty = difficulty,
+  difficultyRerun?: AutoQuestDifficultyRerunDebug,
+): TaskDefinition {
+  const reward = computeEyeRewardFromScoringRows(config, state, rows);
+  const pickedGenIds = [...new Set(rows.map((row) => row.genId))];
+  const selectedDebugRows = rows.map(toAutoQuestScoringDebugRow);
+  return {
+    id: makeTaskId(rng),
+    creatures: rows.map((row) => ({
+      type: row.creatureType,
+      level: row.level,
+      count: row.count,
+    })),
+    expMultiplier: 0,
+    resMultiplier: 2,
+    eyeReward: reward?.eyeReward,
+    difficulty,
+    debugOriginalDifficulty: originalDifficulty,
+    debugDifficultyRerun: difficultyRerun,
+    debugMeatBudget: meatBudget,
+    debugMeatCost: reward?.meatCost,
+    debugAutoQuestSelectedRows: selectedDebugRows,
+    debugAutoQuestDecision: buildAutoQuestDecisionDebug(debugTables, rows),
+    pickedGenId: rows[0]?.genId,
+    pickedGenIds,
+  };
+}
+
+function generateAutoTaskV2(
+  config: BalanceConfig,
+  state: GameSnapshot,
+  rng: SeededRng,
+): TaskDefinition {
+  const runtimeConfig = getAutoQuestScoringV2RuntimeConfig();
+  const autoConfig = config.tasks.autoConfig ?? DEFAULT_AUTO_CONFIG;
+  const dualQuestProbability = autoConfig.dualQuestProbability ?? DEFAULT_AUTO_CONFIG.dualQuestProbability;
+  const dualBudgetSplit = autoConfig.dualBudgetSplit ?? DEFAULT_AUTO_CONFIG.dualBudgetSplit;
+  const difficultySacMap = autoConfig.difficultySacMap ?? DEFAULT_AUTO_CONFIG.difficultySacMap;
+  const fpConfig = getFPAutoQuestConfig(config);
+  const fpGate = {
+    sacrificesRequired: fpConfig.sacrificesRequired,
+    questsPerKrakenLevelLimit: fpConfig.questsPerKrakenLevelLimit,
+  };
+  let { difficulty, meatBudget } = getAutoQuestBudgetContext(config, state);
+  const originalDifficulty = difficulty;
+  let difficultyRerun: AutoQuestDifficultyRerunDebug | undefined;
+  let fpExpectedTicks = getFPExpectedTicksForDifficulty(fpConfig, difficulty);
+  let isDual = difficulty >= 2 && rng.next() < dualQuestProbability;
+
+  let mainBudget = isDual ? meatBudget * dualBudgetSplit[0] : meatBudget;
+  let main = buildAutoQuestScoringTable(config, state, {
+    slot: 'main',
+    meatBudget: mainBudget,
+    previousTask: state.currentAutoTask,
+    history: state.recentAutoQuestHistory ?? [],
+    weights: runtimeConfig.weights,
+    freshnessHorizon: runtimeConfig.freshnessHorizon,
+    levelWindowBelowSeenMax: runtimeConfig.levelWindowBelowSeenMax,
+    lineExposureTarget: runtimeConfig.lineExposureTarget,
+    secondaryLineExposureMultiplier: runtimeConfig.secondaryLineExposureMultiplier,
+    fpExpectedTicks,
+    fpGate,
+  });
+  let mainPick = main.selected;
+
+  const shouldRerunMainPick = mainPick
+    ? !isFPGenerator(mainPick.genId, config) && shouldRerunDifficultyOneAsDifficultyTwo(config, mainPick, mainPick.requiredL1)
+    : true;
+  if (
+    difficulty === 1 &&
+    shouldRerunMainPick
+  ) {
+    if (mainPick) {
+      difficultyRerun = {
+        fromDifficulty: difficulty,
+        toDifficulty: DIFFICULTY_ONE_REROLL_DIFFICULTY,
+        creatureType: mainPick.creatureType,
+        level: mainPick.level,
+        count: mainPick.count,
+        genId: mainPick.genId,
+        genLevel: mainPick.genLevel,
+        requiredL1: mainPick.requiredL1,
+        tenSpawnL1: getTenSpawnL1ForScoringPick(config, mainPick),
+      };
+    }
+    difficulty = DIFFICULTY_ONE_REROLL_DIFFICULTY;
+    meatBudget = getMeatBudgetForDifficulty(
+      difficulty,
+      difficultySacMap,
+      calculateMeatDrop(config, state.resources.eyes),
+    );
+    fpExpectedTicks = getFPExpectedTicksForDifficulty(fpConfig, difficulty);
+    isDual = rng.next() < dualQuestProbability;
+    mainBudget = isDual ? meatBudget * dualBudgetSplit[0] : meatBudget;
+    main = buildAutoQuestScoringTable(config, state, {
+      slot: 'main',
+      meatBudget: mainBudget,
+      previousTask: state.currentAutoTask,
+      history: state.recentAutoQuestHistory ?? [],
+      weights: runtimeConfig.weights,
+      freshnessHorizon: runtimeConfig.freshnessHorizon,
+      levelWindowBelowSeenMax: runtimeConfig.levelWindowBelowSeenMax,
+      lineExposureTarget: runtimeConfig.lineExposureTarget,
+      secondaryLineExposureMultiplier: runtimeConfig.secondaryLineExposureMultiplier,
+      fpExpectedTicks,
+      fpGate,
+    });
+    mainPick = main.selected;
+  }
+
+  if (isDual && mainPick) {
+    const fillerBudget = meatBudget * dualBudgetSplit[1];
+    const filler = buildAutoQuestScoringTable(config, state, {
+      slot: 'filler',
+      meatBudget: fillerBudget,
+      previousTask: state.currentAutoTask,
+      mainPick: { creatureType: mainPick.creatureType },
+      history: state.recentAutoQuestHistory ?? [],
+      weights: runtimeConfig.weights,
+      freshnessHorizon: runtimeConfig.freshnessHorizon,
+      levelWindowBelowSeenMax: runtimeConfig.levelWindowBelowSeenMax,
+      lineExposureTarget: runtimeConfig.lineExposureTarget,
+      secondaryLineExposureMultiplier: runtimeConfig.secondaryLineExposureMultiplier,
+      fpExpectedTicks,
+      fpGate,
+      disallowTimerGenerators: isFPGenerator(mainPick.genId, config),
+    });
+    if (filler.selected) {
+      return makeTaskFromScoringRows(
+        config,
+        state,
+        rng,
+        [mainPick, filler.selected],
+        difficulty,
+        meatBudget,
+        [main, filler],
+        originalDifficulty,
+        difficultyRerun,
+      );
+    }
+  }
+
+  if (mainPick) {
+    return makeTaskFromScoringRows(
+      config,
+      state,
+      rng,
+      [mainPick],
+      difficulty,
+      meatBudget,
+      [main],
+      originalDifficulty,
+      difficultyRerun,
+    );
+  }
+
+  const fallbackReward = computeEyeRewardFromScoringRows(config, state, []);
+  return {
+    id: makeTaskId(rng),
+    creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+    expMultiplier: 0,
+    resMultiplier: 2,
+    eyeReward: fallbackReward?.eyeReward,
+    difficulty,
+    debugOriginalDifficulty: originalDifficulty,
+    debugDifficultyRerun: difficultyRerun,
+    debugMeatBudget: meatBudget,
+    debugMeatCost: fallbackReward?.meatCost,
+    debugAutoQuestSelectedRows: [],
+    debugAutoQuestDecision: {
+      rowCount: 0,
+      allowedRowCount: 0,
+      rejectedRowCount: 0,
+      rowLimit: AUTO_QUEST_DECISION_ROW_LIMIT,
+      contexts: [],
+      selectedRows: [],
+      topAllowedRows: [],
+      topRejectedRows: [],
+      rejectedReasonCounts: [],
+    },
+  };
+}
+
 export function generateAutoTask(
   config: BalanceConfig,
   state: GameSnapshot,
   rng: SeededRng
 ): TaskDefinition {
+  if (isAutoQuestScoringV2Enabled()) {
+    return generateAutoTaskV2(config, state, rng);
+  }
+
   const autoConfig = config.tasks.autoConfig ?? DEFAULT_AUTO_CONFIG;
   const dualQuestProbability = autoConfig.dualQuestProbability ?? DEFAULT_AUTO_CONFIG.dualQuestProbability;
   const difficultyFlow = autoConfig.difficultyFlow ?? DEFAULT_AUTO_CONFIG.difficultyFlow;
@@ -521,9 +964,10 @@ export function generateAutoTask(
   const totalCompleted = Object.values(state.autoTaskLineCompletions).reduce((a, b) => a + b, 0);
 
   const diffIdx = totalCompleted % difficultyFlow.length;
-  const difficulty = difficultyFlow[diffIdx]!;
-  const sacBudget = difficultySacMap[difficulty] ?? 0;
-  const meatBudget = sacBudget * meatDrop;
+  let difficulty = difficultyFlow[diffIdx]!;
+  const originalDifficulty = difficulty;
+  let difficultyRerun: AutoQuestDifficultyRerunDebug | undefined;
+  let meatBudget = getMeatBudgetForDifficulty(difficulty, difficultySacMap, meatDrop);
 
   const prev = state.currentAutoTask;
 
@@ -532,7 +976,7 @@ export function generateAutoTask(
 
   // ─── PHASE 2: SCORING TABLE ──────────────────────────────────────────────
 
-  const { collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
+  let { collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map);
 
   if (scoringTable.length === 0) {
     const fallbackReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
@@ -543,6 +987,8 @@ export function generateAutoTask(
       resMultiplier: 2,
       eyeReward: fallbackReward?.eyeReward,
       difficulty,
+      debugOriginalDifficulty: originalDifficulty,
+      debugDifficultyRerun: difficultyRerun,
       debugMeatBudget: meatBudget,
       debugMeatCost: fallbackReward?.meatCost,
       debugScoringTable: [],
@@ -552,7 +998,7 @@ export function generateAutoTask(
   // ─── DIFFICULTY = 1 (weighted pick from scoring table) ─────────────────
 
   if (difficulty === 1) {
-    const pick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map);
+    const pick = pickWithFPGate(scoringTable, rng.clone(), state, config, fieldL1Map);
     if (!pick) {
       // Defensive: scoringTable.length > 0 was just checked, so this shouldn't happen.
       const fallbackReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
@@ -563,6 +1009,7 @@ export function generateAutoTask(
         resMultiplier: 2,
         eyeReward: fallbackReward?.eyeReward,
         difficulty: 1,
+        debugOriginalDifficulty: originalDifficulty,
         debugMeatBudget: meatBudget,
         debugMeatCost: fallbackReward?.meatCost,
         debugScoringTable: [],
@@ -576,20 +1023,64 @@ export function generateAutoTask(
     // Level-repeat guard: avoid same creature+level as last completed task
     if (lastLevel === pickLevel) pickLevel = Math.max(1, pickLevel - 1);
 
-    const reward = computeReward([{ type: pick.creatureType, level: pickLevel, count: 1 }], l1PerMeatLookup);
-    return {
-      id: makeTaskId(rng),
-      creatures: [{ type: pick.creatureType, level: pickLevel, count: 1 }],
-      expMultiplier: 0,
-      resMultiplier: 2,
-      eyeReward: reward?.eyeReward,
-      difficulty: 1,
-      debugMeatBudget: meatBudget,
-      debugMeatCost: reward?.meatCost,
-      debugScoringTable: scoringRaw,
-      debugCollapsed: scoringTable,
-      pickedGenId: pick.genId,
-    };
+    const difficultyOneRequiredL1 = Math.pow(2, pickLevel - 1);
+    if (shouldRerunDifficultyOneAsDifficultyTwo(config, pick, difficultyOneRequiredL1)) {
+      difficultyRerun = {
+        fromDifficulty: difficulty,
+        toDifficulty: DIFFICULTY_ONE_REROLL_DIFFICULTY,
+        creatureType: pick.creatureType,
+        level: pickLevel,
+        count: 1,
+        genId: pick.genId,
+        genLevel: pick.genLevel,
+        requiredL1: difficultyOneRequiredL1,
+        tenSpawnL1: getTenSpawnL1ForScoringPick(config, pick),
+      };
+      difficulty = DIFFICULTY_ONE_REROLL_DIFFICULTY;
+      meatBudget = getMeatBudgetForDifficulty(difficulty, difficultySacMap, meatDrop);
+      ({ collapsed: scoringTable, raw: scoringRaw } = buildScoringTable(config, state, meatBudget, gridCap, fieldL1Map));
+
+      if (scoringTable.length === 0) {
+        const fallbackReward = computeReward([{ type: 'Creature1', level: 1, count: 1 }], l1PerMeatLookup);
+        return {
+          id: makeTaskId(rng),
+          creatures: [{ type: 'Creature1', level: 1, count: 1 }],
+          expMultiplier: 0,
+          resMultiplier: 2,
+          eyeReward: fallbackReward?.eyeReward,
+          difficulty,
+          debugOriginalDifficulty: originalDifficulty,
+          debugDifficultyRerun: difficultyRerun,
+          debugMeatBudget: meatBudget,
+          debugMeatCost: fallbackReward?.meatCost,
+          debugScoringTable: [],
+        };
+      }
+    } else {
+      const finalPick = pickWithFPGate(scoringTable, rng, state, config, fieldL1Map) ?? pick;
+      let finalPickLevel = finalPick.targetLevel;
+      const finalLastLevel = state.autoTaskLastLevels[finalPick.creatureType];
+      if (finalLastLevel !== undefined && finalPickLevel > finalLastLevel + 1) {
+        finalPickLevel = finalLastLevel + 1;
+      }
+      if (finalLastLevel === finalPickLevel) finalPickLevel = Math.max(1, finalPickLevel - 1);
+
+      const reward = computeReward([{ type: finalPick.creatureType, level: finalPickLevel, count: 1 }], l1PerMeatLookup);
+      return {
+        id: makeTaskId(rng),
+        creatures: [{ type: finalPick.creatureType, level: finalPickLevel, count: 1 }],
+        expMultiplier: 0,
+        resMultiplier: 2,
+        eyeReward: reward?.eyeReward,
+        difficulty: 1,
+        debugOriginalDifficulty: originalDifficulty,
+        debugMeatBudget: meatBudget,
+        debugMeatCost: reward?.meatCost,
+        debugScoringTable: scoringRaw,
+        debugCollapsed: scoringTable,
+        pickedGenId: finalPick.genId,
+      };
+    }
   }
 
   // ─── SINGLE vs DUAL DECISION ───────────────────────────────────────────
@@ -661,6 +1152,8 @@ export function generateAutoTask(
           resMultiplier: 2,
           eyeReward: dualReward?.eyeReward,
           difficulty,
+          debugOriginalDifficulty: originalDifficulty,
+          debugDifficultyRerun: difficultyRerun,
           debugMeatBudget: meatBudget,
           debugMeatCost: dualReward?.meatCost,
           debugScoringTable: scoringRaw,
@@ -702,6 +1195,8 @@ export function generateAutoTask(
         resMultiplier: 2,
         eyeReward: singleReward?.eyeReward,
         difficulty,
+        debugOriginalDifficulty: originalDifficulty,
+        debugDifficultyRerun: difficultyRerun,
         debugMeatBudget: meatBudget,
         debugMeatCost: singleReward?.meatCost,
         debugScoringTable: scoringRaw,
@@ -720,6 +1215,8 @@ export function generateAutoTask(
     resMultiplier: 2,
     eyeReward: finalReward?.eyeReward,
     difficulty,
+    debugOriginalDifficulty: originalDifficulty,
+    debugDifficultyRerun: difficultyRerun,
     debugMeatBudget: meatBudget,
     debugMeatCost: finalReward?.meatCost,
     debugScoringTable: scoringRaw,

@@ -85,7 +85,14 @@ export function advanceTime(
         // free neighbor exists the slot still clears (the spawn is
         // dropped) so the engine invariant I1 holds and the next quest
         // step can proceed.
-        resolveFp(next, proc.entityId, proc.generatorId, config, rng);
+        const spawned = resolveFp(next, proc.entityId, proc.generatorId, config, rng);
+        if (spawned) {
+          events.push({
+            type: 'generator_spawned',
+            creatureType: spawned.creatureType,
+            level: spawned.level,
+          });
+        }
         events.push({ type: 'fp_completed' });
       }
     }
@@ -145,18 +152,18 @@ function resolveFp(
   generatorId: number,
   config: BalanceConfig,
   engineRng?: SeededRng,
-): void {
+): { creatureType: string; level: number } | null {
   const entity = next.entities[entityId];
-  if (!entity || entity.kind !== 'generator') return;
+  if (!entity || entity.kind !== 'generator') return null;
   const gen = entity as GeneratorEntity;
 
   const cfg = config.generators.generators.find((g) => g.id === generatorId);
-  if (!cfg || cfg.spawnMode !== 'timer') return;
+  if (!cfg || cfg.spawnMode !== 'timer') return null;
   const levelConfig = cfg.levels.find((l) => l.level === gen.level) ?? cfg.levels[0];
-  if (!levelConfig) return;
+  if (!levelConfig) return null;
 
   const cellIdx = findEntityCell(next.grid, gen.id);
-  if (cellIdx < 0) return;
+  if (cellIdx < 0) return null;
 
   // In simulator calls, use the engine RNG channel so FP-spawn ids cannot
   // collide with ids produced by other simulation actions. Direct domain tests
@@ -171,7 +178,7 @@ function resolveFp(
     // matches across runs that stage the same FP resolution under different
     // grid pressure.
     next.rngState = rng.getState();
-    return;
+    return null;
   }
 
   const creatureId = nextUniqueEntityId(rng, next);
@@ -191,11 +198,19 @@ function resolveFp(
   next.cumulativeStats = {
     ...next.cumulativeStats,
     totalSpawns: next.cumulativeStats.totalSpawns + 1,
+    maxCreatureLevelByType: {
+      ...next.cumulativeStats.maxCreatureLevelByType,
+      [creature.creatureType]: Math.max(
+        next.cumulativeStats.maxCreatureLevelByType[creature.creatureType] ?? 0,
+        creature.level,
+      ),
+    },
   };
   next.spawnCountByGen = {
     ...next.spawnCountByGen,
     [generatorId]: (next.spawnCountByGen[generatorId] ?? 0) + 1,
   };
+  return { creatureType: creature.creatureType, level: creature.level };
 }
 
 function nextUniqueEntityId(rng: SeededRng, state: GameSnapshot): string {

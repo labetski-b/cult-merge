@@ -40,6 +40,7 @@ function pickSnapshot(input: GameSnapshot): GameSnapshot {
     lastAutoTaskLine: input.lastAutoTaskLine,
     autoTaskLineCompletions: input.autoTaskLineCompletions,
     autoTaskLastLevels: input.autoTaskLastLevels,
+    recentAutoQuestHistory: input.recentAutoQuestHistory,
     session: input.session,
     meatButtonPresses: input.meatButtonPresses,
     meatPressesAtLastFP: input.meatPressesAtLastFP,

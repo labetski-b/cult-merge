@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-density="compact">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto Quest Scoring Debug - CULT.MERGE</title>
+  <link rel="stylesheet" href="design-system/tokens.css" />
+  <link rel="stylesheet" href="design-system/components.css" />
+  <style>
+    body {
+      margin: 0;
+      background: var(--surface-0);
+      color: var(--text-primary);
+      font-family: var(--font-base, system-ui, -apple-system, "Segoe UI", sans-serif);
+      font-size: var(--fs-body, 14px);
+    }
+    .page {
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-default);
+    }
+    h1 {
+      margin: 0;
+      font-size: var(--fs-h2, 20px);
+      font-weight: 650;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .controls {
+      position: sticky;
+      top: 12px;
+      max-height: calc(100vh - 24px);
+      overflow: auto;
+      padding: 14px;
+    }
+    .controls h2 {
+      margin: 16px 0 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .controls h2:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .field label {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .formula {
+      padding: 9px 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .formula code {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      white-space: normal;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    textarea.cm-textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .status-line {
+      margin-top: 8px;
+      min-height: 16px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      padding: 10px 12px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+    }
+    .metric-label {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .metric-value {
+      margin-top: 4px;
+      font-family: var(--font-mono, monospace);
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    .section {
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-weight: 650;
+    }
+    .section-sub {
+      color: var(--text-tertiary);
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+    }
+    .selected {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-default);
+      color: var(--text-secondary);
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+    }
+    .pill strong { color: var(--text-primary); }
+    .reason-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 10px;
+    }
+    .reason-summary .pill {
+      color: var(--text-tertiary);
+    }
+    .breakdown {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(108px, max-content));
+      gap: 6px;
+      margin: 0 0 10px;
+      align-items: stretch;
+    }
+    .breakdown-item {
+      padding: 6px 8px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+    }
+    .breakdown-label {
+      color: var(--text-tertiary);
+    }
+    .breakdown-value {
+      margin-top: 2px;
+      color: var(--text-primary);
+      font-weight: 650;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      max-height: 62vh;
+      width: max-content;
+      max-width: 100%;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: max-content;
+      table-layout: fixed;
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+    col.c-state { width: 78px; }
+    col.c-score { width: 64px; }
+    col.c-quest { width: 72px; }
+    col.c-gen { width: 58px; }
+    col.c-cells { width: 58px; }
+    col.c-l1 { width: 66px; }
+    col.c-comp { width: 58px; }
+    th,
+    td {
+      padding: 4px 7px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-weight: 650;
+      cursor: help;
+      line-height: 1.12;
+      white-space: normal;
+    }
+    td.left,
+    th.left { text-align: left; }
+    tr.is-filtered td {
+      color: var(--text-tertiary);
+      background: color-mix(in srgb, var(--surface-1) 72%, transparent);
+    }
+    .reason {
+      color: var(--danger, #ef4444);
+      text-align: left;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ok {
+      color: var(--success, #22c55e);
+      text-align: left;
+    }
+    .empty {
+      color: var(--text-tertiary);
+      padding: 16px;
+      border: 1px dashed var(--border-default);
+      border-radius: var(--radius-md);
+    }
+    .debug-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-default);
+    }
+    .debug-tab {
+      appearance: none;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 8px 10px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .debug-tab[aria-selected="true"] {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent, #60a5fa);
+    }
+    .tab-panel.hidden {
+      display: none;
+    }
+    .sequence-table .c-num { width: 44px; }
+    .sequence-table .c-kind { width: 24px; }
+    .sequence-table .c-small { width: 29px; }
+    .sequence-table .c-quest-wide { width: 180px; }
+    .sequence-table .split-left {
+      border-left: 2px solid var(--border-strong);
+    }
+    .sequence-table th.split-left,
+    .sequence-table td.split-left {
+      padding-left: 10px;
+    }
+    .sequence-table .group-base {
+      border-left: 1px solid var(--border-default);
+      border-right: 1px solid var(--border-default);
+    }
+    .sequence-table .group-experiment {
+      border-left: 2px solid var(--border-strong);
+      border-right: 1px solid var(--border-default);
+    }
+    .sequence-table td.quest-text {
+      white-space: normal;
+      line-height: 1.2;
+    }
+    .sequence-table tr.is-different td {
+      background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+    }
+    .sequence-table .muted-col,
+    .sequence-table .kind-m,
+    .sequence-table .kind-a {
+      color: var(--text-tertiary);
+    }
+    .sequence-table .sequence-group {
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-primary);
+    }
+    .sequence-table thead tr:first-child th {
+      top: 0;
+      z-index: 3;
+    }
+    .sequence-table thead tr:nth-child(2) th {
+      top: 26px;
+      z-index: 2;
+    }
+    .filter-doc-table {
+      width: 100%;
+      min-width: 980px;
+      table-layout: fixed;
+    }
+    .filter-doc-table col.c-code { width: 58px; }
+    .filter-doc-table col.c-count { width: 74px; }
+    .filter-doc-table col.c-filter { width: 180px; }
+    .filter-doc-table col.c-condition { width: 290px; }
+    .filter-doc-table td {
+      white-space: normal;
+      vertical-align: top;
+      line-height: 1.28;
+    }
+    .filter-doc-table .condition {
+      color: var(--text-primary);
+      font-family: var(--font-mono, monospace);
+    }
+    .sequence-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .sequence-note {
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+    .debug-tooltip {
+      position: fixed;
+      z-index: 1000;
+      display: none;
+      max-width: 340px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-strong);
+      background: var(--surface-3);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-lg);
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre-line;
+      pointer-events: none;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .controls { position: static; max-height: none; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <h1>Auto Quest Scoring Debug</h1>
+      <a class="cm-btn cm-btn--ghost" href="simulation.html">Simulation</a>
+    </header>
+
+    <div class="layout">
+      <aside class="cm-card controls">
+        <h2>Snapshot</h2>
+        <div class="field">
+          <label for="snapshot-preset">Preset</label>
+          <select id="snapshot-preset" class="cm-select">
+            <option value="current">Current demo</option>
+            <option value="gen1-l4">Gen1 L4</option>
+            <option value="two-generators">Gen1 L4 + Gen2 L1</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="json-input">Simulation export or GameSnapshot JSON</label>
+          <textarea id="json-input" class="cm-textarea" spellcheck="false"></textarea>
+        </div>
+        <div class="actions">
+          <button id="load-demo" class="cm-btn cm-btn--ghost" type="button">Load preset</button>
+          <button id="analyze" class="cm-btn cm-btn--primary" type="button">Analyze</button>
+        </div>
+
+        <h2>Budget</h2>
+        <div class="grid-2">
+          <div class="field">
+            <label for="mode">Mode</label>
+            <select id="mode" class="cm-select">
+              <option value="dual">Dual preview</option>
+              <option value="main">Main only</option>
+              <option value="filler">Filler only</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="budget">Total meat budget</label>
+            <input id="budget" class="cm-input" type="number" min="0" step="0.1" />
+          </div>
+          <div class="field">
+            <label for="main-split">Main split</label>
+            <input id="main-split" class="cm-input" type="number" min="0" max="1" step="0.05" value="0.7" />
+          </div>
+          <div class="field">
+            <label for="filler-split">Filler split</label>
+            <input id="filler-split" class="cm-input" type="number" min="0" max="1" step="0.05" value="0.3" />
+          </div>
+          <div class="field">
+            <label for="filler-main-creature">Filler main creature</label>
+            <input id="filler-main-creature" class="cm-input" type="text" placeholder="auto" />
+          </div>
+          <div class="field">
+            <label for="horizon">Freshness horizon</label>
+            <input id="horizon" class="cm-input" type="number" min="1" step="1" value="12" />
+          </div>
+          <div class="field">
+            <label for="line-exposure-target">Line exposure target</label>
+            <input id="line-exposure-target" class="cm-input" type="number" min="0" step="1" value="5" />
+          </div>
+          <div class="field">
+            <label for="secondary-line-exposure-multiplier">Secondary exposure multiplier</label>
+            <input id="secondary-line-exposure-multiplier" class="cm-input" type="number" min="0" max="1" step="0.05" value="0.5" />
+          </div>
+          <div class="field">
+            <label for="level-window-offset">Min level offset</label>
+            <input id="level-window-offset" class="cm-input" type="number" max="0" step="1" value="-5" />
+          </div>
+          <div class="field">
+            <label for="sequence-target-kl">Compare target KL</label>
+            <input id="sequence-target-kl" class="cm-input" type="number" min="2" max="50" step="1" value="10" />
+          </div>
+        </div>
+
+        <h2>Score Weights</h2>
+        <div class="formula">
+          <code>score = Σ(weight × component)</code>
+          Components are normalized to 0..1, then converted to points: contribution = weight × component.
+          Line exposure adds a separate first-N-appearances bonus for low-completion lines. Hard filters run before selection; among allowed rows the highest score wins.
+        </div>
+        <div id="weights"></div>
+        <div class="actions">
+          <button id="save-test-config" class="cm-btn cm-btn--ghost" type="button">Apply to sim test</button>
+          <button id="reset-settings" class="cm-btn cm-btn--ghost" type="button">Reset saved</button>
+        </div>
+        <div id="settings-status" class="status-line"></div>
+      </aside>
+
+      <section>
+        <div class="debug-tabs" role="tablist" aria-label="Debug views">
+          <button class="debug-tab" type="button" role="tab" aria-selected="true" data-tab="scoring">Scoring table</button>
+          <button class="debug-tab" type="button" role="tab" aria-selected="false" data-tab="filters">Hard filters</button>
+          <button class="debug-tab" type="button" role="tab" aria-selected="false" data-tab="sequence">Sequence compare</button>
+        </div>
+        <div id="scoring-panel" class="tab-panel" role="tabpanel">
+          <div id="summary" class="summary-grid"></div>
+          <div id="output"></div>
+        </div>
+        <div id="filters-panel" class="tab-panel hidden" role="tabpanel">
+          <div id="filters-summary" class="summary-grid"></div>
+          <div id="filters-output"></div>
+        </div>
+        <div id="sequence-panel" class="tab-panel hidden" role="tabpanel">
+          <div id="sequence-summary" class="summary-grid"></div>
+          <div id="sequence-output"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { BALANCE } from '/src/data/loadBalance.ts';
+    import { SimulationEngine } from '/src/simulation/engine/SimulationEngine.ts';
+    import { ModularStrategy } from '/src/simulation/strategies/modular/ModularStrategy.ts';
+    import { createInitialSnapshot } from '/src/domain/runtime/createInitialSnapshot.ts';
+    import { getGridSizeForLevel } from '/src/domain/gridSize.ts';
+    import {
+      AUTO_QUEST_FORBIDDEN_REASON_INFO,
+      DEFAULT_AUTO_QUEST_LEVEL_WINDOW_BELOW_SEEN_MAX,
+      DEFAULT_AUTO_QUEST_LINE_EXPOSURE_TARGET,
+      DEFAULT_AUTO_QUEST_SCORING_WEIGHTS,
+      DEFAULT_AUTO_QUEST_SECONDARY_LINE_EXPOSURE_MULTIPLIER,
+      buildAutoQuestScoringTable,
+      getAutoQuestBudgetContext,
+    } from '/src/domain/autoQuestScoring.ts';
+    import baselineQuestSequenceKl50Url from '/docs/superpowers/results/2026-05-17-baseline-quest-sequence-kl50.json?url';
+
+    const SETTINGS_KEY = 'cult-merge-autoquest-scoring-debug-settings-v1';
+    const DEFAULT_SEQUENCE_TARGET_KL = 10;
+    const DEFAULT_LEVEL_WINDOW_OFFSET = -DEFAULT_AUTO_QUEST_LEVEL_WINDOW_BELOW_SEEN_MAX;
+    const SEQUENCE_MAX_TICKS = 2000;
+    const SEQUENCE_SEED = 42;
+    const COMPONENTS = [
+      ['lineNovelty', 'novel'],
+      ['lineFreshness', 'line fr'],
+      ['questFreshness', 'quest fr'],
+      ['lineExposure', 'exposure'],
+      ['budgetUse', 'budget'],
+      ['fieldSupport', 'field'],
+      ['level', 'lvl'],
+    ];
+    const DEFAULT_FP_AUTO_QUEST = {
+      sacrificesRequired: 5,
+      questsPerKrakenLevelLimit: 2,
+      expectedTicksByDifficulty: [
+        [1, 0],
+        [2, 2],
+        [3, 4],
+        [4, 8],
+        [5, 8],
+      ],
+    };
+    const HARD_FILTER_DOCS = [
+      {
+        reason: 'NC',
+        id: 'no_generator_capacity',
+        condition: 'totalL1Capacity <= 0',
+        effect: 'Строка недостижима: нет существ этой линии на поле и генератор не дает L1-capacity в текущем budget/window.',
+      },
+      {
+        reason: 'OB',
+        id: 'over_budget',
+        condition: 'requiredL1 > totalL1Capacity',
+        effect: 'Стоимость квеста в L1-эквиваленте выше текущей емкости: fieldL1 + spawnL1Capacity.',
+      },
+      {
+        reason: 'SM',
+        id: 'over_seen_max_plus_one',
+        condition: 'level > min(creature.maxLevel, seenMax + 1)',
+        effect: 'Запрещает скачок выше следующего открываемого уровня для этой creature line.',
+      },
+      {
+        reason: 'LW',
+        id: 'below_seen_max_window',
+        condition: 'level < max(1, seenMax + minLevelOffset)',
+        effect: 'Не дает слишком старым уровням пробиваться за счет freshness.',
+      },
+      {
+        reason: 'CN',
+        id: 'count_not_allowed_for_level',
+        condition: 'count > maxAllowedCount(level, seenMax)',
+        effect: 'Count ограничен по дистанции от seenMax: seenMax+1/seenMax <=x1, seenMax-1 <=x3, seenMax-2 <=x5, ниже <=x7.',
+      },
+      {
+        reason: 'BL',
+        id: 'over_board_level',
+        condition: 'level > min(creature.maxLevel, boardCellCap)',
+        effect: 'На поле не хватает клеток под сборку target level после резерва генераторов и других открытых линий.',
+      },
+      {
+        reason: 'RP',
+        id: 'repeat_previous_type_level',
+        condition: '`${creatureType}:${level}` == lastLevelByCreature[creatureType]',
+        effect: 'Блокирует точный повтор последнего уровня именно для этой creature line.',
+      },
+      {
+        reason: 'FM',
+        id: 'filler_same_creature_as_main',
+        condition: "slot == 'filler' && creatureType == mainPick.creatureType",
+        effect: 'Filler не может брать ту же creature line, которую уже выбрал main slot.',
+      },
+      {
+        reason: 'FS',
+        id: 'fp_sacrifices_required',
+        condition: 'timer row && fieldL1 == 0 && meatButtonPresses - meatPressesAtLastFP < fpAutoQuest.sacrificesRequired',
+        effect: 'Off-board FP строка ждет нужное число meat-button presses после последнего принятого FP квеста. Если существо уже на поле, D1 может его выесть без этого ожидания.',
+      },
+      {
+        reason: 'FK',
+        id: 'fp_kraken_level_limit',
+        condition: 'timer row && fieldL1 == 0 && fpQuestsByKrakenLevel[kraken.level] >= fpAutoQuest.questsPerKrakenLevelLimit',
+        effect: 'Ограничивает количество off-board FP квестов на текущем Kraken level.',
+      },
+      {
+        reason: 'FD',
+        id: 'fp_dual_limit',
+        condition: "slot == 'filler' && main selected row is timer-mode",
+        effect: 'Dual auto quest может содержать максимум одно FP требование.',
+      },
+    ];
+
+    const els = {
+      preset: document.getElementById('snapshot-preset'),
+      json: document.getElementById('json-input'),
+      loadDemo: document.getElementById('load-demo'),
+      analyze: document.getElementById('analyze'),
+      mode: document.getElementById('mode'),
+      budget: document.getElementById('budget'),
+      mainSplit: document.getElementById('main-split'),
+      fillerSplit: document.getElementById('filler-split'),
+      fillerMainCreature: document.getElementById('filler-main-creature'),
+      horizon: document.getElementById('horizon'),
+      lineExposureTarget: document.getElementById('line-exposure-target'),
+      secondaryLineExposureMultiplier: document.getElementById('secondary-line-exposure-multiplier'),
+      levelWindowOffset: document.getElementById('level-window-offset'),
+      sequenceTargetKl: document.getElementById('sequence-target-kl'),
+      weights: document.getElementById('weights'),
+      saveTestConfig: document.getElementById('save-test-config'),
+      resetSettings: document.getElementById('reset-settings'),
+      settingsStatus: document.getElementById('settings-status'),
+      summary: document.getElementById('summary'),
+      output: document.getElementById('output'),
+      tabs: document.querySelectorAll('.debug-tab'),
+      scoringPanel: document.getElementById('scoring-panel'),
+      filtersPanel: document.getElementById('filters-panel'),
+      filtersSummary: document.getElementById('filters-summary'),
+      filtersOutput: document.getElementById('filters-output'),
+      sequencePanel: document.getElementById('sequence-panel'),
+      sequenceSummary: document.getElementById('sequence-summary'),
+      sequenceOutput: document.getElementById('sequence-output'),
+    };
+
+    function fmt(n, digits = 2) {
+      if (!Number.isFinite(n)) return 'inf';
+      return Number(n).toFixed(digits);
+    }
+
+    function esc(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function buildWeightControls() {
+      els.weights.innerHTML = Object.entries(DEFAULT_AUTO_QUEST_SCORING_WEIGHTS).map(([key, value]) => `
+        <div class="field">
+          <label for="w-${key}">${key}</label>
+          <input id="w-${key}" class="cm-input" data-weight="${key}" type="number" step="0.1" value="${value}">
+        </div>
+      `).join('');
+    }
+
+    function readWeights() {
+      const weights = {};
+      for (const input of els.weights.querySelectorAll('[data-weight]')) {
+        weights[input.dataset.weight] = Number(input.value);
+      }
+      return weights;
+    }
+
+    function readLevelWindowOffset() {
+      const raw = Number(els.levelWindowOffset.value);
+      if (!Number.isFinite(raw)) return DEFAULT_LEVEL_WINDOW_OFFSET;
+      return Math.min(0, Math.trunc(raw));
+    }
+
+    function readLevelWindowBelowSeenMax() {
+      return Math.max(0, -readLevelWindowOffset());
+    }
+
+    function readLineExposureTarget() {
+      const raw = Number(els.lineExposureTarget.value);
+      if (!Number.isFinite(raw)) return DEFAULT_AUTO_QUEST_LINE_EXPOSURE_TARGET;
+      return Math.max(0, Math.floor(raw));
+    }
+
+    function readSecondaryLineExposureMultiplier() {
+      const raw = Number(els.secondaryLineExposureMultiplier.value);
+      if (!Number.isFinite(raw)) return DEFAULT_AUTO_QUEST_SECONDARY_LINE_EXPOSURE_MULTIPLIER;
+      return Math.min(1, Math.max(0, raw));
+    }
+
+    function readFPAutoQuestConfig(balance) {
+      const raw = balance.tasks?.autoConfig?.fpAutoQuest ?? {};
+      const expectedTicksByDifficulty = Array.isArray(raw.expectedTicksByDifficulty)
+        ? raw.expectedTicksByDifficulty
+          .map((entry) => [Number(entry?.[0]), Number(entry?.[1])])
+          .filter(([difficulty, ticks]) => Number.isFinite(difficulty) && Number.isFinite(ticks))
+        : [];
+      const sacrificesRequired = Number(raw.sacrificesRequired);
+      const questsPerKrakenLevelLimit = Number(raw.questsPerKrakenLevelLimit);
+
+      return {
+        sacrificesRequired: Number.isFinite(sacrificesRequired)
+          ? Math.max(0, Math.floor(sacrificesRequired))
+          : DEFAULT_FP_AUTO_QUEST.sacrificesRequired,
+        questsPerKrakenLevelLimit: Number.isFinite(questsPerKrakenLevelLimit)
+          ? Math.max(0, Math.floor(questsPerKrakenLevelLimit))
+          : DEFAULT_FP_AUTO_QUEST.questsPerKrakenLevelLimit,
+        expectedTicksByDifficulty: expectedTicksByDifficulty.length
+          ? expectedTicksByDifficulty
+          : DEFAULT_FP_AUTO_QUEST.expectedTicksByDifficulty,
+      };
+    }
+
+    function getFPExpectedTicksForDifficulty(fpConfig, difficulty) {
+      let expectedTicks = DEFAULT_FP_AUTO_QUEST.expectedTicksByDifficulty[0]?.[1] ?? 0;
+      for (const [minDifficulty, ticks] of fpConfig.expectedTicksByDifficulty) {
+        if (difficulty >= minDifficulty) expectedTicks = ticks;
+      }
+      return Math.max(0, expectedTicks);
+    }
+
+    function isTimerScoringRow(balance, row) {
+      if (!row) return false;
+      const generator = balance.generators?.generators?.find((gen) => gen.id === row.genId);
+      const level = generator?.levels?.find((item) => item.level === row.genLevel);
+      return generator?.spawnMode === 'timer' || level?.mode === 'timer';
+    }
+
+    function isTimerCreatureLine(balance, creatureType) {
+      if (!creatureType) return false;
+      return balance.generators?.generators?.some((generator) => {
+        if (generator.lines?.includes(creatureType) && generator.spawnMode === 'timer') return true;
+        return generator.levels?.some((level) => {
+          const isTimerLevel = generator.spawnMode === 'timer' || level.mode === 'timer';
+          return isTimerLevel && level.outputs?.some((output) => output.creatureType === creatureType);
+        });
+      }) ?? false;
+    }
+
+    function formatLevelWindowExpression() {
+      const offset = readLevelWindowOffset();
+      if (offset === 0) return 'seenMax';
+      return `seenMax - ${Math.abs(offset)}`;
+    }
+
+    function formatHardFilterCondition(doc) {
+      if (doc.id !== 'below_seen_max_window') return doc.condition;
+      return `level < max(1, ${formatLevelWindowExpression()})`;
+    }
+
+    function formatHardFilterEffect(doc) {
+      if (doc.id !== 'below_seen_max_window') return doc.effect;
+      return `${doc.effect} Окно уровней: ${formatLevelWindowExpression()} ... seenMax+1.`;
+    }
+
+    function readSettings() {
+      return {
+        preset: els.preset.value,
+        mode: els.mode.value,
+        budget: els.budget.value,
+        mainSplit: els.mainSplit.value,
+        fillerSplit: els.fillerSplit.value,
+        fillerMainCreature: els.fillerMainCreature.value,
+        freshnessHorizon: Number(els.horizon.value) || 12,
+        lineExposureTarget: readLineExposureTarget(),
+        secondaryLineExposureMultiplier: readSecondaryLineExposureMultiplier(),
+        levelWindowOffset: readLevelWindowOffset(),
+        levelWindowBelowSeenMax: readLevelWindowBelowSeenMax(),
+        sequenceTargetKl: Number(els.sequenceTargetKl.value) || DEFAULT_SEQUENCE_TARGET_KL,
+        weights: readWeights(),
+      };
+    }
+
+    function readTestConfig() {
+      const settings = readSettings();
+      return {
+        savedAt: new Date().toISOString(),
+        freshnessHorizon: settings.freshnessHorizon,
+        lineExposureTarget: settings.lineExposureTarget,
+        secondaryLineExposureMultiplier: settings.secondaryLineExposureMultiplier,
+        levelWindowBelowSeenMax: settings.levelWindowBelowSeenMax,
+        weights: settings.weights,
+      };
+    }
+
+    function persistSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(readSettings()));
+        els.settingsStatus.textContent = 'Settings saved locally.';
+      } catch (_) {
+        els.settingsStatus.textContent = 'Could not save settings locally.';
+      }
+    }
+
+    function restoreSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return false;
+        const saved = JSON.parse(raw);
+        if (saved.preset) els.preset.value = saved.preset;
+        if (saved.mode) els.mode.value = saved.mode;
+        if (saved.budget !== undefined) els.budget.value = saved.budget;
+        if (saved.mainSplit !== undefined) els.mainSplit.value = saved.mainSplit;
+        if (saved.fillerSplit !== undefined) els.fillerSplit.value = saved.fillerSplit;
+        if (saved.fillerMainCreature !== undefined) els.fillerMainCreature.value = saved.fillerMainCreature;
+        if (saved.freshnessHorizon !== undefined) els.horizon.value = saved.freshnessHorizon;
+        if (saved.lineExposureTarget !== undefined) {
+          els.lineExposureTarget.value = saved.lineExposureTarget;
+        } else if (saved.budgetUseExposureThreshold !== undefined) {
+          els.lineExposureTarget.value = saved.budgetUseExposureThreshold;
+        }
+        if (saved.secondaryLineExposureMultiplier !== undefined) {
+          els.secondaryLineExposureMultiplier.value = saved.secondaryLineExposureMultiplier;
+        }
+        if (saved.levelWindowOffset !== undefined) {
+          const savedOffset = Number(saved.levelWindowOffset);
+          els.levelWindowOffset.value = Number.isFinite(savedOffset)
+            ? Math.min(0, Math.trunc(savedOffset))
+            : DEFAULT_LEVEL_WINDOW_OFFSET;
+        } else if (saved.levelWindowBelowSeenMax !== undefined) {
+          const savedWindow = Number(saved.levelWindowBelowSeenMax);
+          els.levelWindowOffset.value = Number.isFinite(savedWindow)
+            ? -Math.max(0, Math.floor(savedWindow))
+            : DEFAULT_LEVEL_WINDOW_OFFSET;
+        }
+        if (saved.sequenceTargetKl !== undefined) els.sequenceTargetKl.value = saved.sequenceTargetKl;
+        if (saved.weights && typeof saved.weights === 'object') {
+          for (const input of els.weights.querySelectorAll('[data-weight]')) {
+            const value = saved.weights[input.dataset.weight];
+            if (value !== undefined) input.value = value;
+          }
+        }
+        els.settingsStatus.textContent = 'Restored saved settings.';
+        return true;
+      } catch (_) {
+        els.settingsStatus.textContent = 'Could not restore saved settings.';
+        return false;
+      }
+    }
+
+    async function saveTestConfig() {
+      const config = readTestConfig();
+      try {
+        localStorage.setItem('cult-merge-autoquest-scoring-test-config-v1', JSON.stringify(config));
+        localStorage.setItem('cult-merge-autoquest-scoring-v2-enabled', '1');
+        els.settingsStatus.textContent = 'Applied to browser simulation test. Simulation will use scoring v2.';
+      } catch (error) {
+        els.settingsStatus.textContent = `Apply failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
+
+    function makeBasePresetSnapshot() {
+      const state = createInitialSnapshot(BALANCE, { seed: 12345 });
+      state.kraken.level = 8;
+      state.resources.eyes = 3200;
+      state.resources.meat = 100;
+      state.resources.rune1 = 50;
+      state.resources.rune2 = 30;
+      const size = getGridSizeForLevel(BALANCE, state.kraken.level);
+      state.grid = {
+        rows: size.rows,
+        cols: size.cols,
+        cells: Array.from({ length: size.rows * size.cols }, () => null),
+      };
+      const gen1 = Object.values(state.entities).find((entity) => entity.kind === 'generator' && entity.generatorId === 1);
+      if (gen1) state.grid.cells[0] = gen1.id;
+      state.spawnCountByGen = { 1: 100, 2: 80 };
+      state.autoTaskLineCompletions = { Creature1: 1, Creature2: 1 };
+      state.autoTaskLastLevels = { Creature1: 4, Creature2: 2, Creature3: 3 };
+      return state;
+    }
+
+    function addGenerator(state, id, generatorId, level, cellIndex) {
+      state.entities[id] = {
+        id,
+        kind: 'generator',
+        generatorId,
+        level,
+        charges: [],
+      };
+      state.grid.cells[cellIndex] = id;
+    }
+
+    function addCreature(state, id, creatureType, level, cellIndex) {
+      state.entities[id] = {
+        id,
+        kind: 'creature',
+        creatureType,
+        level,
+      };
+      state.grid.cells[cellIndex] = id;
+    }
+
+    function makePresetSnapshot(preset) {
+      const state = makeBasePresetSnapshot();
+      const gen1 = Object.values(state.entities).find((entity) => entity.kind === 'generator' && entity.generatorId === 1);
+
+      if (preset === 'gen1-l4' || preset === 'two-generators') {
+        if (gen1) gen1.level = 4;
+        state.spawnCountByGen = { 1: 100 };
+        state.spawnsSpentByGen = {};
+      }
+
+      if (preset === 'two-generators') {
+        addGenerator(state, 'debug_gen_2_l1', 2, 1, 1);
+        addCreature(state, 'debug_creature_1_l1', 'Creature1', 1, 2);
+        state.spawnCountByGen = { 1: 100, 2: 20 };
+      }
+
+      return state;
+    }
+
+    function setDefaultBudget(config, state) {
+      const ctx = getAutoQuestBudgetContext(config, state);
+      els.budget.value = fmt(ctx.meatBudget, 1);
+    }
+
+    function parseInput() {
+      const raw = els.json.value.trim();
+      if (!raw) {
+        const state = makePresetSnapshot(els.preset.value);
+        return { balance: BALANCE, state, history: [] };
+      }
+      const parsed = JSON.parse(raw);
+      const first = Array.isArray(parsed) ? parsed[0] : parsed;
+      const balance = first?.config?.balance ?? parsed?.config?.balance ?? BALANCE;
+      const state =
+        first?.finalState ??
+        parsed?.finalState ??
+        first?.gameState ??
+        parsed?.gameState ??
+        first?.history?.[first.history.length - 1]?.gameState ??
+        parsed;
+      const history =
+        first?.autoTaskHistory ??
+        parsed?.autoTaskHistory ??
+        state?.recentAutoQuestHistory ??
+        [];
+      if (!state?.entities || !state?.grid || !state?.kraken) {
+        throw new Error('JSON must be a SimulationResult export or a GameSnapshot-like object.');
+      }
+      return { balance, state, history };
+    }
+
+    function metric(label, value) {
+      return `
+        <div class="metric">
+          <div class="metric-label">${esc(label)}</div>
+          <div class="metric-value">${esc(value)}</div>
+        </div>
+      `;
+    }
+
+    function selectedPills(result) {
+      const row = result.selected;
+      if (!row) return '<div class="empty">No allowed row</div>';
+      const second = result.allowedRows.find((candidate) => candidate !== row);
+      const margin = second ? row.score - second.score : null;
+      return `
+        <div class="selected">
+          <span class="pill"><strong>${row.creatureType} L${row.level} x${row.count}</strong></span>
+          <span class="pill">Gen${row.genId} L${row.genLevel}</span>
+          <span class="pill">allowed ${formatMaxCount(row)}</span>
+          <span class="pill">score ${fmt(row.score, 3)}</span>
+          ${margin === null ? '' : `<span class="pill">margin ${fmt(margin, 3)}</span>`}
+          <span class="pill">cost ${fmt(row.estimatedMeatCost, 2)}</span>
+          <span class="pill">required L1 ${fmt(row.requiredL1, 0)}</span>
+          <span class="pill">completions ${row.lineCompletions ?? 0}</span>
+        </div>
+      `;
+    }
+
+    function selectedBreakdown(result) {
+      const row = result.selected;
+      if (!row) return '';
+      return `
+        <div class="breakdown">
+          ${COMPONENTS.map(([key, label]) => `
+            <div class="breakdown-item" data-tip="${esc(componentTip(row, key, label, result.weights))}">
+              <div class="breakdown-label">${esc(label)}</div>
+              <div class="breakdown-value">${fmt(row.weightedContributions[key], 3)}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function componentScore(row, key) {
+      switch (key) {
+        case 'lineNovelty': return row.lineNoveltyScore;
+        case 'lineFreshness': return row.lineFreshnessScore;
+        case 'questFreshness': return row.questFreshnessScore;
+        case 'lineExposure': return row.lineExposureScore;
+        case 'budgetUse': return row.budgetUseScore;
+        case 'fieldSupport': return row.fieldSupportScore;
+        case 'level': return row.levelScore;
+        default: return 0;
+      }
+    }
+
+    function componentTip(row, key, label, weights) {
+      const base = `${label}: ${fmt(row.weightedContributions[key], 3)} pts = weight ${fmt(weights[key], 2)} × component ${fmt(componentScore(row, key), 2)}`;
+      if (key !== 'lineExposure') return base;
+      return [
+        base,
+        `line completions: ${row.lineCompletions ?? 0}/${readLineExposureTarget()}`,
+        `role multiplier: ${fmt(row.lineExposureRoleMultiplier ?? 1, 2)}`,
+      ].join('\n');
+    }
+
+    function formatMaxCount(row) {
+      return `<=x${row.maxAllowedCount}`;
+    }
+
+    function shortQuest(row) {
+      const creatureNum = String(row.creatureType).replace(/^Creature/i, '');
+      return `${creatureNum}-${row.level} x${row.count}`;
+    }
+
+    function reasonSummary(result) {
+      const counts = new Map();
+      for (const row of result.rows) {
+        for (const reason of row.forbiddenReasons) {
+          counts.set(reason, (counts.get(reason) ?? 0) + 1);
+        }
+      }
+      if (counts.size === 0) return '';
+      const items = [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, count]) => {
+          const info = reasonInfo(reason);
+          return `<span class="pill" data-tip="${esc(`${reason}: ${info.explanation}`)}">${esc(info.label)} <strong>${count}</strong></span>`;
+        })
+        .join('');
+      return `<div class="reason-summary">${items}</div>`;
+    }
+
+    function reasonInfo(reason) {
+      return AUTO_QUEST_FORBIDDEN_REASON_INFO[reason] ?? {
+        label: reason,
+        explanation: reason,
+      };
+    }
+
+    function formatReasons(row) {
+      if (row.forbiddenReasons.length === 0) return 'OK';
+      return row.forbiddenReasons.map((reason) => reasonInfo(reason).code ?? reason).join(' ');
+    }
+
+    function reasonTip(row) {
+      if (row.forbiddenReasons.length === 0) return 'This row passed every hard filter and is eligible for top-1 selection.';
+      return row.forbiddenReasons
+        .map((reason) => {
+          const info = reasonInfo(reason);
+          return `${info.label}: ${info.explanation}`;
+        })
+        .join('\n');
+    }
+
+    function renderTable(result) {
+      const rows = result.rows.slice(0, 320);
+      if (rows.length === 0) return '<div class="empty">No scoring rows</div>';
+      return `
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="c-state">
+              <col class="c-score">
+              <col class="c-quest">
+              <col class="c-gen">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-cells">
+              <col class="c-l1">
+              <col class="c-l1">
+              <col class="c-l1">
+              <col class="c-l1">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+              <col class="c-comp">
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="left" data-tip="Whether the row is available. If filtered out, this shows the hard filter reasons that removed it from selection.">state</th>
+                <th data-tip="Final weighted score. Allowed rows are sorted by this value, and the top row is selected.">score</th>
+                <th class="left" data-tip="Quest requirement candidate: creature line, requested level, and odd count.">quest</th>
+                <th data-tip="Generator and scoring level used to estimate production for this row. Scoring level can be fact level +1 when an upgrade is currently available.">gen</th>
+                <th data-tip="Highest level of this creature line the player has ever seen or currently has on the board. Rows above seenMax + 1 are filtered out.">seen<br>max</th>
+                <th data-tip="Relative distance from seen max: -1 means seenMax + 1, 0 means seenMax, 1 means seenMax - 1, and so on.">max<br>dist</th>
+                <th data-tip="Maximum count allowed for this level. Lower odd counts are allowed; higher counts are filtered out. seenMax + 1 and seenMax allow only x1; seenMax - 1 allows up to x3.">allowed</th>
+                <th data-tip="Board cells available for this creature line after cells occupied by generators and one reserved cell for each other opened creature line.">cells</th>
+                <th data-tip="Total L1-equivalent required by this quest row: count multiplied by 2^(level - 1).">reqL1</th>
+                <th data-tip="Current board inventory for this creature line converted to L1-equivalent. Used for reachability and field support.">field<br>L1</th>
+                <th data-tip="Expected L1-equivalent produced by this generator inside the current budget/window.">spawn<br>L1</th>
+                <th data-tip="Total L1-equivalent capacity for this creature line: field L1 plus spawn L1.">cap<br>L1</th>
+                <th data-tip="Line novelty component, normalized 0..1 by creature unlock order within currently opened on-field generator lines. Later-unlocked opened lines score higher.">novel</th>
+                <th data-tip="How many auto quests ago this creature line appeared. Never-seen lines get the freshness horizon value.">line<br>ago</th>
+                <th data-tip="How many auto quests ago this exact creature line + level appeared. Used separately from line freshness.">quest<br>ago</th>
+                <th data-tip="Completed quest count for this creature line. Low-completion lines receive line exposure score.">done</th>
+                <th data-tip="Line exposure score: (target - completions) / target, multiplied by the line-role multiplier.">expose</th>
+                <th data-tip="Line-role multiplier used by exposure. Primary lines use 1.0; secondary lines use the configured secondary multiplier.">role</th>
+                <th data-tip="Budget-use score: requiredL1 / totalL1Capacity, clamped to 0..1. This is no longer adjusted by line exposure.">budget</th>
+                <th data-tip="Field-support score, normalized 0..1. Rows already supported by board inventory score higher.">field</th>
+                <th data-tip="Level score normalized against the player-opened cap: seenMax + 1. The currently newest allowed level gets the strongest boost.">lvl</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr class="${row.forbiddenReasons.length ? 'is-filtered' : ''}">
+                  <td class="${row.forbiddenReasons.length ? 'reason' : 'ok'}" data-tip="${esc(reasonTip(row))}">${esc(formatReasons(row))}</td>
+                  <td>${fmt(row.score, 3)}</td>
+                  <td class="left">${esc(shortQuest(row))}</td>
+                  <td>G${row.genId} L${row.genLevel}</td>
+                  <td>${row.seenMaxLevel}</td>
+                  <td>${row.levelDistanceFromSeenMax}</td>
+                  <td>${formatMaxCount(row)}</td>
+                  <td>${row.boardCellCap}</td>
+                  <td>${fmt(row.requiredL1, 0)}</td>
+                  <td>${fmt(row.fieldL1, 1)}</td>
+                  <td>${fmt(row.spawnL1Capacity, 1)}</td>
+                  <td>${fmt(row.totalL1Capacity, 1)}</td>
+                  <td>${fmt(row.lineNoveltyScore, 2)}</td>
+                  <td>${row.lineLastSeenAgo}</td>
+                  <td>${row.questLastSeenAgo}</td>
+                  <td>${row.lineCompletions ?? 0}</td>
+                  <td>${fmt(row.lineExposureScore ?? 0, 2)}</td>
+                  <td>${fmt(row.lineExposureRoleMultiplier ?? 1, 2)}</td>
+                  <td>${fmt(row.budgetUseScore, 2)}</td>
+                  <td>${fmt(row.fieldSupportScore, 2)}</td>
+                  <td>${fmt(row.levelScore, 2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderSection(title, result) {
+      return `
+        <article class="cm-card section">
+          <div class="section-head">
+            <div class="section-title">${esc(title)}</div>
+            <div class="section-sub">${result.allowedRows.length}/${result.rows.length} allowed</div>
+          </div>
+          ${selectedPills(result)}
+          ${selectedBreakdown(result)}
+          ${reasonSummary(result)}
+          ${renderTable(result)}
+        </article>
+      `;
+    }
+
+    function countHardFilterHits(results) {
+      const counts = new Map();
+      let totalRows = 0;
+      let allowedRows = 0;
+      for (const [, result] of results) {
+        totalRows += result.rows.length;
+        allowedRows += result.allowedRows.length;
+        for (const row of result.rows) {
+          for (const reason of row.forbiddenReasons) {
+            counts.set(reason, (counts.get(reason) ?? 0) + 1);
+          }
+        }
+      }
+      return {
+        counts,
+        totalRows,
+        allowedRows,
+        filteredRows: Math.max(0, totalRows - allowedRows),
+      };
+    }
+
+    function buildScoringResults(balance, state, history) {
+      if (!els.budget.value) setDefaultBudget(balance, state);
+      const totalBudget = Number(els.budget.value) || 0;
+      const budgetCtx = getAutoQuestBudgetContext(balance, state);
+      const mainSplit = Number(els.mainSplit.value) || 0.7;
+      const fillerSplit = Number(els.fillerSplit.value) || 0.3;
+      const mode = els.mode.value;
+      const horizon = Number(els.horizon.value) || 12;
+      const levelWindowBelowSeenMax = readLevelWindowBelowSeenMax();
+      const lineExposureTarget = readLineExposureTarget();
+      const secondaryLineExposureMultiplier = readSecondaryLineExposureMultiplier();
+      const weights = readWeights();
+      const fpConfig = readFPAutoQuestConfig(balance);
+      const fpExpectedTicks = getFPExpectedTicksForDifficulty(fpConfig, budgetCtx.difficulty);
+      const fpGate = {
+        sacrificesRequired: fpConfig.sacrificesRequired,
+        questsPerKrakenLevelLimit: fpConfig.questsPerKrakenLevelLimit,
+      };
+
+      const built = [];
+      let mainResult = null;
+      if (mode === 'main' || mode === 'dual') {
+        mainResult = buildAutoQuestScoringTable(balance, state, {
+          slot: 'main',
+          meatBudget: mode === 'dual' ? totalBudget * mainSplit : totalBudget,
+          history,
+          freshnessHorizon: horizon,
+          levelWindowBelowSeenMax,
+          lineExposureTarget,
+          secondaryLineExposureMultiplier,
+          weights,
+          fpExpectedTicks,
+          fpGate,
+        });
+        built.push(['Main', mainResult]);
+      }
+
+      if (mode === 'filler' || mode === 'dual') {
+        const explicitMainCreature = els.fillerMainCreature.value.trim();
+        const mainCreatureType = explicitMainCreature || mainResult?.selected?.creatureType;
+        const mainIsTimer = explicitMainCreature
+          ? isTimerCreatureLine(balance, explicitMainCreature)
+          : isTimerScoringRow(balance, mainResult?.selected);
+        const fillerResult = buildAutoQuestScoringTable(balance, state, {
+          slot: 'filler',
+          meatBudget: mode === 'dual' ? totalBudget * fillerSplit : totalBudget,
+          history,
+          freshnessHorizon: horizon,
+          levelWindowBelowSeenMax,
+          lineExposureTarget,
+          secondaryLineExposureMultiplier,
+          weights,
+          mainPick: mainCreatureType ? { creatureType: mainCreatureType } : null,
+          fpExpectedTicks,
+          fpGate,
+          disallowTimerGenerators: mainIsTimer,
+        });
+        built.push(['Filler', fillerResult]);
+      }
+
+      return built;
+    }
+
+    function renderHardFilters() {
+      try {
+        const { balance, state, history } = parseInput();
+        const built = buildScoringResults(balance, state, history);
+        const hitInfo = countHardFilterHits(built);
+        const activeFilterCount = [...hitInfo.counts.values()].filter((count) => count > 0).length;
+
+        els.filtersSummary.innerHTML = [
+          metric('Filters', HARD_FILTER_DOCS.length),
+          metric('Active now', activeFilterCount),
+          metric('Min level offset', readLevelWindowOffset()),
+          metric('Rows', hitInfo.totalRows),
+          metric('Allowed rows', hitInfo.allowedRows),
+          metric('Filtered rows', hitInfo.filteredRows),
+        ].join('');
+
+        els.filtersOutput.innerHTML = `
+          <article class="cm-card section">
+            <div class="section-head">
+              <div class="section-title">Hard Filters</div>
+              <div class="section-sub">Removed before score ranking</div>
+            </div>
+            <div class="table-wrap">
+              <table class="filter-doc-table">
+                <colgroup>
+                  <col class="c-code">
+                  <col class="c-count">
+                  <col class="c-filter">
+                  <col class="c-condition">
+                  <col>
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="left">code</th>
+                    <th>hits</th>
+                    <th class="left">filter</th>
+                    <th class="left">condition</th>
+                    <th class="left">how it works</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${HARD_FILTER_DOCS.map((doc) => {
+                    const info = AUTO_QUEST_FORBIDDEN_REASON_INFO[doc.id];
+                    const hits = hitInfo.counts.get(doc.id) ?? 0;
+                    return `
+                      <tr>
+                        <td class="left"><strong>${esc(info?.code ?? doc.reason)}</strong></td>
+                        <td>${hits}</td>
+                        <td class="left">${esc(info?.label ?? doc.id)}</td>
+                        <td class="left condition">${esc(formatHardFilterCondition(doc))}</td>
+                        <td class="left">${esc(formatHardFilterEffect(doc))}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        `;
+      } catch (error) {
+        els.filtersOutput.innerHTML = `<div class="empty">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      }
+    }
+
+    let baselineArtifactPromise = null;
+
+    function loadBaselineArtifact() {
+      if (!baselineArtifactPromise) {
+        baselineArtifactPromise = fetch(baselineQuestSequenceKl50Url).then((response) => {
+          if (!response.ok) throw new Error(`Could not load baseline artifact: ${response.status}`);
+          return response.json();
+        });
+      }
+      return baselineArtifactPromise;
+    }
+
+    function readSequenceTargetKl() {
+      const raw = Number(els.sequenceTargetKl.value);
+      const max = 50;
+      if (!Number.isFinite(raw)) return DEFAULT_SEQUENCE_TARGET_KL;
+      return Math.max(2, Math.min(max, Math.floor(raw)));
+    }
+
+    function filterSequenceToTargetKl(sequence, targetKl) {
+      return sequence.filter((entry) => entry.krakenLevel <= targetKl);
+    }
+
+    function buildQuestSequence(result) {
+      const autoById = new Map(result.autoTaskHistory.map((task) => [task.taskId, task]));
+      const entries = [];
+      let previousTotalSpawns = 0;
+
+      result.actionLog.forEach((entry, index) => {
+        if (entry.action.type !== 'quest_completed') return;
+
+        const totalSpawns = result.actionHistory[index]?.metrics?.totalSpawns ?? previousTotalSpawns;
+        const spawns = Math.max(0, totalSpawns - previousTotalSpawns);
+        previousTotalSpawns = totalSpawns;
+
+        const autoTask = autoById.get(entry.action.taskLabel);
+        const creatures = autoTask?.creatures ?? entry.action.creatures.map((creature) => ({
+          type: creature.type,
+          level: creature.level,
+          count: creature.count,
+          genId: null,
+          genLevel: null,
+        }));
+
+        entries.push({
+          sequence: entries.length + 1,
+          kind: autoTask ? 'auto' : 'mandatory',
+          taskId: entry.action.taskLabel,
+          krakenLevel: entry.state.krakenLevel,
+          spawns,
+          difficulty: autoTask?.difficulty,
+          debugMeatBudget: autoTask?.debugMeatBudget,
+          debugMeatCost: autoTask?.debugMeatCost,
+          gen: formatGen({ creatures }),
+          quest: formatSequenceReq({ creatures }),
+        });
+      });
+
+      return entries;
+    }
+
+    function formatSequenceReq(task) {
+      return task.creatures
+        .map((creature) => `${creature.type} L${creature.level}${creature.count > 1 ? ` x${creature.count}` : ''}`)
+        .join(' + ');
+    }
+
+    function formatGen(task) {
+      const gens = [...new Set(task.creatures.map((creature) => creature.genId === null ? '?' : `G${creature.genId}`))];
+      return gens.join('+');
+    }
+
+    function formatSequenceKind(entry) {
+      if (!entry) return '';
+      return entry.kind === 'mandatory' ? 'M' : 'A';
+    }
+
+    function formatSequenceNumber(value, digits = 0) {
+      return value === undefined || value === null || value === '' ? '' : Number(value).toFixed(digits);
+    }
+
+    function countKind(sequence, kind) {
+      return sequence.filter((entry) => entry.kind === kind).length;
+    }
+
+    function runV2SequenceSimulation() {
+      const targetKl = readSequenceTargetKl();
+      const previousFlag = localStorage.getItem('cult-merge-autoquest-scoring-v2-enabled');
+      const previousConfig = localStorage.getItem('cult-merge-autoquest-scoring-test-config-v1');
+      const config = readTestConfig();
+
+      localStorage.setItem('cult-merge-autoquest-scoring-v2-enabled', '1');
+      localStorage.setItem('cult-merge-autoquest-scoring-test-config-v1', JSON.stringify(config));
+      try {
+        const engine = new SimulationEngine({
+          seed: SEQUENCE_SEED,
+          stopCondition: { type: 'krakenLevel', value: targetKl },
+          maxTicks: SEQUENCE_MAX_TICKS,
+          tickInterval: 1000,
+          strategy: new ModularStrategy(),
+          balance: BALANCE,
+        });
+        return engine.run();
+      } finally {
+        if (previousFlag === null) localStorage.removeItem('cult-merge-autoquest-scoring-v2-enabled');
+        else localStorage.setItem('cult-merge-autoquest-scoring-v2-enabled', previousFlag);
+        if (previousConfig === null) localStorage.removeItem('cult-merge-autoquest-scoring-test-config-v1');
+        else localStorage.setItem('cult-merge-autoquest-scoring-test-config-v1', previousConfig);
+      }
+    }
+
+    function renderSequenceTable(base, v2) {
+      const max = Math.max(base.length, v2.length);
+      return `
+        <div class="table-wrap sequence-table">
+          <table>
+            <colgroup>
+              <col class="c-num">
+              <col class="c-small">
+              <col class="c-kind">
+              <col class="c-small">
+              <col class="c-small">
+              <col class="c-quest-wide">
+              <col class="c-small">
+              <col class="c-kind">
+              <col class="c-small">
+              <col class="c-small">
+              <col class="c-quest-wide">
+            </colgroup>
+            <thead>
+              <tr>
+                <th rowspan="2" data-tip="Completed quest index in this comparison run.">#</th>
+                <th class="sequence-group group-base" colspan="5" data-tip="Static baseline sequence from the stored KL50 artifact, filtered to the selected target KL.">Base</th>
+                <th class="sequence-group group-experiment" colspan="5" data-tip="Experiment sequence recalculated with the current weights, freshness horizon, and budget exposure settings on this page.">Experiment</th>
+              </tr>
+              <tr>
+                <th data-tip="Kraken level when this quest completed.">KL</th>
+                <th data-tip="Quest kind. M = mandatory, A = auto.">kind</th>
+                <th data-tip="Auto quest difficulty. Empty for mandatory quests.">diff</th>
+                <th data-tip="Generator spawns between the previous completed quest and this one.">spawns</th>
+                <th class="left" data-tip="Static baseline quest from the stored KL50 artifact.">quest</th>
+                <th class="split-left" data-tip="Kraken level when this quest completed.">KL</th>
+                <th data-tip="Quest kind. M = mandatory, A = auto.">kind</th>
+                <th data-tip="Auto quest difficulty. Empty for mandatory quests.">diff</th>
+                <th data-tip="Generator spawns between the previous completed quest and this one.">spawns</th>
+                <th class="left" data-tip="Experiment quest recalculated with the current scoring controls on this page.">quest</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Array.from({ length: max }, (_, index) => {
+                const baseEntry = base[index];
+                const v2Entry = v2[index];
+                const isDifferent =
+                  (baseEntry?.quest ?? '') !== (v2Entry?.quest ?? '') ||
+                  (baseEntry?.kind ?? '') !== (v2Entry?.kind ?? '');
+                return `
+                  <tr class="${isDifferent ? 'is-different' : ''}">
+                    <td class="muted-col">${index + 1}</td>
+                    <td class="muted-col">${baseEntry?.krakenLevel ?? ''}</td>
+                    <td class="kind-${formatSequenceKind(baseEntry).toLowerCase()}">${formatSequenceKind(baseEntry)}</td>
+                    <td>${baseEntry?.difficulty ?? ''}</td>
+                    <td>${baseEntry?.spawns ?? ''}</td>
+                    <td class="left quest-text">${esc(baseEntry?.quest ?? '')}</td>
+                    <td class="split-left muted-col">${v2Entry?.krakenLevel ?? ''}</td>
+                    <td class="kind-${formatSequenceKind(v2Entry).toLowerCase()}">${formatSequenceKind(v2Entry)}</td>
+                    <td>${v2Entry?.difficulty ?? ''}</td>
+                    <td>${v2Entry?.spawns ?? ''}</td>
+                    <td class="left quest-text">${esc(v2Entry?.quest ?? '')}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function renderSequenceCompare() {
+      const targetKl = readSequenceTargetKl();
+      els.sequenceTargetKl.value = String(targetKl);
+      els.sequenceOutput.innerHTML = '<div class="empty">Running V2 simulation with current scoring controls...</div>';
+      els.sequenceSummary.innerHTML = '';
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      try {
+        const baselineArtifact = await loadBaselineArtifact();
+        const baselineSequence = filterSequenceToTargetKl(baselineArtifact.sequence ?? [], targetKl);
+        const result = runV2SequenceSimulation();
+        const v2Sequence = buildQuestSequence(result);
+        const baseAuto = countKind(baselineSequence, 'auto');
+        const v2Auto = countKind(v2Sequence, 'auto');
+
+        els.sequenceSummary.innerHTML = [
+          metric('Seed', SEQUENCE_SEED),
+          metric('Target KL', targetKl),
+          metric('Base tasks', baselineSequence.length),
+          metric('Experiment tasks', v2Sequence.length),
+          metric('Base A/M', `${baseAuto}/${countKind(baselineSequence, 'mandatory')}`),
+          metric('Experiment A/M', `${v2Auto}/${countKind(v2Sequence, 'mandatory')}`),
+          metric('Min level offset', readLevelWindowOffset()),
+          metric('Experiment meat', result.summary.totalMeatSpent),
+          metric('Experiment time', result.summary.totalTimeFormatted),
+        ].join('');
+
+        els.sequenceOutput.innerHTML = `
+          <article class="cm-card section">
+            <div class="sequence-toolbar">
+              <div>
+                <div class="section-title">Side By Side Sequence</div>
+                <div class="sequence-note">Base is static baseline KL50 artifact, filtered to target KL. Experiment recalculates from current scoring controls.</div>
+              </div>
+              <button class="cm-btn cm-btn--ghost" type="button" id="rerun-sequence">Rerun</button>
+            </div>
+            ${renderSequenceTable(baselineSequence, v2Sequence)}
+          </article>
+        `;
+        document.getElementById('rerun-sequence')?.addEventListener('click', renderSequenceCompare);
+      } catch (error) {
+        els.sequenceOutput.innerHTML = `<div class="empty">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      }
+    }
+
+    function activeTab() {
+      return [...els.tabs].find((tab) => tab.getAttribute('aria-selected') === 'true')?.dataset.tab ?? 'scoring';
+    }
+
+    function renderActiveTab() {
+      if (activeTab() === 'sequence') {
+        renderSequenceCompare();
+      } else if (activeTab() === 'filters') {
+        renderHardFilters();
+      } else {
+        analyze();
+      }
+    }
+
+    function selectTab(tabName) {
+      for (const tab of els.tabs) {
+        tab.setAttribute('aria-selected', tab.dataset.tab === tabName ? 'true' : 'false');
+      }
+      els.scoringPanel.classList.toggle('hidden', tabName !== 'scoring');
+      els.filtersPanel.classList.toggle('hidden', tabName !== 'filters');
+      els.sequencePanel.classList.toggle('hidden', tabName !== 'sequence');
+      renderActiveTab();
+    }
+
+    function analyze() {
+      try {
+        const { balance, state, history } = parseInput();
+        const built = buildScoringResults(balance, state, history);
+
+        const budgetCtx = getAutoQuestBudgetContext(balance, state);
+        els.summary.innerHTML = [
+          metric('KL', state.kraken.level),
+          metric('Chapter', built[0]?.[1].context.chapter ?? '-'),
+          metric('Default budget', fmt(budgetCtx.meatBudget, 1)),
+          metric('Board cells', `${built[0]?.[1].context.gridCap ?? '-'} / ${built[0]?.[1].context.gridCells ?? '-'}`),
+          metric('Generator cells', built[0]?.[1].context.generatorCellCount ?? '-'),
+          metric('Opened lines', built[0]?.[1].context.openedCreatureLineCount ?? '-'),
+          metric('Min level offset', readLevelWindowOffset()),
+          metric('History rows', history.length),
+          metric('Line exposure', `${readLineExposureTarget()} / ${fmt(readSecondaryLineExposureMultiplier(), 2)}`),
+        ].join('');
+        els.output.innerHTML = built.map(([title, result]) => renderSection(title, result)).join('');
+      } catch (error) {
+        els.output.innerHTML = `<div class="empty">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      }
+    }
+
+    buildWeightControls();
+    const tooltip = document.createElement('div');
+    tooltip.className = 'debug-tooltip';
+    document.body.appendChild(tooltip);
+
+    function moveTooltip(event) {
+      const pad = 14;
+      const maxX = window.innerWidth - tooltip.offsetWidth - pad;
+      const maxY = window.innerHeight - tooltip.offsetHeight - pad;
+      tooltip.style.left = `${Math.max(pad, Math.min(maxX, event.clientX + pad))}px`;
+      tooltip.style.top = `${Math.max(pad, Math.min(maxY, event.clientY + pad))}px`;
+    }
+
+    document.addEventListener('pointerover', (event) => {
+      const target = event.target.closest?.('[data-tip]');
+      if (!target) return;
+      tooltip.textContent = target.dataset.tip;
+      tooltip.style.display = 'block';
+      moveTooltip(event);
+    });
+    document.addEventListener('pointermove', (event) => {
+      if (tooltip.style.display !== 'block') return;
+      const target = event.target.closest?.('[data-tip]');
+      if (!target) {
+        tooltip.style.display = 'none';
+        return;
+      }
+      moveTooltip(event);
+    });
+    document.addEventListener('pointerout', (event) => {
+      if (!event.target.closest?.('[data-tip]')) return;
+      tooltip.style.display = 'none';
+    });
+
+    const initialDemo = makePresetSnapshot(els.preset.value);
+    els.json.value = JSON.stringify(initialDemo, null, 2);
+    setDefaultBudget(BALANCE, initialDemo);
+    restoreSettings();
+    const demo = makePresetSnapshot(els.preset.value);
+    els.json.value = JSON.stringify(demo, null, 2);
+    if (!els.budget.value) setDefaultBudget(BALANCE, demo);
+
+    function loadSelectedPreset() {
+      const state = makePresetSnapshot(els.preset.value);
+      els.json.value = JSON.stringify(state, null, 2);
+      setDefaultBudget(BALANCE, state);
+      persistSettings();
+      renderActiveTab();
+    }
+    els.loadDemo.addEventListener('click', loadSelectedPreset);
+    els.preset.addEventListener('change', loadSelectedPreset);
+    els.analyze.addEventListener('click', renderActiveTab);
+    els.saveTestConfig.addEventListener('click', saveTestConfig);
+    for (const tab of els.tabs) {
+      tab.addEventListener('click', () => selectTab(tab.dataset.tab));
+    }
+    els.resetSettings.addEventListener('click', () => {
+      localStorage.removeItem(SETTINGS_KEY);
+      localStorage.removeItem('cult-merge-autoquest-scoring-test-config-v1');
+      localStorage.removeItem('cult-merge-autoquest-scoring-v2-enabled');
+      els.settingsStatus.textContent = 'Saved settings reset.';
+    });
+    for (const input of document.querySelectorAll('input, select')) {
+      input.addEventListener('change', () => {
+        persistSettings();
+        renderActiveTab();
+      });
+    }
+    renderActiveTab();
+  </script>
+</body>
+</html>

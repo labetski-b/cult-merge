@@ -162,7 +162,14 @@ export function spawnFromGenerator(
       rngState: ctx.rng.getState(),
       cumulativeStats: {
         ...snapshot.cumulativeStats,
-        totalSpawns: snapshot.cumulativeStats.totalSpawns + 1
+        totalSpawns: snapshot.cumulativeStats.totalSpawns + 1,
+        maxCreatureLevelByType: {
+          ...snapshot.cumulativeStats.maxCreatureLevelByType,
+          [spawn.creatureType]: Math.max(
+            snapshot.cumulativeStats.maxCreatureLevelByType[spawn.creatureType] ?? 0,
+            spawn.level,
+          ),
+        },
       },
       spawnCountByGen: {
         ...snapshot.spawnCountByGen,

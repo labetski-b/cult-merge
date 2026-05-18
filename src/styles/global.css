@@ -22,6 +22,11 @@ body {
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
+  transition: max-width 160ms ease;
+}
+
+body.task-debug-expanded .app-root {
+  max-width: 1120px;
 }
 
 .layout {
@@ -692,6 +697,9 @@ body {
   border-collapse: collapse;
   width: 100%;
 }
+.task-debug-autoquest-table {
+  min-width: 1060px;
+}
 .task-debug-panel th,
 .task-debug-panel td {
   padding: 1px 4px;
@@ -729,6 +737,12 @@ body {
 }
 .task-debug-panel tr.scoring-collapsed td {
   text-decoration: line-through;
+}
+.task-debug-panel tr.scoring-forbidden {
+  opacity: 0.42;
+}
+.task-debug-panel tr.scoring-forbidden td:last-child {
+  color: rgba(255, 170, 120, 0.9);
 }
 
 .kraken-exp {
@@ -1277,6 +1291,10 @@ body {
   flex: 0 0 220px;
   min-width: 0;
   position: relative;
+  transition: flex-basis 160ms ease;
+}
+body.task-debug-expanded .kraken-row > .task-panel.task-panel-debug-open {
+  flex-basis: 760px;
 }
 
 .task-mandatory-corner {
@@ -1369,6 +1387,7 @@ body {
 
 @media (max-width: 600px) {
   .app-root { padding: 8px; gap: 8px; }
+  body.task-debug-expanded .app-root { max-width: 720px; }
   .header-bar {
     flex-wrap: wrap;
     gap: 8px;
@@ -1380,6 +1399,9 @@ body {
   .kraken-row > .task-panel {
     flex: 0 0 120px;
     padding: 6px;
+  }
+  body.task-debug-expanded .kraken-row > .task-panel.task-panel-debug-open {
+    flex-basis: 120px;
   }
   .task-debug-toggle,
   .task-debug-panel { display: none; }

@@ -2,7 +2,7 @@ import { findEntityCell, resizeGrid } from '@domain/grid';
 import { getGridSizeForLevel } from '@domain/gridSize';
 import { addExp } from '@domain/kraken';
 import { applyTaskMultiplier, getCreatureReward, getEntityReward, runeRedemptionValue } from '@domain/rewards';
-import { applyFPCounterUpdate, generateAutoTask, getActiveMandatoryTask, isTaskComplete } from '@domain/tasks';
+import { appendRecentAutoQuestHistory, applyFPCounterUpdate, generateAutoTask, getActiveMandatoryTask, isTaskComplete } from '@domain/tasks';
 import { stampMandatoryEyeReward } from '@domain/runtime/getActiveTask';
 import type { GameSnapshot, Resources, RuneItemKey, TaskDefinition } from '@domain/types';
 import type { RuntimeContext, RuntimeResult } from './types';
@@ -172,6 +172,13 @@ export function feedEntity(
     ...snapshot.currentTaskFed,
     { type: entity.creatureType, level: entity.level }
   ];
+  const nextMaxCreatureLevelByType = {
+    ...snapshot.cumulativeStats.maxCreatureLevelByType,
+    [entity.creatureType]: Math.max(
+      snapshot.cumulativeStats.maxCreatureLevelByType[entity.creatureType] ?? 0,
+      entity.level,
+    ),
+  };
 
   const events: FeedRuntimeEvent[] = [
     {
@@ -209,7 +216,11 @@ export function feedEntity(
         grid: resizedGrid,
         pendingRewards: nextPendingRewards,
         kraken: expResult.newState,
-        currentTaskFed: nextTaskFed
+        currentTaskFed: nextTaskFed,
+        cumulativeStats: {
+          ...snapshot.cumulativeStats,
+          maxCreatureLevelByType: nextMaxCreatureLevelByType,
+        }
       },
       changed: true,
       events
@@ -233,7 +244,8 @@ export function feedEntity(
     currentTaskFed: [],
     cumulativeStats: {
       ...snapshot.cumulativeStats,
-      totalTasksCompleted: snapshot.cumulativeStats.totalTasksCompleted + 1
+      totalTasksCompleted: snapshot.cumulativeStats.totalTasksCompleted + 1,
+      maxCreatureLevelByType: nextMaxCreatureLevelByType,
     }
   };
 
@@ -274,12 +286,14 @@ export function feedEntity(
     };
   } else {
     const completedLine = task.creatures[0]?.type ?? null;
+    const recentAutoQuestHistory = appendRecentAutoQuestHistory(snapshot.recentAutoQuestHistory, task);
     const generationSnapshot: GameSnapshot = {
       ...nextSnapshot,
       currentAutoTask: task,
       lastAutoTaskLine: completedLine,
       autoTaskLineCompletions: taskBookkeeping.autoTaskLineCompletions,
-      autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels
+      autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels,
+      recentAutoQuestHistory
     };
 
     const newAutoTask = generateAutoTask(ctx.balance, generationSnapshot, ctx.rng);
@@ -291,6 +305,7 @@ export function feedEntity(
       lastAutoTaskLine: completedLine,
       autoTaskLineCompletions: taskBookkeeping.autoTaskLineCompletions,
       autoTaskLastLevels: taskBookkeeping.autoTaskLastLevels,
+      recentAutoQuestHistory,
       rngState: ctx.rng.getState(),
       ...(fpUpdate ?? {})
     };

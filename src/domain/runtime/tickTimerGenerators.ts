@@ -33,6 +33,7 @@ export function tickTimerGenerators(
   let changed = false;
   let totalSpawnsPlaced = 0;
   const spawnsByGen: Record<number, number> = {};
+  const maxCreatureLevelByType = { ...snapshot.cumulativeStats.maxCreatureLevelByType };
 
   // Single SeededRng instance for the entire call; getState() called once at exit
   const rng = new SeededRng(rngState);
@@ -82,6 +83,10 @@ export function tickTimerGenerators(
         changed = true;
         totalSpawnsPlaced += 1;
         spawnsByGen[gen.generatorId] = (spawnsByGen[gen.generatorId] ?? 0) + 1;
+        maxCreatureLevelByType[creature.creatureType] = Math.max(
+          maxCreatureLevelByType[creature.creatureType] ?? 0,
+          creature.level,
+        );
       }
     }
 
@@ -114,6 +119,10 @@ export function tickTimerGenerators(
         changed = true;
         totalSpawnsPlaced += 1;
         spawnsByGen[gen.generatorId] = (spawnsByGen[gen.generatorId] ?? 0) + 1;
+        maxCreatureLevelByType[spawn.creatureType] = Math.max(
+          maxCreatureLevelByType[spawn.creatureType] ?? 0,
+          spawn.level,
+        );
       } else {
         // Model α: one interval of time IS spent producing this pending drop,
         // so advance lastTick by exactly one interval. The frozen pause begins
@@ -162,6 +171,7 @@ export function tickTimerGenerators(
     cumulativeStats: {
       ...snapshot.cumulativeStats,
       totalSpawns: snapshot.cumulativeStats.totalSpawns + totalSpawnsPlaced,
+      maxCreatureLevelByType,
     },
     spawnCountByGen: nextSpawnCountByGen,
   };

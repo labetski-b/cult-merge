@@ -54,6 +54,15 @@ function generatorTunerSavePlugin() {
         req.on('end', () => {
           try {
             const rawParsed = JSON.parse(body);
+            if (rawParsed && typeof rawParsed === 'object' && 'autoQuestScoringConfig' in rawParsed) {
+              const target = path.resolve(__dirname, '.context', 'autoquest-scoring-debug-config.json');
+              fs.mkdirSync(path.dirname(target), { recursive: true });
+              fs.writeFileSync(target, JSON.stringify(rawParsed.autoQuestScoringConfig, null, 2) + '\n', 'utf8');
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ ok: true, target }));
+              return;
+            }
+
             const payload: { generators?: unknown; krakenProgression?: unknown; tasks?: unknown } = rawParsed && typeof rawParsed === 'object' && 'generators' in rawParsed
               ? rawParsed as { generators?: unknown; krakenProgression?: unknown; tasks?: unknown }
               : { generators: rawParsed, krakenProgression: undefined, tasks: undefined };
@@ -118,6 +127,39 @@ function generatorTunerSavePlugin() {
           }
         });
       });
+
+      server.middlewares.use('/__autoquest-scoring/save-config', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end('Method Not Allowed');
+          return;
+        }
+
+        let body = '';
+        req.setEncoding('utf8');
+        req.on('data', chunk => {
+          body += chunk;
+          if (body.length > 100_000) req.destroy(new Error('Payload too large'));
+        });
+        req.on('error', err => {
+          res.statusCode = 500;
+          res.end(err.message);
+        });
+        req.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (!parsed || typeof parsed !== 'object') throw new Error('Expected JSON object');
+            const target = path.resolve(__dirname, '.context', 'autoquest-scoring-debug-config.json');
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.writeFileSync(target, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true, target }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.end(err instanceof Error ? err.message : String(err));
+          }
+        });
+      });
     },
   };
 }
@@ -146,7 +188,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        simulation: path.resolve(__dirname, 'simulation.html')
+        simulation: path.resolve(__dirname, 'simulation.html'),
+        scoringTableDebug: path.resolve(__dirname, 'scoring-table-debug.html')
       }
     }
   }

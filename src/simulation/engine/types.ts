@@ -1,5 +1,5 @@
 import type { BalanceConfig } from '@data/schemas';
-import type { GameSnapshot } from '@domain/types';
+import type { AutoQuestDifficultyRerunDebug, GameSnapshot } from '@domain/types';
 import type { SimulationAction } from './actions';
 import type { EngineEnv } from './env';
 import type { TickEndReason, TickTrace } from './trace';
@@ -242,6 +242,8 @@ export interface AutoTaskHistoryEntry {
   session: number;
   totalTimeSec: number;
   difficulty?: number;
+  debugOriginalDifficulty?: number;
+  debugDifficultyRerun?: AutoQuestDifficultyRerunDebug;
   debugMeatBudget?: number;
   debugMeatCost?: number;
   pickedGenId?: number;

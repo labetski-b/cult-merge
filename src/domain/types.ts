@@ -87,8 +87,27 @@ export interface TaskDefinition {
   debugMainCollapsed?: ScoringTableEntry[];
   debugFillerScoringTable?: ScoringTableEntry[];
   debugFillerCollapsed?: ScoringTableEntry[];
+  debugAutoQuestScoringRows?: AutoQuestScoringDebugRow[];
+  debugAutoQuestSelectedRows?: AutoQuestScoringDebugRow[];
+  debugAutoQuestDecision?: AutoQuestScoringDecisionDebug;
+  debugOriginalDifficulty?: number;
+  debugDifficultyRerun?: AutoQuestDifficultyRerunDebug;
   /** Generator id the picked creature came from (for FP counter bookkeeping). */
   pickedGenId?: number;
+  /** All generator ids referenced by selected rows (dual auto-quests can mix generators). */
+  pickedGenIds?: number[];
+}
+
+export interface AutoQuestDifficultyRerunDebug {
+  fromDifficulty: number;
+  toDifficulty: number;
+  creatureType: string;
+  level: number;
+  count: number;
+  genId: number;
+  genLevel: number;
+  requiredL1: number;
+  tenSpawnL1: number;
 }
 
 export interface ScoringTableEntry {
@@ -102,6 +121,89 @@ export interface ScoringTableEntry {
   fieldL1: number;
   totalL1: number;
   targetLevel: number;
+}
+
+export interface AutoQuestScoringDebugContributions {
+  lineNovelty: number;
+  lineFreshness: number;
+  questFreshness: number;
+  lineExposure: number;
+  budgetUse: number;
+  fieldSupport: number;
+  level: number;
+}
+
+export interface AutoQuestScoringDebugRow {
+  slot: 'main' | 'filler';
+  genId: number;
+  genLevel: number;
+  creatureType: string;
+  level: number;
+  count: number;
+  boardCellCap: number;
+  requiredL1: number;
+  l1PerCharge: number;
+  l1PerMeat: number;
+  meatBudget: number;
+  seenMaxLevel: number;
+  playerLevelCap: number;
+  levelDistanceFromCap: number;
+  levelDistanceFromSeenMax: number;
+  maxAllowedCount: number;
+  spawnL1Capacity: number;
+  fieldL1: number;
+  totalL1Capacity: number;
+  estimatedMeatCost: number;
+  lineUnlockOrder: number;
+  lineNoveltyScore: number;
+  lineLastSeenAgo: number;
+  lineFreshnessScore: number;
+  questLastSeenAgo: number;
+  questFreshnessScore: number;
+  lineCompletions: number;
+  lineExposureScore: number;
+  lineExposureRoleMultiplier: number;
+  budgetUseScore: number;
+  fieldSupportScore: number;
+  levelScore: number;
+  weightedContributions: AutoQuestScoringDebugContributions;
+  score: number;
+  forbiddenReasons: string[];
+}
+
+export interface AutoQuestScoringContextDebug {
+  slot: 'main' | 'filler';
+  meatBudget: number;
+  gridCells: number;
+  gridCap: number;
+  generatorCellCount: number;
+  openedCreatureLineCount: number;
+  meatDrop: number;
+  chapter: number;
+  historyLength: number;
+  fpExpectedTicks: number;
+}
+
+export interface AutoQuestForbiddenReasonCount {
+  reason: string;
+  count: number;
+}
+
+export interface AutoQuestScoringDecisionDebug {
+  rowCount: number;
+  allowedRowCount: number;
+  rejectedRowCount: number;
+  rowLimit: number;
+  contexts: AutoQuestScoringContextDebug[];
+  selectedRows: AutoQuestScoringDebugRow[];
+  topAllowedRows: AutoQuestScoringDebugRow[];
+  topRejectedRows: AutoQuestScoringDebugRow[];
+  rejectedReasonCounts: AutoQuestForbiddenReasonCount[];
+}
+
+export interface RecentAutoQuestHistoryEntry {
+  sequence: number;
+  creatures: TaskRequirement[];
 }
 
 export type RewardType = 'res_box' | 'egg' | 'mechanic' | 'grid';
@@ -193,6 +295,7 @@ export interface GameSnapshot {
   lastAutoTaskLine: string | null;
   autoTaskLineCompletions: Record<string, number>;
   autoTaskLastLevels: Record<string, number>;
+  recentAutoQuestHistory?: RecentAutoQuestHistoryEntry[];
   session: number;
   meatButtonPresses: number;
   meatPressesAtLastFP: number;

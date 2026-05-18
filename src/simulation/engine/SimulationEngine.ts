@@ -251,6 +251,8 @@ export class SimulationEngine {
       session: this.state.session,
       totalTimeSec: this.cumulative.totalTimeSec,
       difficulty: task.difficulty,
+      debugOriginalDifficulty: task.debugOriginalDifficulty,
+      debugDifficultyRerun: task.debugDifficultyRerun,
       debugMeatBudget: task.debugMeatBudget,
       debugMeatCost: task.debugMeatCost,
       pickedGenId: task.pickedGenId,
@@ -296,6 +298,7 @@ export class SimulationEngine {
       const decision: StrategyDecision = this.config.strategy.decide(this.state, this.env);
 
       let iterAdvanced = false;
+      let stopAfterTaskCompletion = false;
 
       // Execute all actions in this batch
       for (let i = 0; i < decision.actions.length; i++) {
@@ -366,6 +369,7 @@ export class SimulationEngine {
         // Quest completed — stop executing remaining actions so next iteration starts fresh
         if (action.type === 'feed' && this.cumulative.totalTasksCompleted > tasksCompletedBefore) {
           this.captureTaskSnapshot(outerTick, result.events);
+          stopAfterTaskCompletion = this.config.stopCondition.type === 'oneTaskCompleted';
           break;
         }
       }
@@ -374,6 +378,12 @@ export class SimulationEngine {
       if (isEarlyGame) {
         const levelsGained = this.state.kraken.level - krakenLevelBefore;
         if (levelsGained > 0) this.tick += levelsGained;
+      }
+
+      if (stopAfterTaskCompletion) {
+        if (!isEarlyGame) this.tick++;
+        endReason = 'done';
+        break;
       }
 
       if (decision.done) {
@@ -704,6 +714,10 @@ export class SimulationEngine {
         if (gen.level > prev) maxGenLevelById[gen.generatorId] = gen.level;
       }
     }
+    const maxCreatureLevelByType = { ...this.state.cumulativeStats.maxCreatureLevelByType };
+    for (const [creatureType, level] of Object.entries(this.cumulative.maxCreatureLevelByType)) {
+      maxCreatureLevelByType[creatureType] = Math.max(maxCreatureLevelByType[creatureType] ?? 0, level);
+    }
 
     this.state.cumulativeStats = {
       totalMerges: this.cumulative.totalMerges,
@@ -711,7 +725,7 @@ export class SimulationEngine {
       totalRunesFed: this.runesFedCount,
       totalPredatorFeeds: 0, // predators not simulated
       totalSpawns: this.cumulative.totalSpawns,
-      maxCreatureLevelByType: { ...this.cumulative.maxCreatureLevelByType },
+      maxCreatureLevelByType,
       maxGeneratorLevelById: maxGenLevelById,
     };
   }

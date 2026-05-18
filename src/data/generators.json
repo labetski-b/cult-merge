@@ -397,7 +397,7 @@
         {
           "mode": "sacrifice",
           "level": 9,
-          "chargeCost": 12,
+          "chargeCost": 13,
           "numCreatures": 31,
           "outputs": [
             {
@@ -481,7 +481,7 @@
         {
           "mode": "sacrifice",
           "level": 10,
-          "chargeCost": 14,
+          "chargeCost": 15,
           "numCreatures": 33,
           "outputs": [
             {
@@ -574,7 +574,7 @@
         {
           "mode": "sacrifice",
           "level": 1,
-          "chargeCost": 5,
+          "chargeCost": 3,
           "numCreatures": 15,
           "outputs": [
             {
@@ -593,7 +593,7 @@
         {
           "mode": "sacrifice",
           "level": 2,
-          "chargeCost": 6,
+          "chargeCost": 3,
           "numCreatures": 17,
           "outputs": [
             {
@@ -617,7 +617,7 @@
         {
           "mode": "sacrifice",
           "level": 3,
-          "chargeCost": 7,
+          "chargeCost": 4,
           "numCreatures": 19,
           "outputs": [
             {
@@ -651,7 +651,7 @@
         {
           "mode": "sacrifice",
           "level": 4,
-          "chargeCost": 8,
+          "chargeCost": 5,
           "numCreatures": 21,
           "outputs": [
             {
@@ -695,7 +695,7 @@
         {
           "mode": "sacrifice",
           "level": 5,
-          "chargeCost": 9,
+          "chargeCost": 6,
           "numCreatures": 23,
           "outputs": [
             {
@@ -749,7 +749,7 @@
         {
           "mode": "sacrifice",
           "level": 6,
-          "chargeCost": 10,
+          "chargeCost": 8,
           "numCreatures": 25,
           "outputs": [
             {
@@ -813,7 +813,7 @@
         {
           "mode": "sacrifice",
           "level": 7,
-          "chargeCost": 11,
+          "chargeCost": 10,
           "numCreatures": 27,
           "outputs": [
             {
@@ -882,7 +882,7 @@
         {
           "mode": "sacrifice",
           "level": 8,
-          "chargeCost": 14,
+          "chargeCost": 12,
           "numCreatures": 29,
           "outputs": [
             {
@@ -956,7 +956,7 @@
         {
           "mode": "sacrifice",
           "level": 9,
-          "chargeCost": 18,
+          "chargeCost": 15,
           "numCreatures": 31,
           "outputs": [
             {
@@ -1040,7 +1040,7 @@
         {
           "mode": "sacrifice",
           "level": 10,
-          "chargeCost": 22,
+          "chargeCost": 18,
           "numCreatures": 33,
           "outputs": [
             {

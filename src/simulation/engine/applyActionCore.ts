@@ -455,6 +455,16 @@ function applyMerge(
     });
   } else if (merged.kind === 'creature') {
     const c = merged as CreatureEntity;
+    const prevMaxLevel = state.cumulativeStats.maxCreatureLevelByType[c.creatureType] ?? 0;
+    if (c.level > prevMaxLevel) {
+      state.cumulativeStats = {
+        ...state.cumulativeStats,
+        maxCreatureLevelByType: {
+          ...state.cumulativeStats.maxCreatureLevelByType,
+          [c.creatureType]: c.level,
+        },
+      };
+    }
     if (source.kind === 'creature') {
       const line = source.creatureType;
       const prev = state.mergeCountByLine[line] ?? 0;

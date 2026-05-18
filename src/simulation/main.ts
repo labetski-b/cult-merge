@@ -418,6 +418,29 @@ function levelColor(level: number): string {
   return palette[(Math.max(1, level) - 1) % palette.length]!;
 }
 
+const CREATURE_PALETTE = [
+  '#94a3b8', // 1 slate-400 — soft cool grey
+  '#22d3ee', // 2 cyan-400
+  '#2dd4bf', // 3 teal-400
+  '#4ade80', // 4 green-400
+  '#60a5fa', // 5 blue-400
+  '#818cf8', // 6 indigo-400
+  '#a78bfa', // 7 violet-400
+  '#facc15', // 8 yellow-400
+  '#fb923c', // 9 orange-400
+  '#f472b6', // 10 pink-400
+  '#e879f9', // 11 fuchsia-400
+  '#f43f5e', // 12 rose-500
+];
+
+function creatureColor(type: string): string {
+  const m = type.match(/^Creature(\d+)$/);
+  if (!m) return '#6b7280';
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 0) return '#6b7280';
+  return CREATURE_PALETTE[(n - 1) % CREATURE_PALETTE.length]!;
+}
+
 function formatCravingReq(req: AutoTaskHistoryEntry['creatures'][number]): string {
   return `${req.type.replace(/^Creature/, 'C')} L${req.level}`;
 }
@@ -500,6 +523,8 @@ function renderCravings(results: SimulationResult[]) {
     <div class="cravings-subtabs" role="tablist" aria-label="Cravings views">
       <button type="button" class="cravings-subtab" aria-selected="true" data-cravings-view="creatures">By Creature</button>
       <button type="button" class="cravings-subtab" aria-selected="false" data-cravings-view="quests">Quest List</button>
+      <button type="button" class="cravings-subtab" aria-selected="false" data-cravings-view="by-kl">By KL</button>
+      <button type="button" class="cravings-subtab" aria-selected="false" data-cravings-view="by-kl-charts">By KL(charts)</button>
     </div>
     <div class="cravings-legend">
       ${Array.from({ length: 10 }, (_, i) => {
@@ -581,6 +606,18 @@ function renderCravings(results: SimulationResult[]) {
   `;
   cravingsBody.appendChild(questPanel);
 
+  const klPanel = document.createElement('section');
+  klPanel.className = 'cm-card cravings-kl-panel hidden';
+  klPanel.dataset.cravingsPanel = 'by-kl';
+  klPanel.innerHTML = renderCravingsByKL(history);
+  cravingsBody.appendChild(klPanel);
+
+  const klChartsPanel = document.createElement('section');
+  klChartsPanel.className = 'cm-card cravings-kl-charts-panel hidden';
+  klChartsPanel.dataset.cravingsPanel = 'by-kl-charts';
+  klChartsPanel.innerHTML = renderCravingsByKLCharts(history);
+  cravingsBody.appendChild(klChartsPanel);
+
   for (const creatureType of creatureTypes) {
     const cells = byCreature.get(creatureType)!;
     const creatureNum = creatureType.replace(/^Creature/, 'C');
@@ -646,6 +683,252 @@ function renderCravings(results: SimulationResult[]) {
   }
 
   wireCravingsSubtabs(cravingsBody);
+}
+
+function getCravingsKLRanges(maxKL: number): Array<{ start: number; end: number }> {
+  if (maxKL <= 0) return [];
+  const ranges: Array<{ start: number; end: number }> = [
+    { start: 1, end: 6 },
+    { start: 6, end: 10 },
+  ];
+  for (let start = 10; start <= maxKL; start += 10) {
+    ranges.push({ start, end: start + 10 });
+  }
+  return ranges.filter(range => range.start <= maxKL);
+}
+
+function renderCravingsByKLCharts(history: AutoTaskHistoryEntry[]): string {
+  const head = `
+    <div class="cm-card__head">
+      <h3 class="cm-card__title">Auto Quest Jumps by Kraken Level</h3>
+      <span class="cm-badge cm-badge--neutral">${history.length} rows</span>
+    </div>
+  `;
+
+  if (history.length === 0) {
+    return `
+      ${head}
+      <p class="cravings-kl-empty">No auto tasks generated yet.</p>
+    `;
+  }
+
+  const maxKL = history.reduce((m, t) => Math.max(m, t.krakenLevel), 0);
+  const allCreatureTypes = [...new Set(history.flatMap(task => task.creatures.map(req => req.type)))]
+    .sort((a, b) => {
+      const ak = creatureSortKey(a);
+      const bk = creatureSortKey(b);
+      return ak === bk ? a.localeCompare(b) : ak - bk;
+    });
+  const ranges = getCravingsKLRanges(maxKL);
+  const charts = ranges
+    .map(range => renderCravingsKLRangeChart(history, range.start, range.end, allCreatureTypes))
+    .filter(Boolean)
+    .join('');
+
+  return `
+    ${head}
+    <div class="cravings-kl-chart-help">
+      <span>X: quest order inside the Kraken Level range</span>
+      <span>Y: creature lines</span>
+      <span>Square text: required creature level</span>
+    </div>
+    <div class="cravings-kl-chart-list">
+      ${charts || '<p class="cravings-kl-empty">No auto tasks in Kraken Level ranges.</p>'}
+    </div>
+  `;
+}
+
+function renderCravingsKLRangeChart(
+  history: AutoTaskHistoryEntry[],
+  startKL: number,
+  endKL: number,
+  allCreatureTypes: string[],
+): string {
+  const tasks = history
+    .filter(task => task.krakenLevel >= startKL && task.krakenLevel < endKL)
+    .sort((a, b) => a.sequence - b.sequence);
+  if (tasks.length === 0) return '';
+
+  const activeCreatureCount = new Set(tasks.flatMap(task => task.creatures.map(req => req.type))).size;
+  const creatureTypes = [...allCreatureTypes].reverse();
+
+  const left = 78;
+  const top = 28;
+  const bottom = 26;
+  const rowHeight = 28;
+  const colWidth = tasks.length <= 80 ? 18 : tasks.length <= 180 ? 14 : 10;
+  const square = Math.max(7, Math.min(14, colWidth - 3));
+  const plotWidth = Math.max(1, tasks.length) * colWidth;
+  const width = left + plotWidth + 18;
+  const height = top + creatureTypes.length * rowHeight + bottom;
+  const typeToRow = new Map(creatureTypes.map((type, index) => [type, index]));
+  const sequenceByTaskId = new Map(tasks.map((task, index) => [task.taskId, index + 1]));
+  const showSquareText = square >= 10 && tasks.length <= 220;
+  const xTickStep = Math.max(1, Math.ceil(tasks.length / 12));
+
+  const axisLabels = creatureTypes.map((type, index) => {
+    const y = top + index * rowHeight + rowHeight / 2;
+    return `
+      <text class="cravings-kl-chart-y-label" x="${left - 10}" y="${y + 4}" text-anchor="end">${escapeHtml(type.replace(/^Creature/, 'C'))}</text>
+      <line class="cravings-kl-chart-grid-line" x1="${left}" y1="${y}" x2="${left + plotWidth}" y2="${y}"></line>
+    `;
+  }).join('');
+
+  const xTicks = tasks
+    .map((task, index) => ({ task, local: index + 1 }))
+    .filter(({ local }) => local === 1 || local === tasks.length || local % xTickStep === 0)
+    .map(({ task, local }) => {
+      const x = left + (local - 0.5) * colWidth;
+      return `
+        <line class="cravings-kl-chart-x-tick" x1="${x}" y1="${top - 5}" x2="${x}" y2="${height - bottom + 4}"></line>
+        <text class="cravings-kl-chart-x-label" x="${x}" y="${height - 7}" text-anchor="middle">${local}</text>
+        <title>auto task #${task.sequence}</title>
+      `;
+    }).join('');
+
+  const points = tasks.flatMap(task => task.creatures.map(req => ({ task, req }))).map(({ task, req }) => {
+    const local = sequenceByTaskId.get(task.taskId) ?? 1;
+    const row = typeToRow.get(req.type) ?? 0;
+    const x = left + (local - 0.5) * colWidth - square / 2;
+    const y = top + row * rowHeight + rowHeight / 2 - square / 2;
+    const fill = levelColor(req.level);
+    const textX = x + square / 2;
+    const textY = y + square / 2 + 3;
+    const title = [
+      `Kraken Level ${task.krakenLevel}`,
+      `range quest #${local}`,
+      `auto task #${task.sequence}`,
+      `${req.type} L${req.level} x${req.count}`,
+      req.genId === null ? 'Gen?' : `Gen${req.genId} L${req.genLevel ?? '?'}`,
+      `after ${task.generatedAfterTasksCompleted} completed tasks`,
+      `time ${formatTimeSec(task.totalTimeSec)}`,
+    ].join(' | ');
+    const countBadge = req.count > 1
+      ? `<text class="cravings-kl-chart-count" x="${x + square + 1}" y="${y + 2}">x${req.count}</text>`
+      : '';
+    return `
+      <g class="cravings-kl-chart-point">
+        <title>${escapeHtml(title)}</title>
+        <rect x="${x}" y="${y}" width="${square}" height="${square}" rx="2" fill="${fill}"></rect>
+        ${showSquareText ? `<text x="${textX}" y="${textY}" text-anchor="middle">${req.level}</text>` : ''}
+        ${countBadge}
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <section class="cravings-kl-chart-card">
+      <div class="cravings-kl-chart-head">
+        <h4>Kraken Level ${startKL}&gt;${endKL}</h4>
+        <span>${tasks.length} quests · ${activeCreatureCount}/${creatureTypes.length} creature lines</span>
+      </div>
+      <div class="cravings-kl-chart-scroll">
+        <svg class="cravings-kl-chart-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Kraken Level ${startKL} to ${endKL} auto quest creature lines">
+          <text class="cravings-kl-chart-axis-title" x="${left + plotWidth / 2}" y="14" text-anchor="middle">Quest order</text>
+          <text class="cravings-kl-chart-axis-title" x="0" y="${top + creatureTypes.length * rowHeight / 2}" transform="rotate(-90 12 ${top + creatureTypes.length * rowHeight / 2})" text-anchor="middle">Creature lines</text>
+          <line class="cravings-kl-chart-axis" x1="${left}" y1="${top - 4}" x2="${left}" y2="${height - bottom}"></line>
+          <line class="cravings-kl-chart-axis" x1="${left}" y1="${height - bottom}" x2="${left + plotWidth}" y2="${height - bottom}"></line>
+          ${axisLabels}
+          ${xTicks}
+          ${points}
+        </svg>
+      </div>
+    </section>
+  `;
+}
+
+function renderCravingsByKL(history: AutoTaskHistoryEntry[]): string {
+  const head = `
+    <div class="cm-card__head">
+      <h3 class="cm-card__title">Auto Quests by Kraken Level</h3>
+      <span class="cm-badge cm-badge--neutral">${history.length} rows</span>
+    </div>
+  `;
+
+  if (history.length === 0) {
+    return `
+      ${head}
+      <p class="cravings-kl-empty">No auto tasks generated yet.</p>
+    `;
+  }
+
+  const maxKL = history.reduce((m, t) => Math.max(m, t.krakenLevel), 0);
+  if (maxKL <= 0) {
+    return `
+      ${head}
+      <p class="cravings-kl-empty">No auto tasks generated yet.</p>
+    `;
+  }
+
+  const byKL = new Map<number, AutoTaskHistoryEntry[]>();
+  const usedTypes = new Set<string>();
+  for (const task of history) {
+    const arr = byKL.get(task.krakenLevel) ?? [];
+    arr.push(task);
+    byKL.set(task.krakenLevel, arr);
+    for (const c of task.creatures) usedTypes.add(c.type);
+  }
+
+  const sortedTypes = [...usedTypes].sort((a, b) => {
+    const na = parseInt(a.replace(/\D/g, ''), 10) || 0;
+    const nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    return na - nb;
+  });
+  const legendHtml = sortedTypes.length === 0
+    ? ''
+    : `
+      <div class="cravings-kl-legend">
+        ${sortedTypes.map(type => `
+          <div class="cravings-kl-legend-item">
+            <span class="cravings-kl-legend-swatch" style="background:${creatureColor(type)}"></span>
+            <span class="cravings-kl-legend-label">${escapeHtml(type)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+  const rowsHtml: string[] = [];
+  for (let kl = 1; kl <= maxKL; kl++) {
+    const tasks = (byKL.get(kl) ?? []).slice().sort((a, b) => a.sequence - b.sequence);
+    const questsHtml = tasks.map(task => {
+      const reqLines = task.creatures.map(c => {
+        const base = `${c.type} L${c.level}`;
+        return c.count > 1 ? `${base} x${c.count}` : base;
+      });
+      const tooltipLines: string[] = [
+        ...reqLines,
+        `auto task #${task.sequence}`,
+        `tick ${task.generatedAtTick}`,
+        `time ${formatTimeSec(task.totalTimeSec)}`,
+      ];
+      if (task.difficulty !== undefined) {
+        tooltipLines.push(`difficulty ${task.difficulty}`);
+      }
+      const title = tooltipLines.join('\n');
+      const cellsHtml = task.creatures.map(c => {
+        const countBadge = c.count > 1
+          ? `<span class="cravings-kl-cell-count">×${c.count}</span>`
+          : '';
+        return `<span class="cravings-kl-cell" style="background:${creatureColor(c.type)}">${c.level}${countBadge}</span>`;
+      }).join('');
+      return `<span class="cravings-kl-quest" title="${escapeHtml(title)}">${cellsHtml}</span>`;
+    }).join('');
+
+    rowsHtml.push(`
+      <div class="cravings-kl-row">
+        <div class="cravings-kl-header">KL ${kl} · ${tasks.length} quests</div>
+        <div class="cravings-kl-quests">${questsHtml}</div>
+      </div>
+    `);
+  }
+
+  return `
+    ${head}
+    ${legendHtml}
+    <div class="cravings-kl-table">
+      ${rowsHtml.join('')}
+    </div>
+  `;
 }
 
 type FieldCell = NonNullable<ActionLogEntry['fieldSnapshot']>['grid']['cells'][number];
@@ -2508,11 +2791,12 @@ function renderCharts(results: SimulationResult[]) {
 
 interface EraData {
   label: string;
-  tickStart: number;
-  tickEnd: number; // -1 means "open end" (last era)
-  // creature type → quest count (number of new_quest entries containing that creature)
+  orderStart: number;
+  orderEnd: number; // -1 means "open end" (last era)
+  // creature type -> pick count (one quest can contribute multiple picks in dual-quest cases)
   questCounts: Record<string, number>;
   totalQuests: number;
+  totalCreaturePicks: number;
 }
 
 /**
@@ -2535,83 +2819,84 @@ function parseCreatureTypes(taskStr: string): string[] {
 }
 
 /**
- * Build era data from a single SimulationResult's actionLog.
- * An era starts when a new creature type first appears in a quest.
+ * Build era data from a single SimulationResult's auto-task history.
+ * An era starts when a new creature type first appears in ordered quest sequence.
  */
 function buildErasFromResult(result: SimulationResult): EraData[] {
-  const log = result.actionLog;
+  if (result.autoTaskHistory.length > 0) {
+    return buildErasFromAutoTaskHistory(result.autoTaskHistory);
+  }
+  return buildErasFromActionLog(result.actionLog);
+}
+
+function buildErasFromAutoTaskHistory(history: AutoTaskHistoryEntry[]): EraData[] {
+  const firstAppearance = new Map<string, number>(); // creature type -> auto task sequence
+  for (const task of history) {
+    const types = new Set(task.creatures.map(req => req.type));
+    for (const type of types) {
+      if (!firstAppearance.has(type)) {
+        firstAppearance.set(type, task.sequence);
+      }
+    }
+  }
+
+  const orderToCreatures = new Map<number, string[]>();
+  for (const [creature, order] of firstAppearance) {
+    const arr = orderToCreatures.get(order) ?? [];
+    arr.push(creature);
+    orderToCreatures.set(order, arr);
+  }
+
+  const eraBoundaries = buildEraBoundaries(orderToCreatures);
+  if (eraBoundaries.length === 0) return [];
+  const eras = createEmptyEras(eraBoundaries);
+
+  for (const task of history) {
+    const eraIdx = findEraIndex(eraBoundaries, task.sequence);
+    const types = [...new Set(task.creatures.map(req => req.type))];
+    const era = eras[eraIdx]!;
+    era.totalQuests++;
+    era.totalCreaturePicks += types.length;
+    for (const type of types) {
+      era.questCounts[type] = (era.questCounts[type] ?? 0) + 1;
+    }
+  }
+
+  return eras.filter(e => e.totalQuests > 0);
+}
+
+function buildErasFromActionLog(log: ActionLogEntry[]): EraData[] {
   const newQuestEntries = log.filter(e => e.action.type === 'new_quest');
 
-  // First pass: find the tick when each creature type first appears
-  const firstAppearance = new Map<string, number>(); // creature type → tick
+  // Fallback only: old logs do not have reliable sequence, so action order may still be coarser.
+  const firstAppearance = new Map<string, number>(); // creature type -> log action index
   for (const entry of newQuestEntries) {
     const types = parseCreatureTypes(entry.state.currentTask);
     for (const t of types) {
       if (!firstAppearance.has(t)) {
-        firstAppearance.set(t, entry.tick);
+        firstAppearance.set(t, entry.actionIndex);
       }
     }
   }
 
-  // Build era boundaries from first-appearance ticks
-  // Group creatures that appear at the same tick
-  const tickToCreatures = new Map<number, string[]>();
-  for (const [creature, tick] of firstAppearance) {
-    const arr = tickToCreatures.get(tick) ?? [];
+  const orderToCreatures = new Map<number, string[]>();
+  for (const [creature, order] of firstAppearance) {
+    const arr = orderToCreatures.get(order) ?? [];
     arr.push(creature);
-    tickToCreatures.set(tick, arr);
+    orderToCreatures.set(order, arr);
   }
 
-  // Sort ticks, build boundaries
-  const sortedTicks = [...tickToCreatures.keys()].sort((a, b) => a - b);
-  const eraBoundaries: Array<{ tick: number; label: string }> = [];
-  for (let i = 0; i < sortedTicks.length; i++) {
-    const tick = sortedTicks[i]!;
-    const creatures = tickToCreatures.get(tick)!.sort((a, b) => {
-      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-      return numA - numB;
-    });
-    if (i === 0) {
-      // First era: "Creature1 only" or "Creature1, Creature2 only" if multiple at tick 0
-      eraBoundaries.push({ tick, label: creatures.join(', ') + ' only' });
-    } else {
-      eraBoundaries.push({ tick, label: '+' + creatures.join(', ') });
-    }
-  }
-
+  const eraBoundaries = buildEraBoundaries(orderToCreatures);
   if (eraBoundaries.length === 0) return [];
+  const eras = createEmptyEras(eraBoundaries);
 
-  // Build eras: each era covers [boundary.tick, nextBoundary.tick - 1]
-  // Last era uses tickEnd = -1 (sentinel for "open end")
-  const eras: EraData[] = eraBoundaries.map((b, i) => {
-    const isLast = i === eraBoundaries.length - 1;
-    const nextBoundaryTick = isLast ? -1 : eraBoundaries[i + 1]!.tick - 1;
-    return {
-      label: isLast ? b.label + ' (final)' : b.label,
-      tickStart: b.tick,
-      tickEnd: nextBoundaryTick, // -1 for last era (open-ended sentinel)
-      questCounts: {},
-      totalQuests: 0,
-    };
-  });
-
-  // Second pass: count quest distribution per era
   for (const entry of newQuestEntries) {
-    // Find the era: last boundary whose tick <= entry.tick
-    let eraIdx = 0;
-    for (let i = 1; i < eraBoundaries.length; i++) {
-      if (eraBoundaries[i]!.tick <= entry.tick) {
-        eraIdx = i;
-      } else {
-        break;
-      }
-    }
-
     const taskStr = entry.state.currentTask;
     const types = parseCreatureTypes(taskStr);
+    const eraIdx = findEraIndex(eraBoundaries, entry.actionIndex);
     const era = eras[eraIdx]!;
     era.totalQuests++;
+    era.totalCreaturePicks += types.length;
     for (const t of types) {
       era.questCounts[t] = (era.questCounts[t] ?? 0) + 1;
     }
@@ -2619,6 +2904,50 @@ function buildErasFromResult(result: SimulationResult): EraData[] {
 
   // Drop eras with zero quests
   return eras.filter(e => e.totalQuests > 0);
+}
+
+function buildEraBoundaries(orderToCreatures: Map<number, string[]>): Array<{ order: number; label: string }> {
+  const sortedOrders = [...orderToCreatures.keys()].sort((a, b) => a - b);
+  const eraBoundaries: Array<{ order: number; label: string }> = [];
+  for (let i = 0; i < sortedOrders.length; i++) {
+    const order = sortedOrders[i]!;
+    const creatures = orderToCreatures.get(order)!.sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+    eraBoundaries.push({
+      order,
+      label: i === 0 ? `${creatures.join(', ')} only` : `+${creatures.join(', ')}`,
+    });
+  }
+  return eraBoundaries;
+}
+
+function createEmptyEras(eraBoundaries: Array<{ order: number; label: string }>): EraData[] {
+  return eraBoundaries.map((b, i) => {
+    const isLast = i === eraBoundaries.length - 1;
+    return {
+      label: isLast ? `${b.label} (final)` : b.label,
+      orderStart: b.order,
+      orderEnd: isLast ? -1 : eraBoundaries[i + 1]!.order - 1,
+      questCounts: {},
+      totalQuests: 0,
+      totalCreaturePicks: 0,
+    };
+  });
+}
+
+function findEraIndex(eraBoundaries: Array<{ order: number; label: string }>, order: number): number {
+  let eraIdx = 0;
+  for (let i = 1; i < eraBoundaries.length; i++) {
+    if (eraBoundaries[i]!.order <= order) {
+      eraIdx = i;
+    } else {
+      break;
+    }
+  }
+  return eraIdx;
 }
 
 /**
@@ -2647,22 +2976,29 @@ function mergeErasAcrossSeeds(allEras: EraData[][]): EraData[] {
       for (const t of Object.keys(e.questCounts)) allTypes.add(t);
     }
 
-    // Average tick ranges across seeds
-    const avgTickStart = Math.round(seedEras.reduce((acc, e) => acc + e.tickStart, 0) / seedEras.length);
-    // tickEnd = -1 means open-ended (last era); use -1 if any seed has -1, else average
-    const hasOpenEnd = seedEras.some(e => e.tickEnd === -1);
-    const avgTickEnd = hasOpenEnd ? -1 : Math.round(seedEras.reduce((acc, e) => acc + e.tickEnd, 0) / seedEras.length);
+    const avgOrderStart = Math.round(seedEras.reduce((acc, e) => acc + e.orderStart, 0) / seedEras.length);
+    const hasOpenEnd = seedEras.some(e => e.orderEnd === -1);
+    const avgOrderEnd = hasOpenEnd ? -1 : Math.round(seedEras.reduce((acc, e) => acc + e.orderEnd, 0) / seedEras.length);
 
-    // Average quest counts (as raw counts, we'll compute % later)
+    // Average pick counts (as raw counts, we'll compute % later)
     const avgCounts: Record<string, number> = {};
     let avgTotal = 0;
+    let avgTotalPicks = 0;
     for (const t of allTypes) {
       const sum = seedEras.reduce((acc, e) => acc + (e.questCounts[t] ?? 0), 0);
       avgCounts[t] = sum / seedEras.length;
     }
     avgTotal = seedEras.reduce((acc, e) => acc + e.totalQuests, 0) / seedEras.length;
+    avgTotalPicks = seedEras.reduce((acc, e) => acc + e.totalCreaturePicks, 0) / seedEras.length;
 
-    merged.push({ label, tickStart: avgTickStart, tickEnd: avgTickEnd, questCounts: avgCounts, totalQuests: avgTotal });
+    merged.push({
+      label,
+      orderStart: avgOrderStart,
+      orderEnd: avgOrderEnd,
+      questCounts: avgCounts,
+      totalQuests: avgTotal,
+      totalCreaturePicks: avgTotalPicks,
+    });
   }
 
   return merged;
@@ -2734,7 +3070,7 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
   // Build header line
   const QTY_W = 5;
   const headerLabel = 'Era'.padEnd(LEFT_W);
-  const headerCols = padCell('#Q', QTY_W) + shortNames.map(n => padCell(n)).join('');
+  const headerCols = padCell('#Q', QTY_W) + padCell('#P', QTY_W) + shortNames.map(n => padCell(n)).join('');
   const headerLine = headerLabel + headerCols;
 
   // Separator line
@@ -2752,7 +3088,7 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
         return padCell('-');
       }
       const count = era.questCounts[t] ?? 0;
-      const pct = era.totalQuests > 0 ? Math.round((count / era.totalQuests) * 100) : 0;
+      const pct = era.totalCreaturePicks > 0 ? Math.round((count / era.totalCreaturePicks) * 100) : 0;
       if (pct === 0) {
         return padCell('-');
       }
@@ -2760,27 +3096,31 @@ function renderQuestDistributionTable(results: SimulationResult[]) {
     });
 
     const qtyCell = padCell(String(Math.round(era.totalQuests)), QTY_W);
-    dataRows.push(rowLabel + qtyCell + cells.join(''));
+    const picksCell = padCell(String(Math.round(era.totalCreaturePicks)), QTY_W);
+    dataRows.push(rowLabel + qtyCell + picksCell + cells.join(''));
   }
 
   // Build Overall row: aggregate counts across all eras
   const overallCounts: Record<string, number> = {};
   let overallTotal = 0;
+  let overallTotalPicks = 0;
   for (const era of eras) {
     for (const t of allTypes) {
       overallCounts[t] = (overallCounts[t] ?? 0) + (era.questCounts[t] ?? 0);
     }
     overallTotal += era.totalQuests;
+    overallTotalPicks += era.totalCreaturePicks;
   }
   const overallRowLabel = 'Overall'.padEnd(LEFT_W);
   const overallCells = allTypes.map(t => {
     const count = overallCounts[t] ?? 0;
-    const pct = overallTotal > 0 ? Math.round((count / overallTotal) * 100) : 0;
+    const pct = overallTotalPicks > 0 ? Math.round((count / overallTotalPicks) * 100) : 0;
     if (pct === 0) return padCell('-');
     return padCell(`${pct}%`);
   });
   const overallQty = padCell(String(Math.round(overallTotal)), QTY_W);
-  const overallRow = overallRowLabel + overallQty + overallCells.join('');
+  const overallPicks = padCell(String(Math.round(overallTotalPicks)), QTY_W);
+  const overallRow = overallRowLabel + overallQty + overallPicks + overallCells.join('');
 
   const preText = [headerLine, separatorLine, ...dataRows, separatorLine, overallRow].join('\n');
 

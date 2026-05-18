@@ -12,7 +12,7 @@ import { addExp, getRequiredExp, getCurrentStepRewards, getLevelSteps, getTotalL
 import { calculateMeatDrop, calculateSession, getCurrentChapter } from '@domain/chapters';
 import { mergeEntities } from '@domain/merge';
 import { getEntityReward } from '@domain/rewards';
-import { getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
+import { appendRecentAutoQuestHistory, getCurrentMandatoryTask, generateAutoTask, isTaskComplete, applyFPCounterUpdate } from '@domain/tasks';
 import { createInitialSnapshot } from '@domain/runtime/createInitialSnapshot';
 import { runAutocompleteSimulation } from '@domain/runtime/runAutocomplete';
 import { formatSimAction } from '@domain/runtime/formatSimAction';
@@ -574,6 +574,7 @@ export const useGameStore = create<GameStore>()(
           const nextGrid = { ...state.grid, cells: [...state.grid.cells] };
           const nextEntities = { ...state.entities };
           const nextSpawnCountByGen = { ...state.spawnCountByGen };
+          const nextMaxCreatureLevelByType = { ...state.cumulativeStats.maxCreatureLevelByType };
           let nextMeat = state.resources.meat;
           let spawned = 0;
 
@@ -607,6 +608,10 @@ export const useGameStore = create<GameStore>()(
               const creatureId = rng.nextId();
               nextGrid.cells[freeSlots[0]!] = creatureId;
               nextEntities[creatureId] = { id: creatureId, kind: 'creature', creatureType: spawn!.creatureType, level: spawn!.level };
+              nextMaxCreatureLevelByType[spawn!.creatureType] = Math.max(
+                nextMaxCreatureLevelByType[spawn!.creatureType] ?? 0,
+                spawn!.level,
+              );
               gen = { ...gen, charges: rest };
               nextSpawnCountByGen[gen.generatorId] = (nextSpawnCountByGen[gen.generatorId] ?? 0) + 1;
               spawned += 1;
@@ -622,7 +627,11 @@ export const useGameStore = create<GameStore>()(
             entities: nextEntities,
             resources: { ...state.resources, meat: nextMeat },
             rngState: rng.getState(),
-            cumulativeStats: { ...state.cumulativeStats, totalSpawns: state.cumulativeStats.totalSpawns + spawned },
+            cumulativeStats: {
+              ...state.cumulativeStats,
+              totalSpawns: state.cumulativeStats.totalSpawns + spawned,
+              maxCreatureLevelByType: nextMaxCreatureLevelByType,
+            },
             spawnCountByGen: nextSpawnCountByGen,
             lastMessage: `Spawned ${spawned} creatures.`
           };
@@ -645,8 +654,10 @@ export const useGameStore = create<GameStore>()(
           let nextAutoTaskLine = state.lastAutoTaskLine;
           let nextAutoTaskLineCompletions = { ...state.autoTaskLineCompletions };
           let nextAutoTaskLastLevels = { ...state.autoTaskLastLevels };
+          let nextRecentAutoQuestHistory = state.recentAutoQuestHistory ?? [];
           let nextMeatPressesAtLastFP = state.meatPressesAtLastFP;
           let nextFpQuestsByKrakenLevel = state.fpQuestsByKrakenLevel;
+          let nextMaxCreatureLevelByType = { ...state.cumulativeStats.maxCreatureLevelByType };
           let fed = 0;
           let totalExp = 0;
           let totalEyes = 0;
@@ -674,6 +685,10 @@ export const useGameStore = create<GameStore>()(
               nextResources = nr;
               runesFed += 1;
             } else if (entity.kind === 'creature') {
+              nextMaxCreatureLevelByType = {
+                ...nextMaxCreatureLevelByType,
+                [entity.creatureType]: Math.max(nextMaxCreatureLevelByType[entity.creatureType] ?? 0, entity.level),
+              };
               const reward = getEntityReward(BALANCE, entity);
               totalExp += reward.exp;
               const expResult = addExp(BALANCE, krakenState, reward.exp);
@@ -704,7 +719,23 @@ export const useGameStore = create<GameStore>()(
                   // If this was the last mandatory task, generate first auto task
                   const nextMandatory = getCurrentMandatoryTask(BALANCE, krakenState.level, nextTaskProgress);
                   if (nextMandatory === null) {
-                    const snapForGen = { ...state, kraken: krakenState, taskProgress: nextTaskProgress, currentAutoTask: null as typeof nextAutoTask, lastAutoTaskLine: null as string | null, resources: nextResources, entities: nextEntities, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
+                    const snapForGen = {
+                      ...state,
+                      kraken: krakenState,
+                      taskProgress: nextTaskProgress,
+                      currentAutoTask: null as typeof nextAutoTask,
+                      lastAutoTaskLine: null as string | null,
+                      resources: nextResources,
+                      entities: nextEntities,
+                      cumulativeStats: {
+                        ...state.cumulativeStats,
+                        maxCreatureLevelByType: nextMaxCreatureLevelByType,
+                      },
+                      autoTaskLastLevels: nextAutoTaskLastLevels,
+                      recentAutoQuestHistory: nextRecentAutoQuestHistory,
+                      meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                      fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                    };
                     nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
                     const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
                     if (fpUpdate) {
@@ -721,7 +752,24 @@ export const useGameStore = create<GameStore>()(
                     nextAutoTaskLastLevels[cr.type] = cr.level;
                   }
                   const completedLine = task.creatures[0]?.type ?? null;
-                  const snapForGen = { ...state, kraken: krakenState, lastAutoTaskLine: completedLine, currentAutoTask: task, resources: nextResources, entities: nextEntities, autoTaskLineCompletions: nextAutoTaskLineCompletions, autoTaskLastLevels: nextAutoTaskLastLevels, meatPressesAtLastFP: nextMeatPressesAtLastFP, fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel };
+                  nextRecentAutoQuestHistory = appendRecentAutoQuestHistory(nextRecentAutoQuestHistory, task);
+                  const snapForGen = {
+                    ...state,
+                    kraken: krakenState,
+                    lastAutoTaskLine: completedLine,
+                    currentAutoTask: task,
+                    resources: nextResources,
+                    entities: nextEntities,
+                    cumulativeStats: {
+                      ...state.cumulativeStats,
+                      maxCreatureLevelByType: nextMaxCreatureLevelByType,
+                    },
+                    autoTaskLineCompletions: nextAutoTaskLineCompletions,
+                    autoTaskLastLevels: nextAutoTaskLastLevels,
+                    recentAutoQuestHistory: nextRecentAutoQuestHistory,
+                    meatPressesAtLastFP: nextMeatPressesAtLastFP,
+                    fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
+                  };
                   nextAutoTask = generateAutoTask(BALANCE, snapForGen, rng);
                   const fpUpdate = applyFPCounterUpdate(nextAutoTask, snapForGen, BALANCE);
                   if (fpUpdate) {
@@ -755,6 +803,7 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: nextAutoTaskLine,
             autoTaskLineCompletions: nextAutoTaskLineCompletions,
             autoTaskLastLevels: nextAutoTaskLastLevels,
+            recentAutoQuestHistory: nextRecentAutoQuestHistory,
             meatPressesAtLastFP: nextMeatPressesAtLastFP,
             fpQuestsByKrakenLevel: nextFpQuestsByKrakenLevel,
             rngState: rng.getState(),
@@ -762,6 +811,7 @@ export const useGameStore = create<GameStore>()(
               ...state.cumulativeStats,
               totalRunesFed: state.cumulativeStats.totalRunesFed + runesFed,
               totalTasksCompleted: state.cumulativeStats.totalTasksCompleted + tasksCompleted,
+              maxCreatureLevelByType: nextMaxCreatureLevelByType,
             },
             lastMessage: `Fed ${fed} entities (+${totalExp} EXP${totalEyes > 0 ? `, +${totalEyes} Eyes` : ''}).`
           };
@@ -797,6 +847,7 @@ export const useGameStore = create<GameStore>()(
             lastAutoTaskLine: final.lastAutoTaskLine,
             autoTaskLineCompletions: final.autoTaskLineCompletions,
             autoTaskLastLevels: final.autoTaskLastLevels,
+            recentAutoQuestHistory: final.recentAutoQuestHistory,
             meatPressesAtLastFP: final.meatPressesAtLastFP,
             fpQuestsByKrakenLevel: final.fpQuestsByKrakenLevel,
             meatButtonPresses: final.meatButtonPresses,
