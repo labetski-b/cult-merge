@@ -11,7 +11,7 @@ import type { GameSnapshot, GeneratorEntity } from '@domain/types';
  */
 
 describe('applyStartUpgrade', () => {
-  it('sets activeTimedProcess (kind=upgrade), deducts runes, increments spawnsSpentByGen', () => {
+  it('sets activeTimedProcess (kind=upgrade), deducts runes, and keeps spawn progress until collect', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     // Seed a generator at level 1 with enough spawns and runes
     const entityId = 'gen-1';
@@ -38,7 +38,8 @@ describe('applyStartUpgrade', () => {
     const gen1Upgrade = gen1Def?.levels[0]?.upgrade;
     if (!gen1Upgrade) throw new Error('Test precondition: gen1 level[0].upgrade must be defined');
     expect(result.resources[gen1Upgrade.runeType]).toBe(100 - gen1Upgrade.runeCost);
-    expect(result.spawnsSpentByGen[1]).toBe(gen1Upgrade.spawnsRequired);
+    expect(result.spawnCountByGen[1]).toBe(999);
+    expect(result.spawnsSpentByGen[1] ?? 0).toBe(0);
   });
 
   it('returns snapshot unchanged if slot occupied', () => {
@@ -69,7 +70,7 @@ describe('applyStartUpgrade', () => {
 });
 
 describe('applyCollectUpgrade — production wall-clock path', () => {
-  it('bumps generator level and clears slot when wall-clock elapsed', () => {
+  it('bumps generator level, resets spawn progress, and clears slot when wall-clock elapsed', () => {
     const base = createInitialSnapshot(BALANCE, { seed: 42 });
     const entityId = 'gen-x';
     const prepared: GameSnapshot = {
@@ -78,6 +79,8 @@ describe('applyCollectUpgrade — production wall-clock path', () => {
         ...base.entities,
         [entityId]: { id: entityId, kind: 'generator', generatorId: 1, level: 1, charges: [] },
       },
+      spawnCountByGen: { 1: 100 },
+      spawnsSpentByGen: { 1: 40 },
       activeTimedProcess: {
         kind: 'upgrade',
         entityId,
@@ -91,6 +94,8 @@ describe('applyCollectUpgrade — production wall-clock path', () => {
     expect(result.activeTimedProcess).toBeNull();
     const collected = result.entities[entityId] as GeneratorEntity;
     expect(collected.level).toBe(2);
+    expect(result.spawnCountByGen[1]).toBe(0);
+    expect(result.spawnsSpentByGen[1]).toBe(0);
   });
 
   it('returns unchanged if slot empty', () => {

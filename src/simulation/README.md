@@ -187,7 +187,7 @@ npx tsx --tsconfig tsconfig.app.json scripts/run-sim.ts [ticks] [filter]
 - **`gen3SkipClicks`** — действия `skip_time(reason='fp')`, отправленные стратегией для резолва FP timed-process
 - **`questsClosedViaGen3Skip`** — квесты, закрытые в тике, где использовался cheat
 - **`unlockedGenerators`** — список `generatorId`, которые уже стоят на поле в этом тике
-- **`spawnsSpentByGenSnapshot`** — копия `state.spawnsSpentByGen` (gate для апгрейдов)
+- **`spawnsSpentByGenSnapshot`** — копия legacy-поля `state.spawnsSpentByGen`
 - **`generatorLevelsSnapshot`** — `{ generatorId → maxLevel }` по существам на поле
 
 ### Gen3 timer-mode (post-Task-4)
@@ -252,8 +252,10 @@ aggregateHistory(history, getKey, getValue, mode)
     (`state.activeTimedProcess`, kind=`'upgrade'`). Пока слот занят, стратегия
     обязана эмитить только `skip_time` (Task 5 short-circuit).
   - **Spawn-gate**: количество спавнов из самого генератора
-    (`state.spawnCountByGen[genId] - state.spawnsSpentByGen[genId]`) должно
-    достичь `spawnsRequired` нужного уровня, иначе `start_upgrade` отклоняется.
+    (`state.spawnCountByGen[genId]`) должно достичь `spawnsRequired` нужного
+    уровня, иначе `start_upgrade` отклоняется. После завершения и сбора
+    апгрейда `spawnCountByGen[genId]` сбрасывается в 0, поэтому следующий
+    `spawnsRequired` означает количество спавнов после предыдущего апгрейда.
   - **Rune-cost**: апгрейд стоит rune1/rune2 — снимаются при `start_upgrade`.
     Если рун не хватает, стратегия инкрементит `runeStarveRejects` и не
     отправляет действие.

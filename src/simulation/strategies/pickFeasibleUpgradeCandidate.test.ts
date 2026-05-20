@@ -8,8 +8,9 @@ import type { GameSnapshot } from '@domain/types';
  * Unit tests for the feasible-first picker after the spawns-as-condition
  * refactor (plan `.context/plans/spawns-as-upgrade-condition.md`).
  *
- * Upgrade gate: spawnCountByGen[id] - spawnsSpentByGen[id] >= spawnsRequired
- * AND rune balance >= runeCost AND no active timed-process.
+ * Upgrade gate: spawnCountByGen[id] >= spawnsRequired AND rune balance >=
+ * runeCost AND no active timed-process. The spawn counter resets after the
+ * previous upgrade is collected.
  */
 
 function withOnlyGens(

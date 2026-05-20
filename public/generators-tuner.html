@@ -663,7 +663,7 @@
     <div class="page-head">
       <h1>Generators Tuner</h1>
       <div class="actions">
-        <button id="btn-reset" class="cm-btn cm-btn--ghost">Reset to baseline</button>
+        <button id="btn-update-production" class="cm-btn cm-btn--ghost">Update from production</button>
         <button id="btn-save-balance" class="cm-btn cm-btn--ghost">Save Balance</button>
         <button id="btn-copy" class="cm-btn cm-btn--primary">Copy JSON</button>
         <span id="save-status" class="status-pill"></span>
@@ -918,13 +918,14 @@
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, tasksData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
+    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, tasksData, productionGeneratorsData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/3.23-version/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/tasks.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/generators.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/baseline/generators.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./sim-runs/latest/generator-chapters.json', import.meta.url))
         .then(r => r.ok ? r.json() : null)
@@ -935,7 +936,7 @@
     //  STATE
     // ============================================================
     /** @type {import('./generator-curves.mjs').GeneratorParams} */
-    const STORAGE_KEY = 'cult-merge-generators-tuner-params-v2';
+    const STORAGE_KEY = 'cult-merge-generators-tuner-params-v3';
     const KRAKEN_STORAGE_KEY = 'cult-merge-generators-tuner-krakenlvl-v1';
     const CRAVINGS_STORAGE_KEY = 'cult-merge-generators-tuner-cravings-v1';
     const DEFAULT_CRAVINGS = {
@@ -1122,6 +1123,44 @@
       if (!Number.isFinite(value)) delete params.chargeCostChapterOverrideByGenLevel[key];
       else params.chargeCostChapterOverrideByGenLevel[key] = Math.max(1, Math.round(value));
       render();
+    }
+
+    function applyProductionGeneratorOverrides() {
+      const nextChargeOverrides = {};
+      const nextRuneOverrides = {};
+      const nextSpawnsOverrides = {};
+      let chargeCount = 0;
+      let upgradeCount = 0;
+
+      for (const gen of productionGeneratorsData.generators || []) {
+        for (const lvl of gen.levels || []) {
+          const genId = Number(gen.id);
+          const level = Number(lvl.level);
+          if (!Number.isFinite(genId) || !Number.isFinite(level)) continue;
+          const key = genLevelKey(genId, level);
+
+          if (lvl.mode === 'sacrifice' && Number.isFinite(lvl.chargeCost)) {
+            nextChargeOverrides[key] = Math.max(1, Math.round(Number(lvl.chargeCost)));
+            chargeCount += 1;
+          }
+
+          if (lvl.upgrade) {
+            const spawnsRequired = getUpgradeSpawnsRequired(lvl.upgrade);
+            if (Number.isFinite(spawnsRequired)) {
+              nextSpawnsOverrides[key] = Math.max(0, Math.round(Number(spawnsRequired)));
+            }
+            if (Number.isFinite(lvl.upgrade.runeCost)) {
+              nextRuneOverrides[key] = Math.max(0, Math.round(Number(lvl.upgrade.runeCost)));
+            }
+            upgradeCount += 1;
+          }
+        }
+      }
+
+      params.chargeCostOverrideByGenLevel = nextChargeOverrides;
+      params.upgradeSpawnsRequiredOverrideByGenLevel = nextSpawnsOverrides;
+      params.upgradeRuneCostOverrideByGenLevel = nextRuneOverrides;
+      return { chargeCount, upgradeCount };
     }
 
     // ============================================================
@@ -2878,26 +2917,25 @@
     });
 
     // ============================================================
-    //  RESET / COPY
+    //  UPDATE / COPY
     // ============================================================
     function syncAllKnobs() {
-      // Rebuild controls UI from params (simplest sync — re-create knobs).
+      // Rebuild controls UI from params (simplest sync: re-create knobs).
       knobControllers.length = 0;
       buildControls();
     }
 
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      params = normalizeParams(null);
-      cravingsState = normalizeCravingsDraft(BASELINE_CRAVINGS);
-      krakenProgProductionData = structuredClone(krakenProgData);
-      krakenPostL7Increment = inferPostL7Increment();
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-        window.localStorage.removeItem(KRAKEN_STORAGE_KEY);
-        window.localStorage.removeItem(CRAVINGS_STORAGE_KEY);
-      } catch {}
+    document.getElementById('btn-update-production').addEventListener('click', () => {
+      const status = document.getElementById('save-status');
+      const { chargeCount, upgradeCount } = applyProductionGeneratorOverrides();
       syncAllKnobs();
       render();
+      if (status) {
+        status.textContent = `Loaded production: ${chargeCount} costs, ${upgradeCount} upgrades`;
+        setTimeout(() => {
+          if (status.textContent.startsWith('Loaded production')) status.textContent = '';
+        }, 2500);
+      }
     });
 
     function flashCopied(btn) {
@@ -3078,13 +3116,13 @@
       }
 
       if (action === 'clear-upgrade-spawns-overrides') {
-        params.upgradeSpawnsRequiredOverrideByGenLevel = {};
+        params.upgradeSpawnsRequiredOverrideByGenLevel = structuredClone(DEFAULTS.upgradeSpawnsRequiredOverrideByGenLevel || {});
         render();
         return;
       }
 
       if (action === 'clear-upgrade-rune-overrides') {
-        params.upgradeRuneCostOverrideByGenLevel = {};
+        params.upgradeRuneCostOverrideByGenLevel = structuredClone(DEFAULTS.upgradeRuneCostOverrideByGenLevel || {});
         render();
         return;
       }

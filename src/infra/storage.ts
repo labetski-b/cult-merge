@@ -1,5 +1,5 @@
 export const SAVE_KEY = 'cult_merge_save_v1';
-export const SAVE_VERSION = 27;
+export const SAVE_VERSION = 28;
 
 export function migrateSave(raw: {
   version: number;

@@ -31,14 +31,9 @@ export function applyStartUpgrade(
   const runeBalance = snapshot.resources[row.runeType] ?? 0;
   const durationSec = row.upgradeDurationSec ?? 0;
   const totalMs = durationSec * 1000;
-  const prevSpent = snapshot.spawnsSpentByGen[entity.generatorId] ?? 0;
   return {
     ...snapshot,
     resources: { ...snapshot.resources, [row.runeType]: runeBalance - row.runeCost },
-    spawnsSpentByGen: {
-      ...snapshot.spawnsSpentByGen,
-      [entity.generatorId]: prevSpent + row.spawnsRequired,
-    },
     activeTimedProcess: {
       kind: 'upgrade',
       entityId,
@@ -80,6 +75,14 @@ export function applyCollectUpgrade(
   return {
     ...snapshot,
     entities: { ...snapshot.entities, [entity.id]: upgraded },
+    spawnCountByGen: {
+      ...snapshot.spawnCountByGen,
+      [entity.generatorId]: 0,
+    },
+    spawnsSpentByGen: {
+      ...snapshot.spawnsSpentByGen,
+      [entity.generatorId]: 0,
+    },
     cumulativeStats: {
       ...snapshot.cumulativeStats,
       maxGeneratorLevelById: {

@@ -119,6 +119,14 @@ function resolveUpgrade(next: GameSnapshot, entityId: string): void {
   const prevMax = next.cumulativeStats.maxGeneratorLevelById[entity.generatorId] ?? 0;
   const nextMax = Math.max(prevMax, upgraded.level);
   next.entities = { ...next.entities, [entityId]: upgraded };
+  next.spawnCountByGen = {
+    ...next.spawnCountByGen,
+    [entity.generatorId]: 0,
+  };
+  next.spawnsSpentByGen = {
+    ...next.spawnsSpentByGen,
+    [entity.generatorId]: 0,
+  };
   next.cumulativeStats = {
     ...next.cumulativeStats,
     maxGeneratorLevelById: {

@@ -1198,6 +1198,29 @@ export function migrateGameStore(
   if (!persistedState || persistedVersion < 27) {
     return createInitialSnapshot(BALANCE, { lastMessage: STORE_INITIAL_LAST_MESSAGE });
   }
+  // v28 — generator upgrade spawn progress resets on collect. Old v27 saves
+  // may contain cumulative spawnCountByGen plus non-zero legacy
+  // spawnsSpentByGen; reset those touched generators so old leftovers do not
+  // count toward the next upgrade under the new rule.
+  if (persistedVersion < 28) {
+    const state = persistedState as {
+      spawnCountByGen?: Record<string, number>;
+      spawnsSpentByGen?: Record<string, number>;
+    };
+    const spawnCountByGen = { ...(state.spawnCountByGen ?? {}) };
+    const spawnsSpentByGen = { ...(state.spawnsSpentByGen ?? {}) };
+    for (const genId of Object.keys(spawnsSpentByGen)) {
+      if ((spawnsSpentByGen[genId] ?? 0) > 0) {
+        spawnCountByGen[genId] = 0;
+        spawnsSpentByGen[genId] = 0;
+      }
+    }
+    return {
+      ...(persistedState as Record<string, unknown>),
+      spawnCountByGen,
+      spawnsSpentByGen,
+    };
+  }
   return persistedState;
 }
 

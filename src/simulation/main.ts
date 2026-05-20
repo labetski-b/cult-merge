@@ -1073,7 +1073,7 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   'generator-charge-cost': ['krakenLevel', 'generators'],
   'generator-spawns-remaining': ['generators'],
   'generator-runes-required': ['generators'],
-  'creature-progress': ['sessions', 'presses', 'tasks', 'time'],
+  'creature-progress': ['sessions', 'presses', 'tasks', 'time', 'krakenLevel'],
   'unique-creatures': ['sessions', 'time', 'krakenLevel'],
   activity:           ['sessions', 'presses', 'time'],
   charges:            ['sessions', 'presses', 'time'],
@@ -1083,6 +1083,7 @@ const CHART_VISIBILITY: Record<string, XAxisMode[]> = {
   gems:                 ['sessions', 'presses', 'time'],
   'sessions-per-level': ['krakenLevel'],
   'quests-per-level':   ['krakenLevel'],
+  'actions-per-level':  ['krakenLevel'],
   'eyes-vs-next-chapter-per-level': ['krakenLevel'],
   'meat-spent-per-level': ['krakenLevel'],
   'sacrifices-per-level': ['krakenLevel'],
@@ -2004,7 +2005,7 @@ function renderCharts(results: SimulationResult[]) {
             filter: (item: any) => item.parsed.y !== 0,
             callbacks: {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y} / 9`,
+              label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}`,
             },
           },
         },
@@ -2289,6 +2290,39 @@ function renderCharts(results: SimulationResult[]) {
     charts['quests-per-level'] = new Chart(
       document.getElementById('chart-quests-per-level') as HTMLCanvasElement,
       { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('Quests') }
+    );
+  }
+
+  // ── Spawns / Merges / Tasks per Kraken Level ────────────────────────────
+  if (visible('actions-per-level')) {
+    setAggBadge('actions-per-level', 'PER LEVEL');
+    const krakenKeyFn = (s: SimulationSnapshot) => s.metrics.krakenLevel;
+    const { labels: krLabels } = aggregateHistory(
+      getChartHistory(results[0]!),
+      krakenKeyFn,
+      s => s.metrics.totalTasksCompleted,
+      'last',
+    );
+    const metrics = [
+      { label: 'Spawns', color: '#ffd966', getValue: (s: SimulationSnapshot) => s.metrics.totalSpawns },
+      { label: 'Merges', color: '#a47cff', getValue: (s: SimulationSnapshot) => s.metrics.totalMerges },
+      { label: 'Tasks', color: '#4fc3f7', getValue: (s: SimulationSnapshot) => s.metrics.totalTasksCompleted },
+    ];
+    const datasets = results.flatMap((result, resultIndex) => {
+      const history = getChartHistory(result);
+      const labelSuffix = results.length > 1 ? ` #${resultIndex + 1}` : '';
+      return metrics.map((metric) => {
+        const cumulative = aggregateHistory(history, krakenKeyFn, metric.getValue, 'last').data;
+        return ds(`${metric.label}${labelSuffix}`, deltaFromPrevious(cumulative), metric.color, {
+          type: 'bar',
+          backgroundColor: `${metric.color}99`,
+          borderWidth: 1,
+        });
+      });
+    });
+    charts['actions-per-level'] = new Chart(
+      document.getElementById('chart-actions-per-level') as HTMLCanvasElement,
+      { type: 'bar', data: { labels: krLabels, datasets }, options: xOpts('Count') },
     );
   }
 

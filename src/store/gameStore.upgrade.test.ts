@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { BALANCE } from '@data/loadBalance';
 import type { GeneratorEntity } from '@domain/types';
-import { useGameStore } from './gameStore';
+import { migrateGameStore, useGameStore } from './gameStore';
 
 /**
  * Post-Task-3: store actions read/write `activeTimedProcess` (kind='upgrade')
@@ -31,7 +32,7 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     });
   };
 
-  it('startGeneratorUpgrade deducts runes, spends spawns, and sets activeTimedProcess', () => {
+  it('startGeneratorUpgrade deducts runes, keeps spawn progress, and sets activeTimedProcess', () => {
     seedGen1L1('gen-a');
     useGameStore.setState((s) => ({
       resources: { ...s.resources, rune1: 100 },
@@ -48,8 +49,14 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
       expect(proc.entityId).toBe('gen-a');
       expect(proc.generatorId).toBe(1);
     }
-    expect(state.resources.rune1).toBe(98); // cost 2 at Gen1 L1 in current baseline
-    expect(state.spawnsSpentByGen[1]).toBeGreaterThan(0);
+    const row = BALANCE.generators.generators
+      .find((g) => g.id === 1)
+      ?.levels.find((lvl) => lvl.level === 1)
+      ?.upgrade;
+    expect(row).toBeDefined();
+    expect(state.resources.rune1).toBe(100 - row!.runeCost);
+    expect(state.spawnCountByGen[1]).toBe(100);
+    expect(state.spawnsSpentByGen[1] ?? 0).toBe(0);
     // Level is unchanged until collect
     const gen = state.entities['gen-a'] as GeneratorEntity;
     expect(gen.level).toBe(1);
@@ -79,6 +86,8 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
     const gen = state.entities['gen-a'] as GeneratorEntity;
     expect(gen.level).toBe(2);
     expect(gen.charges).toEqual([{ creatureType: 'Creature1', level: 1 }]);
+    expect(state.spawnCountByGen[1]).toBe(0);
+    expect(state.spawnsSpentByGen[1] ?? 0).toBe(0);
     expect(state.cumulativeStats.maxGeneratorLevelById[1] ?? 0).toBeGreaterThanOrEqual(2);
   });
 
@@ -161,5 +170,25 @@ describe('startGeneratorUpgrade / collectGeneratorUpgrade actions', () => {
   it('no-op when entity id does not exist', () => {
     expect(() => useGameStore.getState().startGeneratorUpgrade('missing')).not.toThrow();
     expect(useGameStore.getState().activeTimedProcess).toBeNull();
+  });
+});
+
+describe('migrateGameStore upgrade spawn progress', () => {
+  it('resets v27 cumulative spawn leftovers for generators with legacy spent counters', () => {
+    const migrated = migrateGameStore(
+      {
+        spawnCountByGen: { 1: 100, 2: 5 },
+        spawnsSpentByGen: { 1: 40, 2: 0 },
+      },
+      27
+    ) as {
+      spawnCountByGen: Record<number, number>;
+      spawnsSpentByGen: Record<number, number>;
+    };
+
+    expect(migrated.spawnCountByGen[1]).toBe(0);
+    expect(migrated.spawnsSpentByGen[1]).toBe(0);
+    expect(migrated.spawnCountByGen[2]).toBe(5);
+    expect(migrated.spawnsSpentByGen[2]).toBe(0);
   });
 });

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUpgradeCost, getGeneratorMergeProgress, canUpgradeGenerator, upgradeGenerator } from './upgrades';
+import {
+  resolveUpgradeCost,
+  getGeneratorMergeProgress,
+  getGeneratorSpawnsAvailable,
+  canUpgradeGenerator,
+  upgradeGenerator,
+} from './upgrades';
 import type { BalanceConfig, UpgradeRow } from '../data/schemas';
 import { BALANCE } from '../data/loadBalance';
 
@@ -80,6 +86,12 @@ describe('getGeneratorMergeProgress', () => {
 
   it('returns 0 when every line is missing', () => {
     expect(getGeneratorMergeProgress(genConfig, {})).toBe(0);
+  });
+});
+
+describe('getGeneratorSpawnsAvailable', () => {
+  it('returns spawn progress since the last collected upgrade and ignores legacy spent counters', () => {
+    expect(getGeneratorSpawnsAvailable({ id: 1 }, { 1: 60 }, { 1: 40 })).toBe(60);
   });
 });
 

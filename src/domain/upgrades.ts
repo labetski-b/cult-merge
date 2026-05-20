@@ -27,18 +27,19 @@ export function getGeneratorMergeProgress(
 }
 
 /**
- * Spawns available for the NEXT upgrade of this generator =
- * cumulative spawnCountByGen[id] minus spawns already spent on prior upgrades
- * of this generator.
+ * Spawns available for the NEXT upgrade of this generator.
+ *
+ * Upgrade collection resets spawnCountByGen[id] to 0, so this is the progress
+ * made since the last completed upgrade. spawnsSpentByGen remains in snapshots
+ * for compatibility, but no longer participates in upgrade gates.
  */
 export function getGeneratorSpawnsAvailable(
   generatorConfig: { id: number },
   spawnCountByGen: Record<number, number> | undefined,
-  spawnsSpentByGen: Record<number, number> | undefined
+  _spawnsSpentByGen: Record<number, number> | undefined
 ): number {
   const raw = spawnCountByGen?.[generatorConfig.id] ?? 0;
-  const spent = spawnsSpentByGen?.[generatorConfig.id] ?? 0;
-  return Math.max(0, raw - spent);
+  return Math.max(0, raw);
 }
 
 export type CanUpgradeResult =

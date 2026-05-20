@@ -126,6 +126,8 @@ describe('Task 3 — skip_time resolves upgrade and emits upgrade_completed', ()
     };
     state.entities = { g: gen };
     state.grid.cells[0] = 'g';
+    state.spawnCountByGen = { 1: 100 };
+    state.spawnsSpentByGen = { 1: 40 };
     state.activeTimedProcess = {
       kind: 'upgrade',
       entityId: 'g',
@@ -149,6 +151,9 @@ describe('Task 3 — skip_time resolves upgrade and emits upgrade_completed', ()
     // Level bumped.
     const upgraded = result.nextState.entities['g'] as GeneratorEntity;
     expect(upgraded.level).toBe(2);
+    // Spawn progress for the next upgrade starts from zero.
+    expect(result.nextState.spawnCountByGen[1]).toBe(0);
+    expect(result.nextState.spawnsSpentByGen[1]).toBe(0);
     // Event emitted.
     expect(result.events.some((e) => e.type === 'upgrade_completed')).toBe(true);
   });
