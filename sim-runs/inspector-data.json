@@ -1,0 +1,362 @@
+{
+  "generatedAt": "2026-05-20T14:25:59.681Z",
+  "goals": [
+    {
+      "id": "EarlyGame",
+      "description": "Кракен Lv<2: одно действие — поднять кракена до Lv2",
+      "basePriority": 90,
+      "category": "blocking",
+      "activationCondition": "state.kraken.level < 2",
+      "urgencyFormula": "1.0 (constant)",
+      "sourceFile": "./goals/EarlyGameGoal.ts",
+      "possiblePrereqs": []
+    },
+    {
+      "id": "CollectRewards",
+      "description": "Забрать pendingRewards до начала любых других действий",
+      "basePriority": 85,
+      "category": "blocking",
+      "activationCondition": "state.pendingRewards.length > 0",
+      "urgencyFormula": "1.0 (constant)",
+      "sourceFile": "./goals/CollectRewardsGoal.ts",
+      "possiblePrereqs": [
+        {
+          "goalId": "MaintainFreeGrid",
+          "trigger": "pendingRewards > 0 AND freeCellCount === 0"
+        }
+      ]
+    },
+    {
+      "id": "CompleteActiveQuest",
+      "description": "Выполнить текущий kraken/auto-task",
+      "basePriority": 80,
+      "category": "blocking",
+      "activationCondition": "getActiveTask(state) != null",
+      "urgencyFormula": "1.0 (constant) — quest всегда top-priority когда активен",
+      "sourceFile": "./goals/CompleteActiveQuestGoal.ts",
+      "possiblePrereqs": [
+        {
+          "goalId": "OpenBoxes",
+          "trigger": "box on grid (Pass 0 — reward cycle)"
+        },
+        {
+          "goalId": "ManageRunes",
+          "trigger": "rune on grid (Pass 0 — reward cycle)"
+        },
+        {
+          "goalId": "UpgradeGenerator",
+          "trigger": "gen не выдаёт quest type на текущем уровне (Pass 1)"
+        },
+        {
+          "goalId": "BoardLayout",
+          "trigger": "timer-gen у края с freeNeighbors < FP_RELAYOUT_THRESHOLD (Pass 2)"
+        }
+      ]
+    },
+    {
+      "id": "OpenBoxes",
+      "description": "Открывать res_box на гриде до пустоты (контент → руны)",
+      "basePriority": 70,
+      "category": "opportunistic",
+      "activationCondition": "есть entity типа box на гриде",
+      "urgencyFormula": "0.7 + 0.3 * boxCount",
+      "sourceFile": "./goals/OpenBoxesGoal.ts",
+      "possiblePrereqs": [
+        {
+          "goalId": "MaintainFreeGrid",
+          "trigger": "freeCellCount === 0 (no slot для box content)"
+        }
+      ]
+    },
+    {
+      "id": "MaintainFreeGrid",
+      "description": "Освобождать клетки слиянием/feed когда грид заполнен ≥ 60%",
+      "basePriority": 50,
+      "category": "opportunistic",
+      "activationCondition": "freeCells / total < 0.4",
+      "urgencyFormula": "pow(1 - freeCells/total, 2) при заполнении > 60%",
+      "sourceFile": "./goals/MaintainFreeGridGoal.ts",
+      "possiblePrereqs": []
+    },
+    {
+      "id": "BoardLayout",
+      "description": "Переставлять timer-генераторы в центр доски для устойчивого спавна",
+      "basePriority": 50,
+      "category": "opportunistic",
+      "activationCondition": "timer-gen у края + квест на его существо (или явный prereq)",
+      "urgencyFormula": "1.0 если ещё не оптимально",
+      "sourceFile": "./goals/BoardLayoutGoal.ts",
+      "possiblePrereqs": []
+    },
+    {
+      "id": "ManageRunes",
+      "description": "Сливать пары одинаковых рун + кормить ими генераторы",
+      "basePriority": 40,
+      "category": "opportunistic",
+      "activationCondition": "на гриде есть руна (хотя бы одна)",
+      "urgencyFormula": "0.3 + 0.1 * количество рун",
+      "sourceFile": "./goals/ManageRunesGoal.ts",
+      "possiblePrereqs": []
+    },
+    {
+      "id": "UpgradeGenerator",
+      "description": "Запустить feasible-first upgrade или забрать готовый активный апгрейд",
+      "basePriority": 30,
+      "category": "background",
+      "activationCondition": "state.activeTimedProcess !== null (kind=upgrade) OR feasibleCandidateExists(state, ctx) OR questRequiresUpgrade(state, ctx)",
+      "urgencyFormula": "3.0 при ready-collect / feasible_upgrade; 0.1 при not-ready активном слоте; 1.0 при quest_prerequisite (структурная необходимость для квеста)",
+      "sourceFile": "./goals/UpgradeGeneratorGoal.ts",
+      "possiblePrereqs": []
+    },
+    {
+      "id": "ProgressKraken",
+      "description": "Если ничего другого не светит — поджечь нового квеста, заработать exp",
+      "basePriority": 20,
+      "category": "background",
+      "activationCondition": "нет активного квеста, kraken не maxed",
+      "urgencyFormula": "0.5 (constant)",
+      "sourceFile": "./goals/ProgressKrakenGoal.ts",
+      "possiblePrereqs": []
+    }
+  ],
+  "tactics": [
+    {
+      "id": "EarlyFeed",
+      "description": "Early-game: скармливать первому creature на гриде ради быстрого exp",
+      "serves": [
+        "EarlyGame"
+      ],
+      "produces": [
+        "feed"
+      ],
+      "sourceFile": "./tactics/EarlyFeedTactic.ts"
+    },
+    {
+      "id": "EarlySpawn",
+      "description": "Early-game: tap/charge генераторов и набивка мяса",
+      "serves": [
+        "EarlyGame"
+      ],
+      "produces": [
+        "spawn_generator",
+        "charge_generator",
+        "gather_meat"
+      ],
+      "sourceFile": "./tactics/EarlySpawnTactic.ts"
+    },
+    {
+      "id": "RewardClaim",
+      "description": "Дёргать pendingRewards (claim_reward); пустой если грид полный — prereq на MaintainFreeGrid в goal",
+      "serves": [
+        "CollectRewards"
+      ],
+      "produces": [
+        "claim_reward"
+      ],
+      "sourceFile": "./tactics/RewardClaimTactic.ts"
+    },
+    {
+      "id": "BoxOpen",
+      "description": "open_box для каждого res_box на гриде",
+      "serves": [
+        "OpenBoxes"
+      ],
+      "produces": [
+        "open_box"
+      ],
+      "sourceFile": "./tactics/BoxOpenTactic.ts"
+    },
+    {
+      "id": "QuestSpawn",
+      "description": "Спавнить/чарджить генератор, нужный для активного квеста",
+      "serves": [
+        "CompleteActiveQuest"
+      ],
+      "produces": [
+        "spawn_generator",
+        "charge_generator",
+        "gather_meat"
+      ],
+      "sourceFile": "./tactics/QuestSpawnTactic.ts"
+    },
+    {
+      "id": "QuestMerge",
+      "description": "Сливать пары существ нужного типа до квестового уровня",
+      "serves": [
+        "CompleteActiveQuest"
+      ],
+      "produces": [
+        "merge"
+      ],
+      "sourceFile": "./tactics/QuestMergeTactic.ts"
+    },
+    {
+      "id": "QuestFeed",
+      "description": "feed существ, совпадающих с квестовым type+level",
+      "serves": [
+        "CompleteActiveQuest"
+      ],
+      "produces": [
+        "feed"
+      ],
+      "sourceFile": "./tactics/QuestFeedTactic.ts"
+    },
+    {
+      "id": "FpStart",
+      "description": "Spin up an FP timed-process for an active FP-typed quest (start_fp_progress)",
+      "serves": [
+        "CompleteActiveQuest"
+      ],
+      "produces": [
+        "start_fp_progress"
+      ],
+      "sourceFile": "./tactics/FpStartTactic.ts"
+    },
+    {
+      "id": "GridFreeMerge",
+      "description": "Слить две одинаковые creatures или mergeable runes чтобы освободить клетку",
+      "serves": [
+        "MaintainFreeGrid"
+      ],
+      "produces": [
+        "merge"
+      ],
+      "sourceFile": "./tactics/GridFreeMergeTactic.ts"
+    },
+    {
+      "id": "GridFreeFeed",
+      "description": "Скармливать L1 creatures и руны не нужные квесту, ради клетки",
+      "serves": [
+        "MaintainFreeGrid"
+      ],
+      "produces": [
+        "feed"
+      ],
+      "sourceFile": "./tactics/GridFreeFeedTactic.ts"
+    },
+    {
+      "id": "BoardPlacement",
+      "description": "move_entity для timer-gen → клетка с максимальным числом соседей",
+      "serves": [
+        "BoardLayout"
+      ],
+      "produces": [
+        "move_entity"
+      ],
+      "sourceFile": "./tactics/BoardPlacementTactic.ts"
+    },
+    {
+      "id": "RuneMerge",
+      "description": "Сливать пары одинаковых рун в более высокий тип",
+      "serves": [
+        "ManageRunes"
+      ],
+      "produces": [
+        "merge"
+      ],
+      "sourceFile": "./tactics/RuneMergeTactic.ts"
+    },
+    {
+      "id": "RuneFeed",
+      "description": "feed рун: одиночные + max-level (которые невозможно merge)",
+      "serves": [
+        "ManageRunes"
+      ],
+      "produces": [
+        "feed"
+      ],
+      "sourceFile": "./tactics/RuneFeedTactic.ts"
+    },
+    {
+      "id": "UpgradeStart",
+      "description": "Запустить апгрейд лучшего feasible candidate (через pickFeasibleUpgradeCandidate)",
+      "serves": [
+        "UpgradeGenerator"
+      ],
+      "produces": [
+        "start_upgrade"
+      ],
+      "sourceFile": "./tactics/UpgradeStartTactic.ts"
+    },
+    {
+      "id": "UpgradeSpawnFarm",
+      "description": "Если active quest структурно требует upgrade и тот заблокирован по spawnsRequired — фармить spawn'ы из самого этого генератора (gather_meat → charge_generator → spawn_generator)",
+      "serves": [
+        "UpgradeGenerator"
+      ],
+      "produces": [
+        "gather_meat",
+        "charge_generator",
+        "spawn_generator"
+      ],
+      "sourceFile": "./tactics/UpgradeSpawnFarmTactic.ts"
+    },
+    {
+      "id": "LastResortFeed",
+      "description": "When grid is full and no other tactic produces a quest-progressing action, feed the lowest-level quest-type creature to break deadlock",
+      "serves": [
+        "CompleteActiveQuest"
+      ],
+      "produces": [
+        "feed"
+      ],
+      "sourceFile": "./tactics/LastResortFeedTactic.ts"
+    }
+  ],
+  "guards": [
+    {
+      "id": "DontFeedQuestTargets",
+      "description": "Блокировать feed существ типа активного квеста на ЛЮБОМ уровне (потенциальные merge-ingredients), кроме case CompleteActiveQuest и kase deadlock-escape",
+      "blocksActionTypes": [
+        "feed"
+      ],
+      "trigger": "feed по creature, тип которого совпадает с quest need (на любом level), при goalId != CompleteActiveQuest",
+      "sourceFile": "./guards/DontFeedQuestTargetsGuard.ts"
+    },
+    {
+      "id": "ProtectFPNeighbors",
+      "description": "Блокировать move_entity в свободного соседа timer-FP при активном квесте на его существо",
+      "blocksActionTypes": [
+        "move_entity"
+      ],
+      "trigger": "target — сосед активного timer-генератора, у которого есть quest need",
+      "sourceFile": "./guards/ProtectFPNeighborsGuard.ts"
+    },
+    {
+      "id": "NoUpgradeWithoutFullRunes",
+      "description": "Блокировать start_upgrade при rune1=0 И rune2=0 (грубая проверка)",
+      "blocksActionTypes": [
+        "start_upgrade"
+      ],
+      "trigger": "start_upgrade при rune1=0 && rune2=0",
+      "sourceFile": "./guards/NoUpgradeWithoutFullRunesGuard.ts"
+    },
+    {
+      "id": "NoSpawnIntoFullGrid",
+      "description": "Блокировать spawn_generator если на гриде нет свободной клетки",
+      "blocksActionTypes": [
+        "spawn_generator"
+      ],
+      "trigger": "spawn_generator при freeCellCount=0",
+      "sourceFile": "./guards/NoSpawnIntoFullGridGuard.ts"
+    },
+    {
+      "id": "DontWasteUpgradeSlot",
+      "description": "Не запускать второй start_upgrade пока первый не закончен",
+      "blocksActionTypes": [
+        "start_upgrade"
+      ],
+      "trigger": "start_upgrade при state.activeTimedProcess !== null",
+      "sourceFile": "./guards/DontWasteUpgradeSlotGuard.ts"
+    },
+    {
+      "id": "PreserveHighLevelCreatures",
+      "description": "Не скармливать creatures L>=3, чей тип нужен активному квесту (как ingredient или target)",
+      "blocksActionTypes": [
+        "feed"
+      ],
+      "trigger": "feed creature L>=3 с goalId != CompleteActiveQuest и тип входит в активные quest needs",
+      "sourceFile": "./guards/PreserveHighLevelCreaturesGuard.ts"
+    }
+  ]
+}

@@ -89,8 +89,55 @@ export const DEFAULTS = {
   chargeCostMaxLevelDiscount: 0.6,
   chargeCostOverrideByGenLevel: {},
   chargeCostChapterOverrideByGenLevel: {},
-  upgradeRuneCostOverrideByGenLevel: {},
-  upgradeSpawnsRequiredOverrideByGenLevel: {},
+  upgradeRuneCostOverrideByGenLevel: {
+    '1:1': 5,
+    '1:2': 7,
+    '1:3': 10,
+    '1:4': 15,
+    '1:5': 20,
+    '1:6': 25,
+    '1:7': 35,
+    '1:8': 60,
+    '1:9': 90,
+    '2:1': 5,
+    '2:2': 7,
+    '2:3': 10,
+    '2:4': 15,
+    '2:5': 20,
+    '2:6': 25,
+    '2:7': 35,
+    '2:8': 80,
+    '2:9': 130,
+    '3:1': 10,
+    '3:2': 15,
+    '3:3': 20,
+    '3:4': 25,
+    '3:5': 35,
+    '3:6': 60,
+    '3:7': 90,
+    '3:8': 120,
+    '3:9': 180,
+    '4:1': 10,
+    '4:2': 15,
+    '4:3': 20,
+    '4:4': 25,
+    '4:5': 35,
+    '4:6': 60,
+    '4:7': 90,
+    '4:8': 120,
+    '4:9': 180,
+  },
+  upgradeSpawnsRequiredOverrideByGenLevel: {
+    '3:1': 8,
+    '3:2': 8,
+    '3:3': 16,
+    '3:4': 16,
+    '3:5': 32,
+    '3:6': 32,
+    '3:7': 32,
+    '3:8': 32,
+    '3:9': 32,
+  },
 
   baseUpgradeCost: 4,
   levelGrowth: 1.6,
@@ -110,8 +157,8 @@ export const DEFAULTS = {
   // spawns по уровням прокачки (одинаково для всех генераторов).
   spawnsByL: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33],
 
-  // Требование мерджей для апгрейда L → L+1 (индекс = L-1).
-  mergesRequiredByL: [20, 45, 95, 180, 340, 600, 1000, 1700, 2800, 0],
+  // Требование spawn'ов для апгрейда L → L+1 (индекс = L-1).
+  mergesRequiredByL: [40, 45, 95, 150, 250, 300, 300, 300, 300, 0],
 
   // Длительность апгрейда L → L+1 в секундах (индекс = L-1).
   upgradeDurationSecByL: [3, 6, 12, 24, 48, 96, 192, 384, 768, 0],
@@ -546,9 +593,7 @@ function generateGen(genIdx, P) {
     if (L < P.upgradeLevels) {
       const baseCost = P.baseUpgradeCost * Math.pow(P.levelGrowth, L - 1);
       const unitsCost = Math.ceil(baseCost * P.genMultipliers[genIdx]);
-      const formulaSpawnsRequired = genIdx === 0 && (L === 1 || L === 2)
-        ? L
-        : P.mergesRequiredByL[L - 1];
+      const formulaSpawnsRequired = P.mergesRequiredByL[L - 1];
       const formulaRuneCost = Math.ceil(unitsCost / 2);
 
       const upOverrideKey = `${genId}:${L}`;

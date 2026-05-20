@@ -1,0 +1,523 @@
+{
+  "generatedAt": "2026-05-20T14:26:00.394Z",
+  "seed": 862622,
+  "ticks": 177,
+  "maxTicks": 20000,
+  "untilLevel": 50,
+  "summary": {
+    "duration": 177,
+    "finalLevel": 50,
+    "totalExpGained": 150523,
+    "totalEyesGained": 2245507,
+    "totalTasksCompleted": 2064,
+    "totalMeatSpent": 10517,
+    "totalCreaturesFed": 0,
+    "avgExpPerTick": 850.4124293785311,
+    "avgEyesPerTick": 12686.4802259887,
+    "efficiencyScore": 14.312351431016449,
+    "totalTimeSec": 2047410.6999995902,
+    "totalTimeFormatted": "34123m 31s"
+  },
+  "rows": [
+    {
+      "generatorId": 1,
+      "level": 1,
+      "chapter": 2,
+      "meatPerPress": 1,
+      "krakenLevel": 1,
+      "tick": 0,
+      "totalTimeSec": 0.5,
+      "meatButtonPresses": 0
+    },
+    {
+      "generatorId": 1,
+      "level": 2,
+      "chapter": 2,
+      "meatPerPress": 2,
+      "krakenLevel": 3,
+      "tick": 0,
+      "totalTimeSec": 104.50000000000007,
+      "meatButtonPresses": 1
+    },
+    {
+      "generatorId": 1,
+      "level": 3,
+      "chapter": 3,
+      "meatPerPress": 3,
+      "krakenLevel": 3,
+      "tick": 0,
+      "totalTimeSec": 182.3999999999998,
+      "meatButtonPresses": 3
+    },
+    {
+      "generatorId": 1,
+      "level": 4,
+      "chapter": 3,
+      "meatPerPress": 3,
+      "krakenLevel": 5,
+      "tick": 2,
+      "totalTimeSec": 486.4999999999985,
+      "meatButtonPresses": 6
+    },
+    {
+      "generatorId": 2,
+      "level": 1,
+      "chapter": 3,
+      "meatPerPress": 4,
+      "krakenLevel": 6,
+      "tick": 2,
+      "totalTimeSec": 568.6999999999992,
+      "meatButtonPresses": 7
+    },
+    {
+      "generatorId": 2,
+      "level": 2,
+      "chapter": 3,
+      "meatPerPress": 4,
+      "krakenLevel": 6,
+      "tick": 3,
+      "totalTimeSec": 681.9000000000017,
+      "meatButtonPresses": 10
+    },
+    {
+      "generatorId": 1,
+      "level": 5,
+      "chapter": 4,
+      "meatPerPress": 5,
+      "krakenLevel": 7,
+      "tick": 4,
+      "totalTimeSec": 964.700000000006,
+      "meatButtonPresses": 14
+    },
+    {
+      "generatorId": 1,
+      "level": 6,
+      "chapter": 5,
+      "meatPerPress": 8,
+      "krakenLevel": 9,
+      "tick": 8,
+      "totalTimeSec": 1900.7000000000235,
+      "meatButtonPresses": 26
+    },
+    {
+      "generatorId": 2,
+      "level": 3,
+      "chapter": 5,
+      "meatPerPress": 7,
+      "krakenLevel": 9,
+      "tick": 7,
+      "totalTimeSec": 1565.6000000000174,
+      "meatButtonPresses": 22
+    },
+    {
+      "generatorId": 3,
+      "level": 1,
+      "chapter": 5,
+      "meatPerPress": 8,
+      "krakenLevel": 10,
+      "tick": 8,
+      "totalTimeSec": 1921.1000000000236,
+      "meatButtonPresses": 26
+    },
+    {
+      "generatorId": 3,
+      "level": 2,
+      "chapter": 5,
+      "meatPerPress": 8,
+      "krakenLevel": 10,
+      "tick": 9,
+      "totalTimeSec": 16372.800000000027,
+      "meatButtonPresses": 26
+    },
+    {
+      "generatorId": 2,
+      "level": 4,
+      "chapter": 6,
+      "meatPerPress": 9,
+      "krakenLevel": 10,
+      "tick": 9,
+      "totalTimeSec": 25480.100000000057,
+      "meatButtonPresses": 28
+    },
+    {
+      "generatorId": 2,
+      "level": 5,
+      "chapter": 6,
+      "meatPerPress": 9,
+      "krakenLevel": 11,
+      "tick": 12,
+      "totalTimeSec": 94388.69999999966,
+      "meatButtonPresses": 34
+    },
+    {
+      "generatorId": 3,
+      "level": 3,
+      "chapter": 7,
+      "meatPerPress": 10,
+      "krakenLevel": 12,
+      "tick": 14,
+      "totalTimeSec": 127182.49999999923,
+      "meatButtonPresses": 39
+    },
+    {
+      "generatorId": 3,
+      "level": 4,
+      "chapter": 7,
+      "meatPerPress": 10,
+      "krakenLevel": 13,
+      "tick": 16,
+      "totalTimeSec": 156337.8000000003,
+      "meatButtonPresses": 45
+    },
+    {
+      "generatorId": 4,
+      "level": 1,
+      "chapter": 7,
+      "meatPerPress": 10,
+      "krakenLevel": 13,
+      "tick": 15,
+      "totalTimeSec": 138088.69999999952,
+      "meatButtonPresses": 41
+    },
+    {
+      "generatorId": 4,
+      "level": 2,
+      "chapter": 7,
+      "meatPerPress": 10,
+      "krakenLevel": 13,
+      "tick": 17,
+      "totalTimeSec": 156622.6000000017,
+      "meatButtonPresses": 49
+    },
+    {
+      "generatorId": 4,
+      "level": 3,
+      "chapter": 7,
+      "meatPerPress": 10,
+      "krakenLevel": 14,
+      "tick": 19,
+      "totalTimeSec": 160558.500000003,
+      "meatButtonPresses": 55
+    },
+    {
+      "generatorId": 2,
+      "level": 6,
+      "chapter": 8,
+      "meatPerPress": 12,
+      "krakenLevel": 16,
+      "tick": 25,
+      "totalTimeSec": 249968.3000000077,
+      "meatButtonPresses": 74
+    },
+    {
+      "generatorId": 3,
+      "level": 5,
+      "chapter": 8,
+      "meatPerPress": 12,
+      "krakenLevel": 17,
+      "tick": 27,
+      "totalTimeSec": 300703.90000000934,
+      "meatButtonPresses": 78
+    },
+    {
+      "generatorId": 4,
+      "level": 4,
+      "chapter": 8,
+      "meatPerPress": 11,
+      "krakenLevel": 15,
+      "tick": 23,
+      "totalTimeSec": 199093.20000000612,
+      "meatButtonPresses": 67
+    },
+    {
+      "generatorId": 4,
+      "level": 5,
+      "chapter": 9,
+      "meatPerPress": 14,
+      "krakenLevel": 19,
+      "tick": 32,
+      "totalTimeSec": 427636.90000001405,
+      "meatButtonPresses": 94
+    },
+    {
+      "generatorId": 5,
+      "level": 1,
+      "chapter": 9,
+      "meatPerPress": 13,
+      "krakenLevel": 18,
+      "tick": 28,
+      "totalTimeSec": 301032.3000000109,
+      "meatButtonPresses": 85
+    },
+    {
+      "generatorId": 2,
+      "level": 7,
+      "chapter": 10,
+      "meatPerPress": 15,
+      "krakenLevel": 21,
+      "tick": 39,
+      "totalTimeSec": 542431.800000011,
+      "meatButtonPresses": 113
+    },
+    {
+      "generatorId": 5,
+      "level": 2,
+      "chapter": 10,
+      "meatPerPress": 15,
+      "krakenLevel": 20,
+      "tick": 36,
+      "totalTimeSec": 541890.0000000186,
+      "meatButtonPresses": 105
+    },
+    {
+      "generatorId": 5,
+      "level": 3,
+      "chapter": 10,
+      "meatPerPress": 15,
+      "krakenLevel": 20,
+      "tick": 37,
+      "totalTimeSec": 542041.6000000167,
+      "meatButtonPresses": 108
+    },
+    {
+      "generatorId": 5,
+      "level": 4,
+      "chapter": 10,
+      "meatPerPress": 15,
+      "krakenLevel": 22,
+      "tick": 43,
+      "totalTimeSec": 750087.5000000022,
+      "meatButtonPresses": 122
+    },
+    {
+      "generatorId": 6,
+      "level": 1,
+      "chapter": 10,
+      "meatPerPress": 16,
+      "krakenLevel": 23,
+      "tick": 46,
+      "totalTimeSec": 853232.199999995,
+      "meatButtonPresses": 130
+    },
+    {
+      "generatorId": 4,
+      "level": 6,
+      "chapter": 11,
+      "meatPerPress": 17,
+      "krakenLevel": 24,
+      "tick": 49,
+      "totalTimeSec": 911452.699999986,
+      "meatButtonPresses": 139
+    },
+    {
+      "generatorId": 5,
+      "level": 5,
+      "chapter": 11,
+      "meatPerPress": 17,
+      "krakenLevel": 25,
+      "tick": 53,
+      "totalTimeSec": 957251.8999999773,
+      "meatButtonPresses": 152
+    },
+    {
+      "generatorId": 6,
+      "level": 2,
+      "chapter": 11,
+      "meatPerPress": 17,
+      "krakenLevel": 24,
+      "tick": 49,
+      "totalTimeSec": 933126.499999985,
+      "meatButtonPresses": 140
+    },
+    {
+      "generatorId": 6,
+      "level": 3,
+      "chapter": 11,
+      "meatPerPress": 18,
+      "krakenLevel": 26,
+      "tick": 55,
+      "totalTimeSec": 963001.2999999742,
+      "meatButtonPresses": 159
+    },
+    {
+      "generatorId": 1,
+      "level": 7,
+      "chapter": 12,
+      "meatPerPress": 19,
+      "krakenLevel": 27,
+      "tick": 62,
+      "totalTimeSec": 1086801.8999999554,
+      "meatButtonPresses": 180
+    },
+    {
+      "generatorId": 6,
+      "level": 4,
+      "chapter": 12,
+      "meatPerPress": 19,
+      "krakenLevel": 28,
+      "tick": 66,
+      "totalTimeSec": 1110990.6999999438,
+      "meatButtonPresses": 196
+    },
+    {
+      "generatorId": 6,
+      "level": 5,
+      "chapter": 12,
+      "meatPerPress": 20,
+      "krakenLevel": 31,
+      "tick": 78,
+      "totalTimeSec": 1225049.5999999007,
+      "meatButtonPresses": 239
+    },
+    {
+      "generatorId": 7,
+      "level": 1,
+      "chapter": 12,
+      "meatPerPress": 19,
+      "krakenLevel": 28,
+      "tick": 63,
+      "totalTimeSec": 1090621.3999999524,
+      "meatButtonPresses": 185
+    },
+    {
+      "generatorId": 7,
+      "level": 2,
+      "chapter": 12,
+      "meatPerPress": 19,
+      "krakenLevel": 28,
+      "tick": 66,
+      "totalTimeSec": 1139817.7999999428,
+      "meatButtonPresses": 196
+    },
+    {
+      "generatorId": 7,
+      "level": 3,
+      "chapter": 12,
+      "meatPerPress": 19,
+      "krakenLevel": 29,
+      "tick": 68,
+      "totalTimeSec": 1147409.0999999368,
+      "meatButtonPresses": 204
+    },
+    {
+      "generatorId": 7,
+      "level": 4,
+      "chapter": 12,
+      "meatPerPress": 20,
+      "krakenLevel": 31,
+      "tick": 79,
+      "totalTimeSec": 1225213.6999998987,
+      "meatButtonPresses": 241
+    },
+    {
+      "generatorId": 2,
+      "level": 8,
+      "chapter": 13,
+      "meatPerPress": 21,
+      "krakenLevel": 34,
+      "tick": 89,
+      "totalTimeSec": 1259868.799999863,
+      "meatButtonPresses": 273
+    },
+    {
+      "generatorId": 3,
+      "level": 6,
+      "chapter": 13,
+      "meatPerPress": 22,
+      "krakenLevel": 36,
+      "tick": 101,
+      "totalTimeSec": 1316216.499999827,
+      "meatButtonPresses": 315
+    },
+    {
+      "generatorId": 8,
+      "level": 1,
+      "chapter": 13,
+      "meatPerPress": 21,
+      "krakenLevel": 33,
+      "tick": 85,
+      "totalTimeSec": 1244335.09999988,
+      "meatButtonPresses": 261
+    },
+    {
+      "generatorId": 8,
+      "level": 2,
+      "chapter": 13,
+      "meatPerPress": 22,
+      "krakenLevel": 35,
+      "tick": 95,
+      "totalTimeSec": 1295191.5999998455,
+      "meatButtonPresses": 295
+    },
+    {
+      "generatorId": 1,
+      "level": 8,
+      "chapter": 14,
+      "meatPerPress": 24,
+      "krakenLevel": 41,
+      "tick": 127,
+      "totalTimeSec": 1778474.8999997473,
+      "meatButtonPresses": 387
+    },
+    {
+      "generatorId": 5,
+      "level": 6,
+      "chapter": 14,
+      "meatPerPress": 23,
+      "krakenLevel": 39,
+      "tick": 117,
+      "totalTimeSec": 1555115.5999997768,
+      "meatButtonPresses": 360
+    },
+    {
+      "generatorId": 8,
+      "level": 3,
+      "chapter": 14,
+      "meatPerPress": 23,
+      "krakenLevel": 37,
+      "tick": 106,
+      "totalTimeSec": 1356703.9999998137,
+      "meatButtonPresses": 328
+    },
+    {
+      "generatorId": 8,
+      "level": 4,
+      "chapter": 14,
+      "meatPerPress": 24,
+      "krakenLevel": 40,
+      "tick": 120,
+      "totalTimeSec": 1568155.1999997708,
+      "meatButtonPresses": 368
+    },
+    {
+      "generatorId": 7,
+      "level": 5,
+      "chapter": 15,
+      "meatPerPress": 25,
+      "krakenLevel": 44,
+      "tick": 145,
+      "totalTimeSec": 1900743.7999996918,
+      "meatButtonPresses": 441
+    },
+    {
+      "generatorId": 8,
+      "level": 5,
+      "chapter": 15,
+      "meatPerPress": 25,
+      "krakenLevel": 44,
+      "tick": 141,
+      "totalTimeSec": 1851428.799999704,
+      "meatButtonPresses": 429
+    },
+    {
+      "generatorId": 6,
+      "level": 6,
+      "chapter": 16,
+      "meatPerPress": 26,
+      "krakenLevel": 49,
+      "tick": 170,
+      "totalTimeSec": 1992083.4999996133,
+      "meatButtonPresses": 515
+    }
+  ]
+}
