@@ -136,7 +136,7 @@ function addCreatureToState(
 }
 
 describe('buildAutoQuestScoringTable — board capacity guards', () => {
-  it('reserves generator cells and one cell for each other opened creature line when capping level', () => {
+  it('matches Unity cap: active cells minus unique sacrifice generator types', () => {
     const result = buildAutoQuestScoringTable(BALANCE, makeStateWithTwoDifferentGeneratorsAndOpenedLines(), {
       slot: 'main',
       meatBudget: 100,
@@ -147,17 +147,17 @@ describe('buildAutoQuestScoringTable — board capacity guards', () => {
     expect(result.context.gridCap).toBe(6);
     expect(result.context.openedCreatureLineCount).toBe(3);
 
-    const c1Level4 = result.rows.find((row) =>
-      row.creatureType === 'Creature1' && row.level === 4 && row.count === 1
+    const c1Level6 = result.rows.find((row) =>
+      row.creatureType === 'Creature1' && row.level === 6 && row.count === 1
     );
-    const c1Level5 = result.rows.find((row) =>
-      row.creatureType === 'Creature1' && row.level === 5 && row.count === 1
+    const c1Level7 = result.rows.find((row) =>
+      row.creatureType === 'Creature1' && row.level === 7 && row.count === 1
     );
 
-    expect(c1Level4?.boardCellCap).toBe(4);
-    expect(c1Level4?.forbiddenReasons).not.toContain('over_board_level');
-    expect(c1Level5?.boardCellCap).toBe(4);
-    expect(c1Level5?.forbiddenReasons).toContain('over_board_level');
+    expect(c1Level6?.boardCellCap).toBe(6);
+    expect(c1Level6?.forbiddenReasons).not.toContain('over_board_level');
+    expect(c1Level7?.boardCellCap).toBe(6);
+    expect(c1Level7?.forbiddenReasons).toContain('over_board_level');
   });
 });
 
@@ -181,6 +181,56 @@ describe('buildAutoQuestScoringTable — reward meat cost', () => {
     expect(row!.fieldL1).toBe(1);
     expect(row!.requiredL1).toBe(2);
     expect(row!.estimatedMeatCost).toBeCloseTo(row!.requiredL1 / row!.l1PerMeat, 6);
+  });
+
+  it('stores the byproduct discount factor used by eye rewards', () => {
+    const state = makeStateWithTwoDifferentGeneratorsAndOpenedLines();
+    const gen1 = state.entities.gen1 as GeneratorEntity;
+    gen1.level = 3;
+
+    const result = buildAutoQuestScoringTable(BALANCE, state, {
+      slot: 'main',
+      meatBudget: 100,
+    });
+
+    const row = result.rows.find((candidate) =>
+      candidate.genId === 1 &&
+      candidate.creatureType === 'Creature1' &&
+      candidate.level === 1 &&
+      candidate.count === 1
+    );
+
+    expect(row).toBeDefined();
+    expect(row!.rewardMeatFactor).toBeGreaterThan(0);
+    expect(row!.rewardMeatFactor).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('buildAutoQuestScoringTable — target-level usable L1', () => {
+  it('does not count higher-level field creatures toward lower-level targets', () => {
+    const state = makeStateWithTwoDifferentGeneratorsAndOpenedLines();
+    addCreatureToState(state, 'Creature1', 4, 2);
+
+    const result = buildAutoQuestScoringTable(BALANCE, state, {
+      slot: 'main',
+      meatBudget: 100,
+    });
+
+    const lowTarget = result.rows.find((candidate) =>
+      candidate.creatureType === 'Creature1' &&
+      candidate.level === 2 &&
+      candidate.count === 1
+    );
+    const highTarget = result.rows.find((candidate) =>
+      candidate.creatureType === 'Creature1' &&
+      candidate.level === 4 &&
+      candidate.count === 1
+    );
+
+    expect(lowTarget).toBeDefined();
+    expect(highTarget).toBeDefined();
+    expect(lowTarget!.fieldL1).toBe(0);
+    expect(highTarget!.fieldL1).toBe(8);
   });
 });
 
@@ -437,7 +487,8 @@ describe('buildAutoQuestScoringTable — Flower Pot gates', () => {
     expect(creature5Row?.forbiddenReasons).not.toContain('fp_sacrifices_required');
     expect(creature6Row).toBeDefined();
     expect(creature6Row!.fieldL1).toBe(0);
-    expect(creature6Row!.forbiddenReasons).toContain('no_generator_capacity');
+    expect(creature6Row!.forbiddenReasons).toContain('over_budget');
+    expect(creature6Row!.forbiddenReasons).not.toContain('no_generator_capacity');
     expect(creature6Row!.forbiddenReasons).toContain('fp_sacrifices_required');
   });
 

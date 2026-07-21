@@ -654,7 +654,10 @@ function computeEyeRewardFromScoringRows(
     if (chapter.chapter >= ch) rate = value;
   }
 
-  const meatCost = rows.reduce((sum, row) => sum + row.estimatedMeatCost, 0);
+  const meatCost = rows.reduce(
+    (sum, row) => sum + row.estimatedMeatCost * (row.rewardMeatFactor ?? 1),
+    0,
+  );
   return { eyeReward: Math.floor(meatCost * rate), meatCost };
 }
 
@@ -680,6 +683,7 @@ function toAutoQuestScoringDebugRow(row: AutoQuestScoringRow): AutoQuestScoringD
     fieldL1: row.fieldL1,
     totalL1Capacity: row.totalL1Capacity,
     estimatedMeatCost: row.estimatedMeatCost,
+    rewardMeatFactor: row.rewardMeatFactor,
     lineUnlockOrder: row.lineUnlockOrder,
     lineNoveltyScore: row.lineNoveltyScore,
     lineLastSeenAgo: row.lineLastSeenAgo,
