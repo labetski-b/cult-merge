@@ -181,6 +181,7 @@ export interface AutoQuestScoringRow {
   fieldL1: number;
   totalL1Capacity: number;
   estimatedMeatCost: number;
+  rewardMeatFactor: number;
   lineUnlockOrder: number;
   lineNoveltyScore: number;
   lineLastSeenAgo: number;
@@ -281,10 +282,10 @@ export function buildAutoQuestScoringTable(
   const chapter = getCurrentChapter(config, state.resources.eyes).chapter;
   const meatDrop = calculateMeatDrop(config, state.resources.eyes);
 
-  const fieldL1 = buildFieldL1Map(state);
+  const fieldL1 = buildFieldL1ByLevelMap(state);
   const seenMaxLevel = buildSeenMaxLevelMap(state);
   const openedCreatureTypes = buildOpenedCreatureTypeSet(seenMaxLevel);
-  const generatorCellCount = countOccupiedGeneratorCells(state);
+  const generatorCellCount = countUniqueSacrificeGeneratorTypesOnGrid(config, state);
   const gridCap = Math.max(0, gridCells - generatorCellCount);
   const lineOrder = buildLineUnlockOrder(config);
   const lineExposureRoleMultiplier = buildLineExposureRoleMultiplier(config, secondaryLineExposureMultiplier);
@@ -301,31 +302,32 @@ export function buildAutoQuestScoringTable(
 
     const outputTypes = new Set(levelConfig.outputs.map((output) => output.creatureType));
     for (const creatureType of outputTypes) {
-      const l1PerCharge = getExpectedL1PerChargeForLevel(levelConfig, creatureType);
-      if (l1PerCharge <= 0) continue;
-
       const isTimerRow = generator.spawnMode === 'timer' || levelConfig.mode === 'timer';
-      const l1PerMeat = levelConfig.mode === 'sacrifice'
-        ? levelConfig.chargeCost > 0 ? l1PerCharge / levelConfig.chargeCost : l1PerCharge
-        : 0;
-      const spawnL1Capacity = levelConfig.mode === 'sacrifice'
-        ? options.meatBudget * l1PerMeat
-        : fpExpectedTicks * l1PerCharge;
+      const targetLineL1 = getExpectedL1PerChargeForLevel(levelConfig, creatureType, Number.POSITIVE_INFINITY);
+      const allLinesL1 = getTotalExpectedL1PerChargeForLevel(levelConfig, outputTypes, Number.POSITIVE_INFINITY);
+      const rewardMeatFactor = allLinesL1 > 0 ? targetLineL1 / allLinesL1 : 1;
 
       const creature = config.creatures.creatures.find((c) => c.type === creatureType);
       const maxLevel = creature?.maxLevel ?? 15;
       const rowSeenMaxLevel = seenMaxLevel.get(creatureType) ?? 0;
       const playerLevelCap = Math.min(maxLevel, rowSeenMaxLevel + 1);
       const minAllowedLevel = getMinAllowedAutoQuestLevel(rowSeenMaxLevel, levelWindowBelowSeenMax);
-      const reservedOtherLineCells = countOtherOpenedCreatureLines(openedCreatureTypes, creatureType);
-      const boardCellCap = Math.max(0, gridCap - reservedOtherLineCells);
+      const boardCellCap = Math.max(0, gridCap);
       const boardMaxLevel = Math.min(maxLevel, boardCellCap);
-      const totalL1Capacity = (fieldL1.get(creatureType) ?? 0) + spawnL1Capacity;
 
       for (let level = 1; level <= maxLevel; level += 1) {
+        const l1PerCharge = getExpectedL1PerChargeForLevel(levelConfig, creatureType, level);
+        const l1PerMeat = levelConfig.mode === 'sacrifice'
+          ? levelConfig.chargeCost > 0 ? l1PerCharge / levelConfig.chargeCost : l1PerCharge
+          : 0;
+        const spawnL1Capacity = levelConfig.mode === 'sacrifice'
+          ? options.meatBudget * l1PerMeat
+          : fpExpectedTicks * l1PerCharge;
+        const rowFieldL1 = getFieldL1UpTo(fieldL1, creatureType, level);
+        const totalL1Capacity = rowFieldL1 + spawnL1Capacity;
+
         for (const count of AUTO_QUEST_COUNTS) {
           const requiredL1 = count * Math.pow(2, level - 1);
-          const rowFieldL1 = fieldL1.get(creatureType) ?? 0;
           const exactKey = `${creatureType}:${level}`;
           const rewardL1PerMeat = l1PerMeat || 1;
           const estimatedMeatCost = requiredL1 / rewardL1PerMeat;
@@ -359,7 +361,7 @@ export function buildAutoQuestScoringTable(
           };
 
           const forbiddenReasons: AutoQuestForbiddenReason[] = [];
-          if (totalL1Capacity <= 0) forbiddenReasons.push('no_generator_capacity');
+          if (l1PerCharge <= 0) forbiddenReasons.push('no_generator_capacity');
           if (requiredL1 > totalL1Capacity) forbiddenReasons.push('over_budget');
           if (level > playerLevelCap) forbiddenReasons.push('over_seen_max_plus_one');
           if (level < minAllowedLevel) forbiddenReasons.push('below_seen_max_window');
@@ -408,6 +410,7 @@ export function buildAutoQuestScoringTable(
             fieldL1: rowFieldL1,
             totalL1Capacity,
             estimatedMeatCost,
+            rewardMeatFactor,
             lineUnlockOrder,
             lineNoveltyScore,
             lineLastSeenAgo,
@@ -464,14 +467,33 @@ function compareScoringRows(a: AutoQuestScoringRow, b: AutoQuestScoringRow): num
   return b.count - a.count;
 }
 
-function buildFieldL1Map(state: GameSnapshot): Map<string, number> {
-  const map = new Map<string, number>();
+function buildFieldL1ByLevelMap(state: GameSnapshot): Map<string, Map<number, number>> {
+  const map = new Map<string, Map<number, number>>();
   for (const entity of Object.values(state.entities)) {
     if (entity.kind !== 'creature') continue;
     const creature = entity as CreatureEntity;
-    map.set(creature.creatureType, (map.get(creature.creatureType) ?? 0) + Math.pow(2, creature.level - 1));
+    let byLevel = map.get(creature.creatureType);
+    if (!byLevel) {
+      byLevel = new Map<number, number>();
+      map.set(creature.creatureType, byLevel);
+    }
+    byLevel.set(creature.level, (byLevel.get(creature.level) ?? 0) + Math.pow(2, creature.level - 1));
   }
   return map;
+}
+
+function getFieldL1UpTo(
+  fieldL1ByLevel: Map<string, Map<number, number>>,
+  creatureType: string,
+  maxLevel: number,
+): number {
+  const byLevel = fieldL1ByLevel.get(creatureType);
+  if (!byLevel) return 0;
+  let total = 0;
+  for (const [level, l1] of byLevel) {
+    if (level <= maxLevel) total += l1;
+  }
+  return total;
 }
 
 function buildSeenMaxLevelMap(state: GameSnapshot): Map<string, number> {
@@ -523,22 +545,18 @@ function buildRepeatedTypeLevelSet(
   return set;
 }
 
-function countOtherOpenedCreatureLines(openedCreatureTypes: Set<string>, creatureType: string): number {
-  let count = 0;
-  for (const openedCreatureType of openedCreatureTypes) {
-    if (openedCreatureType !== creatureType) count += 1;
-  }
-  return count;
-}
-
-function countOccupiedGeneratorCells(state: GameSnapshot): number {
-  let count = 0;
+function countUniqueSacrificeGeneratorTypesOnGrid(config: BalanceConfig, state: GameSnapshot): number {
+  const generatorIds = new Set<number>();
   for (const entityId of state.grid.cells) {
     if (!entityId) continue;
     const entity = state.entities[entityId];
-    if (entity?.kind === 'generator') count += 1;
+    if (entity?.kind !== 'generator') continue;
+    const generator = entity as GeneratorEntity;
+    const configGenerator = config.generators.generators.find((g) => g.id === generator.generatorId);
+    if (configGenerator?.spawnMode === 'timer') continue;
+    generatorIds.add(generator.generatorId);
   }
-  return count;
+  return generatorIds.size;
 }
 
 function buildLineUnlockOrder(config: BalanceConfig): Map<string, number> {
@@ -665,11 +683,24 @@ function collectGeneratorCandidates(
 function getExpectedL1PerChargeForLevel(
   levelConfig: { mode: 'sacrifice'; numCreatures: number; outputs: Array<{ creatureType: string; level: number; chance: number }> } | { mode: 'timer'; outputs: Array<{ creatureType: string; level: number; chance: number }> },
   creatureType: string,
+  maxLevel: number,
 ): number {
   const base = levelConfig.outputs
-    .filter((output) => output.creatureType === creatureType)
+    .filter((output) => output.creatureType === creatureType && output.level <= maxLevel)
     .reduce((sum, output) => sum + output.chance * Math.pow(2, output.level - 1), 0);
   return levelConfig.mode === 'sacrifice' ? base * levelConfig.numCreatures : base;
+}
+
+function getTotalExpectedL1PerChargeForLevel(
+  levelConfig: { mode: 'sacrifice'; numCreatures: number; outputs: Array<{ creatureType: string; level: number; chance: number }> } | { mode: 'timer'; outputs: Array<{ creatureType: string; level: number; chance: number }> },
+  creatureTypes: Iterable<string>,
+  maxLevel: number,
+): number {
+  let total = 0;
+  for (const creatureType of creatureTypes) {
+    total += getExpectedL1PerChargeForLevel(levelConfig, creatureType, maxLevel);
+  }
+  return total;
 }
 
 function clamp01(value: number): number {

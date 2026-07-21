@@ -154,6 +154,7 @@ export interface AutoQuestScoringDebugRow {
   fieldL1: number;
   totalL1Capacity: number;
   estimatedMeatCost: number;
+  rewardMeatFactor: number;
   lineUnlockOrder: number;
   lineNoveltyScore: number;
   lineLastSeenAgo: number;
