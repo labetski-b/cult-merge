@@ -222,7 +222,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -274,72 +274,6 @@
       "level": 11,
       "step": 2,
       "expRequired": 355,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 12,
-      "step": 0,
-      "expRequired": 402,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 4
-        }
-      ]
-    },
-    {
-      "level": 12,
-      "step": 1,
-      "expRequired": 402,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 12,
-      "step": 2,
-      "expRequired": 402,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "level": 13,
-      "step": 0,
-      "expRequired": 449,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "level": 13,
-      "step": 1,
-      "expRequired": 449,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 13,
-      "step": 2,
-      "expRequired": 449,
       "rewards": [
         {
           "type": "grid",
@@ -348,13 +282,79 @@
       ]
     },
     {
+      "level": 12,
+      "step": 0,
+      "expRequired": 402,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 12,
+      "step": 1,
+      "expRequired": 402,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 12,
+      "step": 2,
+      "expRequired": 402,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 13,
+      "step": 0,
+      "expRequired": 449,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 13,
+      "step": 1,
+      "expRequired": 449,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 13,
+      "step": 2,
+      "expRequired": 449,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
       "level": 14,
       "step": 0,
       "expRequired": 496,
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -365,7 +365,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -376,7 +376,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -409,7 +409,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -439,105 +439,6 @@
       "level": 16,
       "step": 2,
       "expRequired": 590,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "level": 17,
-      "step": 0,
-      "expRequired": 637,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 17,
-      "step": 1,
-      "expRequired": 637,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 6
-        }
-      ]
-    },
-    {
-      "level": 17,
-      "step": 2,
-      "expRequired": 637,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 4
-        }
-      ]
-    },
-    {
-      "level": 18,
-      "step": 0,
-      "expRequired": 684,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 18,
-      "step": 1,
-      "expRequired": 684,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 6
-        }
-      ]
-    },
-    {
-      "level": 18,
-      "step": 2,
-      "expRequired": 684,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 4
-        }
-      ]
-    },
-    {
-      "level": 19,
-      "step": 0,
-      "expRequired": 731,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 19,
-      "step": 1,
-      "expRequired": 731,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 6
-        }
-      ]
-    },
-    {
-      "level": 19,
-      "step": 2,
-      "expRequired": 731,
       "rewards": [
         {
           "type": "grid",
@@ -546,6 +447,105 @@
       ]
     },
     {
+      "level": 17,
+      "step": 0,
+      "expRequired": 637,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 17,
+      "step": 1,
+      "expRequired": 637,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 17,
+      "step": 2,
+      "expRequired": 637,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 18,
+      "step": 0,
+      "expRequired": 684,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 18,
+      "step": 1,
+      "expRequired": 684,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 18,
+      "step": 2,
+      "expRequired": 684,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 19,
+      "step": 0,
+      "expRequired": 731,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 19,
+      "step": 1,
+      "expRequired": 731,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 19,
+      "step": 2,
+      "expRequired": 731,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
       "level": 20,
       "step": 0,
       "expRequired": 778,
@@ -638,208 +638,6 @@
       "step": 2,
       "expRequired": 872,
       "rewards": [
-        {
-          "type": "res_box",
-          "value": 6
-        }
-      ]
-    },
-    {
-      "level": 23,
-      "step": 0,
-      "expRequired": 919,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 4
-        }
-      ]
-    },
-    {
-      "level": 23,
-      "step": 1,
-      "expRequired": 919,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "level": 23,
-      "step": 2,
-      "expRequired": 919,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 4
-        }
-      ]
-    },
-    {
-      "level": 24,
-      "step": 0,
-      "expRequired": 966,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 24,
-      "step": 1,
-      "expRequired": 966,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 3
-        }
-      ]
-    },
-    {
-      "level": 24,
-      "step": 2,
-      "expRequired": 966,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 25,
-      "step": 0,
-      "expRequired": 1013,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 25,
-      "step": 1,
-      "expRequired": 1013,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 25,
-      "step": 2,
-      "expRequired": 1013,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 26,
-      "step": 0,
-      "expRequired": 1060,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 3
-        }
-      ]
-    },
-    {
-      "level": 26,
-      "step": 1,
-      "expRequired": 1060,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 26,
-      "step": 2,
-      "expRequired": 1060,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 27,
-      "step": 0,
-      "expRequired": 1107,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 7
-        }
-      ]
-    },
-    {
-      "level": 27,
-      "step": 1,
-      "expRequired": 1107,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "level": 27,
-      "step": 2,
-      "expRequired": 1107,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 3
-        }
-      ]
-    },
-    {
-      "level": 28,
-      "step": 0,
-      "expRequired": 1154,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "level": 28,
-      "step": 1,
-      "expRequired": 1154,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 6
-        }
-      ]
-    },
-    {
-      "level": 28,
-      "step": 2,
-      "expRequired": 1154,
-      "rewards": [
-        {
-          "type": "res_box",
-          "value": 1
-        },
         {
           "type": "grid",
           "value": 28
@@ -847,6 +645,204 @@
       ]
     },
     {
+      "level": 23,
+      "step": 0,
+      "expRequired": 919,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 23,
+      "step": 1,
+      "expRequired": 919,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 23,
+      "step": 2,
+      "expRequired": 919,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 24,
+      "step": 0,
+      "expRequired": 966,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 24,
+      "step": 1,
+      "expRequired": 966,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "level": 24,
+      "step": 2,
+      "expRequired": 966,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 25,
+      "step": 0,
+      "expRequired": 1013,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 25,
+      "step": 1,
+      "expRequired": 1013,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 25,
+      "step": 2,
+      "expRequired": 1013,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 26,
+      "step": 0,
+      "expRequired": 1060,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "level": 26,
+      "step": 1,
+      "expRequired": 1060,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 26,
+      "step": 2,
+      "expRequired": 1060,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 27,
+      "step": 0,
+      "expRequired": 1107,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "level": 27,
+      "step": 1,
+      "expRequired": 1107,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 27,
+      "step": 2,
+      "expRequired": 1107,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "level": 28,
+      "step": 0,
+      "expRequired": 1154,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "level": 28,
+      "step": 1,
+      "expRequired": 1154,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "level": 28,
+      "step": 2,
+      "expRequired": 1154,
+      "rewards": [
+        {
+          "type": "res_box",
+          "value": 2
+        }
+      ]
+    },
+    {
       "level": 29,
       "step": 0,
       "expRequired": 1201,
@@ -985,7 +981,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1007,7 +1003,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1062,7 +1058,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -1227,7 +1223,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1304,7 +1300,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -1425,7 +1421,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -1535,7 +1531,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1557,7 +1553,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1634,7 +1630,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -1755,7 +1751,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -1865,7 +1861,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1887,7 +1883,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -1964,7 +1960,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2085,7 +2081,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2195,7 +2191,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2217,7 +2213,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2294,7 +2290,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2415,7 +2411,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2525,7 +2521,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2547,7 +2543,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2624,7 +2620,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2745,7 +2741,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -2855,7 +2851,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2877,7 +2873,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     },
@@ -2954,7 +2950,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -3075,7 +3071,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -3185,7 +3181,7 @@
       "rewards": [
         {
           "type": "res_box",
-          "value": 4
+          "value": 6
         }
       ]
     }
