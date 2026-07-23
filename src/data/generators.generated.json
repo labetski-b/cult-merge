@@ -3,6 +3,7 @@
     {
       "id": 1,
       "name": "Generator 1",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature1",
       "purchaseCurrency": "rune1",
       "purchaseCost": 5,
@@ -26,8 +27,8 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 5,
             "runeType": "rune1",
+            "runeCost": 5,
             "upgradeDurationSec": 3
           }
         },
@@ -50,9 +51,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 7,
             "runeType": "rune1",
-            "upgradeDurationSec": 6
+            "runeCost": 7,
+            "upgradeDurationSec": 60
           }
         },
         {
@@ -84,9 +85,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 10,
             "runeType": "rune1",
-            "upgradeDurationSec": 12
+            "runeCost": 10,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -127,16 +128,16 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 15,
+            "spawnsRequired": 100,
             "runeType": "rune1",
-            "upgradeDurationSec": 24
+            "runeCost": 15,
+            "upgradeDurationSec": 7200
           }
         },
         {
           "mode": "sacrifice",
           "level": 5,
-          "chargeCost": 3,
+          "chargeCost": 4,
           "numCreatures": 23,
           "outputs": [
             {
@@ -181,10 +182,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 20,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 48
+            "runeCost": 20,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -245,10 +246,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 25,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 96
+            "runeCost": 25,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -314,16 +315,16 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 35,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 192
+            "runeCost": 35,
+            "upgradeDurationSec": 14400
           }
         },
         {
           "mode": "sacrifice",
           "level": 8,
-          "chargeCost": 9,
+          "chargeCost": 10,
           "numCreatures": 29,
           "outputs": [
             {
@@ -388,10 +389,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 60,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 384
+            "runeCost": 60,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -472,10 +473,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 90,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 768
+            "runeCost": 90,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -556,12 +557,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 2,
       "name": "Generator 2",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature2",
       "purchaseCurrency": "rune2",
       "purchaseCost": 8,
@@ -585,9 +586,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 5,
             "runeType": "rune2",
-            "upgradeDurationSec": 3
+            "runeCost": 5,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -609,9 +610,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 7,
             "runeType": "rune2",
-            "upgradeDurationSec": 6
+            "runeCost": 7,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -643,9 +644,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 10,
             "runeType": "rune2",
-            "upgradeDurationSec": 12
+            "runeCost": 12,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -686,10 +687,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 15,
+            "spawnsRequired": 100,
             "runeType": "rune2",
-            "upgradeDurationSec": 24
+            "runeCost": 15,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -740,10 +741,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 20,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 48
+            "runeCost": 20,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -804,10 +805,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 25,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 96
+            "runeCost": 32,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -873,10 +874,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 35,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 192
+            "runeCost": 51,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -947,10 +948,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 80,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 384
+            "runeCost": 81,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -1031,10 +1032,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 130,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 768
+            "runeCost": 129,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -1115,12 +1116,13 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 3,
       "name": "Flower Pot",
+      "spawnMode": "timer",
+      "tickIntervalSec": 1800,
       "eggType": "Egg_Creature3",
       "purchaseCurrency": "rune1",
       "purchaseCost": 10,
@@ -1143,9 +1145,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 8,
-            "runeCost": 10,
             "runeType": "rune1",
-            "upgradeDurationSec": 3
+            "runeCost": 6,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -1166,9 +1168,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 8,
-            "runeCost": 15,
             "runeType": "rune1",
-            "upgradeDurationSec": 6
+            "runeCost": 8,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -1199,9 +1201,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 16,
-            "runeCost": 20,
             "runeType": "rune1",
-            "upgradeDurationSec": 12
+            "runeCost": 12,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -1242,9 +1244,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 16,
-            "runeCost": 25,
             "runeType": "rune1",
-            "upgradeDurationSec": 24
+            "runeCost": 17,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -1295,9 +1297,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 32,
-            "runeCost": 35,
             "runeType": "rune1",
-            "upgradeDurationSec": 48
+            "runeCost": 27,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -1358,9 +1360,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 32,
-            "runeCost": 60,
             "runeType": "rune1",
-            "upgradeDurationSec": 96
+            "runeCost": 42,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -1426,9 +1428,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 32,
-            "runeCost": 90,
             "runeType": "rune1",
-            "upgradeDurationSec": 192
+            "runeCost": 68,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -1499,9 +1501,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 32,
-            "runeCost": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 384
+            "runeCost": 108,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -1582,9 +1584,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 32,
-            "runeCost": 180,
             "runeType": "rune1",
-            "upgradeDurationSec": 768
+            "runeCost": 172,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -1664,13 +1666,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "timer",
-      "tickIntervalSec": 1800
+      ]
     },
     {
       "id": 4,
       "name": "Generator 4",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature4",
       "purchaseCurrency": "rune2",
       "purchaseCost": 13,
@@ -1694,9 +1695,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 10,
             "runeType": "rune2",
-            "upgradeDurationSec": 3
+            "runeCost": 5,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -1718,9 +1719,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 15,
             "runeType": "rune2",
-            "upgradeDurationSec": 6
+            "runeCost": 8,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -1752,9 +1753,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 20,
             "runeType": "rune2",
-            "upgradeDurationSec": 12
+            "runeCost": 13,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -1795,10 +1796,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 25,
+            "spawnsRequired": 100,
             "runeType": "rune2",
-            "upgradeDurationSec": 24
+            "runeCost": 21,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -1849,10 +1850,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 35,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 48
+            "runeCost": 33,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -1913,10 +1914,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 60,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 96
+            "runeCost": 53,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -1982,10 +1983,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 90,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 192
+            "runeCost": 84,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -2056,10 +2057,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 120,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 384
+            "runeCost": 135,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -2140,10 +2141,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 180,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 768
+            "runeCost": 215,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -2224,12 +2225,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 5,
       "name": "Generator 5",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature5",
       "purchaseCurrency": "rune1",
       "purchaseCost": 15,
@@ -2253,9 +2254,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 6,
             "runeType": "rune1",
-            "upgradeDurationSec": 3
+            "runeCost": 6,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -2277,9 +2278,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 10,
             "runeType": "rune1",
-            "upgradeDurationSec": 6
+            "runeCost": 10,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -2311,9 +2312,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 16,
             "runeType": "rune1",
-            "upgradeDurationSec": 12
+            "runeCost": 16,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -2354,10 +2355,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 25,
+            "spawnsRequired": 100,
             "runeType": "rune1",
-            "upgradeDurationSec": 24
+            "runeCost": 25,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -2408,10 +2409,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 40,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 48
+            "runeCost": 40,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -2472,10 +2473,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 63,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 96
+            "runeCost": 63,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -2541,10 +2542,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 101,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 192
+            "runeCost": 101,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -2615,10 +2616,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 162,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 384
+            "runeCost": 162,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -2699,10 +2700,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 258,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 768
+            "runeCost": 258,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -2783,12 +2784,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 6,
       "name": "Generator 6",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature6",
       "purchaseCurrency": "rune2",
       "purchaseCost": 20,
@@ -2812,9 +2813,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 8,
             "runeType": "rune2",
-            "upgradeDurationSec": 3
+            "runeCost": 8,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -2836,9 +2837,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 13,
             "runeType": "rune2",
-            "upgradeDurationSec": 6
+            "runeCost": 13,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -2870,9 +2871,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 21,
             "runeType": "rune2",
-            "upgradeDurationSec": 12
+            "runeCost": 21,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -2913,10 +2914,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 33,
+            "spawnsRequired": 100,
             "runeType": "rune2",
-            "upgradeDurationSec": 24
+            "runeCost": 33,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -2967,10 +2968,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 53,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 48
+            "runeCost": 53,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -3031,10 +3032,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 84,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 96
+            "runeCost": 84,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -3100,10 +3101,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 135,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 192
+            "runeCost": 135,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -3174,10 +3175,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 215,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 384
+            "runeCost": 215,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -3258,10 +3259,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 344,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 768
+            "runeCost": 344,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -3342,12 +3343,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 7,
       "name": "Generator 7",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature7",
       "purchaseCurrency": "rune1",
       "purchaseCost": 25,
@@ -3371,9 +3372,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 10,
             "runeType": "rune1",
-            "upgradeDurationSec": 3
+            "runeCost": 10,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -3395,9 +3396,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 16,
             "runeType": "rune1",
-            "upgradeDurationSec": 6
+            "runeCost": 16,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -3429,9 +3430,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 26,
             "runeType": "rune1",
-            "upgradeDurationSec": 12
+            "runeCost": 26,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -3472,10 +3473,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 41,
+            "spawnsRequired": 100,
             "runeType": "rune1",
-            "upgradeDurationSec": 24
+            "runeCost": 41,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -3526,10 +3527,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 66,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 48
+            "runeCost": 66,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -3590,10 +3591,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 105,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 96
+            "runeCost": 105,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -3659,10 +3660,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 168,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 192
+            "runeCost": 168,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -3733,10 +3734,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 269,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 384
+            "runeCost": 269,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -3817,10 +3818,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 430,
+            "spawnsRequired": 120,
             "runeType": "rune1",
-            "upgradeDurationSec": 768
+            "runeCost": 430,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -3901,12 +3902,12 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     },
     {
       "id": 8,
       "name": "Generator 8",
+      "spawnMode": "sacrifice",
       "eggType": "Egg_Creature8",
       "purchaseCurrency": "rune2",
       "purchaseCost": 30,
@@ -3930,9 +3931,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 40,
-            "runeCost": 12,
             "runeType": "rune2",
-            "upgradeDurationSec": 3
+            "runeCost": 20,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -3954,9 +3955,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 45,
-            "runeCost": 20,
             "runeType": "rune2",
-            "upgradeDurationSec": 6
+            "runeCost": 31,
+            "upgradeDurationSec": 120
           }
         },
         {
@@ -3988,9 +3989,9 @@
           ],
           "upgrade": {
             "spawnsRequired": 95,
-            "runeCost": 31,
             "runeType": "rune2",
-            "upgradeDurationSec": 12
+            "runeCost": 50,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -4031,10 +4032,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 150,
-            "runeCost": 50,
+            "spawnsRequired": 100,
             "runeType": "rune2",
-            "upgradeDurationSec": 24
+            "runeCost": 79,
+            "upgradeDurationSec": 7200
           }
         },
         {
@@ -4085,10 +4086,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 250,
-            "runeCost": 79,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 48
+            "runeCost": 126,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -4149,10 +4150,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 126,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 96
+            "runeCost": 202,
+            "upgradeDurationSec": 14400
           }
         },
         {
@@ -4218,10 +4219,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 202,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 192
+            "runeCost": 323,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -4292,10 +4293,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 323,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 384
+            "runeCost": 516,
+            "upgradeDurationSec": 28800
           }
         },
         {
@@ -4376,10 +4377,10 @@
             }
           ],
           "upgrade": {
-            "spawnsRequired": 300,
-            "runeCost": 516,
+            "spawnsRequired": 120,
             "runeType": "rune2",
-            "upgradeDurationSec": 768
+            "runeCost": 750,
+            "upgradeDurationSec": 43200
           }
         },
         {
@@ -4460,8 +4461,7 @@
             }
           ]
         }
-      ],
-      "spawnMode": "sacrifice"
+      ]
     }
   ]
 }

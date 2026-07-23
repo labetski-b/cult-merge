@@ -46,7 +46,7 @@ function groupBy<T>(arr: T[], keyFn: (item: T) => number): Map<number, T[]> {
 
 function buildMergeNests(): string {
   const header = [
-    'Generator level', 'Price', 'Amount', 'Duration', 'Merges Required', 'Id',
+    'Generator level', 'Price', 'Amount', 'Duration', 'Spawns Required', 'Id',
     'Spawn 1', 'Chance', 'Spawn 2', 'Chance', 'Spawn 3', 'Chance',
     'Capacity', 'Recharge cost',
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',  // Spawn1 level dist
