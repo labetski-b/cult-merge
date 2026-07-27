@@ -6,6 +6,7 @@ import {
   getGeneratorSpawnsAvailable,
   resolveUpgradeCost,
 } from '@domain/upgrades';
+import { getGeneratorOutputChance } from '@domain/generator';
 import { getCreatureImage, getGeneratorImage } from '@ui/creatureImages';
 import { formatCompact } from '@ui/formatCompact';
 import { useSecondTicker } from '@ui/hooks/useSecondTicker';
@@ -100,6 +101,7 @@ export function GeneratorUpgradeModal({ isOpen, onClose }: Props) {
 type CreatureOutput = {
   creatureType: string;
   level: number;
+  slotChance: number;
   chance: number;
 };
 
@@ -252,7 +254,7 @@ function GeneratorUpgradeCard({
             <div className="generator-upgrade-drops-row" key={`group-${gIdx}`}>
               {group.map((out, idx) => {
                 const sprite = getCreatureImage(out.creatureType, out.level);
-                const pct = out.chance <= 1 ? out.chance * 100 : out.chance;
+                const pct = getGeneratorOutputChance(out) * 100;
                 const pctLabel = `${Math.round(pct)}%`;
                 return (
                   <div

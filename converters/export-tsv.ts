@@ -61,7 +61,12 @@ function buildMergeNests(): string {
 
   const genOrder = [1, 2, 3, 4, 5, 6, 7, 8];
 
-  type OutputEntry = { creatureType: string; level: number; chance: number };
+  type OutputEntry = {
+    creatureType: string;
+    level: number;
+    slotChance: number;
+    chance: number;
+  };
 
   function computeSpawnRow(
     outputs: OutputEntry[],
@@ -76,14 +81,17 @@ function buildMergeNests(): string {
     mergesRequired: string,
   ): string[] {
     // Группируем outputs по creatureType
-    const byType = new Map<string, { totalChance: number; levels: Map<number, number> }>();
+    const byType = new Map<string, { slotChance: number; levels: Map<number, number> }>();
     for (const o of outputs) {
       let entry = byType.get(o.creatureType);
       if (!entry) {
-        entry = { totalChance: 0, levels: new Map() };
+        entry = { slotChance: o.slotChance, levels: new Map() };
         byType.set(o.creatureType, entry);
+      } else if (entry.slotChance !== o.slotChance) {
+        throw new Error(
+          `${o.creatureType} has inconsistent slotChance values in MergeNests export`
+        );
       }
-      entry.totalChance += o.chance;
       entry.levels.set(o.level, (entry.levels.get(o.level) ?? 0) + o.chance);
     }
 
@@ -92,22 +100,21 @@ function buildMergeNests(): string {
 
     // Spawn 1 = lines[0]
     const spawn1Data = byType.get(line1);
-    const spawn1Chance = spawn1Data?.totalChance ?? 0;
+    const spawn1Chance = spawn1Data?.slotChance ?? 0;
 
     // Spawn 2 = lines[1]
     const spawn2Data = byType.get(line2);
-    const spawn2Chance = spawn2Data?.totalChance ?? 0;
+    const spawn2Chance = spawn2Data?.slotChance ?? 0;
 
     // Level distributions (9 cols for spawn1, 9 for spawn2, 3 for hard)
-    function levelDist(data: { totalChance: number; levels: Map<number, number> } | undefined, maxLevels: number): string[] {
+    function levelDist(data: { slotChance: number; levels: Map<number, number> } | undefined, maxLevels: number): string[] {
       const dist: string[] = [];
-      if (!data || data.totalChance === 0) {
+      if (!data || data.slotChance === 0) {
         for (let i = 0; i < maxLevels; i++) dist.push('0');
         return dist;
       }
       for (let lvl = 1; lvl <= maxLevels; lvl++) {
-        const raw = data.levels.get(lvl) ?? 0;
-        dist.push(fmt(raw / data.totalChance));
+        dist.push(fmt(data.levels.get(lvl) ?? 0));
       }
       return dist;
     }

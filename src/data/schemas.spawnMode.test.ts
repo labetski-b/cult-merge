@@ -7,14 +7,14 @@ describe('generator schema with spawnMode', () => {
     level: 1,
     chargeCost: 0,
     numCreatures: 1,
-    outputs: [{ creatureType: 'Creature5', level: 1, chance: 1 }],
+    outputs: [{ creatureType: 'Creature5', level: 1, slotChance: 1, chance: 1 }],
   };
 
   const baseTimerLevel = {
     mode: 'timer' as const,
     level: 1,
     tickIntervalSec: 1800,
-    outputs: [{ creatureType: 'Creature5', level: 1, chance: 1 }],
+    outputs: [{ creatureType: 'Creature5', level: 1, slotChance: 1, chance: 1 }],
   };
 
   const base = {

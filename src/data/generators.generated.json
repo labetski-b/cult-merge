@@ -22,6 +22,7 @@
             {
               "creatureType": "Creature1",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -41,11 +42,13 @@
             {
               "creatureType": "Creature1",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature1",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -65,22 +68,26 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -99,32 +106,38 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -143,42 +156,50 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature1",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -197,52 +218,62 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature1",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature1",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature2",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -261,57 +292,68 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature1",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature2",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature2",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -330,62 +372,74 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature1",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature1",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature1",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature2",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature2",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -404,72 +458,86 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature1",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature1",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature1",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature1",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature1",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature1",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature2",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature2",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature2",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -488,72 +556,86 @@
             {
               "creatureType": "Creature1",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature1",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature1",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature1",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature1",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature1",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature1",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature1",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature2",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature2",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature2",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature2",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature2",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature2",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -581,6 +663,7 @@
             {
               "creatureType": "Creature3",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -600,11 +683,13 @@
             {
               "creatureType": "Creature3",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature3",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -624,22 +709,26 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -658,32 +747,38 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -702,42 +797,50 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature3",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -756,52 +859,62 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature3",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature3",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature4",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -820,57 +933,68 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature3",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature4",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature4",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -889,62 +1013,74 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature3",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature3",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature3",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature4",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature4",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -963,72 +1099,86 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature3",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature3",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature3",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature3",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature3",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature3",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature4",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature4",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature4",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1047,72 +1197,86 @@
             {
               "creatureType": "Creature3",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature3",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature3",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature3",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature3",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature3",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature3",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature3",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature4",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature4",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature4",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature4",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature4",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature4",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -1140,6 +1304,7 @@
             {
               "creatureType": "Creature5",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -1158,11 +1323,13 @@
             {
               "creatureType": "Creature5",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature5",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -1181,22 +1348,26 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -1214,32 +1385,38 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -1257,42 +1434,50 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature5",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -1310,52 +1495,62 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature5",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature6",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1373,57 +1568,68 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature6",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature6",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1441,62 +1647,74 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature5",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature5",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature6",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature6",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1514,72 +1732,86 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature5",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature5",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature5",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature5",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature5",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature6",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature6",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature6",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1597,72 +1829,86 @@
             {
               "creatureType": "Creature5",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature5",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature5",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature5",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature5",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature5",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature5",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature5",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature6",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature6",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature6",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature6",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature6",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature6",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -1690,6 +1936,7 @@
             {
               "creatureType": "Creature7",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -1709,11 +1956,13 @@
             {
               "creatureType": "Creature7",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature7",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -1733,22 +1982,26 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -1767,32 +2020,38 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -1811,42 +2070,50 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature7",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -1865,52 +2132,62 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature7",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature7",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature8",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1929,57 +2206,68 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature7",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature8",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature8",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -1998,62 +2286,74 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature7",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature7",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature7",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature8",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature8",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2072,72 +2372,86 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature7",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature7",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature7",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature7",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature7",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature7",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature8",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature8",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature8",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2156,72 +2470,86 @@
             {
               "creatureType": "Creature7",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature7",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature7",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature7",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature7",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature7",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature7",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature7",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature8",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature8",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature8",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature8",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature8",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature8",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -2249,6 +2577,7 @@
             {
               "creatureType": "Creature9",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -2268,11 +2597,13 @@
             {
               "creatureType": "Creature9",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature9",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -2292,22 +2623,26 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -2326,32 +2661,38 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -2370,42 +2711,50 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature9",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -2424,52 +2773,62 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature9",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature9",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature10",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2488,57 +2847,68 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature9",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature10",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature10",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2557,62 +2927,74 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature9",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature9",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature9",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature10",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature10",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2631,72 +3013,86 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature9",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature9",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature9",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature9",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature9",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature9",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature10",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature10",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature10",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -2715,72 +3111,86 @@
             {
               "creatureType": "Creature9",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature9",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature9",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature9",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature9",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature9",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature9",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature9",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature10",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature10",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature10",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature10",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature10",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature10",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -2808,6 +3218,7 @@
             {
               "creatureType": "Creature11",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -2827,11 +3238,13 @@
             {
               "creatureType": "Creature11",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature11",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -2851,22 +3264,26 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -2885,32 +3302,38 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -2929,42 +3352,50 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature11",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -2983,52 +3414,62 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature11",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature11",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature12",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3047,57 +3488,68 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature11",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature12",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature12",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3116,62 +3568,74 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature11",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature11",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature11",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature12",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature12",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3190,72 +3654,86 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature11",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature11",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature11",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature11",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature11",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature11",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature12",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature12",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature12",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3274,72 +3752,86 @@
             {
               "creatureType": "Creature11",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature11",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature11",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature11",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature11",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature11",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature11",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature11",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature12",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature12",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature12",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature12",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature12",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature12",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -3367,6 +3859,7 @@
             {
               "creatureType": "Creature13",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -3386,11 +3879,13 @@
             {
               "creatureType": "Creature13",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature13",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -3410,22 +3905,26 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -3444,32 +3943,38 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -3488,42 +3993,50 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature13",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -3542,52 +4055,62 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature13",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature13",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature14",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3606,57 +4129,68 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature13",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature14",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature14",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3675,62 +4209,74 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature13",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature13",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature13",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature14",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature14",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3749,72 +4295,86 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature13",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature13",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature13",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature13",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature13",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature13",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature14",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature14",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature14",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -3833,72 +4393,86 @@
             {
               "creatureType": "Creature13",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature13",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature13",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature13",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature13",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature13",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature13",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature13",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature14",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature14",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature14",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature14",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature14",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature14",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }
@@ -3926,6 +4500,7 @@
             {
               "creatureType": "Creature15",
               "level": 1,
+              "slotChance": 1,
               "chance": 1
             }
           ],
@@ -3945,11 +4520,13 @@
             {
               "creatureType": "Creature15",
               "level": 1,
+              "slotChance": 1,
               "chance": 0.6
             },
             {
               "creatureType": "Creature15",
               "level": 2,
+              "slotChance": 1,
               "chance": 0.4
             }
           ],
@@ -3969,22 +4546,26 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.29
+              "slotChance": 0.8,
+              "chance": 0.36
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.38
+              "slotChance": 0.8,
+              "chance": 0.48
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.13
+              "slotChance": 0.8,
+              "chance": 0.16
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.2
+              "slotChance": 0.2,
+              "chance": 1
             }
           ],
           "upgrade": {
@@ -4003,32 +4584,38 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.35
+              "slotChance": 0.8,
+              "chance": 0.44
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.23
+              "slotChance": 0.8,
+              "chance": 0.29
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.8,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.12
+              "slotChance": 0.2,
+              "chance": 0.6
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.08
+              "slotChance": 0.2,
+              "chance": 0.4
             }
           ],
           "upgrade": {
@@ -4047,42 +4634,50 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.28
+              "slotChance": 0.8,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.12
+              "slotChance": 0.8,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature15",
               "level": 5,
+              "slotChance": 0.8,
               "chance": 0.02
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.07
+              "slotChance": 0.2,
+              "chance": 0.35
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.2,
+              "chance": 0.5
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             }
           ],
           "upgrade": {
@@ -4101,52 +4696,62 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.2
+              "slotChance": 0.8,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.26
+              "slotChance": 0.8,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.17
+              "slotChance": 0.8,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature15",
               "level": 5,
-              "chance": 0.06
+              "slotChance": 0.8,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature15",
               "level": 6,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.04
+              "slotChance": 0.2,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.2,
+              "chance": 0.45
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature16",
               "level": 4,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -4165,57 +4770,68 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.14
+              "slotChance": 0.79,
+              "chance": 0.18
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.22
+              "slotChance": 0.79,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.2
+              "slotChance": 0.79,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature15",
               "level": 5,
-              "chance": 0.1
+              "slotChance": 0.79,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 6,
-              "chance": 0.03
+              "slotChance": 0.79,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.21,
+              "chance": 0.33
             },
             {
               "creatureType": "Creature16",
               "level": 4,
-              "chance": 0.03
+              "slotChance": 0.21,
+              "chance": 0.14
             },
             {
               "creatureType": "Creature16",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.21,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -4234,62 +4850,74 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.81,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.09
+              "slotChance": 0.81,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.19
+              "slotChance": 0.81,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.22
+              "slotChance": 0.81,
+              "chance": 0.27
             },
             {
               "creatureType": "Creature15",
               "level": 5,
-              "chance": 0.14
+              "slotChance": 0.81,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature15",
               "level": 6,
-              "chance": 0.06
+              "slotChance": 0.81,
+              "chance": 0.07
             },
             {
               "creatureType": "Creature15",
               "level": 7,
+              "slotChance": 0.81,
               "chance": 0.01
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.19,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.05
+              "slotChance": 0.19,
+              "chance": 0.26
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.07
+              "slotChance": 0.19,
+              "chance": 0.37
             },
             {
               "creatureType": "Creature16",
               "level": 4,
-              "chance": 0.04
+              "slotChance": 0.19,
+              "chance": 0.21
             },
             {
               "creatureType": "Creature16",
               "level": 5,
-              "chance": 0.01
+              "slotChance": 0.19,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -4308,72 +4936,86 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.8,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.14
-            },
-            {
-              "creatureType": "Creature15",
-              "level": 4,
+              "slotChance": 0.8,
               "chance": 0.18
             },
             {
               "creatureType": "Creature15",
+              "level": 4,
+              "slotChance": 0.8,
+              "chance": 0.22
+            },
+            {
+              "creatureType": "Creature15",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.8,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature15",
               "level": 6,
-              "chance": 0.08
+              "slotChance": 0.8,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature15",
               "level": 7,
-              "chance": 0.03
+              "slotChance": 0.8,
+              "chance": 0.04
             },
             {
               "creatureType": "Creature15",
               "level": 8,
+              "slotChance": 0.8,
               "chance": 0.01
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.2,
+              "chance": 0.1
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.06
+              "slotChance": 0.2,
+              "chance": 0.3
             },
             {
               "creatureType": "Creature16",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.2,
+              "chance": 0.25
             },
             {
               "creatureType": "Creature16",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.2,
+              "chance": 0.15
             },
             {
               "creatureType": "Creature16",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.2,
+              "chance": 0.05
             }
           ],
           "upgrade": {
@@ -4392,72 +5034,86 @@
             {
               "creatureType": "Creature15",
               "level": 1,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature15",
               "level": 2,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature15",
               "level": 3,
-              "chance": 0.1
+              "slotChance": 0.82,
+              "chance": 0.12
             },
             {
               "creatureType": "Creature15",
               "level": 4,
-              "chance": 0.19
+              "slotChance": 0.82,
+              "chance": 0.23
             },
             {
               "creatureType": "Creature15",
               "level": 5,
-              "chance": 0.16
+              "slotChance": 0.82,
+              "chance": 0.2
             },
             {
               "creatureType": "Creature15",
               "level": 6,
-              "chance": 0.11
+              "slotChance": 0.82,
+              "chance": 0.13
             },
             {
               "creatureType": "Creature15",
               "level": 7,
-              "chance": 0.05
+              "slotChance": 0.82,
+              "chance": 0.06
             },
             {
               "creatureType": "Creature15",
               "level": 8,
+              "slotChance": 0.82,
               "chance": 0.01
             },
             {
               "creatureType": "Creature16",
               "level": 1,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature16",
               "level": 2,
-              "chance": 0.02
+              "slotChance": 0.18,
+              "chance": 0.11
             },
             {
               "creatureType": "Creature16",
               "level": 3,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature16",
               "level": 4,
-              "chance": 0.05
+              "slotChance": 0.18,
+              "chance": 0.28
             },
             {
               "creatureType": "Creature16",
               "level": 5,
-              "chance": 0.03
+              "slotChance": 0.18,
+              "chance": 0.17
             },
             {
               "creatureType": "Creature16",
               "level": 6,
-              "chance": 0.01
+              "slotChance": 0.18,
+              "chance": 0.06
             }
           ]
         }

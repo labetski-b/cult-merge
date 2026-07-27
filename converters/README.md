@@ -18,8 +18,8 @@ npx tsx --tsconfig tsconfig.app.json converters/export-tsv.ts
 
 ### MergeNests.tsv
 Генераторы + горшок + Entity_Box + Res_Box.
-- Шансы спавна агрегируются по типу существа
-- Level-распределение нормализуется внутри типа
+- `slotChance` экспортируется напрямую как `ChanceMain` / `ChanceAlt`
+- `chance` экспортируется напрямую как условное распределение уровня внутри линейки
 - Боксы ресурсов: ключи содержимого парсятся (Rune1_1 → MergeRune1, level 1)
 
 ### MergeDestroyer.tsv

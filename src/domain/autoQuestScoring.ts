@@ -1,6 +1,7 @@
-import type { BalanceConfig } from '@data/schemas';
+import type { BalanceConfig, GeneratorLevelConfig } from '@data/schemas';
 import { calculateMeatDrop, getCurrentChapter } from '@domain/chapters';
 import { getGridSizeForLevel } from '@domain/gridSize';
+import { getGeneratorOutputChance } from '@domain/generator';
 import type { CreatureEntity, GameSnapshot, GeneratorEntity, TaskDefinition } from '@domain/types';
 import { canUpgradeGenerator } from '@domain/upgrades';
 
@@ -681,18 +682,20 @@ function collectGeneratorCandidates(
 }
 
 function getExpectedL1PerChargeForLevel(
-  levelConfig: { mode: 'sacrifice'; numCreatures: number; outputs: Array<{ creatureType: string; level: number; chance: number }> } | { mode: 'timer'; outputs: Array<{ creatureType: string; level: number; chance: number }> },
+  levelConfig: GeneratorLevelConfig,
   creatureType: string,
   maxLevel: number,
 ): number {
   const base = levelConfig.outputs
     .filter((output) => output.creatureType === creatureType && output.level <= maxLevel)
-    .reduce((sum, output) => sum + output.chance * Math.pow(2, output.level - 1), 0);
+    .reduce((sum, output) => (
+      sum + getGeneratorOutputChance(output) * Math.pow(2, output.level - 1)
+    ), 0);
   return levelConfig.mode === 'sacrifice' ? base * levelConfig.numCreatures : base;
 }
 
 function getTotalExpectedL1PerChargeForLevel(
-  levelConfig: { mode: 'sacrifice'; numCreatures: number; outputs: Array<{ creatureType: string; level: number; chance: number }> } | { mode: 'timer'; outputs: Array<{ creatureType: string; level: number; chance: number }> },
+  levelConfig: GeneratorLevelConfig,
   creatureTypes: Iterable<string>,
   maxLevel: number,
 ): number {

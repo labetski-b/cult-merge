@@ -35,9 +35,20 @@ function validateProbabilitySum(probabilities: number[], scope: string): void {
 function validateConfig(config: BalanceConfig): void {
   config.generators.generators.forEach((generator) => {
     generator.levels.forEach((levelConfig) => {
+      const slotChances = new Map<string, number>();
+      for (const output of levelConfig.outputs) {
+        const existing = slotChances.get(output.creatureType);
+        if (existing !== undefined && existing !== output.slotChance) {
+          throw new Error(
+            `Generator ${generator.id} level ${levelConfig.level}: ` +
+            `${output.creatureType} has inconsistent slotChance values`
+          );
+        }
+        slotChances.set(output.creatureType, output.slotChance);
+      }
       validateProbabilitySum(
-        levelConfig.outputs.map((output) => output.chance),
-        `Generator ${generator.id} level ${levelConfig.level}`
+        [...slotChances.values()],
+        `Generator ${generator.id} level ${levelConfig.level} slot chances`
       );
     });
   });

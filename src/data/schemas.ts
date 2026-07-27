@@ -3,7 +3,10 @@ import { z } from 'zod';
 const outputSchema = z.object({
   creatureType: z.string().min(1),
   level: z.number().int().positive(),
-  chance: z.number().min(0).max(1)
+  // Unity stores these as two independent probabilities:
+  // ChanceMain/Alt for the output slot and ChancesMain/Alt for the level.
+  slotChance: z.number().min(0).max(1),
+  chance: z.number().min(0).max(1),
 });
 
 const generatorUpgradeSchema = z.object({

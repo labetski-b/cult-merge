@@ -3,6 +3,14 @@ import type { GeneratorEntity } from '@domain/types';
 import { SeededRng } from '@infra/rng';
 
 type GeneratorLevel = GeneratorsData['generators'][number]['levels'][number];
+type GeneratorOutput = GeneratorLevel['outputs'][number];
+
+/** Joint probability of selecting this line and then this level, as in Unity. */
+export function getGeneratorOutputChance(
+  output: Pick<GeneratorOutput, 'slotChance' | 'chance'>
+): number {
+  return output.slotChance * output.chance;
+}
 
 export function getGeneratorConfig(config: BalanceConfig, generatorId: number, level: number) {
   const generator = config.generators.generators.find((value) => value.id === generatorId);
@@ -43,7 +51,7 @@ export function canChargeGenerator(
   return { ok: true };
 }
 
-function weightedSelect<T extends { chance: number }>(rng: SeededRng, items: T[]): T {
+function weightedSelect<T>(rng: SeededRng, items: T[], getWeight: (item: T) => number): T {
   if (items.length === 0) {
     throw new Error('Weighted selection requires at least one item');
   }
@@ -52,7 +60,7 @@ function weightedSelect<T extends { chance: number }>(rng: SeededRng, items: T[]
   let cumulative = 0;
 
   for (const item of items) {
-    cumulative += item.chance;
+    cumulative += getWeight(item);
 
     if (roll <= cumulative) {
       return item;
@@ -85,7 +93,7 @@ export function rollGeneratorSpawn(
   const spawns: Array<{ creatureType: string; level: number }> = [];
 
   for (let index = 0; index < levelConfig.numCreatures; index += 1) {
-    const selected = weightedSelect(rng, levelConfig.outputs);
+    const selected = weightedSelect(rng, levelConfig.outputs, getGeneratorOutputChance);
     spawns.push({ creatureType: selected.creatureType, level: selected.level });
   }
 
@@ -135,11 +143,13 @@ export function rollSingleOutput(
   level: GeneratorLevel,
   rng: () => number
 ): { creatureType: string; level: number } {
-  const totalWeight = level.outputs.reduce((sum, o) => sum + o.chance, 0);
+  const totalWeight = level.outputs.reduce((sum, output) => (
+    sum + getGeneratorOutputChance(output)
+  ), 0);
   const r = rng() * totalWeight;
   let acc = 0;
   for (const output of level.outputs) {
-    acc += output.chance;
+    acc += getGeneratorOutputChance(output);
     if (r <= acc) {
       return { creatureType: output.creatureType, level: output.level };
     }

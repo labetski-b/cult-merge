@@ -24,7 +24,6 @@ type QuestSequenceEntry = {
   creatures: AutoTaskHistoryEntry['creatures'];
 };
 
-delete process.env.AUTO_QUEST_SCORING_V2;
 delete process.env.AUTO_QUEST_SCORING_CONFIG_JSON;
 
 function formatReq(task: Pick<QuestSequenceEntry, 'creatures'>): string {

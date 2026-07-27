@@ -498,6 +498,7 @@ function distBinomialWithFloor(age, f, kMax, floor) {
  * @typedef {Object} Output
  * @property {string} creatureType
  * @property {number} level
+ * @property {number} slotChance ChanceMain/ChanceAlt: probability of the creature line
  * @property {number} chance
  */
 
@@ -541,9 +542,11 @@ function MV(lvl) {
 }
 
 /**
- * Builds outputs[] for a given upgrade level L from primary/secondary lineage
- * distributions, applies primaryShare weighting, rounds chances to 2 decimals
- * and corrects the rounding residual on the largest entry.
+ * Builds Unity-style outputs for a given upgrade level: `slotChance` stores
+ * ChanceMain/ChanceAlt and `chance` stores the conditional ChancesMain/Alt
+ * probability for a level. The values are derived through the same 2-decimal
+ * export path as the live MergeNests balance, but they remain separate so
+ * runtime reward math can multiply them without losing precision.
  *
  * @param {number[]} primaryDist
  * @param {number[]|null} secondaryDist
@@ -557,7 +560,7 @@ function buildOutputs(primaryDist, secondaryDist, primaryName, secondaryName, pr
   const shareP = secondaryActive ? primaryShare : 1.0;
   const shareS = secondaryActive ? 1 - primaryShare : 0;
 
-  /** @type {Output[]} */
+  /** @type {Array<{creatureType: string, level: number, chance: number}>} */
   const raw = [];
   for (let k = 1; k <= primaryDist.length; k++) {
     const c = primaryDist[k - 1] * shareP;
@@ -570,7 +573,8 @@ function buildOutputs(primaryDist, secondaryDist, primaryName, secondaryName, pr
     }
   }
 
-  // Round each chance to 2 decimals.
+  // Reproduce the existing MergeNests export: first round the joint
+  // probabilities and correct their residual.
   const rounded = raw.map(o => ({ ...o, chance: Math.round(o.chance * 100) / 100 }));
 
   // Correct rounding residual so Σ chance = 1.0 exactly. Apply delta to the
@@ -585,7 +589,26 @@ function buildOutputs(primaryDist, secondaryDist, primaryName, secondaryName, pr
     rounded[maxIdx].chance = Math.round((rounded[maxIdx].chance + delta) * 100) / 100;
   }
 
-  return rounded.filter(o => o.chance > 0);
+  const positive = rounded.filter(o => o.chance > 0);
+  const rawSlotChanceByType = new Map();
+  for (const output of positive) {
+    rawSlotChanceByType.set(
+      output.creatureType,
+      (rawSlotChanceByType.get(output.creatureType) ?? 0) + output.chance,
+    );
+  }
+
+  return positive.map((output) => {
+    const rawSlotChance = rawSlotChanceByType.get(output.creatureType) ?? 0;
+    const slotChance = Math.round(rawSlotChance * 100) / 100;
+    return {
+      creatureType: output.creatureType,
+      level: output.level,
+      slotChance,
+      // Use the unrounded sum exactly as the existing TSV converter did.
+      chance: rawSlotChance > 0 ? Number((output.chance / rawSlotChance).toFixed(2)) : 0,
+    };
+  });
 }
 
 function generateGen(genIdx, P) {
@@ -646,7 +669,9 @@ function generateGen(genIdx, P) {
     );
 
     let mvSum = 0;
-    for (const o of outputs) mvSum += o.chance * Math.pow(2, o.level - 1);
+    for (const o of outputs) {
+      mvSum += o.slotChance * o.chance * Math.pow(2, o.level - 1);
+    }
     const totalEff = spawns * mvSum;
 
     perLevel.push({ outputs, spawns, totalEff });

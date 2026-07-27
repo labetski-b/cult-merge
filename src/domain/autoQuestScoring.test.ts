@@ -6,6 +6,7 @@ import {
   getMaxAllowedAutoQuestCount,
   getMinAllowedAutoQuestLevel,
 } from '@domain/autoQuestScoring';
+import { computeAutoQuestEyeRewardFromScoringRows } from '@domain/tasks';
 import { createGrid } from '@domain/grid';
 import { createEmptyCumulativeStats, createEmptyQuestState } from '@domain/quests';
 import type { CreatureEntity, GameSnapshot, GeneratorEntity } from '@domain/types';
@@ -118,6 +119,31 @@ function makeStateWithTimerGenerator(genLevel = 1): GameSnapshot {
   };
 }
 
+function makeStateWithGenerator(
+  generatorId: number,
+  generatorLevel: number,
+  seenMaxLevelByType: Record<string, number>,
+  eyes = 333,
+): GameSnapshot {
+  const state = makeStateWithTwoDifferentGeneratorsAndOpenedLines();
+  const generator: GeneratorEntity = {
+    id: 'parity-gen',
+    kind: 'generator',
+    generatorId,
+    level: generatorLevel,
+    charges: [],
+  };
+  state.kraken.level = 49;
+  state.resources.eyes = eyes;
+  state.resources.rune1 = 0;
+  state.resources.rune2 = 0;
+  state.grid = createGrid(5, 5);
+  state.grid.cells[0] = generator.id;
+  state.entities = { [generator.id]: generator };
+  state.cumulativeStats.maxCreatureLevelByType = { ...seenMaxLevelByType };
+  return state;
+}
+
 function addCreatureToState(
   state: GameSnapshot,
   creatureType: string,
@@ -203,6 +229,126 @@ describe('buildAutoQuestScoringTable — reward meat cost', () => {
     expect(row).toBeDefined();
     expect(row!.rewardMeatFactor).toBeGreaterThan(0);
     expect(row!.rewardMeatFactor).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('auto-quest eye reward — Unity 3.24 parity vectors', () => {
+  function getRow(
+    state: GameSnapshot,
+    creatureType: string,
+    level: number,
+    count: number,
+  ) {
+    const result = buildAutoQuestScoringTable(BALANCE, state, {
+      slot: 'main',
+      meatBudget: 1_000_000,
+      fpExpectedTicks: 8,
+    });
+    const row = result.rows.find((candidate) =>
+      candidate.creatureType === creatureType &&
+      candidate.level === level &&
+      candidate.count === count
+    );
+    expect(row).toBeDefined();
+    return row!;
+  }
+
+  it('keeps ChanceMain/Alt separate from the conditional level distributions', () => {
+    const level5 = BALANCE.generators.generators
+      .find((generator) => generator.id === 1)!
+      .levels.find((level) => level.level === 5)!;
+    const main = level5.outputs.filter((output) => output.creatureType === 'Creature1');
+    const alt = level5.outputs.filter((output) => output.creatureType === 'Creature2');
+
+    expect(new Set(main.map((output) => output.slotChance))).toEqual(new Set([0.8]));
+    expect(main.map((output) => output.chance)).toEqual([0.13, 0.35, 0.35, 0.15, 0.02]);
+    expect(new Set(alt.map((output) => output.slotChance))).toEqual(new Set([0.2]));
+    expect(alt.map((output) => output.chance)).toEqual([0.35, 0.5, 0.15]);
+
+    const level10 = BALANCE.generators.generators
+      .find((generator) => generator.id === 8)!
+      .levels.find((level) => level.level === 10)!;
+    expect(level10.outputs.find((output) => output.creatureType === 'Creature15')?.slotChance)
+      .toBe(0.82);
+    expect(level10.outputs.find((output) => output.creatureType === 'Creature16')?.slotChance)
+      .toBe(0.18);
+  });
+
+  it('matches the Unity TV1 meat cost and byproduct share before flooring', () => {
+    const state = makeStateWithGenerator(1, 5, {
+      Creature1: 5,
+      Creature2: 5,
+    });
+    const row = getRow(state, 'Creature1', 1, 1);
+
+    expect(row.estimatedMeatCost).toBeCloseTo(1.672241, 6);
+    expect(row.rewardMeatFactor).toBeCloseTo(0.884956, 6);
+    expect(row.estimatedMeatCost * row.rewardMeatFactor).toBeCloseTo(1.479859, 6);
+  });
+
+  it.each([
+    ['TV1', 'Creature1', 1, 1, 221],
+    ['TV2', 'Creature2', 1, 1, 42],
+    ['TV3', 'Creature1', 5, 1, 123],
+    ['TV4', 'Creature2', 5, 1, 123],
+    ['TV5', 'Creature1', 3, 3, 155],
+  ])('%s matches Egg_Creature1 level 5', (_id, creatureType, level, count, eyes) => {
+    const state = makeStateWithGenerator(1, 5, {
+      Creature1: 5,
+      Creature2: 5,
+    });
+    const row = getRow(state, creatureType, level, count);
+
+    expect(computeAutoQuestEyeRewardFromScoringRows(BALANCE, state, [row])?.eyeReward)
+      .toBe(eyes);
+  });
+
+  it.each([
+    ['TV6', 333, 10],
+    ['TV7', 0, 6],
+  ])('%s matches Egg_Creature1 level 1', (_id, totalEyes, reward) => {
+    const state = makeStateWithGenerator(1, 1, { Creature1: 1 }, totalEyes);
+    const row = getRow(state, 'Creature1', 1, 1);
+
+    expect(computeAutoQuestEyeRewardFromScoringRows(BALANCE, state, [row])?.eyeReward)
+      .toBe(reward);
+  });
+
+  it('TV8 matches Egg_Creature7 level 10', () => {
+    const state = makeStateWithGenerator(8, 10, {
+      Creature15: 7,
+      Creature16: 6,
+    });
+    const row = getRow(state, 'Creature15', 7, 1);
+
+    expect(computeAutoQuestEyeRewardFromScoringRows(BALANCE, state, [row])?.eyeReward)
+      .toBe(593);
+  });
+
+  it.each([
+    ['TV9', 'Creature5', 5, 2123],
+    ['TV10', 'Creature6', 3, 69],
+  ])('%s matches Chicken level 5', (_id, creatureType, level, reward) => {
+    const state = makeStateWithGenerator(3, 5, {
+      Creature5: 5,
+      Creature6: 3,
+    });
+    const row = getRow(state, creatureType, level, 1);
+
+    expect(computeAutoQuestEyeRewardFromScoringRows(BALANCE, state, [row])?.eyeReward)
+      .toBe(reward);
+  });
+
+  it('TV11 floors once after summing main and filler', () => {
+    const state = makeStateWithGenerator(1, 5, {
+      Creature1: 5,
+      Creature2: 5,
+    });
+    const main = getRow(state, 'Creature1', 3, 1);
+    const filler = getRow(state, 'Creature2', 2, 1);
+
+    expect(computeAutoQuestEyeRewardFromScoringRows(BALANCE, state, [main, filler])?.eyeReward)
+      .toBe(73);
   });
 });
 

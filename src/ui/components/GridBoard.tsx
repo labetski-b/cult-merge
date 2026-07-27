@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { CreatureEntity, Entity, GeneratorEntity, PredatorEntity, RuneEntity } from '@domain/types';
 import { useGameStore, useCurrentTask, useCurrentTaskFed } from '@store/gameStore';
 import { BALANCE } from '@data/loadBalance';
-import { getGeneratorConfig } from '@domain/generator';
+import { getGeneratorConfig, getGeneratorOutputChance } from '@domain/generator';
 import { canMergeCreatures, canMergeRunes } from '@domain/merge';
 import { getTaskFedProgress } from '@domain/tasks';
 import { getCreatureImage, getGeneratorImage, getRuneImage } from '@ui/creatureImages';
@@ -623,7 +623,7 @@ export function GridBoard() {
               <table className="popup-prob-table">
                 <tbody>
                   {chargeInfo.levelConfig.outputs.map((out, idx) => {
-                    const pct = out.chance <= 1 ? out.chance * 100 : out.chance;
+                    const pct = getGeneratorOutputChance(out) * 100;
                     return (
                       <tr key={`${out.creatureType}-${out.level}-${idx}`}>
                         <td>{out.creatureType.replace('Creature', 'Cr')}</td>
