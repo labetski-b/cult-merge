@@ -1,0 +1,81 @@
+{
+  "chapters": [
+    {
+      "questId": 1,
+      "krakenLevel": 6,
+      "unlocksGenerator": 2,
+      "subquests": [
+        { "subQuestId": 1, "type": "GetCreature", "value": "Creature1_7", "amount": 1, "reward": "hard", "rewardAmount": 1 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature1_4", "amount": 1, "reward": "hard", "rewardAmount": 1 },
+        { "subQuestId": 3, "type": "DoMerge", "value": "", "amount": 150, "reward": "hard", "rewardAmount": 1 },
+        { "subQuestId": 4, "type": "Spend", "value": "Matter", "amount": 10, "reward": "hard", "rewardAmount": 1 }
+      ]
+    },
+    {
+      "questId": 2,
+      "krakenLevel": 10,
+      "unlocksGenerator": 3,
+      "subquests": [
+        { "subQuestId": 1, "type": "WinToad", "value": "", "amount": 4, "reward": "hard", "rewardAmount": 2 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature2_4", "amount": 1, "reward": "hard", "rewardAmount": 2 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature2_6", "amount": 1, "reward": "hard", "rewardAmount": 2 },
+        { "subQuestId": 4, "type": "ReachLevel", "value": "", "amount": 10, "reward": "hard", "rewardAmount": 2 }
+      ]
+    },
+    {
+      "questId": 3,
+      "krakenLevel": 13,
+      "unlocksGenerator": 4,
+      "subquests": [
+        { "subQuestId": 1, "type": "Spend", "value": "Matter", "amount": 150, "reward": "hard", "rewardAmount": 5 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Chicken_4", "amount": 1, "reward": "hard", "rewardAmount": 5 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature1_10", "amount": 1, "reward": "hard", "rewardAmount": 5 },
+        { "subQuestId": 4, "type": "DoMerge", "value": "", "amount": 600, "reward": "hard", "rewardAmount": 5 }
+      ]
+    },
+    {
+      "questId": 4,
+      "krakenLevel": 18,
+      "unlocksGenerator": 5,
+      "subquests": [
+        { "subQuestId": 1, "type": "Spawn", "value": "", "amount": 1500, "reward": "hard", "rewardAmount": 7 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature3_5", "amount": 1, "reward": "hard", "rewardAmount": 7 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature3_11", "amount": 1, "reward": "hard", "rewardAmount": 7 },
+        { "subQuestId": 4, "type": "DoTasks", "value": "", "amount": 60, "reward": "hard", "rewardAmount": 7 }
+      ]
+    },
+    {
+      "questId": 5,
+      "krakenLevel": 23,
+      "unlocksGenerator": 6,
+      "subquests": [
+        { "subQuestId": 1, "type": "Spend", "value": "Matter", "amount": 600, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature4_5", "amount": 1, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature7_11", "amount": 1, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 4, "type": "DoMerge", "value": "", "amount": 1250, "reward": "hard", "rewardAmount": 10 }
+      ]
+    },
+    {
+      "questId": 6,
+      "krakenLevel": 28,
+      "unlocksGenerator": 7,
+      "subquests": [
+        { "subQuestId": 1, "type": "Spawn", "value": "", "amount": 2500, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature5_5", "amount": 1, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature9_11", "amount": 1, "reward": "hard", "rewardAmount": 10 },
+        { "subQuestId": 4, "type": "DoTasks", "value": "", "amount": 150, "reward": "hard", "rewardAmount": 10 }
+      ]
+    },
+    {
+      "questId": 7,
+      "krakenLevel": 33,
+      "unlocksGenerator": 8,
+      "subquests": [
+        { "subQuestId": 1, "type": "Spend", "value": "Matter", "amount": 2500, "reward": "hard", "rewardAmount": 20 },
+        { "subQuestId": 2, "type": "GetSpawner", "value": "Egg_Creature6_5", "amount": 1, "reward": "hard", "rewardAmount": 20 },
+        { "subQuestId": 3, "type": "GetCreature", "value": "Creature11_11", "amount": 1, "reward": "hard", "rewardAmount": 20 },
+        { "subQuestId": 4, "type": "DoMerge", "value": "", "amount": 2500, "reward": "hard", "rewardAmount": 20 }
+      ]
+    }
+  ]
+}

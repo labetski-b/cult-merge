@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generators Tuner — CULT.MERGE</title>
+  <title>Balance Tuner — CULT.MERGE</title>
   <link rel="stylesheet" href="design-system/tokens.css" />
   <link rel="stylesheet" href="design-system/components.css" />
   <style>
@@ -41,30 +41,104 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 220px minmax(0, 1fr);
       gap: 16px;
       align-items: start;
     }
 
-    /* ===== Left column (controls) ===== */
-    .controls {
+    /* ===== Left navigation ===== */
+    .sidebar {
+      position: sticky;
+      top: 16px;
       max-height: calc(100vh - 80px);
       overflow-y: auto;
-      padding: 14px;
+      padding: 8px;
     }
-    .controls h3 {
-      margin: 16px 0 8px;
+    .mechanic-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .mechanic-tabs .cm-tab {
+      width: 100%;
+      min-height: 36px;
+      justify-content: flex-start;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm, 6px);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    /* ===== Tab content ===== */
+    .content-col { min-width: 0; }
+    .sub-tabs {
+      margin-bottom: var(--space-4, 16px);
+      flex-wrap: wrap;
+    }
+    .sub-tabs [hidden] {
+      display: none;
+    }
+    .panel-controls {
+      width: auto;
+      padding: 14px;
+      margin-bottom: var(--space-4, 16px);
+    }
+    .panel-controls h3 {
+      margin: 0 0 6px;
+      font-size: var(--fs-body, 14px);
+      color: var(--text-primary);
+    }
+    .panel-controls .control-note {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .control-columns {
+      display: grid;
+      grid-template-columns: minmax(320px, 520px) minmax(320px, 520px);
+      gap: 20px;
+      align-items: start;
+    }
+    .control-group-title {
+      margin: 0 0 8px;
       font-size: var(--fs-small, 12px);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--text-secondary);
-      border-top: 1px solid var(--border-subtle);
-      padding-top: 12px;
     }
-    .controls h3:first-child {
-      margin-top: 0;
-      border-top: none;
-      padding-top: 0;
+    .number-setting {
+      display: grid;
+      grid-template-columns: 160px 80px;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+    }
+    .number-setting + .number-setting {
+      margin-top: 8px;
+    }
+    .number-setting .cm-input {
+      width: 80px;
+    }
+    .upgrade-settings {
+      margin: 0;
+    }
+    .upgrade-settings .number-setting {
+      grid-template-columns: 220px 80px;
+    }
+    .upgrade-controls {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 16px;
+    }
+    .upgrade-reset-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      flex: 0 0 auto;
     }
     .knob {
       display: grid;
@@ -100,7 +174,8 @@
     }
     .knob-grid {
       display: grid;
-      grid-template-columns: 110px 1fr 70px;
+      grid-template-columns: 110px minmax(120px, 320px) 70px;
+      width: min(100%, 516px);
       align-items: center;
       gap: 8px;
       margin-bottom: 6px;
@@ -114,11 +189,27 @@
       padding: 0 6px;
       font-size: var(--fs-small, 12px);
     }
-
-    /* ===== Right column ===== */
-    .right-col {
-      min-width: 0;
+    .knob-control {
+      width: min(100%, 516px);
+      margin-bottom: 14px;
     }
+    .knob-control .knob-grid {
+      margin-bottom: 3px;
+    }
+    .knob-help {
+      margin: 0 0 0 118px;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .action-help {
+      max-width: 860px;
+      margin: 8px 0 0;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
     .panel {
       display: none;
       padding: 14px;
@@ -200,6 +291,9 @@
     }
     .gen-table td.num {
       text-align: right;
+    }
+    .gen-table td.rune-currency-cell {
+      text-align: left;
     }
     .gen-table td.dim,
     .gen-table th.dim {
@@ -337,30 +431,217 @@
       display: block;
     }
     .krakenlvl-summary {
+      margin: 0 0 14px;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .krakenlvl-summary strong { color: var(--text-primary); font-weight: 600; }
+    .krakenlvl-summary .kl-hl-legend {
+      border: 1px solid var(--accent-primary);
+      background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-0));
+      border-radius: var(--radius-sm, 6px);
+      padding: 0 4px;
+      color: var(--text-primary);
+    }
+
+    /* Kraken levels: settings block (above the main layout) */
+    .krakenlvl-controls {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-2);
+    }
+    .krakenlvl-setting-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+    .krakenlvl-setting-row .cm-select {
+      width: 150px;
+      min-width: 150px;
+    }
+    .krakenlvl-setting-row .cm-input {
+      width: 84px;
+    }
+
+    /* Kraken levels: table (left) + charts (right, stacked) */
+    .krakenlvl-layout {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .krakenlvl-table-col { min-width: 0; }
+    .krakenlvl-table-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 220px);
+    }
+    .krakenlvl-table-scroll thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .krakenlvl-charts-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+    /* Kraken table row grouping + reward flags */
+    .gen-table td.kl-lvl-cont {
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+    .gen-table tr.kl-level-start > td { border-top: 2px solid var(--border-subtle); }
+    .gen-table tr.kl-even > td:not(.lvl-cell) { background: rgba(255, 255, 255, 0.02); }
+    .gen-table td.kl-reward { text-align: left; }
+    .gen-table td.kl-box-contents {
+      max-width: 280px;
+      min-width: 180px;
+      text-align: left;
+      white-space: normal;
+      line-height: 1.35;
+    }
+    .gen-table td.kl-reward-add { color: var(--accent-primary); }
+    .gen-table td.kl-reward-mismatch {
+      color: #ff9b9b;
+      background: rgba(184, 54, 74, 0.16);
+      font-weight: 600;
+    }
+    @media (max-width: 1000px) {
+      .krakenlvl-layout { grid-template-columns: 1fr; }
+      .krakenlvl-table-scroll { max-height: none; }
+    }
+    .kraken-quests-note {
       margin: 0 0 12px;
       color: var(--text-secondary);
-      font-size: 12px;
-      line-height: 1.4;
+      font-size: 11px;
+      line-height: 1.45;
     }
-    .krakenlvl-controls {
-      margin-bottom: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-subtle);
+    .kraken-quests-table td.quest-value,
+    .kraken-quests-table td.quest-type {
+      text-align: left;
+      white-space: nowrap;
+    }
+    .kraken-quests-table tr.quest-start > td {
+      border-top: 2px solid var(--border-subtle);
+    }
+    .kraken-quests-table tr.generator-gate > td {
+      background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-1));
+    }
+    .kraken-quests-table tr.generator-gate > td.quest-type,
+    .kraken-quests-table tr.generator-gate > td.quest-value {
+      color: var(--accent-primary);
+      font-weight: 600;
+    }
+    .quest-level-editor {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 210px;
+      width: 100%;
+      font-family: var(--font-mono, monospace);
+      white-space: nowrap;
+    }
+    .quest-level-editor .quest-level-value {
+      color: inherit;
+    }
+    .quest-level-editor .quest-level-controls {
+      display: inline-flex;
+      gap: 3px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+    .quest-level-editor .quest-level-btn {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      padding: 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-2);
+      color: var(--text-primary);
+      cursor: pointer;
+      line-height: 1;
+    }
+    .quest-level-editor .quest-level-btn:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
     }
 
     /* Runes panel */
+    .runes-strategy-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      background: var(--surface-2);
+    }
+    .runes-strategy-tabs {
+      display: inline-flex;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+    .runes-strategy-tabs .cm-seg__btn {
+      min-width: 112px;
+      justify-content: center;
+    }
+    .runes-strategy-description {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 11px;
+      line-height: 1.45;
+      flex: 1 1 480px;
+    }
+    .runes-strategy-description strong {
+      color: var(--text-primary);
+    }
+    .runes-source {
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+    .runes-sim-settings {
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .runes-sim-settings > summary {
+      width: fit-content;
+      margin-bottom: 10px;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .runes-sim-help {
+      margin: -2px 0 10px;
+      color: var(--text-tertiary);
+      font-size: 11px;
+      line-height: 1.45;
+    }
     .runes-controls {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-subtle);
     }
     .runes-controls .knob-grid {
       margin-bottom: 0;
       grid-template-columns: 80px 220px 70px;
+      width: min(100%, 386px);
     }
     .runes-controls .seed-info {
       font-family: var(--font-mono, monospace);
@@ -391,6 +672,54 @@
       background: var(--surface-2);
       display: block;
     }
+    .runes-generator-chart {
+      margin: 0 0 16px;
+    }
+    .runes-available-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .runes-available-chart h4 {
+      margin: 0 0 6px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .runes-available-chart canvas {
+      width: 100%;
+      max-width: 100%;
+      background: var(--surface-2);
+      display: block;
+    }
+    .runes-generator-chart h4 {
+      margin: 0 0 6px;
+      font-size: var(--fs-small, 12px);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .runes-generator-chart-frame {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm, 6px);
+      overflow: hidden;
+      background: var(--surface-2);
+    }
+    .runes-generator-chart canvas {
+      width: 100%;
+      max-width: 100%;
+      background: var(--surface-2);
+      display: block;
+    }
+    .runes-generator-legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 5px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
     /* Merged chart container: cumulative + delta share a single border, no gap. */
     .runes-chart-merged {
       position: relative;
@@ -413,7 +742,8 @@
       color: var(--text-secondary);
       margin-top: 4px;
     }
-    .runes-legend .swatch {
+    .runes-legend .swatch,
+    .runes-generator-legend .swatch {
       display: inline-block;
       width: 18px;
       height: 2px;
@@ -473,6 +803,38 @@
     .runes-tooltip .swatch.dashed {
       background: repeating-linear-gradient(to right, currentColor 0 3px, transparent 3px 5px) !important;
       border-radius: 0;
+    }
+    .gen-table td.runes-gen-level {
+      text-align: center;
+      min-width: 42px;
+    }
+    .gen-table td.runes-purchases {
+      min-width: 260px;
+      max-width: 440px;
+      white-space: normal;
+      line-height: 1.4;
+      text-align: left;
+    }
+    .gen-table tr.runes-unlock-row > td {
+      background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-1));
+      border-top-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+      border-bottom-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-subtle));
+    }
+    .gen-table tr.runes-unlock-row > td.lvl-cell {
+      color: var(--accent-primary);
+      font-weight: 700;
+    }
+    .gen-table tr.runes-generator-unlock-row > td {
+      background: color-mix(in srgb, var(--warning) 12%, var(--surface-1));
+      border-top-color: color-mix(in srgb, var(--warning) 55%, var(--border-subtle));
+      border-bottom-color: color-mix(in srgb, var(--warning) 35%, var(--border-subtle));
+    }
+    .gen-table tr.runes-generator-unlock-row > td.lvl-cell {
+      color: var(--warning);
+      font-weight: 700;
+    }
+    @media (max-width: 1000px) {
+      .runes-available-grid { grid-template-columns: 1fr; }
     }
 
     /* Cravings panel */
@@ -629,21 +991,6 @@
       margin-right: 4px;
     }
 
-    /* JSON panel */
-    .json-pre {
-      white-space: pre-wrap;
-      max-height: calc(100vh - 200px);
-      overflow: auto;
-      font-family: var(--font-mono, monospace);
-      font-size: 11px;
-      line-height: 1.4;
-      padding: 10px;
-      background: var(--surface-0);
-      color: var(--text-primary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm, 6px);
-    }
-
     /* small */
     .row { display: flex; align-items: center; gap: 8px; }
     .spacer { flex: 1; }
@@ -652,8 +999,32 @@
       .layout {
         grid-template-columns: 1fr;
       }
-      .controls {
+      .sidebar {
+        position: static;
         max-height: none;
+        overflow-x: auto;
+      }
+      .mechanic-tabs {
+        flex-direction: row;
+      }
+      .mechanic-tabs .cm-tab {
+        width: auto;
+      }
+      .control-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 480px) {
+      .knob-grid,
+      .runes-controls .knob-grid {
+        grid-template-columns: minmax(0, 1fr) 70px;
+        width: 100%;
+      }
+      .knob-grid .knob-label {
+        grid-column: 1 / -1;
+      }
+      .knob-help {
+        margin-left: 0;
       }
     }
   </style>
@@ -661,85 +1032,117 @@
 <body>
   <div class="page">
     <div class="page-head">
-      <h1>Generators Tuner</h1>
+      <h1>Balance Tuner</h1>
       <div class="actions">
-        <button id="btn-save-balance" class="cm-btn cm-btn--ghost">Save Balance</button>
         <button id="btn-copy" class="cm-btn cm-btn--primary">Copy JSON</button>
-        <span id="save-status" class="status-pill"></span>
       </div>
     </div>
 
     <div class="layout">
-      <!-- ============ LEFT: CONTROLS ============ -->
-      <div class="cm-card controls">
-        <h3>Tuning</h3>
-        <div id="grp-tune"></div>
-        <h3 style="margin-top:16px;">Charge chapter multiplier per generator</h3>
-        <div id="grp-charge-per-gen"></div>
-      </div>
+      <aside class="cm-card sidebar">
+        <nav class="mechanic-tabs" role="tablist" aria-orientation="vertical" aria-label="Balance mechanics">
+          <button class="cm-tab mechanic-tab" data-mechanic="generators" aria-selected="true" role="tab">Generators</button>
+          <button class="cm-tab mechanic-tab" data-mechanic="kraken-quests" aria-selected="false" role="tab">Kraken Quests</button>
+          <button class="cm-tab mechanic-tab" data-mechanic="cravings" aria-selected="false" role="tab">Cravings</button>
+        </nav>
+      </aside>
 
-      <!-- ============ RIGHT: TABS ============ -->
-      <div class="right-col">
-        <div class="cm-tabs" role="tablist">
-          <button class="cm-tab" data-tab="cost" aria-selected="true" role="tab">Cost</button>
-          <button class="cm-tab" data-tab="chapter-fit" aria-selected="false" role="tab">Chapter Fit</button>
-          <button class="cm-tab" data-tab="upgrades" aria-selected="false" role="tab">Upgrades</button>
-          <button class="cm-tab" data-tab="xp" aria-selected="false" role="tab">XP</button>
-          <button class="cm-tab" data-tab="krakenlvl" aria-selected="false" role="tab">KrakenLvl</button>
-          <button class="cm-tab" data-tab="charts" aria-selected="false" role="tab">Charts</button>
-          <button class="cm-tab" data-tab="runes" aria-selected="false" role="tab">Runes</button>
-          <button class="cm-tab" data-tab="cravings" aria-selected="false" role="tab">Cravings</button>
-          <button class="cm-tab" data-tab="json" aria-selected="false" role="tab">JSON</button>
-        </div>
+      <main class="content-col">
+        <nav class="cm-tabs sub-tabs" role="tablist" aria-label="Mechanic settings">
+          <button class="cm-tab sub-tab" data-mechanic="generators" data-tab="general" aria-selected="true" role="tab">General</button>
+          <button class="cm-tab sub-tab" data-mechanic="generators" data-tab="spawn-distribution" aria-selected="false" role="tab">Spawn Distribution</button>
+          <button class="cm-tab sub-tab" data-mechanic="generators" data-tab="upgrades" aria-selected="false" role="tab">Generator Upgrades</button>
+          <button class="cm-tab sub-tab" data-mechanic="generators" data-tab="charts" aria-selected="false" role="tab">Charts</button>
+          <button class="cm-tab sub-tab" data-mechanic="kraken-quests" data-tab="krakenlvl" aria-selected="false" role="tab" hidden>Kraken Levels</button>
+          <button class="cm-tab sub-tab" data-mechanic="kraken-quests" data-tab="quests" aria-selected="false" role="tab" hidden>Quests</button>
+          <button class="cm-tab sub-tab" data-mechanic="kraken-quests" data-tab="runes" aria-selected="false" role="tab" hidden>Runes</button>
+          <button class="cm-tab sub-tab" data-mechanic="cravings" data-tab="cravings" aria-selected="false" role="tab" hidden>Balance</button>
+        </nav>
 
-        <section id="panel-cost" class="panel is-active" style="padding:0;">
-          <div id="cost-tables-container"><!-- filled by JS: Cost tables --></div>
+        <section id="panel-general" class="panel is-active" style="padding:0;">
+          <div class="cm-card panel-controls">
+            <h3>General</h3>
+            <p class="control-note">
+              Shared settings that define the overall generator progression model.
+            </p>
+            <div id="grp-general-tune"></div>
+          </div>
         </section>
 
-        <section id="panel-chapter-fit" class="panel" style="padding:0;">
-          <div id="chapter-fit-container"><!-- filled by JS: chapter fit table --></div>
+        <section id="panel-spawn-distribution" class="panel" style="padding:0;">
+          <div class="cm-card panel-controls">
+            <h3>Spawn Distribution</h3>
+            <p class="control-note">
+              Tune how CrMain and CrSecond advance through their chains. These probabilities are shared by all generators.
+            </p>
+            <div id="grp-spawn-tune"></div>
+          </div>
+          <div id="spawn-distribution-tables-container"><!-- filled by JS: Spawn distribution tables --></div>
         </section>
 
         <section id="panel-upgrades" class="panel" style="padding:0;">
           <div id="upgrade-tables-container"><!-- filled by JS: Upgrade tables --></div>
         </section>
 
-        <section id="panel-xp" class="panel" style="padding:0;">
-          <div id="xp-tables-container"><!-- filled by JS: XP per meat tables --></div>
+        <section id="panel-krakenlvl" class="cm-card panel">
+          <div class="krakenlvl-controls">
+            <div class="krakenlvl-setting-row">
+              <label class="knob-label" for="kraken-balance-version">Balance</label>
+              <select
+                id="kraken-balance-version"
+                class="cm-select"
+                data-role="kraken-balance-version"
+                aria-label="Compare current Kraken balance with an archived version"
+                title="Choose an archived balance for read-only comparison."
+              ></select>
+            </div>
+            <div class="krakenlvl-setting-row">
+              <label class="knob-label" for="kraken-post-l7-increment">XP increment after L7</label>
+              <input
+                id="kraken-post-l7-increment"
+                class="cm-input"
+                type="number"
+                min="0"
+                step="1"
+                value="90"
+                data-role="kraken-post-l7-increment"
+                title="Applied to every Kraken level from L8 onward."
+              />
+              <span class="status-pill">L8+ only</span>
+            </div>
+          </div>
+          <p class="krakenlvl-summary">
+            <strong>Sub&nbsp;0</strong> is editable and completes the previous level;
+            <strong>Sub&nbsp;1 / 2</strong> are read-only checkpoints.
+            <span class="kl-hl-legend">Highlighted</span> EXP was changed.
+            <code>~</code> marks expected box contents.
+          </p>
+          <div class="krakenlvl-layout">
+            <div class="krakenlvl-table-col">
+              <div class="krakenlvl-table-scroll">
+                <table class="gen-table" id="krakenlvl-table"></table>
+              </div>
+            </div>
+            <div class="krakenlvl-charts-col">
+              <div class="chart-block">
+                <h4>Current balance</h4>
+                <canvas id="chart-krakenlvl-production" width="600" height="260"></canvas>
+              </div>
+              <div class="chart-block" id="krakenlvl-reference-chart-block" hidden>
+                <h4 id="krakenlvl-reference-chart-title">Archived balance</h4>
+                <canvas id="chart-krakenlvl-reference" width="600" height="260"></canvas>
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section id="panel-krakenlvl" class="cm-card panel">
-          <p class="krakenlvl-summary">
-            XP required to complete each Kraken Level. The backup curve uses
-            <code>src/data/experiments/3.23-version/kraken_progression.json</code>;
-            the production curve uses <code>src/data/kraken_progression.json</code>.
+        <section id="panel-quests" class="cm-card panel">
+          <p class="kraken-quests-note">
+            Current Kraken quest sequence. Highlighted <strong>GetSpawner</strong> rows gate the
+            next generator in the Runes strategy.
           </p>
-          <div class="row krakenlvl-controls">
-            <label class="knob-label" for="kraken-post-l7-increment">Post-L7 XP increment</label>
-            <input
-              id="kraken-post-l7-increment"
-              class="cm-input"
-              type="number"
-              min="0"
-              step="1"
-              value="90"
-              data-role="kraken-post-l7-increment"
-              style="width:90px;"
-            />
-            <span class="status-pill">Recalculates production L8+</span>
-          </div>
-          <div class="charts-grid">
-            <div class="chart-block">
-              <h4>3.23 version backup</h4>
-              <canvas id="chart-krakenlvl-backup" width="600" height="260"></canvas>
-            </div>
-            <div class="chart-block">
-              <h4>Production balance</h4>
-              <canvas id="chart-krakenlvl-production" width="600" height="260"></canvas>
-            </div>
-          </div>
-          <div style="overflow-x:auto; margin-top:16px;">
-            <table class="gen-table" id="krakenlvl-table"></table>
+          <div style="overflow-x:auto;">
+            <table class="gen-table kraken-quests-table" id="kraken-quests-table"></table>
           </div>
         </section>
 
@@ -753,103 +1156,52 @@
         </section>
 
         <section id="panel-runes" class="cm-card panel">
-          <div class="runes-controls">
-            <div class="knob-grid" style="margin-bottom:0;">
-              <label class="knob-label" for="runes-trials">Trials</label>
-              <input id="runes-trials" type="range" min="100" max="10000" step="100" value="2000" />
-              <input id="runes-trials-num" type="number" class="cm-input" min="100" max="10000" step="100" value="2000" />
+          <div class="runes-strategy-bar">
+            <div class="cm-seg runes-strategy-tabs" role="group" aria-label="Rune conversion strategy">
+              <button class="cm-seg__btn" type="button" data-runes-strategy="s1" aria-pressed="true">S1 · Eager</button>
+              <button class="cm-seg__btn" type="button" data-runes-strategy="s2" aria-pressed="false">S2 · Maximizer</button>
             </div>
-            <button id="btn-runes-reroll" class="cm-btn cm-btn--ghost">Re-roll seed</button>
-            <span class="seed-info">seed: <span id="runes-seed-label">0xC0FFEE</span></span>
-            <span class="seed-info" id="runes-status" style="margin-left:auto;"></span>
+            <p class="runes-strategy-description" id="runes-strategy-description"></p>
+            <span class="runes-source">Current Kraken Levels + Quests</span>
           </div>
-          <div class="runes-charts-grid">
-            <!-- Row 1: Strategy comparison (S1 vs S2) -->
-            <div class="chart-block">
-              <div class="runes-chart-block">
-                <h4>Rune I — Strategies</h4>
-                <div class="runes-chart-merged" id="merged-rune1">
-                  <div class="runes-chart-wrap" data-rune-key="r1">
-                    <canvas id="chart-rune1" width="600" height="180"></canvas>
-                    <canvas id="chart-rune1-overlay" class="runes-overlay" width="600" height="180"></canvas>
-                  </div>
-                  <div class="runes-chart-wrap" data-rune-key="r1-delta">
-                    <canvas id="chart-rune1-delta" width="600" height="100"></canvas>
-                    <canvas id="chart-rune1-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
-                  </div>
-                  <div id="tooltip-rune1" class="runes-tooltip"></div>
-                </div>
-                <div class="runes-legend">
-                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>S1 (Eager)</span>
-                  <span><span class="swatch dashed" style="color: #2ad4b3;"></span>S2 (Maximizer)</span>
-                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>ΔS2-S1 (bars)</span>
-                </div>
+          <details class="runes-sim-settings">
+            <summary id="runes-sim-summary">Simulation accuracy</summary>
+            <div class="runes-controls">
+              <div class="knob-grid" style="margin-bottom:0;">
+                <label class="knob-label" for="runes-trials">Trials</label>
+                <input id="runes-trials" type="range" min="100" max="10000" step="100" value="2000" />
+                <input id="runes-trials-num" type="number" class="cm-input" min="100" max="10000" step="100" value="2000" />
+              </div>
+              <button id="btn-runes-reroll" class="cm-btn cm-btn--ghost">Re-roll seed</button>
+              <span class="seed-info">seed: <span id="runes-seed-label">0xC0FFEE</span></span>
+              <span class="seed-info" id="runes-status" style="margin-left:auto;"></span>
+            </div>
+            <p class="runes-sim-help">
+              Trials average random box drops: more trials are steadier but slower. The seed makes
+              the same sample repeatable. They can slightly move estimated purchase levels, but
+              never change the source balance data.
+            </p>
+          </details>
+          <div class="runes-available-grid">
+            <div class="runes-available-chart">
+              <h4 id="runes-available-title-r1">Available Rune I</h4>
+              <div class="runes-generator-chart-frame">
+                <canvas id="chart-runes-available-r1" width="600" height="220"></canvas>
               </div>
             </div>
-            <div class="chart-block">
-              <div class="runes-chart-block">
-                <h4>Rune II — Strategies</h4>
-                <div class="runes-chart-merged" id="merged-rune2">
-                  <div class="runes-chart-wrap" data-rune-key="r2">
-                    <canvas id="chart-rune2" width="600" height="180"></canvas>
-                    <canvas id="chart-rune2-overlay" class="runes-overlay" width="600" height="180"></canvas>
-                  </div>
-                  <div class="runes-chart-wrap" data-rune-key="r2-delta">
-                    <canvas id="chart-rune2-delta" width="600" height="100"></canvas>
-                    <canvas id="chart-rune2-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
-                  </div>
-                  <div id="tooltip-rune2" class="runes-tooltip"></div>
-                </div>
-                <div class="runes-legend">
-                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>S1 (Eager)</span>
-                  <span><span class="swatch dashed" style="color: #6aa3ff;"></span>S2 (Maximizer)</span>
-                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>ΔS2-S1 (bars)</span>
-                </div>
+            <div class="runes-available-chart">
+              <h4 id="runes-available-title-r2">Available Rune II</h4>
+              <div class="runes-generator-chart-frame">
+                <canvas id="chart-runes-available-r2" width="600" height="220"></canvas>
               </div>
             </div>
-            <!-- Row 2: Supply vs Demand (S1 vs Required) -->
-            <div class="chart-block">
-              <div class="runes-chart-block">
-                <h4>Rune I — Supply vs Demand</h4>
-                <div class="runes-chart-merged" id="merged-rune1-sd">
-                  <div class="runes-chart-wrap" data-rune-key="r1-sd">
-                    <canvas id="chart-rune1-sd" width="600" height="180"></canvas>
-                    <canvas id="chart-rune1-sd-overlay" class="runes-overlay" width="600" height="180"></canvas>
-                  </div>
-                  <div class="runes-chart-wrap" data-rune-key="r1-sd-delta">
-                    <canvas id="chart-rune1-sd-delta" width="600" height="100"></canvas>
-                    <canvas id="chart-rune1-sd-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
-                  </div>
-                  <div id="tooltip-rune1-sd" class="runes-tooltip"></div>
-                </div>
-                <div class="runes-legend">
-                  <span><span class="swatch" style="background: #2ad4b3; color: #2ad4b3;"></span>S1 (Eager)</span>
-                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Required</span>
-                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Gap Req-S1 (bars)</span>
-                </div>
-              </div>
+          </div>
+          <div class="runes-generator-chart">
+            <h4 id="runes-generator-chart-title">Generator upgrade levels by Kraken level</h4>
+            <div class="runes-generator-chart-frame">
+              <canvas id="chart-runes-generator-levels" width="1220" height="300"></canvas>
             </div>
-            <div class="chart-block">
-              <div class="runes-chart-block">
-                <h4>Rune II — Supply vs Demand</h4>
-                <div class="runes-chart-merged" id="merged-rune2-sd">
-                  <div class="runes-chart-wrap" data-rune-key="r2-sd">
-                    <canvas id="chart-rune2-sd" width="600" height="180"></canvas>
-                    <canvas id="chart-rune2-sd-overlay" class="runes-overlay" width="600" height="180"></canvas>
-                  </div>
-                  <div class="runes-chart-wrap" data-rune-key="r2-sd-delta">
-                    <canvas id="chart-rune2-sd-delta" width="600" height="100"></canvas>
-                    <canvas id="chart-rune2-sd-delta-overlay" class="runes-overlay" width="600" height="100"></canvas>
-                  </div>
-                  <div id="tooltip-rune2-sd" class="runes-tooltip"></div>
-                </div>
-                <div class="runes-legend">
-                  <span><span class="swatch" style="background: #6aa3ff; color: #6aa3ff;"></span>S1 (Eager)</span>
-                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Required</span>
-                  <span><span class="swatch" style="background: #ff9d4d; color: #ff9d4d;"></span>Gap Req-S1 (bars)</span>
-                </div>
-              </div>
-            </div>
+            <div class="runes-generator-legend" id="runes-generator-legend"></div>
           </div>
           <div style="overflow-x:auto;">
             <table class="gen-table" id="runes-table"></table>
@@ -893,15 +1245,7 @@
           </div>
         </section>
 
-        <section id="panel-json" class="cm-card panel">
-          <div class="row" style="margin-bottom:8px;">
-            <span style="color: var(--text-secondary); font-size: 12px;">Generated JSON (8 generators × 10 levels)</span>
-            <span class="spacer"></span>
-            <button id="btn-copy-inline" class="cm-btn cm-btn--sm">Copy</button>
-          </div>
-          <pre id="json-out" class="json-pre is-mono"></pre>
-        </section>
-      </div>
+      </main>
     </div>
   </div>
 
@@ -911,8 +1255,6 @@
       BASELINE,
       computeGenerators,
       interpolate,
-      chargeChapterForGeneratorLevel,
-      meatForChargeChapter,
     } from './generator-curves.mjs';
 
     function outputChance(output) {
@@ -931,25 +1273,74 @@
 
     // Load JSON via fetch (resolves regardless of Vite base path).
     // Vite serves src/* at /<base>/src/* in dev — using a relative path keeps it portable.
-    const [krakenProgData, krakenProgBackupData, boxesData, runesData, creaturesData, tasksData, oldGeneratorsData, simGeneratorChaptersData] = await Promise.all([
+    const [krakenProgData, boxesData, runesData, creaturesData, tasksData, krakenQuestSequenceData, oldGeneratorsData] = await Promise.all([
       fetch(new URL('./src/data/kraken_progression.json', import.meta.url)).then(r => r.json()),
-      fetch(new URL('./src/data/experiments/3.23-version/kraken_progression.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/res_boxes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/runes.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/creatures.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/tasks.json', import.meta.url)).then(r => r.json()),
+      fetch(new URL('./src/data/kraken_quest_sequence.json', import.meta.url)).then(r => r.json()),
       fetch(new URL('./src/data/experiments/baseline/generators.json', import.meta.url)).then(r => r.json()),
-      fetch(new URL('./sim-runs/latest/generator-chapters.json', import.meta.url))
-        .then(r => r.ok ? r.json() : null)
-        .catch(() => null),
     ]);
+
+    // ------------------------------------------------------------
+    //  Kraken Levels — archived balance versions ("Old balances" switch).
+    //  Read-only reference data for comparison. To archive a new balance
+    //  version, add ONE entry here (id = select option, label = chart/column
+    //  caption, source = kraken_progression.json snapshot) — no other code.
+    // ------------------------------------------------------------
+    const KRAKEN_BALANCE_VERSIONS = [
+      { id: '3.23', label: '3.23', source: './src/data/experiments/3.23-version/kraken_progression.json' },
+    ];
+    const krakenVersionDataById = new Map(await Promise.all(
+      KRAKEN_BALANCE_VERSIONS.map(async (v) => [
+        v.id,
+        await fetch(new URL(v.source, import.meta.url)).then(r => r.json()),
+      ]),
+    ));
+    let krakenSelectedVersionId = 'current';
+
+    function generatorDisplayName(generatorId) {
+      return generatorId === 3 ? 'Chicken' : `G${generatorId}`;
+    }
+
+    function getGeneratorQuestGate(chapter) {
+      const getSpawner = chapter?.subquests?.find(subquest => subquest.type === 'GetSpawner');
+      const levelMatch = getSpawner?.value?.match(/_(\d+)$/);
+      const unlocksGenerator = Number(chapter?.unlocksGenerator);
+      const level = levelMatch ? Number(levelMatch[1]) : NaN;
+      if (!Number.isFinite(unlocksGenerator) || unlocksGenerator <= 1 || !Number.isFinite(level)) {
+        return null;
+      }
+      return {
+        questId: chapter.questId,
+        subQuestId: getSpawner.subQuestId,
+        unlocksGenerator,
+        // Use chapter order, not the Egg_Creature suffix: Chicken is our G3,
+        // so Egg_Creature3 maps to our G4 and every later egg stays offset by one.
+        generatorId: unlocksGenerator - 1,
+        level,
+        questValue: getSpawner.value,
+      };
+    }
+
+    function getSelectedKrakenVersion() {
+      return KRAKEN_BALANCE_VERSIONS.find(v => v.id === krakenSelectedVersionId) || null;
+    }
+
+    function getSelectedKrakenVersionData() {
+      const version = getSelectedKrakenVersion();
+      return version ? (krakenVersionDataById.get(version.id) || null) : null;
+    }
 
     // ============================================================
     //  STATE
     // ============================================================
     /** @type {import('./generator-curves.mjs').GeneratorParams} */
     const STORAGE_KEY = 'cult-merge-generators-tuner-params-v4';
+    const SPAWN_TARGET_MIGRATION_KEY = 'cult-merge-generators-target-charges-v1';
     const KRAKEN_STORAGE_KEY = 'cult-merge-generators-tuner-krakenlvl-v1';
+    const KRAKEN_QUESTS_STORAGE_KEY = 'cult-merge-generators-tuner-kraken-quests-v1';
     const CRAVINGS_STORAGE_KEY = 'cult-merge-generators-tuner-cravings-v1';
     const DEFAULT_CRAVINGS = {
       difficultyFlow: [1, 1, 2, 2, 3, 2, 4, 2, 5],
@@ -961,12 +1352,36 @@
     function normalizeParams(raw) {
       const next = structuredClone(DEFAULTS);
       if (raw && typeof raw === 'object') Object.assign(next, raw);
-      next.chargeCostMultiplierByGen = Array.isArray(next.chargeCostMultiplierByGen)
-        ? next.chargeCostMultiplierByGen.slice(0, next.gens)
-        : DEFAULTS.chargeCostMultiplierByGen.slice();
-      next.chargeCostOverrideByGenLevel = next.chargeCostOverrideByGenLevel || {};
-      next.chargeCostChapterOverrideByGenLevel = next.chargeCostChapterOverrideByGenLevel || {};
-      next.upgradeRuneCostOverrideByGenLevel = next.upgradeRuneCostOverrideByGenLevel || {};
+      next.upgradeLevels = Math.min(20, Math.max(1, Math.round(Number(next.upgradeLevels) || DEFAULTS.upgradeLevels)));
+      next.targetChargesPerUpgrade = Math.min(20, Math.max(1, Math.round(Number(next.targetChargesPerUpgrade) || DEFAULTS.targetChargesPerUpgrade)));
+      const firstUpgradeSpawnsRequired = Number(next.firstUpgradeSpawnsRequired);
+      next.firstUpgradeSpawnsRequired = Number.isFinite(firstUpgradeSpawnsRequired)
+        ? Math.max(0, Math.round(firstUpgradeSpawnsRequired))
+        : DEFAULTS.firstUpgradeSpawnsRequired;
+      const secondUpgradeSpawnsRequired = Number(next.secondUpgradeSpawnsRequired);
+      next.secondUpgradeSpawnsRequired = Number.isFinite(secondUpgradeSpawnsRequired)
+        ? Math.max(0, Math.round(secondUpgradeSpawnsRequired))
+        : DEFAULTS.secondUpgradeSpawnsRequired;
+      const storedChargeCosts = raw?.chargeCostByGenLevel || raw?.chargeCostOverrideByGenLevel;
+      next.chargeCostByGenLevel = storedChargeCosts && Object.keys(storedChargeCosts).length > 0
+        ? structuredClone(storedChargeCosts)
+        : structuredClone(DEFAULTS.chargeCostByGenLevel);
+      delete next.chargeCostOverrideByGenLevel;
+      delete next.chargeCostMultiplierByGen;
+      delete next.chargeCostMaxLevelDiscount;
+      delete next.chargeCostChapterOverrideByGenLevel;
+      delete next.chargeCostChapterAnchors;
+      delete next.chargeCostMeatByChapter;
+      const storedRuneCosts = raw?.upgradeRuneCostByGenLevel || raw?.upgradeRuneCostOverrideByGenLevel || {};
+      next.upgradeRuneCostByGenLevel = {
+        ...structuredClone(DEFAULTS.upgradeRuneCostByGenLevel),
+        ...structuredClone(storedRuneCosts),
+      };
+      delete next.upgradeRuneCostOverrideByGenLevel;
+      delete next.baseUpgradeCost;
+      delete next.levelGrowth;
+      delete next.genMultipliers;
+      delete next.mergesRequiredByL;
       next.upgradeSpawnsRequiredOverrideByGenLevel = next.upgradeSpawnsRequiredOverrideByGenLevel || {};
       next.upgradeDurationSecOverrideByGenLevel = next.upgradeDurationSecOverrideByGenLevel || {};
       return next;
@@ -975,7 +1390,15 @@
     function loadStoredParams() {
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY);
-        return normalizeParams(stored ? JSON.parse(stored) : null);
+        const next = normalizeParams(stored ? JSON.parse(stored) : null);
+        if (!window.localStorage.getItem(SPAWN_TARGET_MIGRATION_KEY)) {
+          next.upgradeSpawnsRequiredOverrideByGenLevel = Object.fromEntries(
+            Object.entries(next.upgradeSpawnsRequiredOverrideByGenLevel || {})
+              .filter(([key]) => key.startsWith('3:')),
+          );
+          window.localStorage.setItem(SPAWN_TARGET_MIGRATION_KEY, '1');
+        }
+        return next;
       } catch {
         return normalizeParams(null);
       }
@@ -1025,8 +1448,73 @@
           postL7Increment: krakenPostL7Increment,
         }));
       } catch {
-        // localStorage can be unavailable; Save Balance still persists to disk.
+        // localStorage can be unavailable; tuning still works in memory.
       }
+    }
+
+    function krakenQuestSequenceSignature(data) {
+      return JSON.stringify((data?.chapters || []).map(chapter => ({
+        questId: chapter.questId,
+        unlocksGenerator: chapter.unlocksGenerator,
+        subquests: (chapter.subquests || []).map(subquest => ({
+          subQuestId: subquest.subQuestId,
+          type: subquest.type,
+          value: subquest.value,
+        })),
+      })));
+    }
+
+    function loadStoredKrakenQuestSequence() {
+      const fallback = structuredClone(krakenQuestSequenceData);
+      try {
+        const stored = window.localStorage.getItem(KRAKEN_QUESTS_STORAGE_KEY);
+        if (!stored) return fallback;
+        const parsed = JSON.parse(stored);
+        if (!parsed || parsed.sourceSignature !== krakenQuestSequenceSignature(krakenQuestSequenceData)) {
+          return fallback;
+        }
+        if (!Array.isArray(parsed.questSequence?.chapters)) return fallback;
+        return structuredClone(parsed.questSequence);
+      } catch {
+        return fallback;
+      }
+    }
+
+    function persistKrakenQuestSequence() {
+      try {
+        window.localStorage.setItem(KRAKEN_QUESTS_STORAGE_KEY, JSON.stringify({
+          sourceSignature: krakenQuestSequenceSignature(krakenQuestSequenceData),
+          questSequence: krakenQuestSequenceState,
+        }));
+      } catch {
+        // localStorage can be unavailable; quest tuning still works in memory.
+      }
+    }
+
+    function splitQuestValueLevel(value) {
+      const match = String(value || '').match(/^(.*_)(\d+)$/);
+      return match ? { prefix: match[1], level: Number(match[2]) } : null;
+    }
+
+    function findKrakenSubquest(questId, subQuestId) {
+      const chapter = (krakenQuestSequenceState.chapters || [])
+        .find(item => item.questId === questId);
+      const subquest = chapter?.subquests?.find(item => item.subQuestId === subQuestId);
+      return { chapter, subquest };
+    }
+
+    function setKrakenQuestLevel(questId, subQuestId, nextLevel) {
+      const { subquest } = findKrakenSubquest(questId, subQuestId);
+      if (!subquest || !['GetCreature', 'GetSpawner'].includes(subquest.type)) return;
+      const parsed = splitQuestValueLevel(subquest.value);
+      if (!parsed) return;
+      const level = Math.min(20, Math.max(1, Math.round(Number(nextLevel) || parsed.level)));
+      subquest.value = `${parsed.prefix}${level}`;
+      persistKrakenQuestSequence();
+      renderKrakenQuests();
+
+      const active = document.querySelector('.sub-tab[aria-selected="true"]');
+      if (active?.dataset.tab === 'runes' && runesState.data) renderRunes();
     }
 
     function normalizeCravingsDraft(raw) {
@@ -1074,68 +1562,35 @@
       try {
         window.localStorage.setItem(CRAVINGS_STORAGE_KEY, JSON.stringify(cravingsState));
       } catch {
-        // localStorage can be unavailable; Save Balance still persists to disk.
+        // localStorage can be unavailable; tuning still works in memory.
       }
     }
 
     const baselineCravingsState = normalizeCravingsDraft(BASELINE_CRAVINGS);
     let params = loadStoredParams();
     let cravingsState = loadStoredCravingsDraft();
+    let krakenQuestSequenceState = loadStoredKrakenQuestSequence();
     const baselineResult = computeGenerators(structuredClone(BASELINE));
     const baselineGens = baselineResult.generators;
     const oldGensById = new Map((oldGeneratorsData.generators || []).map(g => [g.id, g]));
     const storedKrakenDraft = loadStoredKrakenDraft();
     let krakenProgProductionData = storedKrakenDraft?.krakenProgression || structuredClone(krakenProgData);
-    const simChapterByGenLevel = new Map(
-      (simGeneratorChaptersData?.rows || []).map(row => [`${row.generatorId}:${row.level}`, row])
-    );
 
     function genLevelKey(genId, level) {
       return `${genId}:${level}`;
     }
 
-    function hasChargeOverride(genId, level) {
-      return Object.prototype.hasOwnProperty.call(params.chargeCostOverrideByGenLevel, genLevelKey(genId, level));
-    }
-
-    function hasChapterOverride(genId, level) {
-      return Object.prototype.hasOwnProperty.call(params.chargeCostChapterOverrideByGenLevel, genLevelKey(genId, level));
-    }
-
-    function setChargeOverride(genId, level, value) {
+    function setUpgradeRuneCost(genId, level, value) {
       const key = genLevelKey(genId, level);
-      if (!Number.isFinite(value)) delete params.chargeCostOverrideByGenLevel[key];
-      else params.chargeCostOverrideByGenLevel[key] = Math.max(1, Math.round(value));
+      if (Number.isFinite(value)) params.upgradeRuneCostByGenLevel[key] = Math.max(0, Math.round(value));
       render();
     }
 
-    function hasUpgradeRuneOverride(genId, level) {
-      return Object.prototype.hasOwnProperty.call(params.upgradeRuneCostOverrideByGenLevel, genLevelKey(genId, level));
-    }
-
-    function hasUpgradeSpawnsOverride(genId, level) {
-      return Object.prototype.hasOwnProperty.call(params.upgradeSpawnsRequiredOverrideByGenLevel, genLevelKey(genId, level));
-    }
-
-    function setUpgradeRuneOverride(genId, level, value) {
-      const key = genLevelKey(genId, level);
-      if (!Number.isFinite(value)) delete params.upgradeRuneCostOverrideByGenLevel[key];
-      else params.upgradeRuneCostOverrideByGenLevel[key] = Math.max(0, Math.round(value));
-      render();
-    }
-
-    function setUpgradeSpawnsOverride(genId, level, value) {
-      const key = genLevelKey(genId, level);
-      if (!Number.isFinite(value)) delete params.upgradeSpawnsRequiredOverrideByGenLevel[key];
-      else params.upgradeSpawnsRequiredOverrideByGenLevel[key] = Math.max(0, Math.round(value));
-      render();
-    }
-
-    function setChapterOverride(genId, level, value) {
-      const key = genLevelKey(genId, level);
-      if (!Number.isFinite(value)) delete params.chargeCostChapterOverrideByGenLevel[key];
-      else params.chargeCostChapterOverrideByGenLevel[key] = Math.max(1, Math.round(value));
-      render();
+    function clearSacrificeSpawnOverrides() {
+      params.upgradeSpawnsRequiredOverrideByGenLevel = Object.fromEntries(
+        Object.entries(params.upgradeSpawnsRequiredOverrideByGenLevel || {})
+          .filter(([key]) => key.startsWith('3:')),
+      );
     }
 
     // ============================================================
@@ -1147,7 +1602,7 @@
      * Renders into `parent`. On change, calls `onChange(value)`.
      */
     function makeKnob(parent, opts) {
-      const { label, min, max, step, value, onChange, title, id } = opts;
+      const { label, min, max, step, value, onChange, title, description, id } = opts;
       const wrap = document.createElement('div');
       wrap.className = 'knob-grid';
 
@@ -1196,7 +1651,18 @@
       wrap.appendChild(lab);
       wrap.appendChild(range);
       wrap.appendChild(num);
-      parent.appendChild(wrap);
+      if (description) {
+        const control = document.createElement('div');
+        control.className = 'knob-control';
+        const help = document.createElement('p');
+        help.className = 'knob-help';
+        help.textContent = description;
+        control.appendChild(wrap);
+        control.appendChild(help);
+        parent.appendChild(control);
+      } else {
+        parent.appendChild(wrap);
+      }
 
       return { sync };
     }
@@ -1209,67 +1675,63 @@
     }
 
     function buildControls() {
-      const grp = document.getElementById('grp-tune');
-      grp.innerHTML = '';
+      const generalGroup = document.getElementById('grp-general-tune');
+      generalGroup.innerHTML = `
+        <div class="number-setting">
+          <label class="knob-label" for="target-upgrade-levels" title="Целевое максимальное число уровней прокачки для каждого генератора.">
+            Target upgrades
+          </label>
+          <input
+            id="target-upgrade-levels"
+            class="cm-input"
+            type="number"
+            min="1"
+            max="20"
+            step="1"
+            value="${params.upgradeLevels}"
+          />
+        </div>`;
+      const targetUpgradeLevels = document.getElementById('target-upgrade-levels');
+      targetUpgradeLevels.addEventListener('change', () => {
+        const value = Number(targetUpgradeLevels.value);
+        params.upgradeLevels = Math.min(20, Math.max(1, Math.round(value) || DEFAULTS.upgradeLevels));
+        targetUpgradeLevels.value = String(params.upgradeLevels);
+        render();
+      });
 
-      const kAdvance = makeKnob(grp, {
+      const spawnGroup = document.getElementById('grp-spawn-tune');
+      spawnGroup.innerHTML = '';
+
+      const kAdvance = makeKnob(spawnGroup, {
         label: 'Advance rate',
         title: 'Вероятность продвижения на 1 chain-level за апгрейд (binomial chain-advance).',
+        description: 'How quickly both creature lines move to higher merge levels. Higher values produce high-level creatures earlier; spawn count and CrMain/CrSecond share do not change.',
         min: 0.10, max: 0.60, step: 0.01,
         value: params.advanceRate,
         onChange: (v) => { params.advanceRate = v; render(); },
       });
       registerKnob(kAdvance, () => params.advanceRate);
 
-      const kFloor = makeKnob(grp, {
+      const kFloor = makeKnob(spawnGroup, {
         label: 'Decay floor',
         title: 'Минимум вероятности для уровней в фазе падения (после своего пика). Остальные масштабируются вниз чтобы Σ=1.',
+        description: 'The minimum probability retained by older low-level creatures after their peak. Higher values keep low levels in the distribution longer and leave less probability for the newer high levels.',
         min: 0.0, max: 0.20, step: 0.005,
         value: params.decayFloor,
         onChange: (v) => { params.decayFloor = v; render(); },
       });
       registerKnob(kFloor, () => params.decayFloor);
 
-      const kPrim = makeKnob(grp, {
+      const kPrim = makeKnob(spawnGroup, {
         label: 'Primary share',
         title: 'Доля primary creature в outputs; secondary = 1 − primary. До активации secondary всегда 100% primary.',
+        description: 'The share of spawns assigned to CrMain after CrSecond unlocks. CrSecond receives the remainder: 1 − Primary share. Before it unlocks, all spawns are CrMain.',
         min: 0.5, max: 1.0, step: 0.01,
         value: params.primaryShare,
         onChange: (v) => { params.primaryShare = v; render(); },
       });
       registerKnob(kPrim, () => params.primaryShare);
 
-      const kLG = makeKnob(grp, {
-        label: 'levelGrowth',
-        title: 'База роста стоимости апгрейда: cost(L) = baseUpgradeCost × levelGrowth^(L-1) × genMultiplier.',
-        min: 1.2, max: 2.0, step: 0.05,
-        value: params.levelGrowth,
-        onChange: (v) => { params.levelGrowth = v; render(); },
-      });
-      registerKnob(kLG, () => params.levelGrowth);
-
-      const kChargeDiscount = makeKnob(grp, {
-        label: 'Old gen disc',
-        title: 'Доля chapter meat на L10. Чем ниже, тем дешевле старые прокачанные генераторы относительно новых.',
-        min: 0.4, max: 1.0, step: 0.05,
-        value: params.chargeCostMaxLevelDiscount,
-        onChange: (v) => { params.chargeCostMaxLevelDiscount = v; render(); },
-      });
-      registerKnob(kChargeDiscount, () => params.chargeCostMaxLevelDiscount);
-
-      const grpCharge = document.getElementById('grp-charge-per-gen');
-      grpCharge.innerHTML = '';
-      for (let i = 0; i < 8; i++) {
-        const idx = i;
-        const kCharge = makeKnob(grpCharge, {
-          label: `Gen${i + 1}`,
-          title: `Множитель chapter meat для Gen${i + 1}. Итоговая цена: floor(meat@chapter × multiplier × levelDiscount), целое и минимум 1.`,
-          min: 0.5, max: 1.5, step: 0.05,
-          value: params.chargeCostMultiplierByGen[idx],
-          onChange: (v) => { params.chargeCostMultiplierByGen[idx] = v; render(); },
-        });
-        registerKnob(kCharge, () => params.chargeCostMultiplierByGen[idx]);
-      }
     }
 
     // ============================================================
@@ -1387,40 +1849,6 @@
       return Math.ceil(spawnsRequired / lvl.numCreatures);
     }
 
-    const LEVEL_CHAPTER_ANCHORS = [
-      { level: 1, chapter: 2 },
-      { level: 8, chapter: 5 },
-      { level: 15, chapter: 8 },
-      { level: 20, chapter: 10 },
-      { level: 26, chapter: 12 },
-      { level: 33, chapter: 14 },
-      { level: 40, chapter: 16 },
-      { level: 45, chapter: 17 },
-      { level: 49, chapter: 17 },
-    ];
-
-    function approxChapterForKrakenLevel(level) {
-      if (level <= LEVEL_CHAPTER_ANCHORS[0].level) return `Ch${LEVEL_CHAPTER_ANCHORS[0].chapter}`;
-      for (let i = 0; i < LEVEL_CHAPTER_ANCHORS.length - 1; i++) {
-        const a = LEVEL_CHAPTER_ANCHORS[i];
-        const b = LEVEL_CHAPTER_ANCHORS[i + 1];
-        if (level >= a.level && level <= b.level) {
-          const t = (level - a.level) / Math.max(1, b.level - a.level);
-          const chapter = a.chapter + t * (b.chapter - a.chapter);
-          return `Ch${Math.round(chapter)}`;
-        }
-      }
-      return `Ch${LEVEL_CHAPTER_ANCHORS[LEVEL_CHAPTER_ANCHORS.length - 1].chapter}+`;
-    }
-
-    function approxKrakenForUpgrade(genIndex, fromLevel) {
-      const start = params.genKrakenRequired[genIndex] ?? 1;
-      const next = params.genKrakenRequired[genIndex + 1] ?? 49;
-      const span = Math.max(1, next - start);
-      const t = (fromLevel - 1) / Math.max(1, params.upgradeLevels - 1);
-      return Math.round(start + t * span);
-    }
-
     /**
      * Find chance for a creature at a specific spawn level inside outputs[].
      * Returns null if not present (renders as em-dash).
@@ -1446,46 +1874,6 @@
 
       const xpPerMeat = !isTimer && lvl.chargeCost > 0 ? expectedXp / lvl.chargeCost : null;
       return { isTimer, expectedXp, xpPerMeat, byCreature };
-    }
-
-    function buildCostColgroup(order) {
-      let cols = [
-        '<col class="col-lvl">',
-        '<col class="col-chapter">',
-        '<col class="col-chapter">',
-        '<col class="col-meat">',
-        '<col class="col-meat-cost">',
-        '<col class="col-spawns-cost">',
-        '<col class="col-eff-meat-total">',
-        '<col class="col-chapter">',
-        '<col class="col-spawns">',
-        '<col class="col-rune">',
-      ].join('');
-      for (const c of order) {
-        cols += '<col class="col-prob">';
-        for (let lv = 1; lv <= c.topL; lv++) cols += '<col class="col-prob">';
-        cols += '<col class="col-eff">';
-        cols += '<col class="col-eff-meat-total">';
-      }
-      return `<colgroup>${cols}</colgroup>`;
-    }
-
-    function buildCostColgroupSlim(order) {
-      let cols = [
-        '<col class="col-lvl">',
-        '<col class="col-chapter">',
-        '<col class="col-chapter">',
-        '<col class="col-meat">',
-        '<col class="col-meat-edit">',
-        '<col class="col-eff-meat-total">',
-        '<col class="col-chapter">',
-        '<col class="col-spawns">',
-        '<col class="col-rune">',
-      ].join('');
-      for (const _ of order) {
-        cols += '<col class="col-eff-meat-total">';
-      }
-      return `<colgroup>${cols}</colgroup>`;
     }
 
     function buildCostColgroupShared(order) {
@@ -1525,61 +1913,40 @@
     function buildUpgradeColgroup() {
       return `<colgroup>
         <col class="col-upgrade">
-        <col class="col-chapter">
-        <col class="col-chapter">
+        <col class="col-spawns">
         <col class="col-meat">
         <col class="col-spawns">
         <col class="col-spawns">
-        <col class="col-spawns">
-        <col class="col-eff-meat">
         <col class="col-rune">
         <col class="col-rune">
         <col class="col-time">
         <col class="col-eff">
-        <col class="col-eff">
         <col class="col-delta">
-        <col class="col-eff-meat">
         <col class="col-eff-meat">
       </colgroup>`;
     }
 
-    function renderRequiredSpawnsCell(genId, level, upgrade, baseUpgrade) {
+    function renderRequiredSpawnsCell(upgrade) {
       if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
       const spawnsRequired = getUpgradeSpawnsRequired(upgrade);
-      const overrideClass = hasUpgradeSpawnsOverride(genId, level) ? ' is-override' : '';
-      return `<td class="num">
-        <div class="cell-stack">
-          <input
-            class="table-input${overrideClass}"
-            type="number"
-            min="0"
-            step="1"
-            value="${spawnsRequired ?? ''}"
-            data-role="upgrade-spawns-override"
-            data-gen-id="${genId}"
-            data-level="${level}"
-            title="Spawns required. Empty value returns this row to formula."
-          />
-        </div>
-      </td>`;
+      return `<td class="num" title="Calculated from the upgrade requirement settings above."><strong>${spawnsRequired ?? '—'}</strong></td>`;
     }
 
-    function renderRequiredRuneCostCell(genId, level, upgrade, baseUpgrade, showCurrency = false) {
+    function renderRequiredRuneCostCell(genId, level, upgrade, showCurrency = false) {
       if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
-      const overrideClass = hasUpgradeRuneOverride(genId, level) ? ' is-override' : '';
       const currency = upgrade.runeType === 'rune1' ? 'r1' : 'r2';
       return `<td class="num">
         <div class="rune-cost-inline">
           <input
-            class="table-input${overrideClass}"
+            class="table-input"
             type="number"
             min="0"
             step="1"
             value="${upgrade.runeCost}"
-            data-role="upgrade-rune-override"
+            data-role="rune-cost"
             data-gen-id="${genId}"
             data-level="${level}"
-            title="Rune cost. Empty value returns this row to formula."
+            title="Primary rune price stored in balance."
           />
           ${showCurrency ? `<span class="cell-sub">${currency}</span>` : ''}
         </div>
@@ -1588,7 +1955,7 @@
 
     function renderRuneCurrencyCell(upgrade) {
       if (!upgrade) return '<td class="num"><span class="dim">—</span></td>';
-      return `<td class="num">${upgrade.runeType === 'rune1' ? 'r1' : 'r2'}</td>`;
+      return `<td class="num rune-currency-cell">${upgrade.runeType === 'rune1' ? 'r1' : 'r2'}</td>`;
     }
 
     function renderXpTables(currentGens) {
@@ -1700,25 +2067,12 @@
       container.innerHTML = outerHtml;
     }
 
-    function renderCostTables(currentGens) {
-      const container = document.getElementById('cost-tables-container');
+    function renderSpawnDistributionTables(currentGens) {
+      const container = document.getElementById('spawn-distribution-tables-container');
       const N_LEVELS = params.upgradeLevels;
-
       let outerHtml = '';
 
-      outerHtml += `
-        <div class="cm-card gen-block" style="width:auto;">
-          <div class="cm-card__body">
-            <p class="xp-note">
-              Cost focuses on charge economy. The spawn distribution, spawn count, and per-creature Eff are common across
-              sacrifice generators (shown once below). Per-generator tables list only what differs: meat, Total Eff / Eff per meat,
-              upgrade requirements, rune cost, and per-creature L1/m. Req. Spawns and Req. Rune Cost are shared with
-              Upgrades and are saved by Save Balance.
-            </p>
-          </div>
-        </div>`;
-
-      // Shared spawn-distribution table for sacrifice generators (structure identical across all sacrifice gens).
+      // Spawn probabilities are structurally shared by all generators.
       const canonGen = currentGens.find(g => g.spawnMode !== 'timer');
       if (canonGen) {
         const sharedOrder = buildCreatureOrder(canonGen);
@@ -1784,7 +2138,7 @@
 
         outerHtml += `
           <div class="cm-card gen-block">
-            <div class="cm-card__head"><h3 class="cm-card__title">Common spawn distribution — sacrifice generators</h3></div>
+            <div class="cm-card__head"><h3 class="cm-card__title">CrMain / CrSecond probability distribution</h3></div>
             <div class="cm-card__body" style="overflow-x:auto;">
               <table class="gen-table gen-table--cost">
                 ${buildCostColgroupShared(sharedOrder)}
@@ -1795,300 +2149,7 @@
           </div>`;
       }
 
-      for (let gi = 0; gi < currentGens.length; gi++) {
-        const g = currentGens[gi];
-        const baseG = baselineGens[gi];
-        const isTimer = g.spawnMode === 'timer';
-
-        const order = buildCreatureOrder(g);
-
-        let head1 = '<tr>';
-        let head2 = '<tr>';
-        head1 += '<th class="lvl-head" rowspan="2">Lvl</th>';
-        head1 += '<th rowspan="2" title="Editable planned chapter used by the charge-cost formula.">CH(plan)</th>';
-        head1 += '<th class="group-start" rowspan="2" title="Read-only chapter from the latest simulation artifact.">CH(sim)</th>';
-        head1 += '<th class="th-two-line" rowspan="2" title="Meat per sacrifice at the moment the simulation reached this Gen/L.">Meat/s<br>(sim)</th>';
-        head1 += `<th class="th-two-line group-start" rowspan="2">${isTimer ? 'Tick' : 'Meat<br>/charge'}</th>`;
-        if (isTimer) head1 += '<th rowspan="2">Spawns</th>';
-        head1 += '<th rowspan="2" title="Expected XP from one full charge divided by meat cost. Δ vs previous level shown inline. Empty for timer generators.">XP/m</th>';
-        head1 += '<th class="th-two-line group-start" rowspan="2" title="Kraken level from the latest simulation artifact.">Kr.Lvl<br>(sim)</th>';
-        head1 += '<th class="th-two-line" rowspan="2" title="Actual upgrade gate: available spawned creatures for this generator. Editable and shared with Upgrades.">Req.<br>Spawns</th>';
-        head1 += '<th class="th-two-line" rowspan="2" title="Rune cost and currency for this level upgrade. Editable and shared with Upgrades.">Req. Rune<br>Cost (Cur)</th>';
-        for (const c of order) {
-          const span = isTimer ? (c.topL + 3) : 1; // timer: full (Σ%+Ls+Eff+Eff/m); sacrifice: Eff/m
-          head1 += `<th class="group-head group-start" colspan="${span}">${c.short}</th>`;
-        }
-        head1 += '</tr>';
-
-        for (const c of order) {
-          if (isTimer) {
-            head2 += `<th class="group-start dim">Σ%</th>`;
-            for (let lv = 1; lv <= c.topL; lv++) head2 += `<th>L${lv}</th>`;
-            head2 += `<th>Eff</th>`;
-            head2 += `<th title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
-          } else {
-            head2 += `<th class="group-start" title="Per-creature Eff (L1-equivalents per charge) divided by meat cost.">L1/m</th>`;
-          }
-        }
-        head2 += '</tr>';
-
-        // Body rows: one per upgrade level.
-        let body = '';
-        for (let L = 1; L <= N_LEVELS; L++) {
-          const lvl = g.levels[L - 1];
-          const baseLvl = baseG.levels[L - 1];
-          const up = lvl.upgrade || null;
-          const baseUp = baseLvl.upgrade || null;
-
-          const meat = lvl.chargeCost;
-          const approxChapter = chargeChapterForGeneratorLevel(params, gi, L);
-          const chapterMeat = meatForChargeChapter(params, approxChapter);
-          const simRow = simChapterByGenLevel.get(`${g.id}:${L}`) || null;
-          const simChapter = simRow?.chapter ?? null;
-          const simMismatch = simChapter !== null && simChapter !== approxChapter;
-          const chapterIsOverride = hasChapterOverride(g.id, L);
-          const chargeIsOverride = hasChargeOverride(g.id, L);
-
-          const xpStats = computeXpStats(g, lvl);
-          const xpPerMeat = xpStats.xpPerMeat;
-          const prevXpPerMeat = L > 1 ? computeXpStats(g, g.levels[L - 2]).xpPerMeat : null;
-          let xpPerMeatDelta = '';
-          if (xpPerMeat !== null && prevXpPerMeat !== null && prevXpPerMeat > 0) {
-            const pct = (xpPerMeat / prevXpPerMeat - 1) * 100;
-            const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
-            const sign = pct > 0 ? '+' : '';
-            xpPerMeatDelta = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
-          }
-
-          let row = '<tr>';
-          row += `<td class="lvl-cell">L${L}</td>`;
-          row += `<td class="num" title="Avg get-meat in Ch${approxChapter}: ${fmtNum(chapterMeat, 1)}">
-            <input
-              class="table-input table-input--chapter"
-              type="number"
-              min="1"
-              step="1"
-              value="${approxChapter}"
-              data-role="chapter-override"
-              data-gen-id="${g.id}"
-              data-level="${L}"
-              title="CH(plan). Empty value returns this row to formula."
-            />
-          </td>`;
-          row += `<td class="num group-start ${simMismatch ? 'sim-ch-mismatch' : ''}" title="${simChapter === null ? 'No CH(sim) in latest simulation artifact.' : `Latest simulation saw this row at Ch${simChapter}.`}">
-            ${simChapter === null ? '<span class="dim">—</span>' : `<span class="cell-main">Ch${simChapter}</span>`}
-          </td>`;
-          const simMeat = simRow?.meatPerPress ?? null;
-          row += `<td class="num" title="${simMeat === null ? 'No sim meat/sacrifice data.' : `Avg meat per sacrifice when sim reached this row.`}">${simMeat === null ? '<span class="dim">—</span>' : fmtNum(simMeat, 1)}</td>`;
-          if (isTimer) {
-            row += `<td class="num dim group-start">${Math.round(g.tickIntervalSec / 60)}m</td>`;
-            row += `<td class="num">${lvl.numCreatures ?? 1}</td>`;
-          } else {
-            row += `<td class="num group-start">
-              <div class="cell-stack">
-                <input
-                  class="table-input"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value="${meat}"
-                  data-role="charge-override"
-                  data-gen-id="${g.id}"
-                  data-level="${L}"
-                  title="Meat charge. Empty value returns this row to formula."
-                />
-              </div>
-            </td>`;
-          }
-          row += `<td class="num">${xpPerMeat === null ? '<span class="dim">—</span>' : `<span class="eff-cell"><span class="cell-main">${fmtNum(xpPerMeat, 1)}</span><span class="delta-slot">${xpPerMeatDelta}</span></span>`}</td>`;
-          row += `<td class="num group-start" title="${simRow?.krakenLevel == null ? 'No Kraken level in latest simulation artifact.' : `Latest simulation saw this row at Kraken L${simRow.krakenLevel}.`}">${simRow?.krakenLevel == null ? '<span class="dim">—</span>' : `L${simRow.krakenLevel}`}</td>`;
-          row += renderRequiredSpawnsCell(g.id, L, up, baseUp);
-          row += renderRequiredRuneCostCell(g.id, L, up, baseUp, true);
-
-          for (const c of order) {
-            const eff = computeEff(lvl, c.name);
-            const effPrev = L > 1 ? computeEff(g.levels[L - 2], c.name) : 0;
-
-            if (isTimer) {
-              // Full per-creature columns for timer gen.
-              const sum = lineChance(lvl, c.name);
-              row += sum === 0
-                ? `<td class="num group-start dim">—</td>`
-                : `<td class="num group-start dim">${Math.round(sum * 100)}%</td>`;
-              for (let lv = 1; lv <= c.topL; lv++) {
-                const ch = chanceFor(lvl, c.name, lv);
-                row += (ch === null || ch === 0)
-                  ? `<td class="num dim">—</td>`
-                  : `<td class="num">${Math.round(ch * 100)}%</td>`;
-              }
-              const effStr = eff > 0 ? fmtNum(eff, 1) : '—';
-              let effGrowthStr = '';
-              if (eff > 0 && effPrev > 0) {
-                const pct = (eff / effPrev - 1) * 100;
-                const cls = pct > 0 ? 'delta-pos' : (pct < 0 ? 'delta-neg' : '');
-                const sign = pct > 0 ? '+' : '';
-                effGrowthStr = `<span class="${cls}">${sign}${pct.toFixed(0)}%</span>`;
-              }
-              row += `<td class="num"><span class="eff-cell"><span class="cell-main">${effStr}</span><span class="delta-slot">${effGrowthStr}</span></span></td>`;
-              row += `<td class="num dim">—</td>`;
-            } else {
-              const lineEffPerMeat = meat > 0 && eff > 0 ? eff / meat : null;
-              row += `<td class="num group-start">${lineEffPerMeat === null ? '<span class="dim">—</span>' : fmtNum(lineEffPerMeat, 1)}</td>`;
-            }
-          }
-
-          row += '</tr>';
-          body += row;
-        }
-
-        const title = `${g.name} (kraken: ${params.genKrakenRequired[gi]})`;
-        const colgroup = isTimer ? buildCostColgroup(order) : buildCostColgroupSlim(order);
-
-        outerHtml += `
-          <div class="cm-card gen-block">
-            <div class="cm-card__head"><h3 class="cm-card__title">${title}</h3></div>
-            <div class="cm-card__body" style="overflow-x:auto;">
-              <table class="gen-table gen-table--cost">
-                ${colgroup}
-                <thead>${head1}${head2}</thead>
-                <tbody>${body}</tbody>
-              </table>
-            </div>
-          </div>`;
-      }
-
       container.innerHTML = outerHtml;
-    }
-
-    function renderChapterFitTable(currentGens) {
-      const container = document.getElementById('chapter-fit-container');
-
-      const runMeta = simGeneratorChaptersData
-        ? `Latest sim: seed ${simGeneratorChaptersData.seed}, ${simGeneratorChaptersData.ticks} ticks, generated ${simGeneratorChaptersData.generatedAt}.`
-        : 'No simulation chapter artifact yet. Run `npm run sim -- 500 "" 42 --quiet --until-level 50` to generate public/sim-runs/latest/generator-chapters.json.';
-
-      const simRows = simGeneratorChaptersData?.rows || [];
-      const genNameById = new Map(currentGens.map(g => [g.id, g.name]));
-
-      // First-appearance summary: one row per generator showing CH(sim) where L1 was first reached.
-      const firstAppearanceRows = simRows
-        .filter(r => r.level === 1)
-        .sort((a, b) => a.generatorId - b.generatorId);
-      let firstApp = '';
-      if (firstAppearanceRows.length > 0) {
-        let firstBody = '';
-        for (const r of firstAppearanceRows) {
-          firstBody += '<tr>';
-          firstBody += `<td class="lvl-cell">${genNameById.get(r.generatorId) ?? `Gen${r.generatorId}`}</td>`;
-          firstBody += `<td class="num">Ch${r.chapter}</td>`;
-          firstBody += `<td class="num">L${r.krakenLevel}</td>`;
-          firstBody += `<td class="num">${fmtNum(r.meatPerPress, 1)}</td>`;
-          firstBody += `<td class="num">${r.tick}</td>`;
-          firstBody += '</tr>';
-        }
-        firstApp = `
-          <div class="cm-card gen-block">
-            <div class="cm-card__head"><h3 class="cm-card__title">First appearance per generator (sim)</h3></div>
-            <div class="cm-card__body" style="overflow-x:auto;">
-              <table class="gen-table">
-                <colgroup>
-                  <col class="col-upgrade">
-                  <col class="col-chapter">
-                  <col class="col-chapter">
-                  <col class="col-meat">
-                  <col class="col-time">
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Generator</th>
-                    <th title="First chapter where the simulation reached this generator at level 1.">CH(sim)</th>
-                    <th title="Kraken level at first appearance.">Kraken</th>
-                    <th title="Average meat per sacrifice at that moment.">Meat/s</th>
-                    <th title="Simulation tick at first appearance.">Tick</th>
-                  </tr>
-                </thead>
-                <tbody>${firstBody}</tbody>
-              </table>
-            </div>
-          </div>`;
-      }
-
-      // Pivot: Gen × CH(sim) cross-table. Each cell lists the levels of that gen
-      // first reached in that chapter, with Meat/s (sim) and current Meat charge.
-      let pivotHtml = '';
-      if (simRows.length > 0) {
-        const chapters = [...new Set(simRows.map(r => r.chapter))].sort((a, b) => a - b);
-        const genIds = [...new Set(simRows.map(r => r.generatorId))].sort((a, b) => a - b);
-        const pivotByGen = new Map();
-        for (const r of simRows) {
-          if (!pivotByGen.has(r.generatorId)) pivotByGen.set(r.generatorId, new Map());
-          const byCh = pivotByGen.get(r.generatorId);
-          if (!byCh.has(r.chapter)) byCh.set(r.chapter, []);
-          byCh.get(r.chapter).push(r);
-        }
-
-        let pivotHead = '<tr><th class="lvl-head">Gen</th>';
-        for (const ch of chapters) pivotHead += `<th>Ch${ch}</th>`;
-        pivotHead += '</tr>';
-
-        let pivotBody = '';
-        for (const gid of genIds) {
-          const gen = currentGens.find(g => g.id === gid);
-          pivotBody += `<tr><td class="lvl-cell">${genNameById.get(gid) ?? `Gen${gid}`}</td>`;
-          const byCh = pivotByGen.get(gid);
-          for (const ch of chapters) {
-            const cellRows = (byCh.get(ch) || []).slice().sort((a, b) => a.level - b.level);
-            if (cellRows.length === 0) {
-              pivotBody += `<td class="num dim">—</td>`;
-            } else {
-              const lines = cellRows.map(r => {
-                const lvl = gen?.levels[r.level - 1];
-                const charge = lvl?.chargeCost;
-                const chargeStr = Number.isFinite(charge) && charge > 0 ? fmtNum(charge, 0) : '—';
-                return `<div class="sim-pivot-line" title="L${r.level} · Meat/s ${fmtNum(r.meatPerPress, 1)} · charge ${chargeStr}"><span class="sim-pivot-lvl">L${r.level}:</span> <span class="sim-pivot-meat">${fmtNum(r.meatPerPress, 0)}</span> / <span class="sim-pivot-charge">${chargeStr}</span></div>`;
-              }).join('');
-              pivotBody += `<td class="sim-pivot-cell">${lines}</td>`;
-            }
-          }
-          pivotBody += '</tr>';
-        }
-
-        let pivotColgroup = '<col class="col-upgrade">';
-        for (const _ of chapters) pivotColgroup += '<col class="col-sim-pivot">';
-
-        pivotHtml = `
-          <div class="cm-card gen-block">
-            <div class="cm-card__head"><h3 class="cm-card__title">Gen × CH(sim) — levels recorded per chapter</h3></div>
-            <div class="cm-card__body" style="overflow-x:auto;">
-              <p class="xp-note" style="margin-bottom:8px;">
-                Each cell shows levels of the generator that the simulation first reached in this chapter.
-                Format per line: <b>L{level}</b> · Meat/s (sim) · Meat charge (current params).
-              </p>
-              <table class="gen-table">
-                <colgroup>${pivotColgroup}</colgroup>
-                <thead>${pivotHead}</thead>
-                <tbody>${pivotBody}</tbody>
-              </table>
-            </div>
-          </div>`;
-      }
-
-      container.innerHTML = `
-        <div class="cm-card gen-block" style="width:auto;">
-          <div class="cm-card__body">
-            <p class="xp-note">
-              Chapter Fit ties the meat price curve to progression. CH(plan) is editable and used by the charge-cost formula;
-              CH(sim) is read-only from the latest simulation artifact.
-              ${runMeta}
-            </p>
-            <div class="row">
-              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-chapter-overrides">Clear CH(plan) overrides</button>
-              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-charge-overrides">Clear Meat overrides</button>
-            </div>
-          </div>
-        </div>
-        ${firstApp}
-        ${pivotHtml}`;
     }
 
     function renderUpgradeTables(currentGens) {
@@ -2098,62 +2159,96 @@
       outerHtml += `
         <div class="cm-card gen-block" style="width:auto;">
           <div class="cm-card__body">
-            <p class="xp-note">
-              Upgrades focuses on progression cost: spawned creatures required, estimated charges/meat to farm them,
-              rune cost, upgrade time, and approximate pacing. <b>Spawns req</b> and <b>Rune cost</b> are editable —
-              use the <b>Save Balance</b> button in the top-right to persist all overrides (Cost + Upgrades) to
-              <code>src/data/generators.json</code>.
-            </p>
-            <div class="row" style="gap:8px;">
-              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-upgrade-spawns-overrides">Clear Spawns overrides</button>
-              <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="clear-upgrade-rune-overrides">Clear Rune overrides</button>
+            <div class="upgrade-controls">
+              <div class="upgrade-settings">
+                <h3>Upgrade requirements</h3>
+                <div class="number-setting">
+                  <label class="knob-label" for="target-charges-per-upgrade" title="Целевое число полных зарядок генератора на один апгрейд, начиная с третьего.">
+                    Charges est
+                  </label>
+                  <input
+                    id="target-charges-per-upgrade"
+                    class="cm-input"
+                    type="number"
+                    min="1"
+                    max="20"
+                    step="1"
+                    value="${params.targetChargesPerUpgrade}"
+                    data-role="upgrade-target-charges"
+                  />
+                </div>
+                <div class="number-setting">
+                  <label class="knob-label" for="first-upgrade-spawns" title="Требование spawn’ов для первого апгрейда обычных генераторов.">
+                    First upgrade spawns
+                  </label>
+                  <input
+                    id="first-upgrade-spawns"
+                    class="cm-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="${params.firstUpgradeSpawnsRequired}"
+                    data-role="upgrade-first-spawns"
+                  />
+                </div>
+                <div class="number-setting">
+                  <label class="knob-label" for="second-upgrade-spawns" title="Требование spawn’ов для второго апгрейда обычных генераторов.">
+                    Second upgrade spawns
+                  </label>
+                  <input
+                    id="second-upgrade-spawns"
+                    class="cm-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="${params.secondUpgradeSpawnsRequired}"
+                    data-role="upgrade-second-spawns"
+                  />
+                </div>
+              </div>
+              <div class="upgrade-reset-actions">
+                <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="reset-upgrade-spawns-to-balance">Reset Spawns</button>
+                <button class="cm-btn cm-btn--sm cm-btn--ghost" data-action="reset-upgrade-runes-to-balance">Reset Rune costs</button>
+              </div>
             </div>
+            <p class="xp-note">
+              Upgrades focuses on progression cost: spawned creatures required, estimated charges to farm them,
+              rune cost, upgrade time, and approximate pacing. <b>Spawns req</b> is calculated from the settings above;
+              <b>Rune cost</b> is editable. Use <b>Copy JSON</b> to copy the complete balance snapshot.
+            </p>
           </div>
         </div>`;
 
       for (let gi = 0; gi < currentGens.length; gi++) {
         const g = currentGens[gi];
-        const baseG = baselineGens[gi];
         const isTimer = g.spawnMode === 'timer';
 
         let head = '<thead><tr>';
         head += '<th>Upgrade</th>';
-        head += '<th class="th-two-line">Approx<br>KL</th>';
-        head += '<th>CH(plan)</th>';
-        head += '<th class="th-two-line">Meat<br>/ charge</th>';
-        head += `<th class="th-two-line">${isTimer ? 'Tick' : 'Spawns<br>/ charge'}</th>`;
+        head += `<th>${isTimer ? 'Tick' : 'Spawns'}</th>`;
+        head += '<th class="th-two-line">Meat<br>price</th>';
         head += '<th class="th-two-line" title="Actual upgrade gate: available spawned creatures for this generator.">Spawns<br>req</th>';
         head += '<th class="th-two-line" title="Derived estimate: ceil(Spawns req / Spawns per charge). Empty for timer generators.">Charges<br>est</th>';
-        head += '<th class="th-two-line" title="Derived estimate: Charges est × meat per charge. Empty for timer generators.">Meat<br>est</th>';
         head += '<th class="th-two-line">Rune<br>cost</th>';
         head += '<th>Cur</th>';
         head += '<th>Time</th>';
-        head += '<th class="th-two-line">Eff<br>before</th>';
-        head += '<th class="th-two-line">Eff<br>after</th>';
-        head += '<th class="th-two-line">Eff<br>gain</th>';
-        head += '<th class="th-two-line">XP/m<br>before</th>';
-        head += '<th class="th-two-line">XP/m<br>after</th>';
+        head += '<th>Efficiency</th>';
+        head += '<th>Gain</th>';
+        head += '<th>XP/m</th>';
         head += '</tr></thead>';
 
         let body = '<tbody>';
         for (let L = 1; L < g.levels.length; L++) {
           const lvl = g.levels[L - 1];
           const nextLvl = g.levels[L];
-          const baseLvl = baseG.levels[L - 1];
           const up = lvl.upgrade;
-          const baseUp = baseLvl.upgrade;
           if (!up) continue;
 
-          const spawnsRequired = getUpgradeSpawnsRequired(up);
           const chargeEstimate = !isTimer ? computeChargeEstimate(lvl) : null;
-          const meatEstimate = !isTimer && chargeEstimate !== null ? chargeEstimate * lvl.chargeCost : null;
           const effBefore = computeTotalEff(lvl);
           const effAfter = computeTotalEff(nextLvl);
           const effGain = effBefore > 0 ? (effAfter / effBefore - 1) * 100 : null;
-          const xpBefore = computeXpStats(g, lvl).xpPerMeat;
           const xpAfter = computeXpStats(g, nextLvl).xpPerMeat;
-          const approxKraken = approxKrakenForUpgrade(gi, L);
-          const approxChapter = approxChapterForKrakenLevel(approxKraken);
 
           const time = up.upgradeDurationSec || 0;
           const timeLabel = time >= 60 ? `${fmtNum(time / 60, 1)}m` : `${time}s`;
@@ -2163,21 +2258,34 @@
 
           body += '<tr>';
           body += `<td class="lvl-cell">L${L} -> L${L + 1}</td>`;
-          body += `<td class="num">L${approxKraken}</td>`;
-          body += `<td class="num">${approxChapter}</td>`;
-          body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(lvl.chargeCost, 2)}</td>`;
           body += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : lvl.numCreatures}</td>`;
-          body += renderRequiredSpawnsCell(g.id, L, up, baseUp);
+          body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(lvl.chargeCost, 0)}</td>`;
+          body += renderRequiredSpawnsCell(up);
           body += `<td class="num">${chargeEstimate === null ? '<span class="dim">—</span>' : chargeEstimate}</td>`;
-          body += `<td class="num">${meatEstimate === null ? '<span class="dim">—</span>' : fmtNum(meatEstimate, 1)}</td>`;
-          body += renderRequiredRuneCostCell(g.id, L, up, baseUp);
+          body += renderRequiredRuneCostCell(g.id, L, up);
           body += renderRuneCurrencyCell(up);
           body += `<td class="num">${timeLabel}</td>`;
-          body += `<td class="num">${fmtNum(effBefore, 1)}</td>`;
           body += `<td class="num">${fmtNum(effAfter, 1)}</td>`;
           body += `<td class="num">${effGainCell}</td>`;
-          body += `<td class="num">${xpBefore === null ? '<span class="dim">—</span>' : fmtNum(xpBefore, 1)}</td>`;
           body += `<td class="num">${xpAfter === null ? '<span class="dim">—</span>' : fmtNum(xpAfter, 1)}</td>`;
+          body += '</tr>';
+        }
+
+        const finalLevel = g.levels[g.levels.length - 1];
+        if (finalLevel) {
+          const finalL = finalLevel.level;
+          const finalEff = computeTotalEff(finalLevel);
+          const finalXp = computeXpStats(g, finalLevel).xpPerMeat;
+          body += '<tr>';
+          body += `<td class="lvl-cell">L${finalL} (max)</td>`;
+          body += `<td class="num">${isTimer ? `${Math.round(g.tickIntervalSec / 60)}m` : finalLevel.numCreatures}</td>`;
+          body += `<td class="num${isTimer ? ' dim' : ''}">${isTimer ? '—' : fmtNum(finalLevel.chargeCost, 0)}</td>`;
+          for (let i = 0; i < 5; i++) {
+            body += `<td class="num dim${i === 3 ? ' rune-currency-cell' : ''}">—</td>`;
+          }
+          body += `<td class="num">${fmtNum(finalEff, 1)}</td>`;
+          body += '<td class="num dim">—</td>';
+          body += `<td class="num">${finalXp === null ? '<span class="dim">—</span>' : fmtNum(finalXp, 1)}</td>`;
           body += '</tr>';
         }
         body += '</tbody>';
@@ -2225,6 +2333,7 @@
     function drawAxes(ctx, x0, y0, w, h, xMin, xMax, yMin, yMax, xLabel, yLabel, opts) {
       const suppressBottomLabels = !!(opts && opts.suppressBottomLabels);
       const suppressBottomBorder = !!(opts && opts.suppressBottomBorder);
+      const integerYLabels = !!(opts && opts.integerYLabels);
       const axis = getCssColor('--chart-axis', '#666');
       const grid = getCssColor('--chart-grid', '#222');
       const labelColor = getCssColor('--text-tertiary', '#888');
@@ -2246,7 +2355,7 @@
         ctx.lineTo(x0 + w, y);
         ctx.stroke();
         ctx.fillStyle = labelColor;
-        ctx.fillText(yVal.toFixed(yMax > 100 ? 0 : 1), x0 - 4, y);
+        ctx.fillText(integerYLabels ? String(Math.round(yVal)) : yVal.toFixed(yMax > 100 ? 0 : 1), x0 - 4, y);
       }
       // X axis labels
       ctx.textAlign = 'center';
@@ -2347,9 +2456,269 @@
         .map(([level, xp]) => ({ level, xp }));
     }
 
-    const krakenLvlBackupXp = buildKrakenLevelXpData(krakenProgBackupData);
     let krakenLvlProductionXp = buildKrakenLevelXpData(krakenProgProductionData);
     const KRAKEN_INCREMENT_BASE_LEVEL = 7;
+
+    // ------------------------------------------------------------
+    //  Res_Box contents ("Inside box" column).
+    //  Same source the game uses: src/data/res_boxes.json (loaded as boxesData);
+    //  openBox() in src/domain/boxes.ts makes `items` weighted pulls from `contents`.
+    // ------------------------------------------------------------
+    const KRAKEN_BOX_ITEM_ALIAS = {
+      Rune1_1: 'rune1', Rune1_2: 'rune1 t2', Rune1_3: 'rune1 t3',
+      Rune2_1: 'rune2', Rune2_2: 'rune2 t2', Rune2_3: 'rune2 t3',
+      Hard_1: 'hard', Hard_2: 'hard t2',
+    };
+    const krakenBoxById = new Map((boxesData.boxes || []).map(b => [Number(b.id), b]));
+
+    function krakenBoxItemAlias(key) {
+      return KRAKEN_BOX_ITEM_ALIAS[key] || key;
+    }
+
+    function krakenBoxItemFamily(key) {
+      if (key.startsWith('Rune1_')) return 'rune1';
+      if (key.startsWith('Rune2_')) return 'rune2';
+      if (key.startsWith('Hard_')) return 'hard';
+      return krakenBoxItemAlias(key);
+    }
+
+    /**
+     * Describe what a Res_Box of the given id yields when opened.
+     * Deterministic boxes (single item at 100%) show exact counts;
+     * randomized boxes show expected amounts (items × chance), marked with "~".
+     */
+    function describeKrakenBoxContents(boxId) {
+      const box = krakenBoxById.get(Number(boxId));
+      if (!box) {
+        return { label: '?', title: `Res_Box ${boxId}: no contents data in res_boxes.json` };
+      }
+      const entries = Object.entries(box.contents || {});
+      if (!entries.length) {
+        return { label: '?', title: `Res_Box ${boxId}: empty contents in res_boxes.json` };
+      }
+      if (entries.length === 1 && Math.abs(entries[0][1] - 1) < 1e-9) {
+        const [key] = entries[0];
+        return {
+          label: `${box.items}× ${krakenBoxItemAlias(key)}`,
+          title: `Res_Box ${box.id}: ${box.items} pulls, always ${key}`,
+        };
+      }
+      const chanceByFamily = new Map();
+      for (const [key, chance] of entries) {
+        const family = krakenBoxItemFamily(key);
+        chanceByFamily.set(family, (chanceByFamily.get(family) || 0) + chance);
+      }
+      const label = [...chanceByFamily.entries()]
+        .map(([family, chance]) => `~${(box.items * chance).toFixed(1)}× ${family}`)
+        .join(', ');
+      const title = `Res_Box ${box.id}: ${box.items} weighted pulls — `
+        + entries.map(([key, chance]) => `${key} ${(chance * 100).toFixed(1)}%`).join(', ')
+        + '. Shown: expected amounts over all pulls.';
+      return { label, title };
+    }
+
+    // ------------------------------------------------------------
+    //  Kraken XP — Unity battle-game reference table (frozen)
+    //  Compiled from the Unity export (Id, Level, Sub, EXP, Chapter, NestId, NestLevel).
+    //  Each entry: "level,sub,exp,nestId,nestLevel" (empty nestId/nestLevel = no reward).
+    //  Our src/data/kraken_progression.json is the SAME curve in a different encoding:
+    //    our (level N, step k) where k is NOT the last step  -> Unity (N, sub k+1)
+    //    our (level N, last step)                            -> Unity (N+1, sub 0)
+    //    our (level 1, step 0) [exp 0, egg]                  -> Unity (1, sub 0)
+    //  Unity EXP for a row is the cumulative XP within its level up to that step; a
+    //  sub-0 row therefore equals the full total of the level below it.
+    // ------------------------------------------------------------
+    const UNITY_KRAKEN_EMBED = `
+1,0,0,Egg_Creature1,1;2,0,15,,;3,0,40,Res_Box,1;4,0,100,,;4,1,75,Res_Box,2;5,0,150,,;
+5,1,125,Res_Box,2;6,0,250,,;6,1,117,Res_Box,2;6,2,234,Res_Box,2;7,0,351,,;7,1,167,Res_Box,2;
+7,2,334,Res_Box,2;8,0,501,Res_Box,6;8,1,214,Res_Box,2;8,2,428,Res_Box,2;9,0,642,Res_Box,6;9,1,261,Res_Box,2;
+9,2,522,Res_Box,2;10,0,783,Res_Box,2;10,1,308,Res_Box,6;10,2,616,Res_Box,6;11,0,924,Res_Box,6;11,1,355,Res_Box,2;
+11,2,710,Res_Box,6;12,0,1065,,;12,1,402,Res_Box,6;12,2,804,Res_Box,2;13,0,1206,Res_Box,2;13,1,449,Res_Box,2;
+13,2,898,Res_Box,2;14,0,1347,Res_Box,2;14,1,496,Res_Box,6;14,2,992,Res_Box,6;15,0,1488,Res_Box,6;15,1,543,Res_Box,6;
+15,2,1086,Res_Box,6;16,0,1629,Res_Box,6;16,1,590,Res_Box,2;16,2,1180,Res_Box,6;17,0,1770,,;17,1,637,Res_Box,2;
+17,2,1274,Res_Box,6;18,0,1911,Res_Box,6;18,1,684,Res_Box,2;18,2,1368,Res_Box,6;19,0,2052,Res_Box,6;19,1,731,Res_Box,2;
+19,2,1462,Res_Box,6;20,0,2193,Res_Box,2;20,1,778,Res_Box,7;20,2,1556,Res_Box,3;21,0,2334,Res_Box,7;21,1,825,Res_Box,2;
+21,2,1650,Res_Box,6;22,0,2475,Res_Box,6;22,1,872,Res_Box,2;22,2,1744,Res_Box,5;23,0,2616,,;23,1,919,Res_Box,6;
+23,2,1838,Res_Box,2;24,0,2757,Res_Box,6;24,1,966,Res_Box,7;24,2,1932,Res_Box,3;25,0,2898,Res_Box,7;25,1,1013,Res_Box,7;
+25,2,2026,Res_Box,7;26,0,3039,Res_Box,7;26,1,1060,Res_Box,3;26,2,2120,Res_Box,7;27,0,3180,Res_Box,7;27,1,1107,Res_Box,7;
+27,2,2214,Res_Box,2;28,0,3321,Res_Box,3;28,1,1154,Res_Box,2;28,2,2308,Res_Box,6;29,0,3462,Res_Box,2;29,1,1201,Res_Box,7;
+29,2,2402,Res_Box,5;30,0,3603,Res_Box,7;30,1,1248,Res_Box,7;30,2,2496,Res_Box,3;31,0,3744,Res_Box,7;31,1,1295,Res_Box,5;
+31,2,2590,Res_Box,7;32,0,3885,Res_Box,7;32,1,1342,Res_Box,7;32,2,2684,Res_Box,6;33,0,4026,Res_Box,5;33,1,1389,Res_Box,6;
+33,2,2778,Res_Box,2;34,0,4167,Res_Box,6;34,1,1436,Res_Box,3;34,2,2872,Res_Box,7;35,0,4308,Res_Box,7;35,1,1483,Res_Box,7;
+35,2,2966,Res_Box,2;36,0,4449,Res_Box,7;36,1,1530,Res_Box,7;36,2,3060,Res_Box,5;37,0,4590,Res_Box,3;37,1,1577,Res_Box,2;
+37,2,3154,Res_Box,7;38,0,4731,Res_Box,6;38,1,1624,Res_Box,7;38,2,3248,Res_Box,7;39,0,4872,Res_Box,5;39,1,1671,Res_Box,3;
+39,2,3342,Res_Box,7;40,0,5013,Res_Box,7;40,1,1718,Res_Box,7;40,2,3436,Res_Box,6;41,0,5154,Res_Box,7;41,1,1765,Res_Box,7;
+41,2,3530,Res_Box,7;42,0,5295,Res_Box,3;42,1,1812,Res_Box,6;42,2,3624,Res_Box,7;43,0,5436,Res_Box,2;43,1,1859,Res_Box,7;
+43,2,3718,Res_Box,3;44,0,5577,Res_Box,5;44,1,1906,Res_Box,7;44,2,3812,Res_Box,7;45,0,5718,Res_Box,7;45,1,1953,Res_Box,5;
+45,2,3906,Res_Box,7;46,0,5859,Res_Box,7;46,1,2000,Res_Box,7;46,2,4000,Res_Box,2;47,0,6000,Res_Box,7;47,1,2047,Res_Box,7;
+47,2,4094,Res_Box,7;48,0,6141,Res_Box,6;48,1,2094,Res_Box,3;48,2,4188,Res_Box,7;49,0,6282,Res_Box,5;49,1,2141,Res_Box,7;
+49,2,4282,Res_Box,3;50,0,6423,Res_Box,6;50,1,2188,Res_Box,7;50,2,4376,Res_Box,6;51,0,6564,Res_Box,7;51,1,2235,Res_Box,7;
+51,2,4470,Res_Box,7;52,0,6705,Res_Box,3;52,1,2282,Res_Box,6;52,2,4564,Res_Box,7;53,0,6846,Res_Box,2;53,1,2329,Res_Box,7;
+53,2,4658,Res_Box,3;54,0,6987,Res_Box,5;54,1,2376,Res_Box,7;54,2,4752,Res_Box,7;55,0,7128,Res_Box,7;55,1,2423,Res_Box,5;
+55,2,4846,Res_Box,7;56,0,7269,Res_Box,7;56,1,2470,Res_Box,7;56,2,4940,Res_Box,2;57,0,7410,Res_Box,7;57,1,2517,Res_Box,7;
+57,2,5034,Res_Box,7;58,0,7551,Res_Box,6;58,1,2564,Res_Box,3;58,2,5128,Res_Box,7;59,0,7692,Res_Box,5;59,1,2611,Res_Box,7;
+59,2,5222,Res_Box,3;60,0,7833,Res_Box,6;60,1,2658,Res_Box,7;60,2,5316,Res_Box,6;61,0,7974,Res_Box,7;61,1,2705,Res_Box,7;
+61,2,5410,Res_Box,7;62,0,8115,Res_Box,3;62,1,2752,Res_Box,6;62,2,5504,Res_Box,7;63,0,8256,Res_Box,2;63,1,2799,Res_Box,7;
+63,2,5598,Res_Box,3;64,0,8397,Res_Box,5;64,1,2846,Res_Box,7;64,2,5692,Res_Box,7;65,0,8538,Res_Box,7;65,1,2893,Res_Box,5;
+65,2,5786,Res_Box,7;66,0,8679,Res_Box,7;66,1,2940,Res_Box,7;66,2,5880,Res_Box,2;67,0,8820,Res_Box,7;67,1,2987,Res_Box,7;
+67,2,5974,Res_Box,7;68,0,8961,Res_Box,6;68,1,3034,Res_Box,3;68,2,6068,Res_Box,7;69,0,9102,Res_Box,5;69,1,3081,Res_Box,7;
+69,2,6162,Res_Box,3;70,0,9243,Res_Box,6;70,1,3128,Res_Box,7;70,2,6256,Res_Box,6;71,0,9384,Res_Box,7;71,1,3175,Res_Box,7;
+71,2,6350,Res_Box,7;72,0,9525,Res_Box,3;72,1,3222,Res_Box,6;72,2,6444,Res_Box,7;73,0,9666,Res_Box,2;73,1,3269,Res_Box,7;
+73,2,6538,Res_Box,3;74,0,9807,Res_Box,5;74,1,3316,Res_Box,7;74,2,6632,Res_Box,7;75,0,9948,Res_Box,7;75,1,3363,Res_Box,5;
+75,2,6726,Res_Box,7;76,0,10089,Res_Box,7;76,1,3410,Res_Box,7;76,2,6820,Res_Box,2;77,0,10230,Res_Box,7;77,1,3457,Res_Box,7;
+77,2,6914,Res_Box,7;78,0,10371,Res_Box,6;78,1,3504,Res_Box,3;78,2,7008,Res_Box,7;79,0,10512,Res_Box,5;79,1,3551,Res_Box,7;
+79,2,7102,Res_Box,3;80,0,10653,Res_Box,6;80,1,3598,Res_Box,7;80,2,7196,Res_Box,6;81,0,10794,Res_Box,7;81,1,3645,Res_Box,7;
+81,2,7290,Res_Box,7;82,0,10935,Res_Box,3;82,1,3692,Res_Box,6;82,2,7384,Res_Box,7;83,0,11076,Res_Box,2;83,1,3739,Res_Box,7;
+83,2,7478,Res_Box,3;84,0,11217,Res_Box,5;84,1,3786,Res_Box,7;84,2,7572,Res_Box,7;85,0,11358,Res_Box,7;85,1,3833,Res_Box,5;
+85,2,7666,Res_Box,7;86,0,11499,Res_Box,7;86,1,3880,Res_Box,7;86,2,7760,Res_Box,2;87,0,11640,Res_Box,7;87,1,3927,Res_Box,7;
+87,2,7854,Res_Box,7;88,0,11781,Res_Box,6;88,1,3974,Res_Box,3;88,2,7948,Res_Box,7;89,0,11922,Res_Box,5;89,1,4021,Res_Box,7;
+89,2,8042,Res_Box,3;90,0,12063,Res_Box,6;90,1,4068,Res_Box,7;90,2,8136,Res_Box,6;91,0,12204,Res_Box,7;91,1,4115,Res_Box,7;
+91,2,8230,Res_Box,7;92,0,12345,Res_Box,3;92,1,4162,Res_Box,6;92,2,8324,Res_Box,7;93,0,12486,Res_Box,2;93,1,4209,Res_Box,7;
+93,2,8418,Res_Box,3;94,0,12627,Res_Box,5;94,1,4256,Res_Box,7;94,2,8512,Res_Box,7;95,0,12768,Res_Box,7;95,1,4303,Res_Box,5;
+95,2,8606,Res_Box,7;96,0,12909,Res_Box,7;96,1,4350,Res_Box,7;96,2,8700,Res_Box,2;97,0,13050,Res_Box,7;97,1,4397,Res_Box,7;
+97,2,8794,Res_Box,7;98,0,13191,Res_Box,6;98,1,4444,Res_Box,3;98,2,8888,Res_Box,7;99,0,13332,Res_Box,5;99,1,4491,Res_Box,7;
+99,2,8982,Res_Box,3;100,0,13473,Res_Box,6;`;
+
+    /** @type {Map<string, {exp:number, nestId:string, nestLevel:number|null}>} keyed by "unityLevel:sub" */
+    const UNITY_KRAKEN_REF = (() => {
+      const map = new Map();
+      for (const chunk of UNITY_KRAKEN_EMBED.split(';')) {
+        const cells = chunk.trim().split(',');
+        if (cells.length < 5 || cells[0] === '') continue;
+        const [level, sub, exp, nestId, nestLevel] = cells;
+        map.set(`${Number(level)}:${Number(sub)}`, {
+          exp: Number(exp),
+          nestId: (nestId || '').trim(),
+          nestLevel: (nestLevel === undefined || nestLevel.trim() === '') ? null : Number(nestLevel),
+        });
+      }
+      return map;
+    })();
+
+    // Snapshot of the production totals loaded at page start — the "default" for change-highlighting.
+    const krakenDefaultProductionTotals = new Map(
+      buildKrakenLevelXpData(krakenProgData).map((d) => [d.level, d.xp]),
+    );
+
+    /**
+     * Transform our production progression into Unity-encoded rows (one per step).
+     * Returns rows sorted by (unityLevel, unitySub), each carrying the source reward
+     * and — for sub-0 rows that map to a full level total — the editable `editLevel`.
+     */
+    function buildKrakenUnityRows(data) {
+      const byLevel = new Map();
+      for (const entry of data.progression || []) {
+        const level = Number(entry.level);
+        if (!Number.isFinite(level)) continue;
+        if (!byLevel.has(level)) byLevel.set(level, []);
+        byLevel.get(level).push(entry);
+      }
+      const rows = [];
+      for (const level of [...byLevel.keys()].sort((a, b) => a - b)) {
+        const steps = byLevel.get(level).slice().sort((a, b) => a.step - b.step);
+        let cumulative = 0;
+        for (let k = 0; k < steps.length; k++) {
+          cumulative += Number(steps[k].expRequired) || 0;
+          let unityLevel, unitySub, editLevel = null;
+          if (level === 1 && k === 0) {
+            unityLevel = 1;
+            unitySub = 0; // the starting egg
+          } else if (k === steps.length - 1) {
+            unityLevel = level + 1;
+            unitySub = 0; // completing this level rolls over to the next level's sub-0
+            editLevel = level;
+          } else {
+            unityLevel = level;
+            unitySub = k + 1;
+          }
+          rows.push({
+            unityLevel,
+            unitySub,
+            exp: cumulative,
+            reward: (steps[k].rewards || [])[0] || null,
+            editLevel,
+          });
+        }
+      }
+      rows.sort((a, b) => a.unityLevel - b.unityLevel || a.unitySub - b.unitySub);
+      return rows;
+    }
+
+    // Escape any text placed into a title="" attribute.
+    function escapeAttr(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /**
+     * Build the Reward <td> for a Unity row: our reward in Unity form, compared to the
+     * frozen Unity reference. Res_Box/Egg divergences are flagged red; our mechanic/grid
+     * rewards are neutral "+" additions (unless they sit on a cell Unity does reward).
+     */
+    function renderKrakenRewardCell(row) {
+      const ref = UNITY_KRAKEN_REF.get(`${row.unityLevel}:${row.unitySub}`) || null;
+      const refLabel = ref && ref.nestId ? `${ref.nestId} ${ref.nestLevel}` : 'none';
+      const r = row.reward;
+
+      let label = '<span class="dim">—</span>';
+      let kind = 'none';
+      let ourId = '';
+      let ourLevel = null;
+      if (r) {
+        if (r.type === 'egg') { ourId = 'Egg_Creature1'; ourLevel = 1; label = 'Egg_Creature1 1'; kind = 'reward'; }
+        else if (r.type === 'res_box') { ourId = 'Res_Box'; ourLevel = Number(r.value); label = `Res_Box ${r.value}`; kind = 'reward'; }
+        else { kind = 'add'; label = `+ ${r.type} ${r.value}`; }
+      }
+
+      let cls = '';
+      let title = '';
+      if (kind === 'add') {
+        if (ref && ref.nestId) {
+          cls = 'kl-reward-mismatch';
+          title = `Our ${r.type}:${r.value} sits where Unity gives ${refLabel}`;
+        } else {
+          cls = 'kl-reward-add';
+          title = `Our addition — not present in the Unity table (${r.type}:${r.value})`;
+        }
+      } else {
+        const refId = ref ? ref.nestId : '';
+        const refLevel = ref ? ref.nestLevel : null;
+        const match = ourId === refId
+          && ((ourLevel == null && refLevel == null) || Number(ourLevel) === Number(refLevel));
+        if (!match) {
+          cls = 'kl-reward-mismatch';
+          title = `Unity: ${refLabel}`;
+        }
+      }
+      const titleAttr = title ? ` title="${escapeAttr(title)}"` : '';
+      const clsAttr = cls ? ` ${cls}` : '';
+      return `<td class="kl-reward${clsAttr}"${titleAttr}>${label}</td>`;
+    }
+
+    // Load-time sanity check: our default production data must reproduce the Unity table 1:1
+    // (EXP + res_box/egg rewards). Any warning here means the mapping/transform drifted.
+    (function verifyKrakenUnityMapping() {
+      const rows = buildKrakenUnityRows(krakenProgData);
+      let expMismatch = 0, rewardMismatch = 0, additions = 0;
+      for (const row of rows) {
+        const ref = UNITY_KRAKEN_REF.get(`${row.unityLevel}:${row.unitySub}`);
+        if (!ref) continue;
+        if (ref.exp !== row.exp) expMismatch++;
+        const r = row.reward;
+        if (r && (r.type === 'egg' || r.type === 'res_box')) {
+          const ourId = r.type === 'egg' ? 'Egg_Creature1' : 'Res_Box';
+          const ourLevel = r.type === 'egg' ? 1 : Number(r.value);
+          if (ourId !== ref.nestId || ourLevel !== ref.nestLevel) rewardMismatch++;
+        } else if (r) {
+          additions++;
+          if (ref.nestId) rewardMismatch++;
+        }
+      }
+      if (expMismatch || rewardMismatch) {
+        console.warn(`[kraken-tuner] Unity mapping drift: EXP mismatches=${expMismatch}, reward mismatches=${rewardMismatch} (expected 0). Additions=${additions}.`);
+      } else {
+        console.info(`[kraken-tuner] Unity reference verified: ${rows.length} rows match (EXP + rewards), ${additions} neutral additions.`);
+      }
+    })();
 
     function inferPostL7Increment() {
       const base = getKrakenTotalXp(krakenProgProductionData, KRAKEN_INCREMENT_BASE_LEVEL);
@@ -2396,16 +2765,31 @@
 
     function renderKrakenLvlCharts() {
       krakenLvlProductionXp = buildKrakenLevelXpData(krakenProgProductionData);
-      const backupLevelSet = new Set(krakenLvlBackupXp.map(d => d.level));
-      const krakenLvlProductionXpFiltered = krakenLvlProductionXp.filter(d => backupLevelSet.has(d.level));
+      const selectedVersion = getSelectedKrakenVersion();
+      const selectedVersionData = getSelectedKrakenVersionData();
+      const referenceBlock = document.getElementById('krakenlvl-reference-chart-block');
+      const referenceTitle = document.getElementById('krakenlvl-reference-chart-title');
+
+      if (!selectedVersion || !selectedVersionData) {
+        if (referenceBlock) referenceBlock.hidden = true;
+        const yMax = Math.max(...krakenLvlProductionXp.map(d => d.xp), 1) * 1.1;
+        drawKrakenLevelXpChart('chart-krakenlvl-production', krakenLvlProductionXp, '#2ad4b399', yMax);
+        return;
+      }
+
+      if (referenceBlock) referenceBlock.hidden = false;
+      if (referenceTitle) referenceTitle.textContent = `${selectedVersion.label} balance`;
+      const referenceXp = buildKrakenLevelXpData(selectedVersionData);
+      const referenceLevelSet = new Set(referenceXp.map(d => d.level));
+      const currentComparisonXp = krakenLvlProductionXp.filter(d => referenceLevelSet.has(d.level));
       const maxXp = Math.max(
-        ...krakenLvlBackupXp.map(d => d.xp),
-        ...krakenLvlProductionXpFiltered.map(d => d.xp),
+        ...referenceXp.map(d => d.xp),
+        ...currentComparisonXp.map(d => d.xp),
         1,
       );
       const yMax = maxXp * 1.1;
-      drawKrakenLevelXpChart('chart-krakenlvl-backup', krakenLvlBackupXp, '#ffd96699', yMax);
-      drawKrakenLevelXpChart('chart-krakenlvl-production', krakenLvlProductionXpFiltered, '#2ad4b399', yMax);
+      drawKrakenLevelXpChart('chart-krakenlvl-production', currentComparisonXp, '#2ad4b399', yMax);
+      drawKrakenLevelXpChart('chart-krakenlvl-reference', referenceXp, '#ffd96699', yMax);
     }
 
     function getKrakenTotalXp(data, level) {
@@ -2459,48 +2843,100 @@
       return structuredClone(krakenProgProductionData);
     }
 
+    function renderKrakenVersionSelect() {
+      const select = document.getElementById('kraken-balance-version');
+      if (!(select instanceof HTMLSelectElement)) return;
+      const versionIds = ['current', ...KRAKEN_BALANCE_VERSIONS.map(v => v.id)].join(',');
+      if (select.dataset.versionIds !== versionIds) {
+        select.innerHTML = [
+          '<option value="current">Current</option>',
+          ...KRAKEN_BALANCE_VERSIONS.map(v => (
+            `<option value="${escapeAttr(v.id)}">${escapeAttr(v.label)}</option>`
+          )),
+        ].join('');
+        select.dataset.versionIds = versionIds;
+      }
+      select.value = krakenSelectedVersionId;
+    }
+
+    function renderKrakenBoxContentsCell(row) {
+      const reward = row.reward;
+      if (!reward || reward.type !== 'res_box') {
+        return '<td class="kl-box-contents"><span class="dim">—</span></td>';
+      }
+      const contents = describeKrakenBoxContents(reward.value);
+      return `<td class="kl-box-contents" title="${escapeAttr(contents.title)}">${escapeAttr(contents.label)}</td>`;
+    }
+
     function renderKrakenLvlTable() {
       const table = document.getElementById('krakenlvl-table');
       if (!table) return;
-      const levels = [...new Set([
-        ...krakenLvlBackupXp.map(d => d.level),
-        ...krakenLvlProductionXp.map(d => d.level),
-      ])].sort((a, b) => a - b);
+      const rows = buildKrakenUnityRows(krakenProgProductionData);
+      const selectedVersion = getSelectedKrakenVersion();
+      const selectedVersionData = getSelectedKrakenVersionData();
+      const referenceTotalByLevel = selectedVersionData
+        ? new Map(buildKrakenLevelXpData(selectedVersionData).map(d => [d.level, d.xp]))
+        : null;
 
       let head = '<thead><tr>';
-      head += '<th>Lvl</th>';
-      head += '<th>Backup XP</th>';
-      head += '<th>Production XP</th>';
-      head += '<th>Steps</th>';
+      head += '<th class="lvl-head">Lvl</th>';
+      head += '<th>Sub</th>';
+      head += '<th>Current EXP</th>';
+      head += '<th>Reward</th>';
+      head += '<th>Inside box</th>';
+      if (selectedVersion && referenceTotalByLevel) {
+        head += `<th class="dim">${escapeAttr(selectedVersion.label)} EXP</th>`;
+      }
       head += '</tr></thead>';
 
       let body = '<tbody>';
-      for (const level of levels) {
-        const hasBackup = hasKrakenLevel(krakenProgBackupData, level);
-        const backup = hasBackup ? getKrakenTotalXp(krakenProgBackupData, level) : null;
-        const production = getKrakenTotalXp(krakenProgProductionData, level);
-        const isChanged = backup !== null && production !== backup;
-        const steps = (krakenProgProductionData.progression || [])
-          .filter(entry => entry.level === level)
-          .sort((a, b) => a.step - b.step)
-          .map(entry => `${entry.step}:${entry.expRequired}`)
-          .join(' / ');
-        body += '<tr>';
-        body += `<td class="lvl-cell">L${level}</td>`;
-        body += `<td class="num">${backup === null ? '<span class="dim">—</span>' : backup}</td>`;
-        body += `<td class="num">
-          <input
+      for (const row of rows) {
+        const isLevelStart = row.unitySub === 0;
+        const parityClass = (row.unityLevel % 2 === 0) ? 'kl-even' : 'kl-odd';
+        const rowClass = `${parityClass}${isLevelStart ? ' kl-level-start' : ''}`;
+        body += `<tr class="${rowClass}">`;
+
+        // Lvl (bold on sub-0, dim on continuation rows so level groups read cleanly)
+        body += `<td class="lvl-cell${isLevelStart ? '' : ' kl-lvl-cont'}">L${row.unityLevel}</td>`;
+
+        // Sub
+        body += `<td class="num dim">${row.unitySub}</td>`;
+
+        // Production EXP — editable only on sub-0 rows (= total XP of the level below)
+        if (row.editLevel != null) {
+          const defaultTotal = krakenDefaultProductionTotals.has(row.editLevel)
+            ? krakenDefaultProductionTotals.get(row.editLevel)
+            : null;
+          const isChanged = defaultTotal !== null && row.exp !== defaultTotal;
+          body += `<td class="num"><input
             class="table-input${isChanged ? ' is-override' : ''}"
             type="number"
             min="0"
             step="1"
-            value="${production}"
+            value="${row.exp}"
             data-role="kraken-xp-total"
-            data-level="${level}"
-            title="Total XP required to complete this Kraken Level."
-          />
-        </td>`;
-        body += `<td class="num dim">${steps}</td>`;
+            data-level="${row.editLevel}"
+            title="Editable: total XP to complete Kraken Lvl ${row.editLevel} (shown here as Unity ${row.unityLevel}:0)."
+          /></td>`;
+        } else {
+          const derivedTitle = row.unityLevel === 1 && row.unitySub === 0
+            ? 'Kraken start — the initial egg (0 XP).'
+            : 'Derived cumulative checkpoint inside the level (read-only).';
+          body += `<td class="num dim" title="${derivedTitle}">${row.exp}</td>`;
+        }
+
+        // Reward (Unity form + comparison flag)
+        body += renderKrakenRewardCell(row);
+        body += renderKrakenBoxContentsCell(row);
+
+        // Archived total — read-only reference, only on the sub-0 row carrying a level total.
+        if (referenceTotalByLevel) {
+          const referenceXp = (row.editLevel != null && referenceTotalByLevel.has(row.editLevel))
+            ? referenceTotalByLevel.get(row.editLevel)
+            : null;
+          body += `<td class="num dim">${referenceXp === null ? '<span class="dim">—</span>' : referenceXp}</td>`;
+        }
+
         body += '</tr>';
       }
       body += '</tbody>';
@@ -2510,8 +2946,83 @@
     function renderKrakenLvl() {
       const incrementInput = document.getElementById('kraken-post-l7-increment');
       if (incrementInput instanceof HTMLInputElement) incrementInput.value = String(krakenPostL7Increment);
+      renderKrakenVersionSelect();
       renderKrakenLvlCharts();
       renderKrakenLvlTable();
+    }
+
+    function renderQuestValueCell(chapter, subquest) {
+      const parsed = splitQuestValueLevel(subquest.value);
+      if (!parsed || !['GetCreature', 'GetSpawner'].includes(subquest.type)) {
+        return subquest.value ? escapeAttr(subquest.value) : '<span class="dim">—</span>';
+      }
+      const dataAttrs = `data-quest-id="${chapter.questId}" data-subquest-id="${subquest.subQuestId}"`;
+      return `<div class="quest-level-editor">
+        <span class="quest-level-value">${escapeAttr(subquest.value)}</span>
+        <span class="quest-level-controls">
+          <button
+            type="button"
+            class="quest-level-btn"
+            data-action="quest-level-step"
+            data-delta="-1"
+            ${dataAttrs}
+            aria-label="Decrease ${escapeAttr(subquest.value)} level"
+          >−</button>
+          <button
+            type="button"
+            class="quest-level-btn"
+            data-action="quest-level-step"
+            data-delta="1"
+            ${dataAttrs}
+            aria-label="Increase ${escapeAttr(subquest.value)} level"
+          >+</button>
+        </span>
+      </div>`;
+    }
+
+    function renderKrakenQuests() {
+      const table = document.getElementById('kraken-quests-table');
+      if (!table) return;
+
+      let head = '<thead><tr>';
+      head += '<th>QuestId</th>';
+      head += '<th>SubQuestId</th>';
+      head += '<th>Type</th>';
+      head += '<th>Value</th>';
+      head += '<th>Amount</th>';
+      head += '<th>Reward</th>';
+      head += '<th>Reward Amount</th>';
+      head += '<th>Kraken Level</th>';
+      head += '</tr></thead>';
+
+      let body = '<tbody>';
+      for (const chapter of (krakenQuestSequenceState.chapters || [])) {
+        for (let index = 0; index < chapter.subquests.length; index++) {
+          const subquest = chapter.subquests[index];
+          const isGate = subquest.type === 'GetSpawner';
+          const classes = [
+            index === 0 ? 'quest-start' : '',
+            isGate ? 'generator-gate' : '',
+          ].filter(Boolean).join(' ');
+          const gate = getGeneratorQuestGate(chapter);
+          const gateTitle = isGate && gate
+            ? `${gate.questValue}: ${generatorDisplayName(gate.generatorId)} L${gate.level} `
+              + `unlocks ${generatorDisplayName(gate.unlocksGenerator)} in the Runes plan.`
+            : '';
+          body += `<tr${classes ? ` class="${classes}"` : ''}${gateTitle ? ` title="${escapeAttr(gateTitle)}"` : ''}>`;
+          body += `<td class="lvl-cell">${index === 0 ? chapter.questId : ''}</td>`;
+          body += `<td class="num">${subquest.subQuestId}</td>`;
+          body += `<td class="quest-type">${escapeAttr(subquest.type)}</td>`;
+          body += `<td class="quest-value">${renderQuestValueCell(chapter, subquest)}</td>`;
+          body += `<td class="num">${subquest.amount}</td>`;
+          body += `<td>${escapeAttr(subquest.reward)}</td>`;
+          body += `<td class="num">${subquest.rewardAmount}</td>`;
+          body += `<td class="num">${index === 0 ? chapter.krakenLevel : ''}</td>`;
+          body += '</tr>';
+        }
+      }
+      body += '</tbody>';
+      table.innerHTML = head + body;
     }
 
     function renderCharts(currentGens) {
@@ -2544,11 +3055,6 @@
           }),
         })),
       };
-    }
-
-    function renderJSON(result) {
-      const out = document.getElementById('json-out');
-      out.textContent = JSON.stringify(serializeGeneratorsForBalance(result.generators), null, 2);
     }
 
     function serializeTasksForBalance() {
@@ -2828,29 +3334,55 @@
     function render() {
       persistParams();
       const result = computeGenerators(params);
-      renderCostTables(result.generators);
-      renderChapterFitTable(result.generators);
+      renderSpawnDistributionTables(result.generators);
       renderUpgradeTables(result.generators);
-      renderXpTables(result.generators);
       renderKrakenLvl();
+      renderKrakenQuests();
       renderCharts(result.generators);
       renderCravings();
-      renderJSON(result);
-      // If runes panel is active, re-render its charts so the Required curve
-      // reflects the updated params (MC data stays cached — only the required
-      // curve depends on params).
-      const active = document.querySelector('.cm-tab[aria-selected="true"]');
+      // If Runes is active, update the purchase plan from the current prices.
+      const active = document.querySelector('.sub-tab[aria-selected="true"]');
       if (active && active.dataset.tab === 'runes' && runesState.data) {
-        const required = computeRequiredCurves(runesState.data, result.generators);
-        renderRunesCharts(runesState.data, required);
+        const plan = buildRuneUpgradePlan(runesState.data, result.generators, runesState.strategy);
+        renderAvailableRunesCharts(plan);
+        renderGeneratorLevelsChart(plan, result.generators);
+        renderRunesTable(runesState.data, result.generators, plan);
       }
     }
 
     // ============================================================
     //  TABS
     // ============================================================
+    const mechanicDefaultTabs = {
+      generators: 'general',
+      'kraken-quests': 'krakenlvl',
+      cravings: 'cravings',
+    };
+    const mechanicActiveTabs = { ...mechanicDefaultTabs };
+    let activeMechanic = 'generators';
+
+    function switchMechanic(name) {
+      if (!mechanicDefaultTabs[name]) return;
+      activeMechanic = name;
+
+      document.querySelectorAll('.mechanic-tab').forEach(tab => {
+        tab.setAttribute('aria-selected', tab.dataset.mechanic === name ? 'true' : 'false');
+      });
+      document.querySelectorAll('.sub-tab').forEach(tab => {
+        const belongsToMechanic = tab.dataset.mechanic === name;
+        tab.hidden = !belongsToMechanic;
+        if (!belongsToMechanic) tab.setAttribute('aria-selected', 'false');
+      });
+
+      switchTab(mechanicActiveTabs[name]);
+    }
+
     function switchTab(name) {
-      const tabs = document.querySelectorAll('.cm-tab');
+      const targetTab = document.querySelector(`.sub-tab[data-tab="${name}"]`);
+      if (!targetTab || targetTab.dataset.mechanic !== activeMechanic) return;
+      mechanicActiveTabs[activeMechanic] = name;
+
+      const tabs = document.querySelectorAll('.sub-tab');
       tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false'));
       const panels = document.querySelectorAll('.panel');
       panels.forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
@@ -2859,24 +3391,19 @@
         const result = computeGenerators(params);
         renderCharts(result.generators);
       }
-      if (name === 'cost') {
+      if (name === 'spawn-distribution') {
         const result = computeGenerators(params);
-        renderCostTables(result.generators);
-      }
-      if (name === 'chapter-fit') {
-        const result = computeGenerators(params);
-        renderChapterFitTable(result.generators);
+        renderSpawnDistributionTables(result.generators);
       }
       if (name === 'upgrades') {
         const result = computeGenerators(params);
         renderUpgradeTables(result.generators);
       }
-      if (name === 'xp') {
-        const result = computeGenerators(params);
-        renderXpTables(result.generators);
-      }
       if (name === 'krakenlvl') {
         renderKrakenLvl();
+      }
+      if (name === 'quests') {
+        renderKrakenQuests();
       }
       if (name === 'runes') {
         renderRunes();
@@ -2885,12 +3412,15 @@
         renderCravings();
       }
     }
-    document.querySelectorAll('.cm-tab').forEach(t => {
+    document.querySelectorAll('.sub-tab').forEach(t => {
       t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+    document.querySelectorAll('.mechanic-tab').forEach(t => {
+      t.addEventListener('click', () => switchMechanic(t.dataset.mechanic));
     });
 
     // ============================================================
-    //  SAVE / COPY
+    //  COPY BALANCE SNAPSHOT
     // ============================================================
     function flashCopied(btn) {
       const orig = btn.textContent;
@@ -2899,62 +3429,224 @@
       setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1000);
     }
 
-    async function copyJSON(btn) {
+    function fmtTsvNumber(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return '';
+      if (Number.isInteger(number)) return String(number);
+      return number.toFixed(2).replace(/\.?0+$/, '');
+    }
+
+    function tsvCell(value) {
+      return String(value ?? '').replace(/[\t\r\n]+/g, ' ');
+    }
+
+    function rowsToTsv(rows) {
+      return rows.map(row => row.map(tsvCell).join('\t')).join('\n');
+    }
+
+    function mapTsvCurrency(currency) {
+      return currency === 'rune2' ? 'MergeRune2' : 'MergeRune1';
+    }
+
+    function buildKrakenQuestsTsv() {
+      const rows = [[
+        'QuestId', 'SubQuestId', 'Type', 'Value', 'Amount',
+        'Reward', 'Reward Amount', 'Kraken Level',
+      ]];
+      for (const chapter of (krakenQuestSequenceState.chapters || [])) {
+        for (let index = 0; index < chapter.subquests.length; index++) {
+          const subquest = chapter.subquests[index];
+          rows.push([
+            index === 0 ? chapter.questId : '',
+            subquest.subQuestId,
+            subquest.type,
+            subquest.value,
+            subquest.amount,
+            subquest.reward,
+            subquest.rewardAmount,
+            index === 0 ? chapter.krakenLevel : '',
+          ]);
+        }
+      }
+      return rowsToTsv(rows);
+    }
+
+    function buildGeneratorUpgradesTsv() {
+      const header = [
+        'Generator level', 'Price', 'Amount', 'Duration', 'Spawns Required', 'Id',
+        'Spawn 1', 'Chance', 'Spawn 2', 'Chance', 'Spawn 3', 'Chance',
+        'Capacity', 'Recharge cost',
+        ...Array.from({ length: 16 }, (_, index) => String(index + 1)),
+        ...Array.from({ length: 16 }, (_, index) => String(index + 1)),
+        '1', '2', '3',
+      ];
+      const rows = [header];
+      const generators = computeGenerators(params).generators;
+
+      function levelDistribution(data, maxLevels) {
+        if (!data || data.slotChance <= 0) return Array(maxLevels).fill('0');
+        return Array.from({ length: maxLevels }, (_, index) =>
+          fmtTsvNumber(data.levels.get(index + 1) || 0));
+      }
+
+      function spawnRow(gen, level, index, idValue) {
+        const byType = new Map();
+        for (const output of (level.outputs || [])) {
+          let entry = byType.get(output.creatureType);
+          if (!entry) {
+            entry = { slotChance: output.slotChance, levels: new Map() };
+            byType.set(output.creatureType, entry);
+          }
+          if (entry.slotChance !== output.slotChance) {
+            throw new Error(`${output.creatureType} has inconsistent slotChance values`);
+          }
+          entry.levels.set(output.level, (entry.levels.get(output.level) || 0) + output.chance);
+        }
+
+        const line1 = gen.lines[0];
+        const line2 = gen.lines[1];
+        const spawn1 = byType.get(line1);
+        const spawn2 = byType.get(line2);
+        let price = '';
+        let amount = '';
+        let duration = '';
+        let spawnsRequired = '';
+        if (index === 0) {
+          price = mapTsvCurrency(gen.purchaseCurrency);
+          amount = String(gen.purchaseCost);
+        } else {
+          const previousUpgrade = gen.levels[index - 1]?.upgrade;
+          if (previousUpgrade) {
+            price = mapTsvCurrency(previousUpgrade.runeType);
+            amount = String(previousUpgrade.runeCost);
+            duration = fmtTsvNumber(previousUpgrade.upgradeDurationSec);
+            spawnsRequired = String(previousUpgrade.spawnsRequired);
+          }
+        }
+
+        const isSacrifice = gen.spawnMode === 'sacrifice';
+        return [
+          String(index + 1), price, amount, duration, spawnsRequired, idValue,
+          line1, fmtTsvNumber(spawn1?.slotChance || 0),
+          line2, fmtTsvNumber(spawn2?.slotChance || 0),
+          'Hard', '0',
+          String(isSacrifice ? level.numCreatures : 0),
+          String(isSacrifice ? level.chargeCost : 0),
+          ...levelDistribution(spawn1, 16),
+          ...levelDistribution(spawn2, 16),
+          '0', '0', '0',
+        ];
+      }
+
+      for (const gen of generators) {
+        const idValue = gen.id === 3
+          ? 'Chicken'
+          : gen.id > 3
+            ? gen.eggType.replace(/\d+$/, value => String(Number(value) - 1))
+            : gen.eggType;
+        gen.levels.forEach((level, index) => rows.push(spawnRow(gen, level, index, idValue)));
+      }
+
+      rows.push([
+        '1', '', '', '', '', 'Entity_Box',
+        'MergeRune1', '0', 'MergeRune2', '0', 'Hard', '0',
+        '0', '0',
+        ...Array(16).fill('0'), ...Array(16).fill('0'), ...Array(3).fill('0'),
+      ]);
+
+      for (const box of (boxesData.boxes || [])) {
+        const byType = new Map();
+        for (const [key, chance] of Object.entries(box.contents || {})) {
+          const splitAt = key.lastIndexOf('_');
+          const rawType = key.slice(0, splitAt);
+          const level = Number(key.slice(splitAt + 1));
+          const type = rawType === 'Rune1'
+            ? 'MergeRune1'
+            : rawType === 'Rune2'
+              ? 'MergeRune2'
+              : rawType;
+          let entry = byType.get(type);
+          if (!entry) {
+            entry = { totalChance: 0, levels: new Map() };
+            byType.set(type, entry);
+          }
+          entry.totalChance += chance;
+          entry.levels.set(level, (entry.levels.get(level) || 0) + chance);
+        }
+        const rune1 = byType.get('MergeRune1');
+        const rune2 = byType.get('MergeRune2');
+        const hard = byType.get('Hard');
+        rows.push([
+          String(box.id), '', '', '', '', 'Res_Box',
+          'MergeRune1', fmtTsvNumber(rune1?.totalChance || 0),
+          'MergeRune2', fmtTsvNumber(rune2?.totalChance || 0),
+          'Hard', fmtTsvNumber(hard?.totalChance || 0),
+          String(box.items), '0',
+          ...levelDistribution(rune1, 16),
+          ...levelDistribution(rune2, 16),
+          ...levelDistribution(hard, 3),
+        ]);
+      }
+      return rowsToTsv(rows);
+    }
+
+    function downloadTsv(filename, contents) {
+      const blob = new Blob([contents], { type: 'text/tab-separated-values;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    function serializeBalanceSnapshot() {
       const result = computeGenerators(params);
-      const txt = JSON.stringify(serializeGeneratorsForBalance(result.generators), null, 2);
+      return {
+        schema: 'cult-merge-balance-tuner/v1',
+        generatorParams: normalizeParams(params),
+        generators: serializeGeneratorsForBalance(result.generators).generators,
+        krakenSettings: {
+          postL7Increment: krakenPostL7Increment,
+        },
+        krakenProgression: serializeKrakenProgressionForBalance(),
+        krakenQuestSequence: structuredClone(krakenQuestSequenceState),
+        cravings: structuredClone(cravingsState),
+        tasks: serializeTasksForBalance(),
+      };
+    }
+
+    async function copyJSON(btn) {
+      const txt = JSON.stringify(serializeBalanceSnapshot(), null, 2);
       try {
         await navigator.clipboard.writeText(txt);
         flashCopied(btn);
       } catch (e) {
-        // fallback: select <pre>
-        const pre = document.getElementById('json-out');
-        const range = document.createRange();
-        range.selectNode(pre);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        document.execCommand('copy');
-        sel.removeAllRanges();
-        flashCopied(btn);
+        const textarea = document.createElement('textarea');
+        textarea.value = txt;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (copied) flashCopied(btn);
       }
     }
     document.getElementById('btn-copy').addEventListener('click', (e) => copyJSON(e.currentTarget));
-    document.getElementById('btn-copy-inline').addEventListener('click', (e) => copyJSON(e.currentTarget));
-
-    async function saveBalance(btn, statusElId) {
-      const status = document.getElementById(statusElId || 'save-status');
-      const result = computeGenerators(params);
-      const payload = {
-        generators: serializeGeneratorsForBalance(result.generators).generators,
-        krakenProgression: serializeKrakenProgressionForBalance(),
-        tasks: serializeTasksForBalance(),
-      };
-      btn.disabled = true;
-      if (status) status.textContent = 'Saving...';
-      try {
-        const response = await fetch('/__generator-tuner/save-generators', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || `HTTP ${response.status}`);
-        }
-        if (status) status.textContent = 'Saved generators + kraken progression + tasks';
-        setTimeout(() => { if (status && status.textContent.startsWith('Saved')) status.textContent = ''; }, 2500);
-      } catch (err) {
-        console.error(err);
-        if (status) status.textContent = 'Save failed; use Copy JSON';
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    document.getElementById('btn-save-balance').addEventListener('click', (e) => saveBalance(e.currentTarget, 'save-status'));
 
     document.addEventListener('change', (event) => {
       const target = event.target;
+      if (target instanceof HTMLSelectElement && target.dataset.role === 'kraken-balance-version') {
+        const selectedId = target.value;
+        const isKnownVersion = selectedId === 'current'
+          || KRAKEN_BALANCE_VERSIONS.some(version => version.id === selectedId);
+        krakenSelectedVersionId = isKnownVersion ? selectedId : 'current';
+        renderKrakenLvl();
+        return;
+      }
       if (!(target instanceof HTMLInputElement)) return;
       const role = target.dataset.role;
       if (role === 'kraken-xp-total') {
@@ -2993,7 +3685,34 @@
         renderCravings();
         return;
       }
-      const allowedRoles = ['charge-override', 'chapter-override', 'upgrade-spawns-override', 'upgrade-rune-override'];
+      if (role === 'upgrade-target-charges') {
+        const value = Number(target.value);
+        params.targetChargesPerUpgrade = Number.isFinite(value)
+          ? Math.min(20, Math.max(1, Math.round(value)))
+          : DEFAULTS.targetChargesPerUpgrade;
+        clearSacrificeSpawnOverrides();
+        render();
+        return;
+      }
+      if (role === 'upgrade-first-spawns') {
+        const value = Number(target.value);
+        params.firstUpgradeSpawnsRequired = Number.isFinite(value)
+          ? Math.max(0, Math.round(value))
+          : DEFAULTS.firstUpgradeSpawnsRequired;
+        clearSacrificeSpawnOverrides();
+        render();
+        return;
+      }
+      if (role === 'upgrade-second-spawns') {
+        const value = Number(target.value);
+        params.secondUpgradeSpawnsRequired = Number.isFinite(value)
+          ? Math.max(0, Math.round(value))
+          : DEFAULTS.secondUpgradeSpawnsRequired;
+        clearSacrificeSpawnOverrides();
+        render();
+        return;
+      }
+      const allowedRoles = ['rune-cost'];
       if (!allowedRoles.includes(role)) return;
 
       const genId = Number(target.dataset.genId);
@@ -3001,10 +3720,7 @@
       const value = target.value.trim() === '' ? NaN : Number(target.value);
       if (!Number.isFinite(genId) || !Number.isFinite(level)) return;
 
-      if (role === 'charge-override') setChargeOverride(genId, level, value);
-      else if (role === 'chapter-override') setChapterOverride(genId, level, value);
-      else if (role === 'upgrade-spawns-override') setUpgradeSpawnsOverride(genId, level, value);
-      else if (role === 'upgrade-rune-override') setUpgradeRuneOverride(genId, level, value);
+      if (role === 'rune-cost') setUpgradeRuneCost(genId, level, value);
     });
 
     document.addEventListener('input', (event) => {
@@ -3052,31 +3768,37 @@
       if (!(button instanceof HTMLElement)) return;
       const action = button.dataset.action;
 
+      if (action === 'quest-level-step') {
+        const questId = Number(button.dataset.questId);
+        const subQuestId = Number(button.dataset.subquestId);
+        const delta = Number(button.dataset.delta);
+        const { subquest } = findKrakenSubquest(questId, subQuestId);
+        const parsed = splitQuestValueLevel(subquest?.value);
+        if (parsed && Number.isFinite(delta)) {
+          setKrakenQuestLevel(questId, subQuestId, parsed.level + delta);
+        }
+        return;
+      }
+
       if (action === 'craving-add-step') {
         addCravingFlowStep();
         return;
       }
 
-      if (action === 'clear-chapter-overrides') {
-        params.chargeCostChapterOverrideByGenLevel = {};
+      if (action === 'reset-upgrade-spawns-to-balance') {
+        params.targetChargesPerUpgrade = DEFAULTS.targetChargesPerUpgrade;
+        params.firstUpgradeSpawnsRequired = DEFAULTS.firstUpgradeSpawnsRequired;
+        params.secondUpgradeSpawnsRequired = DEFAULTS.secondUpgradeSpawnsRequired;
+        params.upgradeSpawnsRequiredOverrideByGenLevel = Object.fromEntries(
+          Object.entries(params.upgradeSpawnsRequiredOverrideByGenLevel || {})
+            .filter(([key]) => key.startsWith('3:')),
+        );
         render();
         return;
       }
 
-      if (action === 'clear-charge-overrides') {
-        params.chargeCostOverrideByGenLevel = {};
-        render();
-        return;
-      }
-
-      if (action === 'clear-upgrade-spawns-overrides') {
-        params.upgradeSpawnsRequiredOverrideByGenLevel = structuredClone(DEFAULTS.upgradeSpawnsRequiredOverrideByGenLevel || {});
-        render();
-        return;
-      }
-
-      if (action === 'clear-upgrade-rune-overrides') {
-        params.upgradeRuneCostOverrideByGenLevel = structuredClone(DEFAULTS.upgradeRuneCostOverrideByGenLevel || {});
+      if (action === 'reset-upgrade-runes-to-balance') {
+        params.upgradeRuneCostByGenLevel = structuredClone(DEFAULTS.upgradeRuneCostByGenLevel || {});
         render();
         return;
       }
@@ -3188,6 +3910,18 @@
     };
 
     const RUNE_KEYS = ['Rune1_1', 'Rune1_2', 'Rune1_3', 'Rune2_1', 'Rune2_2', 'Rune2_3'];
+    const RUNE_STRATEGIES = {
+      s1: {
+        shortLabel: 'S1',
+        label: 'S1 · Eager',
+        description: 'Immediately merges runes from each opened box and feeds every remaining tier. Fast payout, but leftovers are not carried into the next box.',
+      },
+      s2: {
+        shortLabel: 'S2',
+        label: 'S2 · Maximizer',
+        description: 'Keeps T1/T2 runes between boxes, merges them globally to T3, and feeds only T3. Better long-term value, but payout can arrive later.',
+      },
+    };
 
     /**
      * Sample box.items items independently from categorical distribution box.contents.
@@ -3261,8 +3995,8 @@
     /**
      * Run K Monte Carlo trials. Returns array indexed [level] with mean cumulative values.
      */
-    function runMonteCarlo(K, seed) {
-      const progression = krakenProgData.progression;
+    function runMonteCarlo(K, seed, progressionData) {
+      const progression = progressionData.progression;
       // Group entries by level (in original order within level)
       const byLevel = new Map();
       let minLevel = Infinity, maxLevel = -Infinity;
@@ -3567,54 +4301,6 @@
       };
     }
 
-    function renderRunesCharts(data, required) {
-      if (!data || data.length === 0) return;
-      const reqR1 = required ? required.r1 : null;
-      const reqR2 = required ? required.r2 : null;
-
-      // Build per-key value arrays once (1:1 with data).
-      const s1R1 = data.map(d => d.s1.r1);
-      const s2R1 = data.map(d => d.s2.r1);
-      const s1R2 = data.map(d => d.s1.r2);
-      const s2R2 = data.map(d => d.s2.r2);
-
-      // ---------- Row 1: Strategies (S1 vs S2) ----------
-      renderRunesChart('chart-rune1', data, [
-        { label: 'S1', values: s1R1, color: RUNE1_COLOR, dashed: false },
-        { label: 'S2', values: s2R1, color: RUNE1_COLOR, dashed: true },
-      ]);
-      renderRunesChart('chart-rune2', data, [
-        { label: 'S1', values: s1R2, color: RUNE2_COLOR, dashed: false },
-        { label: 'S2', values: s2R2, color: RUNE2_COLOR, dashed: true },
-      ]);
-      const d1 = document.getElementById('chart-rune1-delta');
-      const d2 = document.getElementById('chart-rune2-delta');
-      if (d1) renderRunesDeltaChart(d1, data, s2R1.map((v, i) => v - s1R1[i]), RUNE1_COLOR, 'ΔS2-S1');
-      if (d2) renderRunesDeltaChart(d2, data, s2R2.map((v, i) => v - s1R2[i]), RUNE2_COLOR, 'ΔS2-S1');
-
-      // ---------- Row 2: Supply vs Demand (S1 vs Required) ----------
-      const sd1Lines = [
-        { label: 'S1', values: s1R1, color: RUNE1_COLOR, dashed: false },
-      ];
-      if (reqR1 && reqR1.length === data.length) {
-        sd1Lines.push({ label: 'Req', values: reqR1, color: REQUIRED_COLOR, dashed: false, lineWidth: 2 });
-      }
-      renderRunesChart('chart-rune1-sd', data, sd1Lines);
-
-      const sd2Lines = [
-        { label: 'S1', values: s1R2, color: RUNE2_COLOR, dashed: false },
-      ];
-      if (reqR2 && reqR2.length === data.length) {
-        sd2Lines.push({ label: 'Req', values: reqR2, color: REQUIRED_COLOR, dashed: false, lineWidth: 2 });
-      }
-      renderRunesChart('chart-rune2-sd', data, sd2Lines);
-
-      const sd1d = document.getElementById('chart-rune1-sd-delta');
-      const sd2d = document.getElementById('chart-rune2-sd-delta');
-      if (sd1d && reqR1) renderRunesDeltaChart(sd1d, data, reqR1.map((v, i) => v - s1R1[i]), REQUIRED_COLOR, 'Gap (Req-S1)');
-      if (sd2d && reqR2) renderRunesDeltaChart(sd2d, data, reqR2.map((v, i) => v - s1R2[i]), REQUIRED_COLOR, 'Gap (Req-S1)');
-    }
-
     // ---- Hover overlay ----
     function clearRunesOverlay(canvasId) {
       const overlay = document.getElementById(canvasId + '-overlay');
@@ -3833,37 +4519,260 @@
       host.addEventListener('mouseleave', onLeave);
     }
 
-    // Wire hover once for all 4 merged cards — geometry/data are read live from
-    // runesChartGeom / runesDeltaChartGeom on each mousemove.
-    wireRunesHover('merged-rune1', 'chart-rune1', 'chart-rune1-delta', 'tooltip-rune1');
-    wireRunesHover('merged-rune2', 'chart-rune2', 'chart-rune2-delta', 'tooltip-rune2');
-    wireRunesHover('merged-rune1-sd', 'chart-rune1-sd', 'chart-rune1-sd-delta', 'tooltip-rune1-sd');
-    wireRunesHover('merged-rune2-sd', 'chart-rune2-sd', 'chart-rune2-sd-delta', 'tooltip-rune2-sd');
-
     function fmtRune(v) {
       if (!Number.isFinite(v)) return '—';
-      return v.toFixed(1);
+      return String(Math.round(v));
     }
 
-    function renderRunesTable(data) {
+    function buildRuneUpgradePlan(data, generators, strategyId) {
+      const spent = { r1: 0, r2: 0 };
+      const generatorLevelById = new Map(generators.map(gen => [gen.id, 0]));
+      if (generators.length) generatorLevelById.set(generators[0].id, 1);
+      const questGateByGeneratorId = new Map(
+        (krakenQuestSequenceState.chapters || [])
+          .map(getGeneratorQuestGate)
+          .filter(Boolean)
+          .map(gate => [gate.unlocksGenerator, gate]),
+      );
+      const rows = [];
+
+      for (const d of data) {
+        const earned = d[strategyId] || d.s1;
+        const purchases = [];
+        const unlockedGeneratorIds = [];
+
+        for (let guard = 0; guard < 1000; guard++) {
+          for (const gen of generators) {
+            if ((generatorLevelById.get(gen.id) || 0) > 0) continue;
+            const gate = questGateByGeneratorId.get(gen.id);
+            if (!gate) continue;
+            const previousGeneratorLevel = generatorLevelById.get(gate.generatorId) || 0;
+            if (previousGeneratorLevel < gate.level) continue;
+            generatorLevelById.set(gen.id, 1);
+            unlockedGeneratorIds.push(gen.id);
+            purchases.push(
+              `${generatorDisplayName(gen.id)} unlocked (Q${gate.questId}.${gate.subQuestId} `
+              + `${gate.questValue}: ${generatorDisplayName(gate.generatorId)} reached L${gate.level})`,
+            );
+          }
+
+          const available = {
+            r1: Math.max(0, earned.r1 - spent.r1),
+            r2: Math.max(0, earned.r2 - spent.r2),
+          };
+          const candidates = [];
+
+          for (const gen of generators) {
+            const currentLevel = generatorLevelById.get(gen.id) || 0;
+            if (currentLevel <= 0) continue;
+            const levelConfig = gen.levels.find(level => level.level === currentLevel);
+            const upgrade = levelConfig?.upgrade;
+            if (!upgrade) continue;
+            const currency = upgrade.runeType === 'rune2' ? 'r2' : 'r1';
+            const cost = Number(upgrade.runeCost);
+            if (!Number.isFinite(cost) || cost < 0 || available[currency] + 1e-9 < cost) continue;
+            candidates.push({ gen, currentLevel, currency, cost });
+          }
+
+          if (!candidates.length) break;
+          candidates.sort((a, b) => a.cost - b.cost || a.gen.id - b.gen.id);
+          const chosen = candidates[0];
+          spent[chosen.currency] += chosen.cost;
+          generatorLevelById.set(chosen.gen.id, chosen.currentLevel + 1);
+          purchases.push(
+            `${generatorDisplayName(chosen.gen.id)} L${chosen.currentLevel}→L${chosen.currentLevel + 1} `
+            + `(${chosen.cost} ${chosen.currency === 'r1' ? 'R1' : 'R2'})`,
+          );
+        }
+
+        rows.push({
+          level: d.level,
+          earned: { r1: earned.r1, r2: earned.r2 },
+          available: {
+            r1: Math.max(0, earned.r1 - spent.r1),
+            r2: Math.max(0, earned.r2 - spent.r2),
+          },
+          spent: { r1: spent.r1, r2: spent.r2 },
+          generatorLevels: new Map(generatorLevelById),
+          unlockedGeneratorIds,
+          purchases,
+        });
+      }
+
+      return rows;
+    }
+
+    function renderAvailableRuneChart(canvasId, plan, currency, color) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !plan.length) return;
+
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const pad = { l: 44, r: 12, t: 12, b: 30 };
+      const x0 = pad.l;
+      const y0 = pad.t;
+      const plotW = w - pad.l - pad.r;
+      const plotH = h - pad.t - pad.b;
+      const xMin = plan[0].level;
+      const xMax = plan[plan.length - 1].level;
+      const values = plan.map(row => Math.round(row.available[currency]));
+      const maxValue = Math.max(0, ...values);
+      const yStep = Math.max(1, Math.ceil(maxValue / 4));
+      const yMax = yStep * 4;
+
+      drawAxes(ctx, x0, y0, plotW, plotH, xMin, xMax, 0, yMax, undefined, undefined, {
+        integerYLabels: true,
+      });
+      drawLine(
+        ctx,
+        plan.map((row, index) => [row.level, values[index]]),
+        x0,
+        y0,
+        plotW,
+        plotH,
+        xMin,
+        xMax,
+        0,
+        yMax,
+        color,
+        false,
+      );
+
+      const labelColor = getCssColor('--text-tertiary', '#888');
+      ctx.fillStyle = labelColor;
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('Kraken lvl', x0 + plotW / 2, h - 1);
+      ctx.save();
+      ctx.translate(10, y0 + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('Available', 0, 0);
+      ctx.restore();
+    }
+
+    function renderAvailableRunesCharts(plan) {
+      renderAvailableRuneChart('chart-runes-available-r1', plan, 'r1', RUNE1_COLOR);
+      renderAvailableRuneChart('chart-runes-available-r2', plan, 'r2', RUNE2_COLOR);
+      const strategy = RUNE_STRATEGIES[runesState.strategy] || RUNE_STRATEGIES.s1;
+      const titleR1 = document.getElementById('runes-available-title-r1');
+      const titleR2 = document.getElementById('runes-available-title-r2');
+      if (titleR1) titleR1.textContent = `Available Rune I · ${strategy.shortLabel}`;
+      if (titleR2) titleR2.textContent = `Available Rune II · ${strategy.shortLabel}`;
+    }
+
+    function renderGeneratorLevelsChart(plan, generators) {
+      const canvas = document.getElementById('chart-runes-generator-levels');
+      if (!canvas || !plan.length || !generators.length) return;
+
+      const { ctx, w, h } = setCanvasDpi(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const pad = { l: 44, r: 12, t: 12, b: 30 };
+      const x0 = pad.l;
+      const y0 = pad.t;
+      const plotW = w - pad.l - pad.r;
+      const plotH = h - pad.t - pad.b;
+      const xMin = plan[0].level;
+      const xMax = plan[plan.length - 1].level;
+      const yMax = Math.max(
+        1,
+        ...generators.map(gen => Math.max(1, ...gen.levels.map(level => level.level))),
+      );
+
+      drawAxes(ctx, x0, y0, plotW, plotH, xMin, xMax, 0, yMax);
+
+      const xFor = level => x0 + ((level - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
+      const yFor = level => y0 + plotH - (level / yMax) * plotH;
+      generators.forEach((gen, index) => {
+        ctx.save();
+        ctx.strokeStyle = CHART_COLORS[index % CHART_COLORS.length];
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        let previousLevel = plan[0].generatorLevels.get(gen.id) || 0;
+        ctx.moveTo(xFor(plan[0].level), yFor(previousLevel));
+        for (let i = 1; i < plan.length; i++) {
+          const currentLevel = plan[i].generatorLevels.get(gen.id) || 0;
+          const x = xFor(plan[i].level);
+          ctx.lineTo(x, yFor(previousLevel));
+          if (currentLevel !== previousLevel) ctx.lineTo(x, yFor(currentLevel));
+          previousLevel = currentLevel;
+        }
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      const labelColor = getCssColor('--text-tertiary', '#888');
+      ctx.fillStyle = labelColor;
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('Kraken lvl', x0 + plotW / 2, h - 1);
+      ctx.save();
+      ctx.translate(10, y0 + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('Upgrade lvl', 0, 0);
+      ctx.restore();
+
+      const strategy = RUNE_STRATEGIES[runesState.strategy] || RUNE_STRATEGIES.s1;
+      const title = document.getElementById('runes-generator-chart-title');
+      if (title) title.textContent = `Generator upgrade levels by Kraken level · ${strategy.shortLabel}`;
+      const legend = document.getElementById('runes-generator-legend');
+      if (legend) {
+        legend.innerHTML = generators.map((gen, index) =>
+          `<span><span class="swatch" style="background:${CHART_COLORS[index % CHART_COLORS.length]}"></span>${generatorDisplayName(gen.id)}</span>`,
+        ).join('');
+      }
+    }
+
+    function renderRunesTable(data, generators, existingPlan) {
       const table = document.getElementById('runes-table');
+      const plan = existingPlan || buildRuneUpgradePlan(data, generators, runesState.strategy);
+      const highlightedLevels = new Set([6, 13, 18, 25, 30, 36, 43]);
       let head = '<thead><tr>';
       head += '<th rowspan="2">Lvl</th>';
-      head += '<th colspan="2" class="group-head">Rune I</th>';
-      head += '<th colspan="2" class="group-head">Rune II</th>';
+      head += '<th colspan="2" class="group-head">Earned</th>';
+      head += '<th colspan="2" class="group-head">Available</th>';
+      head += '<th colspan="2" class="group-head">Spent</th>';
+      head += `<th colspan="${generators.length}" class="group-head">Generator level after purchases</th>`;
+      head += '<th rowspan="2">Purchases / unlocks at this level</th>';
       head += '</tr><tr>';
-      head += '<th class="group-start">S1</th><th>S2</th>';
-      head += '<th class="group-start">S1</th><th>S2</th>';
+      head += '<th class="group-start">R1</th><th>R2</th>';
+      head += '<th class="group-start">R1</th><th>R2</th>';
+      head += '<th class="group-start">R1</th><th>R2</th>';
+      for (const gen of generators) {
+        const chapter = (krakenQuestSequenceState.chapters || [])
+          .find(item => item.unlocksGenerator === gen.id);
+        const gate = getGeneratorQuestGate(chapter);
+        const gateTitle = gate
+          ? `Unlocks after Q${gate.questId}.${gate.subQuestId} ${gate.questValue}: `
+            + `${generatorDisplayName(gate.generatorId)} reaches L${gate.level}`
+          : 'Available from the start';
+        head += `<th class="group-start" title="${escapeAttr(gateTitle)}">${generatorDisplayName(gen.id)}</th>`;
+      }
       head += '</tr></thead>';
 
       let body = '<tbody>';
-      for (const d of data) {
-        body += '<tr>';
-        body += `<td class="lvl-cell">L${d.level}</td>`;
-        body += `<td class="num group-start">${fmtRune(d.s1.r1)}</td>`;
-        body += `<td class="num">${fmtRune(d.s2.r1)}</td>`;
-        body += `<td class="num group-start">${fmtRune(d.s1.r2)}</td>`;
-        body += `<td class="num">${fmtRune(d.s2.r2)}</td>`;
+      for (const row of plan) {
+        const rowClasses = [];
+        const hasOriginalHighlight = highlightedLevels.has(row.level);
+        if (hasOriginalHighlight) rowClasses.push('runes-unlock-row');
+        if (!hasOriginalHighlight && row.unlockedGeneratorIds.length) rowClasses.push('runes-generator-unlock-row');
+        body += `<tr${rowClasses.length ? ` class="${rowClasses.join(' ')}"` : ''}>`;
+        body += `<td class="lvl-cell">L${row.level}</td>`;
+        body += `<td class="num group-start">${fmtRune(row.earned.r1)}</td>`;
+        body += `<td class="num">${fmtRune(row.earned.r2)}</td>`;
+        body += `<td class="num group-start">${fmtRune(row.available.r1)}</td>`;
+        body += `<td class="num">${fmtRune(row.available.r2)}</td>`;
+        body += `<td class="num group-start">${fmtRune(row.spent.r1)}</td>`;
+        body += `<td class="num">${fmtRune(row.spent.r2)}</td>`;
+        for (const gen of generators) {
+          const genLevel = row.generatorLevels.get(gen.id) || 0;
+          const label = genLevel > 0 ? `L${genLevel}` : '<span class="dim">—</span>';
+          body += `<td class="runes-gen-level group-start">${label}</td>`;
+        }
+        const purchaseText = row.purchases.length ? row.purchases.join('; ') : '—';
+        body += `<td class="runes-purchases${row.purchases.length ? '' : ' dim'}">${escapeAttr(purchaseText)}</td>`;
         body += '</tr>';
       }
       body += '</tbody>';
@@ -3874,6 +4783,7 @@
     const runesState = {
       seed: 0xC0FFEE,
       trials: 2000,
+      strategy: 's1',
       data: null, // cached MC result
       lastKey: null, // signature of last compute (to skip recompute)
     };
@@ -3884,11 +4794,12 @@
     }
 
     function computeRunes() {
-      const key = `${runesState.trials}|${runesState.seed}`;
+      const progressionSignature = JSON.stringify(krakenProgProductionData.progression || []);
+      const key = `${runesState.trials}|${runesState.seed}|${progressionSignature}`;
       if (runesState.data && runesState.lastKey === key) return runesState.data;
       setStatus('computing…');
       const t0 = performance.now();
-      runesState.data = runMonteCarlo(runesState.trials, runesState.seed);
+      runesState.data = runMonteCarlo(runesState.trials, runesState.seed, krakenProgProductionData);
       runesState.lastKey = key;
       const dt = (performance.now() - t0).toFixed(0);
       setStatus(`K=${runesState.trials}, ${dt}ms`);
@@ -3898,9 +4809,11 @@
     function renderRunes() {
       const data = computeRunes();
       const result = computeGenerators(params);
-      const required = computeRequiredCurves(data, result.generators);
-      renderRunesCharts(data, required);
-      renderRunesTable(data);
+      const plan = buildRuneUpgradePlan(data, result.generators, runesState.strategy);
+      updateRunesStrategyUi();
+      renderAvailableRunesCharts(plan);
+      renderGeneratorLevelsChart(plan, result.generators);
+      renderRunesTable(data, result.generators, plan);
     }
 
     function invalidateRunes() {
@@ -3911,6 +4824,24 @@
     function updateSeedLabel() {
       const el = document.getElementById('runes-seed-label');
       if (el) el.textContent = '0x' + (runesState.seed >>> 0).toString(16).toUpperCase();
+      const summary = document.getElementById('runes-sim-summary');
+      if (summary) {
+        summary.textContent = `Simulation accuracy · ${runesState.trials.toLocaleString()} trials · seed 0x${(runesState.seed >>> 0).toString(16).toUpperCase()}`;
+      }
+    }
+
+    function updateRunesStrategyUi() {
+      const strategy = RUNE_STRATEGIES[runesState.strategy] || RUNE_STRATEGIES.s1;
+      document.querySelectorAll('[data-runes-strategy]').forEach(button => {
+        const selected = button.dataset.runesStrategy === runesState.strategy;
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        button.classList.toggle('is-active', selected);
+      });
+      const description = document.getElementById('runes-strategy-description');
+      if (description) {
+        description.innerHTML = `<strong>${strategy.label}:</strong> ${strategy.description} `
+          + '<span class="runes-source">The plan repeatedly buys the cheapest affordable upgrade using current Generator Upgrades prices. New generators unlock through the highlighted GetSpawner quest gates; spawn/time gates are ignored.</span>';
+      }
     }
 
     // Wire up controls
@@ -3918,15 +4849,17 @@
       const trialsRange = document.getElementById('runes-trials');
       const trialsNum = document.getElementById('runes-trials-num');
       const reroll = document.getElementById('btn-runes-reroll');
+      const strategyButtons = document.querySelectorAll('[data-runes-strategy]');
 
       const onChange = (v) => {
         const n = Math.max(100, Math.min(10000, Math.round(v / 100) * 100));
         runesState.trials = n;
         trialsRange.value = n;
         trialsNum.value = n;
+        updateSeedLabel();
         invalidateRunes();
         // Only re-render if runes panel is active
-        const active = document.querySelector('.cm-tab[aria-selected="true"]');
+        const active = document.querySelector('.sub-tab[aria-selected="true"]');
         if (active && active.dataset.tab === 'runes') renderRunes();
       };
       trialsRange.addEventListener('change', () => onChange(parseFloat(trialsRange.value)));
@@ -3939,7 +4872,17 @@
         renderRunes();
       });
 
+      strategyButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const strategyId = button.dataset.runesStrategy;
+          if (!RUNE_STRATEGIES[strategyId] || strategyId === runesState.strategy) return;
+          runesState.strategy = strategyId;
+          renderRunes();
+        });
+      });
+
       updateSeedLabel();
+      updateRunesStrategyUi();
     })();
 
     // ============================================================
@@ -3949,7 +4892,7 @@
     render();
     // Re-render charts on resize
     window.addEventListener('resize', () => {
-      const active = document.querySelector('.cm-tab[aria-selected="true"]');
+      const active = document.querySelector('.sub-tab[aria-selected="true"]');
       if (!active) return;
       if (active.dataset.tab === 'charts') {
         const result = computeGenerators(params);
@@ -3958,8 +4901,9 @@
         renderKrakenLvlCharts();
       } else if (active.dataset.tab === 'runes' && runesState.data) {
         const result = computeGenerators(params);
-        const required = computeRequiredCurves(runesState.data, result.generators);
-        renderRunesCharts(runesState.data, required);
+        const plan = buildRuneUpgradePlan(runesState.data, result.generators, runesState.strategy);
+        renderAvailableRunesCharts(plan);
+        renderGeneratorLevelsChart(plan, result.generators);
       }
     });
   </script>

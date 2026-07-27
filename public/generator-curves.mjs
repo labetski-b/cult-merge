@@ -31,22 +31,19 @@
 /**
  * @typedef {Object} GeneratorParams
  * @property {number} upgradeLevels
+ * @property {number} targetChargesPerUpgrade
+ * @property {number} firstUpgradeSpawnsRequired
+ * @property {number} secondUpgradeSpawnsRequired
  * @property {number} gens
  * @property {number} chainCreatureLvlCap
  * @property {number} secondaryActivatesAtL
  * @property {number} primaryShare
  * @property {number} advanceRate
  * @property {number} decayFloor
- * @property {number[]} chargeCostMultiplierByGen
- * @property {number} chargeCostMaxLevelDiscount
- * @property {Record<string, number>} chargeCostOverrideByGenLevel
- * @property {Record<string, number>} chargeCostChapterOverrideByGenLevel
- * @property {Record<string, number>} upgradeRuneCostOverrideByGenLevel
+ * @property {Record<string, number>} chargeCostByGenLevel
+ * @property {Record<string, number>} upgradeRuneCostByGenLevel
  * @property {Record<string, number>} upgradeSpawnsRequiredOverrideByGenLevel
  * @property {Record<string, number>} upgradeDurationSecOverrideByGenLevel
- * @property {number} baseUpgradeCost
- * @property {number} levelGrowth
- * @property {number[]} genMultipliers
  * @property {number[]} genPurchaseCost
  * @property {number} tickIntervalSecFP
  * @property {number[]} runeRedemption
@@ -54,13 +51,10 @@
  * @property {number} targetCreaturesPerSession
  * @property {number[]} chargesPerSacByL
  * @property {number[]} spawnsByL
- * @property {number[]} mergesRequiredByL
  * @property {number[]} upgradeDurationSecByL
  * @property {MSacPoint[]} mSacCurve
  * @property {RuneSupplyTier[]} krakenRuneSupply
  * @property {number[]} genKrakenRequired
- * @property {{level: number, chapter: number}[]} chargeCostChapterAnchors
- * @property {{chapter: number, meat: number}[]} chargeCostMeatByChapter
  * @property {number[]} gen1MSac
  * @property {('rune1' | 'rune2')[]} genUpgradeRune
  */
@@ -68,6 +62,9 @@
 /** @type {GeneratorParams} */
 export const DEFAULTS = {
   upgradeLevels: 10,
+  targetChargesPerUpgrade: 3,
+  firstUpgradeSpawnsRequired: 40,
+  secondUpgradeSpawnsRequired: 45,
   gens: 8,
   chainCreatureLvlCap: 12,
   secondaryActivatesAtL: 3,
@@ -80,15 +77,8 @@ export const DEFAULTS = {
   // remaining mass is redistributed proportionally to non-floored levels.
   decayFloor: 0.125,
 
-  // Charge cost (in meat) by approximate progression chapter.
-  // Experimental meat rebalance:
-  // - all sacrifice charge costs are integers, min 1;
-  // - L1 costs start near meat generation around the generator unlock chapter;
-  // - newer generators are materially more expensive to charge than older active ones;
-  // - higher levels get an old-generator discount while still following chapter meat.
-  chargeCostMultiplierByGen: [1.0, 1.0, 1.0, 1.05, 1.08, 1.1, 1.12, 1.15],
-  chargeCostMaxLevelDiscount: 0.6,
-  chargeCostOverrideByGenLevel: {
+  // Primary recharge prices from the live balance, keyed by generator and level.
+  chargeCostByGenLevel: {
     '1:1': 1,
     '1:2': 1,
     '1:3': 1,
@@ -160,8 +150,8 @@ export const DEFAULTS = {
     '8:9': 25,
     '8:10': 26,
   },
-  chargeCostChapterOverrideByGenLevel: {},
-  upgradeRuneCostOverrideByGenLevel: {
+  // Primary rune prices from the live balance, keyed by generator and source level.
+  upgradeRuneCostByGenLevel: {
     '1:1': 5,
     '1:2': 7,
     '1:3': 10,
@@ -169,8 +159,8 @@ export const DEFAULTS = {
     '1:5': 20,
     '1:6': 25,
     '1:7': 35,
-    '1:8': 60,
-    '1:9': 90,
+    '1:8': 75,
+    '1:9': 110,
     '2:1': 5,
     '2:2': 7,
     '2:3': 12,
@@ -178,8 +168,8 @@ export const DEFAULTS = {
     '2:5': 20,
     '2:6': 32,
     '2:7': 51,
-    '2:8': 81,
-    '2:9': 129,
+    '2:8': 100,
+    '2:9': 145,
     '3:1': 6,
     '3:2': 8,
     '3:3': 12,
@@ -198,6 +188,33 @@ export const DEFAULTS = {
     '4:7': 84,
     '4:8': 135,
     '4:9': 215,
+    '5:1': 6,
+    '5:2': 10,
+    '5:3': 16,
+    '5:4': 25,
+    '5:5': 40,
+    '5:6': 63,
+    '5:7': 101,
+    '5:8': 162,
+    '5:9': 258,
+    '6:1': 8,
+    '6:2': 13,
+    '6:3': 21,
+    '6:4': 33,
+    '6:5': 53,
+    '6:6': 84,
+    '6:7': 135,
+    '6:8': 215,
+    '6:9': 344,
+    '7:1': 10,
+    '7:2': 16,
+    '7:3': 26,
+    '7:4': 41,
+    '7:5': 66,
+    '7:6': 105,
+    '7:7': 168,
+    '7:8': 269,
+    '7:9': 430,
     '8:1': 20,
     '8:2': 31,
     '8:3': 50,
@@ -220,9 +237,6 @@ export const DEFAULTS = {
     '3:9': 32,
   },
 
-  baseUpgradeCost: 4,
-  levelGrowth: 1.6,
-  genMultipliers: [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0],
   genPurchaseCost: [10, 15, 20, 25, 30, 40, 50, 60],
 
   tickIntervalSecFP: 1800,
@@ -237,9 +251,6 @@ export const DEFAULTS = {
 
   // spawns по уровням прокачки (одинаково для всех генераторов).
   spawnsByL: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33],
-
-  // Требование spawn'ов для апгрейда L → L+1 (индекс = L-1).
-  mergesRequiredByL: [40, 45, 95, 100, 120, 120, 120, 120, 120, 0],
 
   // Длительность апгрейда L → L+1 в секундах (индекс = L-1).
   upgradeDurationSecByL: [120, 120, 7200, 7200, 14400, 14400, 28800, 28800, 43200, 0],
@@ -275,37 +286,6 @@ export const DEFAULTS = {
 
   // krakenRequired по генераторам (порядок = Gen1..Gen8)
   genKrakenRequired: [1, 7, 10, 13, 18, 23, 28, 33],
-
-  chargeCostChapterAnchors: [
-    { level: 1, chapter: 2 },
-    { level: 8, chapter: 5 },
-    { level: 15, chapter: 8 },
-    { level: 20, chapter: 10 },
-    { level: 26, chapter: 12 },
-    { level: 33, chapter: 14 },
-    { level: 40, chapter: 16 },
-    { level: 45, chapter: 17 },
-    { level: 49, chapter: 17 },
-  ],
-
-  chargeCostMeatByChapter: [
-    { chapter: 2, meat: 1.5 },
-    { chapter: 3, meat: 3.5 },
-    { chapter: 4, meat: 5.5 },
-    { chapter: 5, meat: 7.5 },
-    { chapter: 6, meat: 9 },
-    { chapter: 7, meat: 10 },
-    { chapter: 8, meat: 11.5 },
-    { chapter: 9, meat: 13.5 },
-    { chapter: 10, meat: 15.5 },
-    { chapter: 11, meat: 17.5 },
-    { chapter: 12, meat: 19.5 },
-    { chapter: 13, meat: 21.5 },
-    { chapter: 14, meat: 23.5 },
-    { chapter: 15, meat: 25.5 },
-    { chapter: 16, meat: 26.5 },
-    { chapter: 17, meat: 27.5 },
-  ],
 
   // Gen1 m/sac кривая (спец §7)
   gen1MSac: [1, 1.5, 2, 3, 4, 6, 8, 11, 15, 20],
@@ -347,65 +327,6 @@ export function interpolate(curvePoints, x) {
     }
   }
   return curvePoints[curvePoints.length - 1].mSac;
-}
-
-/**
- * Approximate chapter by Kraken level using generator charge-cost pacing anchors.
- *
- * @param {GeneratorParams} P
- * @param {number} level
- * @returns {number}
- */
-export function approxChargeChapterForKrakenLevel(P, level) {
-  const anchors = P.chargeCostChapterAnchors;
-  if (!anchors || anchors.length === 0) return 2;
-  if (level <= anchors[0].level) return anchors[0].chapter;
-  for (let i = 0; i < anchors.length - 1; i++) {
-    const a = anchors[i];
-    const b = anchors[i + 1];
-    if (level >= a.level && level <= b.level) {
-      const t = (level - a.level) / Math.max(1, b.level - a.level);
-      return Math.round(a.chapter + t * (b.chapter - a.chapter));
-    }
-  }
-  return anchors[anchors.length - 1].chapter;
-}
-
-/**
- * Approximate chapter where a generator level is expected to be reachable.
- * The experimental model assumes about one generator upgrade level per chapter.
- *
- * @param {GeneratorParams} P
- * @param {number} genIdx - 0-based generator index.
- * @param {number} generatorLevel
- * @returns {number}
- */
-export function chargeChapterForGeneratorLevel(P, genIdx, generatorLevel) {
-  const key = `${genIdx + 1}:${generatorLevel}`;
-  const override = P.chargeCostChapterOverrideByGenLevel?.[key];
-  if (Number.isFinite(override)) return Math.max(1, Math.round(override));
-
-  const krakenReq = P.genKrakenRequired[genIdx] ?? 1;
-  const unlockChapter = approxChargeChapterForKrakenLevel(P, krakenReq);
-  const maxChapter = P.chargeCostMeatByChapter[P.chargeCostMeatByChapter.length - 1]?.chapter ?? 17;
-  return Math.min(maxChapter, unlockChapter + Math.max(0, generatorLevel - 1));
-}
-
-/**
- * Average meat gained by one get-meat action in a chapter.
- *
- * @param {GeneratorParams} P
- * @param {number} chapter
- * @returns {number}
- */
-export function meatForChargeChapter(P, chapter) {
-  if (!P.chargeCostMeatByChapter || P.chargeCostMeatByChapter.length === 0) return 1;
-  let current = P.chargeCostMeatByChapter[0];
-  for (const row of P.chargeCostMeatByChapter) {
-    if (row.chapter <= chapter) current = row;
-    else break;
-  }
-  return current.meat;
 }
 
 // ============================================================================
@@ -611,6 +532,29 @@ function buildOutputs(primaryDist, secondaryDist, primaryName, secondaryName, pr
   });
 }
 
+function extrapolateLevelValue(values, index, fallback = 1) {
+  if (Number.isFinite(values[index])) return values[index];
+
+  let lastIndex = values.length - 1;
+  while (lastIndex >= 0 && !Number.isFinite(values[lastIndex])) lastIndex--;
+  if (lastIndex < 0) return fallback;
+
+  let previousIndex = lastIndex - 1;
+  while (previousIndex >= 0 && !Number.isFinite(values[previousIndex])) previousIndex--;
+  const step = previousIndex >= 0 ? values[lastIndex] - values[previousIndex] : 0;
+  return values[lastIndex] + step * (index - lastIndex);
+}
+
+function extendUpgradeRequirement(values, index, fallback = 0) {
+  const current = values[index];
+  if (Number.isFinite(current) && current > 0) return current;
+
+  for (let i = Math.min(index - 1, values.length - 1); i >= 0; i--) {
+    if (Number.isFinite(values[i]) && values[i] > 0) return values[i];
+  }
+  return fallback;
+}
+
 function generateGen(genIdx, P) {
   const N = genIdx + 1;
   const genId = N;
@@ -621,12 +565,12 @@ function generateGen(genIdx, P) {
   const primaryName = `Creature${2 * N - 1}`;
   const secondaryName = `Creature${2 * N}`;
 
-  const spawnsRow = P.spawnsByL.slice();
-
   /** @type {GenLevel[]} */
   const levels = [];
   const perLevelCreaturesPerSession = [];
   let sumUpgradeUnits = 0;
+  let previousRuneCost = 0;
+  let previousSpawnsRequired = 0;
 
   // Binomial chain-advance: each lineage's distribution is determined by its
   // "age" (number of upgrades since the lineage started).
@@ -640,17 +584,13 @@ function generateGen(genIdx, P) {
   const kCap = P.chainCreatureLvlCap;
   const floor = P.decayFloor;
 
-  // First pass: compute outputs and totalEff per level. Then derive integer
-  // chargeCost from the chapter where this generator level is expected to be
-  // reachable:
-  //   chargeCost(L) = floor(meatForChapter × genMultiplier × levelDiscount).
-  // The level discount makes older/upgraded generators cheaper than newly
-  // unlocked ones in the same progression moment.
+  // First pass: compute outputs and totalEff per level. Recharge prices are
+  // independent primary balance values read from chargeCostByGenLevel below.
   /** @type {{outputs: Output[], spawns: number, totalEff: number}[]} */
   const perLevel = [];
   for (let L = 1; L <= P.upgradeLevels; L++) {
     const idx = L - 1;
-    const spawns = spawnsRow[idx];
+    const spawns = Math.max(1, Math.round(extrapolateLevelValue(P.spawnsByL, idx, 1)));
 
     const primaryAge = L;
     const secondaryAge = L >= P.secondaryActivatesAtL ? L - P.secondaryActivatesAtL + 1 : 0;
@@ -677,25 +617,16 @@ function generateGen(genIdx, P) {
     perLevel.push({ outputs, spawns, totalEff });
   }
 
-  const genChargeMultiplier = P.chargeCostMultiplierByGen[genIdx] ?? 1;
-  const maxLevelDiscount = Number.isFinite(P.chargeCostMaxLevelDiscount)
-    ? P.chargeCostMaxLevelDiscount
-    : 0.6;
   let previousChargeCost = 0;
 
   for (let L = 1; L <= P.upgradeLevels; L++) {
     const idx = L - 1;
     const { outputs, spawns } = perLevel[idx];
-    const chapter = chargeChapterForGeneratorLevel(P, genIdx, L);
-    const chapterMeat = meatForChargeChapter(P, chapter);
-    const t = idx / Math.max(1, P.upgradeLevels - 1);
-    const levelDiscount = 1 - (1 - maxLevelDiscount) * t;
-    const rawChargeCost = chapterMeat * genChargeMultiplier * levelDiscount;
-    const overrideKey = `${genId}:${L}`;
-    const manualChargeCost = P.chargeCostOverrideByGenLevel?.[overrideKey];
-    const chargeCostRounded = Number.isFinite(manualChargeCost)
-      ? Math.max(1, Math.round(manualChargeCost))
-      : Math.max(previousChargeCost, Math.max(1, Math.floor(rawChargeCost)));
+    const chargeCostKey = `${genId}:${L}`;
+    const configuredChargeCost = P.chargeCostByGenLevel?.[chargeCostKey];
+    const chargeCostRounded = Number.isFinite(configuredChargeCost)
+      ? Math.max(1, Math.round(configuredChargeCost))
+      : Math.max(1, previousChargeCost);
     previousChargeCost = chargeCostRounded;
     perLevelCreaturesPerSession.push(spawns);
 
@@ -708,30 +639,34 @@ function generateGen(genIdx, P) {
     };
 
     if (L < P.upgradeLevels) {
-      const baseCost = P.baseUpgradeCost * Math.pow(P.levelGrowth, L - 1);
-      const unitsCost = Math.ceil(baseCost * P.genMultipliers[genIdx]);
-      const formulaSpawnsRequired = P.mergesRequiredByL[L - 1];
-      const formulaRuneCost = Math.ceil(unitsCost / 2);
-
       const upOverrideKey = `${genId}:${L}`;
       const spawnsOverride = P.upgradeSpawnsRequiredOverrideByGenLevel?.[upOverrideKey];
-      const runeOverride = P.upgradeRuneCostOverrideByGenLevel?.[upOverrideKey];
+      const configuredRuneCost = P.upgradeRuneCostByGenLevel?.[upOverrideKey];
       const durationOverride = P.upgradeDurationSecOverrideByGenLevel?.[upOverrideKey];
-      const spawnsRequired = Number.isFinite(spawnsOverride)
+      const targetSpawnsRequired = isFlowerPot
+        ? previousSpawnsRequired
+        : L === 1
+          ? P.firstUpgradeSpawnsRequired
+          : L === 2
+            ? P.secondUpgradeSpawnsRequired
+            : Math.max(0, Math.round(spawns * P.targetChargesPerUpgrade));
+      const spawnsRequired = isFlowerPot && Number.isFinite(spawnsOverride)
         ? Math.max(0, Math.round(spawnsOverride))
-        : formulaSpawnsRequired;
-      const runeCost = Number.isFinite(runeOverride)
-        ? Math.max(0, Math.round(runeOverride))
-        : formulaRuneCost;
+        : targetSpawnsRequired;
+      previousSpawnsRequired = spawnsRequired;
+      const runeCost = Number.isFinite(configuredRuneCost)
+        ? Math.max(0, Math.round(configuredRuneCost))
+        : previousRuneCost;
+      previousRuneCost = runeCost;
 
-      sumUpgradeUnits += unitsCost;
+      sumUpgradeUnits += runeCost * 2;
       lvl.upgrade = {
         spawnsRequired,
         runeType: P.genUpgradeRune[genIdx],
         runeCost,
         upgradeDurationSec: Number.isFinite(durationOverride)
           ? Math.max(0, Math.round(durationOverride))
-          : P.upgradeDurationSecByL[L - 1],
+          : extendUpgradeRequirement(P.upgradeDurationSecByL, L - 1),
       };
     }
 
